@@ -1,0 +1,9 @@
+{
+ "Send (續寫)": "Envoyer (suite)",
+ "例：mqttgo.io": "ex. : mqttgo.io",
+ "台灣（HiNet 61.70.174.84）—— 模組實測 ping 190-210 ms 最快、爆量 100/100 無限流；1883 明文／8883 TLS": "Taïwan (HiNet 61.70.174.84) — le plus rapide selon nos mesures : ping de 190-210 ms depuis le module, 100/100 au test de rafale, sans bridage ; 1883 en clair / 8883 TLS",
+ "HiveMQ 公開 broker —— 爆量 100/100 無限流；⚠ 擋 ICMP（QPING 會回 559），但 TCP 連得上": "Broker public HiveMQ — 100/100 au test de rafale, sans bridage ; ⚠ bloque l'ICMP (QPING répond 559) mais le TCP passe sans problème",
+ "Eclipse Mosquitto —— 爆量 100/100；模組 ping 385-400 ms；官網自稱勿用於重要用途，主題污染最嚴重": "Eclipse Mosquitto — 100/100 au test de rafale ; ping de 385-400 ms depuis le module ; le site lui-même déconseille tout usage important, et la pollution des sujets y est la pire",
+ "EMQX 公開 broker —— ⚠ 有發布速率限制（爆量 100 則只到 40）；擋 ICMP；有網頁 Dashboard 可看 broker 狀態": "Broker public EMQX — ⚠ limitation du débit de publication (sur 100 messages en rafale, 40 seulement sont passés) ; bloque l'ICMP ; dispose d'un tableau de bord web pour l'état du broker",
+ "、": ", "
+}

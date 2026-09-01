@@ -1,0 +1,152 @@
+<h3 id="tab-gnss">GNSS —— 衛星測位</h3>
+            <p><strong>動作原理：</strong>GNSS は<strong>モバイル網から独立した</strong>機能です ——
+            SIM がネットにつながっている必要も PDP も無く、通信量も消費しません（AGNSS を除く、後述）。
+            有効にするとモジュールが自分で衛星信号を受信し、<code>AT+QGPSLOC</code> をポーリングして測位結果を取得します。
+            本節の秒数と挙動はすべて 2026 年 8 月に実機 EG800K で実測した値です。</p>
+
+            <h4>始める前に：すべてはアンテナで決まる</h4>
+            <p>測位失敗の最大の原因はコマンドの誤りではなく、<strong>アンテナが信号を受信できていない</strong>ことです。
+            実測での比較：屋内・アンテナが貧弱な状態では、モジュールは 38 個の衛星の位置を列挙できるのに<strong>1 個も聞こえません</strong>
+            （SNR がすべて 00）。<strong>アクティブ型（active）GNSS アンテナ</strong>に替えて窓際に置いたところ、
+            コールドスタートから 95 秒以内に測位に成功しました。</p>
+            <div class="warning">
+                <strong>屋内では GNSS のテストはできず、いくら待っても無駄です。</strong>空が見えない場所では
+                <code>$GNGGA</code> が「使用衛星 00 個、測位品質 0」を返し、
+                <code>AT+QGPSLOC</code> は永遠にエラー 516 を返します。
+                アンテナを窓際か屋外に移してから始めてください —— これは忍耐の問題ではなく、物理の問題です。
+            </div>
+
+            <h4>初回測位：5 つのステップ</h4>
+            <ol>
+                <li><strong>起動シーケンスを実行する</strong>（「起動シーケンス」の節を参照）。
+                    ⚠ ページを再読み込みするたびに電源断と同じ状態になり、GNSS の有効化状態も受信途中のエフェメリスもすべてゼロに戻るため、
+                    このステップからやり直しです。</li>
+                <li><strong>URC が UART に向いていることを確認する</strong>：<code>AT+QURCCFG="urcport"</code> が
+                    <code>"uart1"</code> を返すこと。出荷時の値は <code>"usbat"</code> で、変えないと多くの結果メッセージが
+                    USB ポートへ送られ、ここでは何も見えません（設定は NVRAM に書かれるので、変更は 1 回だけで済みます）。</li>
+                <li><strong>GNSS を有効化する</strong>：<code>AT+QGPS=1</code> を押します。
+                    数秒以内に <code>+QGPS: "firmware",0,0</code>（GNSS ファームウェアのロード成功）が見えます。
+                    すでに有効な状態でもう一度押すと <code>+CME ERROR: 504</code> が返りますが、無害です。</li>
+                <li><strong>受信状況を見る</strong>：<code>AT+QGPSGNMEA="GSV"</code> で可視衛星を読み出します。
+                    ターミナル領域が自動的に<strong>衛星状態</strong>タブを開き、信号の棒グラフと天空図を描画します ——
+                    読み方は次の段を参照。</li>
+                <li><strong>測位をポーリングする</strong>：5–10 秒ごとに <code>AT+QGPSLOC=2</code> を押します。
+                    <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code>（エラー 516）が返るのは「まだ測位できていない」という意味で、
+                    <strong>そのまま待てば良い</strong>のです。成功すると座標が返り、
+                    ターミナル領域が自動的に<strong>地図</strong>タブを開いて位置を描き込みます。</li>
+            </ol>
+            <figure class="shot narrow">
+                <img src="img/07-gnss.png" alt="GNSS タブ">
+                <figcaption>GNSS タブ：オン／オフ、NMEA 読み出し、測位照会、AGNSS 高速化。</figcaption>
+            </figure>
+
+            <h4>衛星状態タブの読み方：「見える」は「聞こえる」を意味しない</h4>
+            <p>GSV では衛星 1 個につき 4 つの数字が出ます：番号、仰角、方位角、<strong>SNR（信号対雑音比、dB-Hz）</strong>。
+            前の 3 つは「空のどこにいるはずか」を示すだけで、<strong>本当に信号を受信できている証拠は SNR だけ</strong>です。</p>
+            <table>
+                <tr><th>SNR</th><th>意味</th></tr>
+                <tr><td>（空欄）または 00</td><td>まったく受信できていない —— 位置が分かるだけで、聞こえてはいない</td></tr>
+                <tr><td>14–28</td><td>境界線：エフェメリスの復調でエラーとやり直しが頻発し、測位は遅く不安定</td></tr>
+                <tr><td>30 以上</td><td>安定して復調できる水準。<strong>多くの衛星がここに達すれば測位は速い</strong></td></tr>
+                <tr><td>40 以上</td><td>開けた空＋良いアンテナの水準</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/20-sat-view.png" alt="衛星状態タブ：SNR の棒グラフと天空図">
+                <figcaption>測位成功時の衛星状態タブ：31/41 個に信号あり。4 つのコンステレーション（GPS／QZSS／GLONASS／BDS）
+                の SNR 棒グラフと天空図。棒の多くが 20 を超え、一部は 40 に達している —— これが「聞こえている」状態です。</figcaption>
+            </figure>
+
+            <h4>なぜ待つのか：コールドスタートの物理的制約と実測時間</h4>
+            <p>測位には各衛星の精密な軌道情報（エフェメリス）が必要で、エフェメリスは衛星が
+            <strong>50 bps</strong> で放送する信号の中に埋め込まれています —— 1 個につき約 18–30 秒間連続で正しく復調する必要があり、
+            1 ビットでも誤ればやり直し、しかも最低 4 個そろえなければなりません。これが「コールドスタート」の遅さの理由です。
+            本機での実測（同一地点、アクティブ型アンテナ、測定分解能 ±5 秒）：</p>
+            <table>
+                <tr><th>条件</th><th>初回測位時間（実測）</th></tr>
+                <tr><td>コールドスタート（支援なし）</td><td><strong>95 秒</strong></td></tr>
+                <tr><td>コールドスタート＋AGNSS</td><td><strong>52 秒</strong>（別途、約 20 秒で粗い位置が先に 1 件返る）</td></tr>
+                <tr><td>AGNSS＋直近のエフェメリスが残存（日常の繰り返し使用）</td><td><strong>25 秒</strong></td></tr>
+            </table>
+            <div class="tip">
+                <strong>テスト中はページを再読み込みしないでください。</strong>本ツールのハードウェア設計では RTS ＝ 電源なので、
+                ページのリロード ＝ 電源断 ＝ エフェメリス全損となり、すべてコールドスタートからやり直しです。
+                一時停止したいときは <code>AT+QGPSEND</code> を押し、電源は切らないでください。
+            </div>
+
+            <h4>AGNSS 高速化：完全な手順</h4>
+            <p><strong>原理：</strong>AGNSS はエフェメリスの入手をネットワークからのダウンロード（毎回約 32–34 KB）に置き換え、
+            50 bps の低速復調を省略します。<strong>衛星信号を無から生み出すことはできません</strong> ——
+            屋内では相変わらず測位できず、節約できるのは「エフェメリスを待つ」時間だけです。</p>
+            <p>見落としやすい前提が 2 つあり、どちらか 1 つでも欠けると AGNSS は<strong>エラーも出さずに黙って一切動作しません</strong>：</p>
+            <table>
+                <tr><th>前提</th><th>コマンド</th><th>落とし穴</th></tr>
+                <tr><td>AGNSS が有効</td><td><code>AT+QAGPS=1</code></td>
+                    <td>⚠ <strong>再起動して初めて有効になります</strong>（NVRAM に書かれるので設定は 1 回だけ）</td></tr>
+                <tr><td>PDP がアクティブ</td><td><code>AT+QIACT=1</code></td>
+                    <td>⚠ 起動のたびに打ち直しが必要です。<strong><code>AT+CGATT?</code> が 1 を返しても当てになりません</strong> ——
+                        アタッチはネットワーク層の登録にすぎず、<code>AT+QIACT?</code> が
+                        <code>+QIACT: 1,1,…,"IP"</code> を返して初めてデータチャネルが存在します</td></tr>
+            </table>
+            <p>完全な順序（起動のたびに）：</p>
+            <pre>AT+QIACT=1          ← データチャネルを開く（最長 150 秒待つ。通信量が発生）
+AT+QIACT?           ← +QIACT: 1,1,…,"IP" が見えること
+AT+QGPS=1           ← GNSS を有効化。AGNSS はこのとき支援データを自動ダウンロード
+AT+QGPSLOC=2        ← 5–10 秒ごとにポーリング</pre>
+            <p><strong>AGNSS が本当に動いているかをどう確認するか。</strong>本機のファームウェアは
+            <code>+QGPS: "agps"</code> のような通知を<strong>出しません</strong>（実測で確認済み）。状況証拠を見るしかなく、次の 3 つのどれか 1 つで十分です：</p>
+            <ol>
+                <li><code>AT+QGDCNT?</code> を <code>AT+QGPS=1</code> の前後で 2 回照会し、
+                    受信方向が約 30 KB 増えている ＝ 支援データがダウンロードされた証拠</li>
+                <li>GSV が数秒のうちに<strong>大量の衛星の位置</strong>を列挙する（SNR はまだ 00 かもしれません）——
+                    位置はダウンロードされたもので、自力の復調でこの速さはあり得ません</li>
+                <li><code>$GNGGA</code> の時刻フィールドに値が入っている（時刻も支援データの一部です）</li>
+            </ol>
+            <div class="warning">
+                <strong>偽測位の罠：衛星 0 個の座標は測位ではありません。</strong>
+                AGNSS 起動から約 20 秒後、<code>AT+QGPSLOC</code> が座標を 1 件返すことがありますが、
+                よく見ると <code>HDOP 0.00 / alt 0.0 / nsat 00</code> ——
+                それは支援データに含まれる<strong>参照位置の注入</strong>であって測定結果ではなく、誤差が非常に大きい可能性があります。
+                <br><br>
+                <strong>本物の測位の判定基準：使用衛星数 &gt; 0、測位モード ≥ 2、HDOP &gt; 0。</strong>
+                自動化や製品ロジックを書くときは、「座標が返ってきたか」だけを見てはいけません。
+            </div>
+
+            <h4>apflash：電源断からの再起動でも速くなる（条件付き）</h4>
+            <p><code>AT+QGPSCFG="apflash"</code> は出荷時から 1 です：測位に成功するたびにエフェメリスを
+            flash に保存し、次回起動時に自動で取り込みます —— 1 時間以内の電源断・再起動ならコールドスタートが高速なホットスタートに変わり、
+            <strong>通信量ゼロ</strong>です。制限は 2 つ：エフェメリスは約 1 時間で期限切れになること。
+            そして<strong>先に 1 回は測位に成功していること</strong> —— そうでなければ flash に取り込める中身が無く、
+            一度も測位に成功したことのないモジュールには apflash は役立ちません。</p>
+
+            <h4>測位成功の後：地図タブ</h4>
+            <p><code>AT+QGPSLOC</code> が成功するたびに、位置が地図タブへ描き込まれます：
+            青いマーカーが最新位置、シアンの線が移動の軌跡で、各軌跡点にマウスを載せると現地時間と高度が表示されます。
+            サマリーバーには座標／高度／HDOP／衛星数が表示され、時刻は経度から現地タイムゾーンへ自動換算されます。</p>
+            <figure class="shot">
+                <img src="img/21-map-track.png" alt="地図タブ：測位の軌跡">
+                <figcaption>測位成功後の地図タブ：マーカー ＝ 最新位置、シアンの線 ＝ 軌跡。
+                上部のサマリーバーに座標、高度、HDOP、使用衛星数、現地時間が並びます。</figcaption>
+            </figure>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td><code>+CME ERROR: 505</code></td>
+                    <td>GNSS がまだ有効になっていません —— まず <code>AT+QGPS=1</code>。
+                        再起動（ページのリロードを含む）のたびに有効化し直す必要があります</td></tr>
+                <tr><td><code>+CME ERROR: 504</code></td><td>GNSS はすでに有効で、二重に有効化しただけです。無害です</td></tr>
+                <tr><td>エラー 516（NOT_FIXED_NOW）</td>
+                    <td>まだ測位できていません。GSV に信号があれば（SNR ≥ 30）そのまま待つ。
+                        全部 00 ならアンテナ／環境の問題で、いくら待っても無駄です</td></tr>
+                <tr><td>連続 NMEA ストリームが取得できない</td>
+                    <td>出荷時の <code>outport</code> は <code>usbnmea</code> で、連続ストリームは USB ポートへ流れます。
+                        AT ポートでは <code>AT+QGPSGNMEA</code> で 1 文ずつ取れば十分です（先に
+                        <code>nmeasrc,1</code> が必要。本タブにボタンを用意済み）</td></tr>
+                <tr><td><code>AT+QGPSDEL</code> でコールドスタートを強制したい</td>
+                    <td>⚠ 使わないでください —— 本機のファームウェアは <code>=?</code> に <code>(0-2)</code> を返すのに、
+                        3 つのパラメータを<strong>すべて拒否</strong>します（INVALID_PARA）。公式文書にも記載がありません。
+                        コールドスタートしたいときは <code>apflash,0</code> ＋ 電源断・再起動（テスト後は 1 に戻すのを忘れずに）</td></tr>
+                <tr><td>設定を変えたのに反映されない</td>
+                    <td><code>QAGPS</code> は再起動して初めて有効になります。<code>gnssconfig</code>（コンステレーション構成）
+                        も同様です。変更後は起動シーケンスを 1 回実行してください</td></tr>
+            </table>

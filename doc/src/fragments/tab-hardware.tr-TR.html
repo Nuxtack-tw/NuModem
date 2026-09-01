@@ -1,0 +1,153 @@
+<h3 id="tab-hardware">Hardware —— açılış ve seri port</h3>
+            <p><strong>Çalışma prensibi:</strong> Bu sayfa tüm aracın temelidir:
+            Control, açılış prosedürünün iki düğmesidir (Power / Reset); Module ürün kimliğidir;
+            Serial, UART ayarlarıdır; Power düşük güç yönetimidir; URC, modülün kendiliğinden gönderdiği
+            mesajların çıkış portunu yönetir; ayrıca veri modunun kaçış kapısı olarak bir dizi
+            <strong>ham bayt düğmesi</strong> vardır. Öteki sekmelerin tümü iki ön koşulun üzerine kurulur:
+            <strong>modül prosedüre uygun biçimde açılmıştır</strong> ve
+            <strong>URC'ler uart1'den gelir</strong> —— ikisi de bu sayfada halledilir.
+            Bu bölümdeki davranışlar ve sayılar, Ağustos 2026'da gerçek bir EG800K üzerinde ölçülmüştür.</p>
+
+            <h4>Açılış prosedürü neden var: RTS = güç, DTR = Reset</h4>
+            <p>Bu araca eşlik eden kontrol kartı, iki RS-232 el sıkışma sinyalini başka amaçla kullanır; tüm sayfayı anlamanın anahtarı budur:</p>
+            <table>
+                <tr><th>Sinyal</th><th>Nereye bağlı</th><th>Mantık</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Modülün güç anahtarı</td>
+                    <td><strong>Ters mantık</strong>: RTS OFF = güç açık, RTS ON = güç kesik</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Modülün Reset bacağı</td>
+                    <td>DTR ON = Reset yüksek (başlayabilir), DTR OFF = Reset düşük</td></tr>
+            </table>
+            <p>Devre özelliği (ölçümle doğrulandı): ilk bağlantıda RTS <strong>önce ON, sonra OFF</strong> yapılmalıdır;
+            güç ancak o zaman gerçekten açılır —— doğrudan OFF'a ayarlamak güç geldiğini garanti etmez. DTR de <strong>ON→OFF→ON</strong>
+            yolunu izlemelidir; Reset ancak o zaman gerçekten yükselir. Güç kesme (RTS ON) sert bir kesintidir; modül
+            <strong>hiçbir veda mesajı göndermez</strong>.</p>
+            <div class="warning">
+                <strong>Sayfayı yenilemek = gücü kesmek.</strong> Tarayıcı seri portu yeniden açarken RTS'i tekrar assert eder,
+                modülün gücü anında gider —— otomatik yeniden bağlanma tamamlandıktan sonra <strong>açılış prosedürü yeniden çalıştırılmalıdır</strong>.
+                Ölçümde yaşandı: prosedür atlanıp doğrudan 17 komut gönderildi, hepsi gitti ama hiçbiri dönmedi (yalnızca TX satırları, sıfır RX).
+                "Az önce her şey iyiydi, şimdi hiçbir şey yanıt vermiyor" durumunda aklınıza ilk bu gelsin.
+            </div>
+
+            <h4>Power ve Reset düğmeleri: nasıl basılır, ne görürsünüz</h4>
+            <p>Bu iki düğme, yukarıdaki tablodaki iki sinyalin vücut bulmuş hâlidir; sinyal çubuğundaki RTS / DTR göstergeleriyle
+            <strong>iki yönlü bağlıdır</strong> (bağlantı yokken soluktur, basılamaz). Web Serial çıkış sinyallerinin gerçek durumunu geri okuyamaz;
+            sinyal çubuğunda görünen, bu aracın gönderdiğini varsaydığı değerdir.</p>
+            <ol>
+                <li><strong>Power</strong> (geçişli): yeşil yanıyor = güç ON (= RTS OFF).
+                    Açılış prosedüründe RTS'in ON→OFF yolunu geçmesi gerekir: düğme zaten yanıyorsa önce kapatın, sonra açın.</li>
+                <li><strong>Reset</strong> (momentary): basmak = DTR OFF, bırakmak = DTR ON;
+                    bir bas-bırak = bir Reset (standart zamanlamada arada 0.3 saniye beklenir).</li>
+                <li><strong>RDY'yi bekleyin</strong>: birkaç saniye içinde terminalde modülün açılış duyurusu <code>RDY</code> belirir.</li>
+                <li><strong>ATI ile doğrulayın</strong>: yanıt <code>Quectel</code> / <code>EG800K</code> /
+                    <code>Revision: …</code> / <code>OK</code> olmalıdır. Yanıt geliyorsa hem UART hem modül canlıdır.</li>
+            </ol>
+            <div class="tip">
+                Açılıştan sonra önce ekonun (ATE) açık olduğunu doğrulamanız (fabrika varsayılanı açıktır), sonra <code>AT+CMEE=2</code> göndermeniz önerilir ——
+                açık değilse yalnızca kupkuru bir <code>ERROR</code> görürsünüz; açıksa
+                <code>+CME ERROR: …</code> biçiminde okunabilir metin gelir. İkisi de yalnızca oturumluktur; modül her yeniden açılışta yeniden gönderilmelidir.
+            </div>
+
+            <h4>Module: beş kimlik düğmesi</h4>
+            <table>
+                <tr><th>Düğme</th><th>Komut</th><th>Ne görürsünüz</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>Marka / model / firmware sürümü üçü bir arada —— açılıştan sonraki ilk komut bu olmalı</td></tr>
+                <tr><td>Vendor / Model / FW Ver</td>
+                    <td><code>AT+GMI</code> / <code>AT+GMM</code> / <code>AT+GMR</code></td>
+                    <td>ATI'nin üç satırını tek tek sorgular (sırasıyla CGMI / CGMM / CGMR ile eşdeğer).
+                        Bu cihazda ölçülen firmware sürümü: <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>Modülün IMEI'si (15 basamak). Sıfır veri trafiği, her an gönderilebilir</td></tr>
+            </table>
+
+            <h4>Serial: AT&amp;V ile parametre okuma, IPR ile baud değiştirme</h4>
+            <p><strong>AT Params (<code>AT&amp;V</code>)</strong>: tüm tek harfli AT parametrelerinin güncel değerini listeler.
+            <code>ATE</code> / <code>ATQ</code> / <code>ATV</code> gibi tek harfli komutların <strong>kendi sorgu biçimi yoktur;
+            bunları yalnızca bu komut okuyabilir</strong>. Bu cihazda ölçülen: <code>E:1 Q:0 V:1 S3:13 S4:10</code> ——
+            eko açık, sonuç kodları metin modunda, satır sonu = CR (ASCII 13); bu aracın yanıtları çözümleyebilmesinin ön koşulu tam da budur.</p>
+            <p><strong>Baud? (<code>AT+IPR?</code>)</strong>: UART'ın güncel baud hızını sorgular; fabrika değeri 115200.<br>
+            <strong>Baud List (<code>AT+IPR=?</code>)</strong>: iki liste döner ——
+            ilki otomatik algılanabilen hızlar, ikincisi yalnızca sabit modda kullanılabilenler. Bu düğme bir kez çalıştırıldıktan sonra
+            Set Baud'un açılır listesi, cihazın gerçekten bildirdiği listeyle değiştirilir. Ölçümde bu cihazın ikinci listesi
+            <strong>1000000 bps'ye kadar uzanıyor —— kılavuzun §3.4 tablosunda bu değer yok</strong>.</p>
+            <p><strong>Set Baud (<code>AT+IPR={rate};&amp;W</code>, parametre kartı)</strong>:
+            basınca önce bir onay penceresi çıkar —— bu, sayfada kendinizi kapı dışında bırakması en kolay düğmedir.</p>
+            <div class="warning">
+                <strong>Baud değiştirmenin üçlü tuzağı (üçü de ölçümle doğrulandı):</strong><br>
+                ① <code>OK</code> döner dönmez <strong>hemen geçerli olur</strong>;
+                bir sonraki andan itibaren bu araç ile modül birbirini anlamaz olur;<br>
+                ② <code>AT&amp;F</code> (fabrika sıfırlaması) baud hızını <strong>geri almaz</strong> —— sizi kurtarmasını beklemeyin;<br>
+                ③ <code>&amp;W</code> eklenmezse kaydedilmez —— yeniden bağlanmak ise güç kesmek demektir: modül eski hızla uyanır,
+                port ayarınız yeni hızda kalır, <strong>çifte kopukluk</strong>.
+                Bu yüzden bu araç <code>;&amp;W</code> birleşik yazımını zorunlu kılar.<br>
+                Toparlanma dört adımdır (onay penceresi de hatırlatır): bağlantıyı kes → bağlantı alanındaki baud hızını değiştir → yeniden bağlan → açılış prosedürünü yeniden çalıştır.
+            </div>
+
+            <h4>Power: QSCLK düşük güç</h4>
+            <p><strong>Sleep? (<code>AT+QSCLK?</code>)</strong>: modülün uykuya girmesine izin verilip verilmediğini sorgular.
+            Bu cihazda ölçülen fabrika değeri <code>0</code> = devre dışı, modül hep uyanık.
+            Bu sayfada yalnızca sorgu düğmesi vardır: uyuyan bir modül <strong>AT'ye yanıt vermeyi keser</strong>; kılavuzdaki uyandırma yöntemi DTR'yi düşük çekmektir ——
+            ama bu kartta DTR, Reset bacağı olarak bağlanmıştır (bölümün başına bakın). Komut satırından uykuyu kendiniz açar da modülü uyandıramazsanız,
+            açılış prosedürünü yeniden çalıştırmak (gücü kesip açmak) sizi kurtarır; ayrıntılar resmi düşük güç uygulama notundadır.</p>
+
+            <h4>URC: mesaj alamadığınızda ilk durak burası</h4>
+            <p><strong>URC (Unsolicited Result Code — istenmeden gelen sonuç kodu)</strong>, modülün "istek olmadan kendiliğinden bastığı"
+            mesajdır; hiçbir komutun yanıtı değildir —— açılıştaki <code>RDY</code>, TCP verisi gelişi, MQTT mesajı,
+            Wi-Fi tarama sonucu, GNSS firmware yükleme bildirimi hep budur. Çıkış portu
+            <strong>fabrikada USB portudur (usbat)</strong> —— UART üzerinden çalışan bu araç bunların hiçbirini alamaz;
+            belirti son derece tipiktir: <strong>komutların hepsi OK döner ama mesaj bir türlü gelmez</strong>.</p>
+            <table>
+                <tr><th>Düğme</th><th>Komut</th><th>Amaç</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>URC'nin şu anda nereye gittiğini sorgular —— URC alamıyorsanız <strong>ilk sorgunuz bu olmalı</strong>;
+                        alabilmek için yanıt <code>"uart1"</code> olmalıdır</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>Bu cihazın desteklediği çıkış portları. Ölçümde <code>("usbat","usbmodem","uart1")</code> döndü;
+                        <strong>kılavuzda geçen "all" yok</strong> (kılavuz bazı modellerin desteklemediğini not eder)</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>Ana UART'a geçirir. NVRAM'e yazılır, yeniden başlatmalarda korunur; <strong>bir kez değiştirmek yeter</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>URC ana anahtarı; "URC alamama"nın öbür büyük nedeni.
+                        Ölçümde bu cihaz fabrikadan 1 (açık) geldi; sorun neredeyse her zaman çıkış portundadır</td></tr>
+            </table>
+
+            <h4>Ham bayt düğmeleri: veri modunun kaçış kapısı</h4>
+            <p>Pek çok komut <strong>iki aşamalıdır</strong>: önce komut gönderilir, modülün <code>&gt;</code> istemi beklenir,
+            sonra gövde gönderilir. Bu <strong>veri moduna</strong> girildikten sonra modül yazdığınız her karakteri veri olarak yutar ——
+            göndermek istediğiniz AT komutları dahil. Uzunluk yanlış hesaplandığında, yarı yolda vazgeçtiğinizde ya da komut takıldığında
+            sıradan tuşlar kurtaramaz; tek bir ham bayt gönderen şu düğme dizisi gerekir:</p>
+            <table>
+                <tr><th>Düğme</th><th>Gönderilen</th><th>Ne zaman kullanılır</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td>Veri modunun <strong>bitiş imi</strong>: birikmiş içeriği gerçekten gönderir</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td>Veri modunu <strong>iptal eder</strong>, birikmiş içeriği atar.
+                        İki aşamalı komut takıldığında, AT portu yanıt vermez olduğunda ilk tercih edilecek kaçış tuşu (kılavuz §2.3.8)</td></tr>
+                <tr><td>+++</td><td>üç + işareti (ham bayt)</td>
+                    <td><strong>Şeffaf veri modundan</strong> (örn. FTP'nin COM: aktarımı) AT moduna kaçış.
+                        Kural serttir: <strong>öncesinde ve sonrasında 1'er saniye sessizlik, asla CR/LF eklenmez</strong> ——
+                        ölçümde CR eklenince işe yaramadı; bu düğmeyle gönderilmelidir, komut satırından yazılamaz</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Ölçüm kılavuzu yalanladı: +++ bir "duraklatma" değil, "iptal"dir.</strong>
+                FTPS uygulama notu v1.5 sayfa 13, +++ sonrasında <code>ATO</code> ile veri moduna dönülüp aktarıma devam edilebileceğini yazar;
+                gerçek cihazda <code>ATO</code> yalnızca <code>NO CARRIER</code> döndürür, aktarım çoktan iptal edilmiştir.
+                +++'ı acil fren olarak kullanın; frenden sonra yola devam edebileceğinizi sanmayın.
+            </div>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td>Hiçbir komuta yanıt yok</td>
+                    <td>Sırasıyla üç şüpheliye bakın: ① açılış prosedürü çalıştırılmamış (sayfa yenilendiyse kesinlikle budur);
+                        ② satır sonu LF'ye ayarlı —— modül <strong>yalnızca CR tanır</strong>, LF'ye hiç yanıt vermez;
+                        ③ baud hızı uyuşmuyor (dört adımlı toparlanmaya bakın)</td></tr>
+                <tr><td>Reset'e bastım ama RDY gelmiyor</td>
+                    <td>Önce Power düğmesinin yanıp yanmadığına bakın —— modülün gücü yoksa Reset'e kaç kez basarsanız basın boşuna;
+                        ilk bağlantıda güç ON→OFF yolunu geçmelidir</td></tr>
+                <tr><td>Komutlar OK dönüyor ama URC bir türlü gelmiyor</td>
+                    <td>Büyük olasılıkla urcport hâlâ fabrikadaki usbat'ta: URC Port? ile sorgulayın, URC → UART ile değiştirin;
+                        olmadıysa URC Switch ana anahtarına bakın</td></tr>
+                <tr><td>AT portu birden "komut yutmaya" başladı, ne yazsam yanıt yok</td>
+                    <td>Veri modunda takılı kaldınız; yazdıklarınızın hepsi veri olarak toplanıyor —— ESC ile kaçın</td></tr>
+            </table>

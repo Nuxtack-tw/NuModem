@@ -1,0 +1,152 @@
+<h3 id="tab-http">HTTP — طلبات الويب</h3>
+            <p><strong>مبدأ العمل:</strong> HTTP في الوحدة <strong>على ثلاث مراحل</strong>:
+            ضبط الـ URL أولًا (وهذه الخطوة نفسها على مرحلتين)، ثم إرسال الطلب (GET / POST)، وأخيرًا قراءة الرد.
+            ونتيجة كل مرحلة ليست في <code>OK</code>، بل في رسالة URC تصل لاحقًا —
+            ولهذا يجب أن يكون <code>AT+QURCCFG="urcport"</code> على <code>"uart1"</code> (يُغيَّر من صفحة Hardware)،
+            وإلا لم ترَ من النتائج شيئًا. وكل البيانات مقيسة فعليًا على الجهاز الحقيقي في أغسطس 2026.</p>
+
+            <h4>قبل أن تبدأ: لا بد من قناة بيانات أولًا</h4>
+            <p>الشرط أن يكون PDP مفعّلًا وIP مأخوذًا (<code>AT+QIACT=1</code> في صفحة TCP/IP).
+            و<strong>مجموعة Connect</strong> في هذه الصفحة لا تضم إلا فحوص قراءة فقط:
+            <code>AT+CPIN?</code> / <code>AT+CGATT?</code> / <code>AT+CGREG?</code> /
+            <code>AT+QIACT?</code>، و<code>AT+QIDNSCFG=1</code> (قيمة DNS تساوي 0.0.0.0 = لم يوزَّع)،
+            و<code>AT+QIGETERROR</code> (⚠ لا يصح إلا على آخر أمر TCP/IP،
+            فاضغطه <strong>فورًا</strong> بعد الفشل).</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> يخدعك.</strong> القياس الفعلي شهد انجراف PDP في المنتصف:
+                كل الطلبات تفشل <strong>بمهلة ثابتة 30 ثانية</strong> وترد بالخطأ 716،
+                بينما <code>AT+QIACT?</code> ما يزال يرد بـ IP. قاطع بـ <code>AT+CGACT?</code>،
+                وعدم التطابق = انجراف. الإصلاح: <code>AT+QIDEACT=1</code> ←
+                <code>AT+CGACT=0,&lt;الـ cid المنجرف إليه&gt;</code> ← <code>AT+QIACT=1</code>،
+                ثم تحقق بـ ping قبل المتابعة.
+            </div>
+
+            <h4>أول GET: أربع خطوات</h4>
+            <ol>
+                <li><strong>الضبط المسبق</strong> (مجموعة Config، صفر استهلاك بيانات): اضبط <code>contextid</code>
+                    عبر بطاقة المعاملات على 1 (ربط سياق PDP الذي سيُسلك)؛ وأبقِ المفاتيح الثلاثة <code>rspout/auto</code> و
+                    <code>requestheader</code> و<code>responseheader</code> على 0
+                    (السبب لاحقًا)؛ و<code>AT+QHTTPCFG?</code> يقرأ كل الإعدادات دفعة واحدة للمراجعة،
+                    و<code>AT+QHTTPCFG=?</code> يسرد البنود القابلة للضبط.</li>
+                <li><strong>اضبط الـ URL (على مرحلتين)</strong>: بطاقة <code>AT+QHTTPURL</code> فيها زر واحد
+                    «إرسال (على مرحلتين)» — تملأ أنت الـ URL، والطول يحسبه البرنامج تلقائيًا. المسار: يُرسل أولًا
+                    <code>AT+QHTTPURL=&lt;الطول&gt;,80</code>، وننتظر <code>CONNECT</code>
+                    لدخول وضع البيانات، ثم تُرسل بايتات الـ URL كما هي <strong>دون أي نهاية سطر</strong>
+                    (فـ CR/LF يُحتسبان في الطول).
+                    وطول <code>http://www.example.com/</code> هو 23 بالضبط. وبعد الإرسال اضغط
+                    <code>AT+QHTTPURL?</code> للقراءة، والتطابق حرفًا بحرف = لم تتسلل نهاية سطر.</li>
+                <li><strong>أرسل الطلب</strong>: <code>AT+QHTTPGET=80</code> (ثواني انتظار الرد).
+                    <code>OK</code> لا تعني إلا «استلام الأمر»، والنتيجة الحقيقية في رسالة URC اللاحقة
+                    <code>+QHTTPGET: 0,200</code>، وقراءتها في الفقرة التالية.</li>
+                <li><strong>اقرأ الرد</strong>: <code>AT+QHTTPREAD=80</code>.
+                    بعد <code>CONNECT</code> كله بايتات خام (القياس الفعلي لـ example.com:
+                    559 bytes)، ثم <code>OK</code> —
+                    لكن <strong>علامة النهاية هي <code>+QHTTPREAD: 0</code> في سطر مستقل أخيرًا</strong>.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="تبويب HTTP">
+                <figcaption>صفحة HTTP: المجموعات الأربع Config / Connect / Transfer / Close.</figcaption>
+            </figure>
+
+            <h4>قراءة +QHTTPGET: الحقل الأول ليس رمز حالة HTTP</h4>
+            <p>رسالة URC للنتيجة في GET / POST / POSTFILE كلها بثلاثة حقول
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code>:
+            حقل <code>err</code> بقيمة <strong>0 = نجح تنفيذ الأمر</strong>، وغير الصفر خطأ في طبقة الوحدة (716 و711 …)؛
+            و<code>httprspcode</code> هو رمز حالة HTTP، <strong>ولا يُبلَّغ إلا عند err=0</strong>
+            (منصوص في الدليل؛ والأداة تدمج تعليقات مقارنة لـ 200 / 403 / 404 / 409 / 411 / 500)؛
+            و<code>content_length</code> اختياري — لا يوجد إلا إذا حمل ترويسة رد الخادم CONTENT-LENGTH،
+            وطلبات GET العادية كثيرًا ما تعود بحقلين فقط. ولهذا فالقياس الفعلي <code>+QHTTPGET: 0,404,0</code>
+            <strong>ليس فشلًا</strong>: الأمر نجح، والخادم هو من قال إنه لم يجد.</p>
+
+            <h4>قراءة الرد: فخ AT+QHTTPREAD</h4>
+            <p>المعامل هو «أقصى ثواني الفاصل بين حزمتي بيانات»، لا المدة الكلية.
+            <strong>والبرنامج الثابت لهذا الجهاز لا يقبل إلا معاملًا واحدًا</strong>: صيغة القراءة المجزأة في الوثيقة التطبيقية
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> ردت بالقياس الفعلي بـ
+            <code>ERROR</code> مجردة (أثبته سبر <code>=?</code>)، وقد أُزيل الزر —
+            وللسحب المجزأ استخدم <code>GETEX</code>.</p>
+            <div class="warning">
+                <strong>فخ التعشيق: بمجرد ضبط <code>rspout/auto</code> على 1، تفشل عائلة READ كلها</strong>
+                (منصوص في الدليل). فهو يجعل الوحدة تلفظ الرد تلقائيًا، وثمنه فناء عائلة READ،
+                ولهذا لهذا الزر مربع تأكيد. وإذا انهارت READ فجأة، فافحص أولًا <code>AT+QHTTPCFG?</code>.
+            </div>
+
+            <h4>السحب المجزأ: AT+QHTTPGETEX يقرأ بايتًا بايتًا</h4>
+            <p><code>AT+QHTTPGETEX=&lt;الثواني&gt;,&lt;الإزاحة الابتدائية&gt;,&lt;الطول&gt;</code>
+            يسلك HTTP Range فيلتقط المقطع المحدد فقط ويوفر الاستهلاك. القياس الفعلي (محتوى نقطة النهاية ثابت على
+            <code>abcdefghijklmnop</code>): إزاحة 0 وطول 8 يرد بـ <code>+QHTTPGET: 0,206,8</code>
+            ويقرأ <code>abcdefgh</code>؛ ثم إزاحة 8 وطول 8 يقرأ <code>ijklmnop</code>.
+            القراءة: <strong>يجب أن يكون رمز الحالة 206</strong>؛ أما الرد بـ <strong>200 والمحتوى نفسه كل مرة</strong>
+            = الخادم لا يدعم Range، وليست الوحدة معطوبة.
+            ⚠ لا يُنفَّذ إلا عند <code>requestheader=0</code>.</p>
+
+            <h4>POST: المرحلتان وContent-Type</h4>
+            <p>بطاقة <code>AT+QHTTPPOST</code> على مرحلتين أيضًا: تملأ أنت المتن body والطول يُحسب تلقائيًا، فيُرسل أولًا
+            <code>AT+QHTTPPOST=&lt;الطول&gt;,&lt;ثواني الإدخال&gt;,&lt;ثواني الرد&gt;</code>،
+            وبعد <code>CONNECT</code> يُرسل المتن. ثلاثة أمور:</p>
+            <ul>
+                <li><strong>انتظار <code>CONNECT</code> قد يبلغ 125 ثانية</strong> (منصوص في الدليل) —
+                    فاضبط مهلة انتظار المحث على 125 ثانية كاملة، ولا تستنسخ ثواني MQTT الخمس.</li>
+                <li>حد المتن 1 MB (نطاق <code>=?</code> المقيس فعليًا 1–1024000).</li>
+                <li>اضبط Content-Type مسبقًا عبر بطاقة معاملات <code>contenttype</code>
+                    (رمز النوع 0 = form-urlencoded).</li>
+            </ul>
+            <p>القياس الفعلي: إرسال POST بـ <code>Message=HelloQuectel</code> (بحجم 20 bytes) رد بـ
+            <code>+QHTTPPOST: 0,200,440</code>؛ وJSON العائد من READ يثبت وصول المفتاح والقيمة،
+            وصحة حساب الطول، وسريان Content-Type، وأن User-Agent الذي تبلغه الوحدة عن نفسها هو
+            <code>QUECTEL_MODULE</code>.</p>
+
+            <h4>الترويسات المخصصة وترويسات الرد</h4>
+            <ul>
+                <li><code>reqheader/add</code>: يضيف ترويسة طلب مخصصة واحدة (الدليل لم يرفق مثالًا)؛
+                    وزر الاستعلام يبين كم ترويسة أُضيفت؛ و<code>reqheader/remove</code> يزيل.</li>
+                <li><code>requestheader</code> على 1 = تركّب أنت ترويسات الطلب كلها بنفسك، فيصبح حتى GET على مرحلتين،
+                    ويتعطل <code>GETEX</code>. أبقه على 0 عادةً.</li>
+                <li><code>responseheader</code> على 1 يجعل READ يلفظ ترويسات رد HTTP أيضًا
+                    (القياس الفعلي: حتى الترويسة المخصصة X-Test تعود). وبعد الاختبار أعده إلى 0.</li>
+                <li><code>closed/ind</code>: يفعّل رسالة URC للإبلاغ عن «إغلاق الجلسة».</li>
+            </ul>
+
+            <h4>نسخة الملفات: POSTFILE وREADFILE (على UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="اسم الملف",&lt;الثواني&gt;</code> يرسل POST متخذًا ملفًا من نظام ملفات الوحدة (UFS)
+            متنًا له؛ و<code>AT+QHTTPREADFILE="اسم الملف",&lt;الثواني&gt;</code> يحفظ الرد ملفًا في
+            UFS. ⚠ هذه الأداة حاليًا <strong>لا تستطيع رفع ملف إلى UFS مسبقًا ولا قراءة محتوى ملف
+            UFS</strong>، فهذان الأمران للاستخدام مع مسارات جهة البرنامج الثابت.</p>
+
+            <h4>HTTPS: مسار دون تحقق</h4>
+            <p>HTTPS = HTTP + سياق SSL. ومجموعة Connect تجهز أقصر مسار، خمسة أزرار تُضغط بالترتيب:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← تكليف HTTP باستخدام سياق SSL رقم 1
+AT+QSSLCFG="sslversion",1,4        ← ترك إصدار TLS لتفاوض الخادم
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← فتح كل طواقم التشفير
+AT+QSSLCFG="seclevel",1,0          ← عدم التحقق من الشهادة (انظر أدناه)
+AT+QSSLCFG="sni",1,1               ← تفعيل SNI (المصنعي 0!)</pre>
+            <p>بعدها بدّل بداية الـ URL إلى <code>https://</code> وتابع GET / READ كالمعتاد —
+            القياس الفعلي: HTML المقروء مطابق حرفًا بحرف لنسخة النص الصريح.
+            <strong>و<code>seclevel=0</code> (دون تحقق من الشهادة) هو المسار الوحيد الذي تكمله هذه الأداة</strong>
+            — فالتحقق من الشهادة يستلزم كتابة شهادة CA في UFS أولًا؛ وتفاصيل SSL (سرد كل البنود الفرعية بـ
+            <code>AT+QSSLCFG=?</code>، وضبط ثواني انتظار المصافحة بـ <code>negotiatetime</code>) في قسم «SSL — قناة TLS».
+            <strong>SNI مصنعيًا 0</strong>: دون تفعيله تحصل مواقع HTTPS المتشاركة في IP على شهادة غير مطابقة،
+            فيفشل التحقق فورًا. <strong>وسلسلة الشهادات هي كتلة الاستهلاك الكبرى</strong>: جولة HTTPS GET نحو 8–15 KB،
+            بينما النص الصريح نحو 1 KB فقط.</p>
+
+            <h4>إعادة التوجيه والختام</h4>
+            <p><strong>إعادة التوجيه (لم يذكرها الدليل، وحسمها القياس الفعلي)</strong>: تتبع الوحدة 302 تلقائيًا، لكنها
+            <strong>لا تقبل في Location إلا المسار المطلق</strong> — والمسار النسبي يرد مباشرةً بالخطأ 711
+            ويفشل خلال 1 ميلي ثانية. <strong>الختام</strong>:
+            <code>AT+QHTTPSTOP</code> (مجموعة Close) يلغي الطلب الجاري ويقطع الجلسة؛
+            وعند غرابة الحالة أو ظهور الخطأ 704 (وضع البيانات محجوز) اضغطه أولًا لتنظيف كل شيء.</p>
+
+            <h4>استكشاف الأخطاء</h4>
+            <table>
+                <tr><th>العَرَض</th><th>السبب والحل</th></tr>
+                <tr><td>لا تظهر أي رسالة URC للنتائج</td><td><code>urcport</code> ليس على <code>uart1</code>،
+                    غيّره من صفحة Hardware</td></tr>
+                <tr><td>كل الـ URL ترد بـ 716 وبمهلة ثابتة 30 ثانية</td>
+                    <td>انجراف PDP، انظر التحذير أعلاه</td></tr>
+                <tr><td>عنوان URL واحد يرد بـ 716</td><td>القياس الفعلي: فشل DNS يرد بـ 716 أيضًا (لا 714
+                    كما خمنت الوثائق القديمة)؛ ورد READ بعده بـ 705 تسلسل طبيعي</td></tr>
+                <tr><td>فشل مفاجئ في <code>READ</code> / <code>GETEX</code></td>
+                    <td>يجب أن يكون <code>rspout/auto</code> و<code>requestheader</code>
+                        كلاهما 0 (انظر أعلاه)</td></tr>
+                <tr><td>حتى <code>AT</code> لا يرد</td>
+                    <td>الوحدة معلقة (شوهد بالقياس الفعلي، ولم يصفه الدليل) — أعد تنفيذ طقوس الإقلاع</td></tr>
+            </table>

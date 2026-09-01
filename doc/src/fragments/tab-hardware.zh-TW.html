@@ -1,0 +1,151 @@
+<h3 id="tab-hardware">Hardware —— 開機與序列埠</h3>
+            <p><strong>工作原理：</strong>這一頁是整個工具的地基：
+            Control 是開機儀式的兩顆按鈕（Power／Reset）、Module 是產品識別、
+            Serial 是 UART 設定、Power 是低功耗、URC 管模組主動訊息的輸出埠，
+            另有一排<strong>原始位元組鈕</strong>（Ctrl+Z／ESC／+++）當資料模式的逃生門。
+            其他頁簽都建立在兩個前提上：<strong>模組已照儀式開機</strong>、
+            <strong>URC 走 uart1</strong> —— 這兩件事都在本頁完成。
+            本節行為與數字皆為 2026 年 8 月對實體 EG800K 的實測。</p>
+
+            <h4>為什麼要有開機儀式：RTS＝電源、DTR＝Reset</h4>
+            <p>本工具搭配的控制板把兩條 RS-232 交握訊號挪作他用，這是理解整頁的鑰匙：</p>
+            <table>
+                <tr><th>訊號</th><th>實際接到</th><th>邏輯</th></tr>
+                <tr><td><strong>RTS</strong></td><td>模組電源開關</td>
+                    <td><strong>負邏輯</strong>：RTS OFF＝通電、RTS ON＝斷電</td></tr>
+                <tr><td><strong>DTR</strong></td><td>模組 Reset 腳</td>
+                    <td>DTR ON＝Reset 拉高（可啟動）、DTR OFF＝Reset 拉低</td></tr>
+            </table>
+            <p>電路特性（實測確認）：首次連線 RTS 必須<strong>先 ON 再 OFF</strong>，
+            電源才會真的打開 —— 直接設 OFF 不保證通電；DTR 也要走 <strong>ON→OFF→ON</strong>，
+            Reset 才會真的拉高。斷電（RTS ON）是硬切，模組<strong>不會送任何告別訊息</strong>。</p>
+            <div class="warning">
+                <strong>重新整理頁面＝斷電。</strong>瀏覽器重開序列埠時會重新拉起 RTS，
+                模組直接失電 —— 自動重連完成後<strong>必須重跑開機儀式</strong>。
+                實測踩過：跳過儀式直接送 17 條指令，全部有去無回（只有 TX 行、零 RX）。
+                任何「剛剛還好好的、現在全沒反應」，先想到這件事。
+            </div>
+
+            <h4>Power 與 Reset 鈕：怎麼按、會看到什麼</h4>
+            <p>兩顆鈕就是上表兩條訊號的化身，與訊號列的 RTS／DTR 指示<strong>雙向連動</strong>
+            （未連線時反白不可按）。Web Serial 讀不回輸出訊號的實際狀態，
+            訊號列顯示的是本工具送出的認知值。</p>
+            <ol>
+                <li><strong>Power</strong>（切換式）：亮綠＝電源 ON（＝RTS OFF）。
+                    開機儀式要讓 RTS 走過 ON→OFF：鈕若已亮，先點關再點開。</li>
+                <li><strong>Reset</strong>（momentary）：按下＝DTR OFF、放開＝DTR ON，
+                    一按一放就是一次 Reset（標準時序中間停 0.3 秒）。</li>
+                <li><strong>等 RDY</strong>：數秒內終端機會出現模組的開機宣告 <code>RDY</code>。</li>
+                <li><strong>ATI 驗證</strong>：應回 <code>Quectel</code>／<code>EG800K</code>／
+                    <code>Revision: …</code>／<code>OK</code>。回得出來＝UART 與模組都活著。</li>
+            </ol>
+            <div class="tip">
+                開機後建議先確認複誦（ATE）為開（出廠預設開），再下 <code>AT+CMEE=2</code> ——
+                沒開只會看到乾巴巴的 <code>ERROR</code>，開了才有
+                <code>+CME ERROR: …</code> 的可讀文字。兩者皆 session-only，模組每次重開都要重下。
+            </div>
+
+            <h4>Module：五顆識別鈕</h4>
+            <table>
+                <tr><th>按鈕</th><th>指令</th><th>會看到什麼</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>廠牌／型號／韌體版本三合一 —— 開機後第一條就下它</td></tr>
+                <tr><td>Vendor／Model／FW Ver</td>
+                    <td><code>AT+GMI</code>／<code>AT+GMM</code>／<code>AT+GMR</code></td>
+                    <td>把 ATI 的三行拆開單獨查（各等同 CGMI／CGMM／CGMR）。
+                        本機韌體版本實測 <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>模組 IMEI（15 位數字）。零流量，隨時可下</td></tr>
+            </table>
+
+            <h4>Serial：AT&amp;V 讀參數、IPR 改鮑率</h4>
+            <p><strong>AT Params（<code>AT&amp;V</code>）</strong>：列出所有單字母 AT 參數目前值。
+            <code>ATE</code>／<code>ATQ</code>／<code>ATV</code> 這些單字母指令<strong>沒有各自的查詢式，
+            只有這條讀得到</strong>。本機實測 <code>E:1 Q:0 V:1 S3:13 S4:10</code> ——
+            複誦開、結果碼文字模式、行尾＝CR（ASCII 13），正是本工具解析回應的前提。</p>
+            <p><strong>Baud?（<code>AT+IPR?</code>）</strong>：查 UART 目前鮑率，出廠 115200。<br>
+            <strong>Baud List（<code>AT+IPR=?</code>）</strong>：回兩份清單 ——
+            前一份是可自動偵測的鮑率、後一份是僅固定模式可用的。跑過這顆之後，
+            Set Baud 的下拉選單會換成本機實際回報的清單。實測本機第二份清單一路列到
+            <strong>1000000 bps —— 手冊 §3.4 的表沒有這個值</strong>。</p>
+            <p><strong>Set Baud（<code>AT+IPR={rate};&amp;W</code>，參數卡）</strong>：
+            按下會先跳確認框 —— 這是全頁最容易把自己鎖在門外的一顆鈕。</p>
+            <div class="warning">
+                <strong>改鮑率的三重陷阱（實測全數確認）：</strong><br>
+                ① <code>OK</code> 一回就<strong>立即生效</strong>，
+                本工具下一刻起與模組雞同鴨講；<br>
+                ② <code>AT&amp;F</code>（原廠重置）<strong>不會</strong>把鮑率改回來 —— 別指望它救你；<br>
+                ③ 不加 <code>&amp;W</code> 就不存檔 —— 而重連＝斷電，模組會醒在舊鮑率、
+                你的埠設定卻停在新鮑率，<strong>雙重失聯</strong>。
+                所以本工具強制 <code>;&amp;W</code> 合體寫法。<br>
+                復原四步（確認框也會提醒）：斷線 → 改連線區的鮑率 → 重連 → 重跑開機儀式。
+            </div>
+
+            <h4>Power：QSCLK 低功耗</h4>
+            <p><strong>Sleep?（<code>AT+QSCLK?</code>）</strong>：查模組是否允許進入睡眠。
+            本機實測出廠為 <code>0</code>＝停用、模組常醒。
+            本頁只提供查詢鈕：睡著的模組會<strong>停止回應 AT</strong>，手冊的喚醒方式是拉低 DTR ——
+            但本板的 DTR 已接去當 Reset 腳（見本節開頭）。若在命令列自行開了睡眠而叫不醒，
+            重跑開機儀式（斷電重開）即可脫困；細節見官方低功耗應用筆記。</p>
+
+            <h4>URC：收不到訊息時，第一個來這裡</h4>
+            <p><strong>URC（Unsolicited Result Code，非請求結果碼）</strong>是模組「未經請求就主動吐出」
+            的訊息，不是任何指令的回應 —— 開機的 <code>RDY</code>、TCP 資料到達、MQTT 訊息、
+            Wi-Fi 掃描結果、GNSS 韌體載入通知全是。它的輸出埠
+            <strong>出廠預設是 USB 埠（usbat）</strong> —— 走 UART 的本工具一條都收不到，
+            症狀非常典型：<strong>指令都回 OK，就是等不到訊息</strong>。</p>
+            <table>
+                <tr><th>按鈕</th><th>指令</th><th>用途</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>查 URC 現在送去哪 —— 收不到 URC 時<strong>第一條就查它</strong>；
+                        要回 <code>"uart1"</code> 才收得到</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>本機支援哪些輸出埠。實測回 <code>("usbat","usbmodem","uart1")</code>，
+                        <strong>沒有手冊提過的 "all"</strong>（手冊有註部分機型不支援）</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>切到主 UART。寫 NVRAM、跨重開機保留，<strong>改一次就好</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>URC 總開關，「收不到 URC」的另一大原因。
+                        實測本機出廠即為 1（開），問題幾乎都出在輸出埠</td></tr>
+            </table>
+
+            <h4>原始位元組鈕：資料模式的逃生門</h4>
+            <p>不少指令是<strong>兩段式</strong>：先送指令、等模組回 <code>&gt;</code> 提示、
+            再送本文。進了這種<strong>資料模式</strong>之後，模組會把你打的每個字元都當資料吞下去 ——
+            包括你想下的 AT 指令。長度算錯、中途反悔、指令卡住時，一般按鍵救不了，
+            要靠這排送單一原始位元組的鈕：</p>
+            <table>
+                <tr><th>鈕</th><th>送出</th><th>什麼時候用</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td>資料模式的<strong>結束符</strong>：把已累積的內容真正送出去</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td><strong>取消</strong>資料模式、丟棄已累積內容。
+                        兩段式指令卡住、AT 口不再回應時的首選脫身鍵（手冊 §2.3.8）</td></tr>
+                <tr><td>+++</td><td>三個 + 號（原始位元組）</td>
+                    <td>從<strong>透明資料模式</strong>（如 FTP 的 COM: 傳輸）逃回 AT 模式。
+                        規矩很硬：<strong>前後各靜默 1 秒、絕不能帶 CR/LF</strong> ——
+                        實測加了 CR 就不生效，必須用這顆鈕送、不能在命令列打</td></tr>
+            </table>
+            <div class="warning">
+                <strong>實測推翻手冊：+++ 是「中止」，不是「暫停」。</strong>
+                FTPS 應用筆記 v1.5 第 13 頁說 +++ 之後可用 <code>ATO</code> 回到資料模式續傳，
+                實機上 <code>ATO</code> 只回 <code>NO CARRIER</code>，傳輸已經被中止。
+                把 +++ 當成緊急煞車用，別指望煞完還能繼續開。
+            </div>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td>什麼指令都沒回應</td>
+                    <td>依序查三個嫌疑犯：① 沒跑開機儀式（重新整理過頁面就一定是它）；
+                        ② 行尾設成 LF —— 模組<strong>只認 CR</strong>，LF 完全無回應；
+                        ③ 鮑率不合（見四步復原）</td></tr>
+                <tr><td>按了 Reset 卻等不到 RDY</td>
+                    <td>先看 Power 鈕有沒有亮 —— 模組沒電，Reset 按再多次也沒用；
+                        首次連線電源要走過 ON→OFF</td></tr>
+                <tr><td>指令都回 OK，URC 就是不來</td>
+                    <td>八成是 urcport 還在出廠的 usbat：按 URC Port? 查、URC → UART 改；
+                        再不行查 URC Switch 總開關</td></tr>
+                <tr><td>AT 口突然「吞指令」，打什麼都沒回應</td>
+                    <td>卡在資料模式，打的字全被當資料收走了 —— 按 ESC 脫身</td></tr>
+            </table>

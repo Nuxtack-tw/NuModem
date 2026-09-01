@@ -1,0 +1,143 @@
+<h3 id="tab-ftp">FTP — Transfer Berkas</h3>
+            <p><strong>Cara kerja:</strong> FTP punya <strong>dua kanal</strong>: kanal kendali membawa perintah,
+            kanal data membawa isi berkas. Login, ganti nama, hapus, dan cek ukuran hanya lewat kanal kendali;
+            LIST, unggah, dan unduh harus <strong>membuka satu koneksi data terpisah</strong> —
+            sebagian besar keanehan pada bagian ini (615, 603 bertubi-tubi) lahir dari sana.
+            Kaidah umum Quectel yang berlaku sepanjang bagian ini: <strong><code>OK</code> hanya berarti "perintah diterima"</strong>;
+            hasil sesungguhnya datang belakangan lewat URC. Balasan dan angka pada bagian ini semuanya nilai hasil uji nyata
+            terhadap EG800K fisik pada Agustus 2026.</p>
+
+            <h4>Sebelum mulai: dua prasyarat</h4>
+            <ul>
+                <li><strong>PDP harus aktif dulu</strong>: tombol pertama halaman ini <code>AT+QIACT?</code> memang untuk pemeriksaan ini —
+                    harus terbalas <code>+QIACT: 1,1,…,"IP"</code> baru boleh lanjut; bila hanya membalas OK, pergilah dulu ke halaman TCP/IP dan tekan
+                    Act PDP (saat PDP belum aktif, QFTPOPEN pasti gagal).</li>
+                <li><strong>URC harus lewat UART</strong>: perintah FTP hampir semuanya "OK dulu, hasil menyusul lewat URC";
+                    bila <code>AT+QURCCFG="urcport"</code> bukan <code>"uart1"</code>,
+                    di sini hanya terlihat setumpuk OK (penyetelannya lihat halaman Hardware).</li>
+            </ul>
+
+            <h4>Alur login: setel → buka → tunggu URC</h4>
+            <ol>
+                <li><strong>Ikat PDP context</strong>: <code>AT+QFTPCFG="contextid",1</code>
+                    (dari pabrik memang 1; tombol query bisa membacanya kembali untuk konfirmasi).</li>
+                <li><strong>Setel akun-sandi</strong>: <code>AT+QFTPCFG="account","akun","sandi"</code>,
+                    <strong>wajib disetel sebelum QFTPOPEN</strong>.</li>
+                <li><strong>Mode dan tipe</strong>: <code>transmode</code> disetel 1
+                    (pasif; di belakang NAT selalu pakai ini, wajib untuk FTPS);
+                    <code>filetype</code> berkas teks murni pakai 1, selainnya pakai 0.</li>
+                <li><strong>Login</strong>: <code>AT+QFTPOPEN="host",21</code> langsung membalas OK (baru diterima);
+                    tunggu <code>+QFTPOPEN: 0,0</code> barulah login berhasil (maksimum 125 detik).
+                    Lalu tekan <code>AT+QFTPSTAT</code>, seharusnya membalas 1 (menganggur; 2 = sedang transfer, 3 = sedang menutup).</li>
+            </ol>
+            <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK                ← Hanya berarti perintah diterima
++QFTPOPEN: 0,0    ← Baris inilah tanda login berhasil</pre>
+            <p>Butir setelan lainnya: <code>AT+QFTPCFG=?</code> sekali klik menampilkan seluruh 10 butir yang bisa disetel beserta rentangnya (nol kuota).
+            <code>rsptimeout</code> (20–180, default 90 detik) adalah waktu balasan maksimum kebanyakan perintah,
+            sekaligus jeda maksimum antara dua paket data dalam mode data; <code>ssltype</code> / <code>sslctxid</code> untuk
+            FTPS (FTP murni pertahankan 0; parameter SSL disetel di halaman SSL);
+            <code>data_address</code> / <code>cache</code> / <code>restenable</code>
+            adalah penyetelan halus untuk lingkungan khusus; kegunaannya lihat keterangan tiap tombol dan manual.</p>
+            <div class="tip">
+                <strong>Penyamaran sandi (hasil uji, tak sesuai manual):</strong> saat query <code>AT+QFTPCFG="account"</code>
+                dibaca kembali, sandinya disamarkan menjadi <code>*</code> (manual bilang dicetak apa adanya). Tetapi akunnya tetap teks polos,
+                dan <strong>sandi pada baris penyetelan pun teks polos</strong>; yang perlu diwaspadai saat tangkapan layar atau perekaman
+                adalah baris penyetelannya.
+            </div>
+            <div class="warning">
+                <strong>🔴 <code>AT+QFTPCLOSE</code> bersifat asinkron — <code>OK</code> bukan berarti sudah tertutup.</strong>
+                Tunggu <code>+QFTPCLOSE: 0,0</code> barulah logout selesai; selama itu <code>AT+QFTPSTAT</code>
+                membalas 3 (sedang menutup), dan perintah FTP apa pun <strong>selalu dibalas <code>+CME ERROR: 603</code></strong> (server sibuk).
+                <br><br>
+                Gejalanya sangat menyesatkan: rentetan 603 tampak seperti modul rusak atau diblokir server,
+                padahal hanya belum selesai menutup (pada hari pengujian sempat berputar-putar jauh karena ini). Batas tunggunya = rsptimeout.
+                Selain itu ia hanya logout dari FTP; untuk mereset jaringan sepenuhnya, tekan Deact PDP di halaman TCP/IP.
+            </div>
+
+            <h4>Manajemen direktori dan berkas: memakai server bak penjelajah berkas</h4>
+            <p>Satu set penuh operasi berkas sisi server (LIST / NLST / MLSD perlu membuka koneksi data, sisanya hanya lewat kanal kendali).
+            Balasan keberhasilan selalu <code>+QFTPXXX: 0,…</code> — angka pertama 0 berarti berhasil:</p>
+            <table>
+                <tr><th>Perintah</th><th>Yang dilakukan</th><th>Balasan berhasil (hasil uji)</th></tr>
+                <tr><td><code>AT+QFTPPWD</code></td><td>Menanyakan direktori kerja kini</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+                <tr><td><code>AT+QFTPCWD</code></td><td>Berpindah direktori kerja; operasi berikutnya bertumpu padanya</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPLIST</code></td><td>Daftar lengkap langsung dimuntahkan di terminal (dua tombol: direktori kini / direktori tertentu)</td><td>Setelah isinya <code>+QFTPLIST: 0,1175</code> (angka akhir = jumlah byte)</td></tr>
+                <tr><td><code>AT+QFTPNLST</code> / <code>AT+QFTPMLSD</code></td><td>Hanya nama berkas (hemat kuota) / format standar MLSD (mudah diparse)</td><td>Sama dengan LIST</td></tr>
+                <tr><td><code>AT+QFTPSIZE</code></td><td>Menanyakan ukuran berkas tanpa mengunduh isinya</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+                <tr><td><code>AT+QFTPMDTM</code></td><td>Menanyakan waktu ubah berkas tanpa mengunduh isinya</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+                <tr><td><code>AT+QFTPMKDIR</code> / <code>AT+QFTPRMDIR</code></td><td>Membuat / menghapus folder</td><td><code>…: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPRENAME</code></td><td>Mengganti nama berkas atau folder</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPDEL</code></td><td>Menghapus berkas</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+            </table>
+            <p>Jurus (seluruh rangkaiannya lolos pengujian): <strong>jadikan SIZE pemeriksa keberadaan</strong> —
+            setelah ganti nama, menanyakan nama lama membalas <code>+QFTPSIZE: 627,550</code>, nama baru membalas <code>0,20</code>;
+            setelah dihapus, ditanya lagi kembali <code>627,550</code> — setiap langkah terverifikasi tanpa mengunduh satu byte pun.
+            <code>627,550</code> adalah <strong>kode error dua lapis</strong>: 627 = lapisan modul "FTP tidak menjalankan aksi yang diminta",
+            550 = lapisan protokol FTP, server membalas "berkas atau direktori tidak ada"; anotasi alat ini menerjemahkannya per lapis.</p>
+
+            <h4>Mengunduh: isi langsung dicetak di terminal (COM:)</h4>
+            <p><code>AT+QFTPGET="namafile","COM:"</code> — setelah <code>CONNECT</code>, isi berkas langsung dimuntahkan di terminal,
+            diakhiri <code>+QFTPGET: 0,&lt;jumlah byte&gt;</code> (hasil uji readme.txt membalas 0,379).
+            Tombol satunya, <strong>unduh per blok</strong>, membawa tambahan parameter titik awal dan panjang — cara mengunduh yang paling direkomendasikan:
+            tanyakan dulu ukurannya dengan SIZE, lalu ambil per blok, menghindari satu berkas utuh meledakkan kuota.
+            <code>AT+QFTPLEN</code> menanyakan berapa byte yang benar-benar ditransfer pada PUT / GET / LIST / NLST terakhir.</p>
+
+            <h4>Mengunggah: dua tahap; begitu panjang yang dideklarasikan terpenuhi, otomatis berakhir</h4>
+            <p><code>AT+QFTPPUT="namafile","COM:",0,&lt;panjang&gt;,1</code> adalah perintah dua tahap:
+            setelah <code>CONNECT</code> (masuk mode data), kirim byte sebanyak <strong>tepat</strong> panjang yang dideklarasikan;
+            begitu hitungan penuh, modul otomatis keluar dari mode data tanpa perlu mengirim Ctrl+Z. Alat ini menghitung panjang otomatis;
+            cukup tempel isinya di kartu parameter.</p>
+            <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT                        ← Masuk mode data
+NuModem-P6-FTP-test\n          ← Kirim tepat 20 bytes
+OK
++QFTPPUT: 0,20                 ← Server menerima 20 bytes</pre>
+            <p>Ke-20 byte ini saat pengujian sengaja diambil kembali dari sisi host memakai Python ftplib lalu dibandingkan byte demi byte — cocok sempurna.
+            <strong>Bentuk transit UFS</strong>: manual juga mendukung nama berkas ditulis <code>"UFS:xxx"</code>,
+            bertransit lewat penyimpanan bawaan modul; detailnya lihat application note FTPS. Untuk menaruh berkas komputer ke UFS lebih dulu,
+            pakai tombol Upload di kelompok "berkas UFS" halaman SSL (<code>AT+QFUPL</code>, lewat UART nol kuota,
+            checksum dibandingkan otomatis).</p>
+            <div class="warning">
+                <strong>⚠ Bagi FTP, <code>+++</code> berarti "menghentikan", bukan "menjeda".</strong>
+                Manual (FTPS AN v1.5 hal.13) menulis bahwa setelah meloloskan diri, <code>ATO</code> bisa masuk kembali ke mode data
+                untuk melanjutkan transfer; <strong>pengujian membuktikan tidak demikian</strong> (diuji dua kali, hasilnya konsisten):
+                setelah lolos, <code>AT+QFTPSTAT</code> membalas 1 (menganggur) dan bukan 2 (sedang transfer),
+                <code>ATO</code> membalas <code>NO CARRIER</code> —
+                transfernya sudah dihentikan seluruhnya, tak ada koneksi yang bisa dipulihkan. Maka <code>+++</code> hanya bisa dipakai
+                meloloskan diri dari mode data yang lepas kendali, bukan menjeda unduhan berkas besar.
+                <br><br>
+                Cara mengirim yang benar: <strong>hening 1 detik sebelum dan sesudah, dikirim sebagai byte mentah, tanpa CR</strong>
+                (ditambah CR malah tak berlaku) —
+                tombol <code>+++</code> halaman ini sudah mengirim sesuai aturan itu; tombol <code>ATO</code> dipertahankan sesuai makna manual.
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="Tab FTP">
+                <figcaption>Halaman FTP: setelan login, manajemen direktori dan berkas, unggah-unduh.</figcaption>
+            </figure>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td><code>+CME ERROR: 603</code> bertubi-tubi</td>
+                    <td>① Setelah QFTPCLOSE masih dalam proses menutup (QFTPSTAT membalas 3) — tunggu <code>+QFTPCLOSE: 0,0</code>;
+                        ② sebelumnya pernah terjadi 615 — <strong>setelah 615, semua perintah FTP selalu 603</strong> sampai ditutup dengan benar</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>Gagal membuka koneksi data: <strong>kanal kendali normal, kanal data tumbang total</strong>
+                        (SIZE terbalas; PUT / GET / LIST roboh semua). Kebanyakan masalah di sisi server —
+                        dlptest gagal diuji dari dua jalur jaringan berbeda, rebex nol kegagalan sepanjang proses;
+                        untuk membaca pakai rebex, menulis barulah pakai dlptest dan selesaikan sekali jalan</td></tr>
+                <tr><td><code>627,550</code></td>
+                    <td>Berkas atau direktori tidak ada — nama atau jalurnya salah ketik; pastikan dulu posisi Anda dengan QFTPPWD / QFTPLIST</td></tr>
+                <tr><td>Setelah boot ulang, PUT pertama langsung 615</td>
+                    <td>Degradasi stack data: QFTPCLOSE maupun restart PDP tak menyelamatkan,
+                        <strong>hanya ritual boot lengkap yang memulihkan</strong>. Cara membedakannya: pakai
+                        <code>AT+QIOPEN</code> halaman TCP/IP menembak target yang sama — ikut gagal = seluruh stack rusak, jangan lagi memeriksa setelan FTP</td></tr>
+                <tr><td>Perintah membalas OK lalu tak terjadi apa-apa</td>
+                    <td>URC hasilnya lari ke port USB — periksa apakah <code>AT+QURCCFG="urcport"</code>
+                        sudah uart1</td></tr>
+                <tr><td><code>AT+QFTPOPEN</code> langsung gagal</td>
+                    <td>PDP belum aktif — tekan dulu <code>AT+QIACT?</code> di halaman ini; bila tak ada IP, ke halaman TCP/IP tekan Act PDP</td></tr>
+            </table>

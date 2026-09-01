@@ -1,0 +1,26 @@
+<h3 id="tab-mqtt">MQTT —— 物聯網訊息</h3>
+            <p><strong>工作原理：</strong>MQTT 是兩層的：先 <code>QMTOPEN</code> 開「網路連線」，
+            再 <code>QMTCONN</code> 做「MQTT 登入」。兩層都通了才能訂閱與發布。</p>
+            <pre>AT+QMTOPEN=0,"broker位址",1883    ← 開網路（等 +QMTOPEN URC）
+AT+QMTCONN=0,"client ID"          ← 登入（等 +QMTCONN URC）
+AT+QMTSUB=0,1,"主題",0             ← 訂閱
+AT+QMTPUBEX=0,0,0,0,"主題",&lt;長度&gt;  ← 發布（兩段式）
+AT+QMTDISC=0                      ← 離線</pre>
+            <div class="important">
+                <strong>每個指令的結果碼值域都不一樣，不要互相套用。</strong>
+                <code>+QMTOPEN</code> 的 3 是「PDP 啟用失敗」，
+                <code>+QMTPUBEX</code> 根本沒有 3 這個值。
+                <br><br>
+                最容易誤讀的是 <code>+QMTCONN: 0,1</code> ——
+                它<strong>可能是查詢回應的「狀態 1＝初始化中」，也可能是寫入結果的「封包重傳中」</strong>。
+                單看一行分不出來，所以本工具會把兩種讀法並陳，不硬猜。
+            </div>
+            <p><strong>怎麼測：</strong>內建四個免費公開 broker 的下拉選單（mqttgo.io / HiveMQ /
+            Mosquitto / EMQX），都允許匿名、不必註冊。
+            <strong>client ID 與預設主題都自動帶隨機尾碼</strong> ——
+            公開 broker 上撞名會被踢線，固定主題還會收到別人的訊息，
+            那會讓「發給自己再收回來」的驗證失去意義。</p>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="MQTT 頁簽">
+                <figcaption>MQTT 頁：broker 下拉選單、連線、訂閱發布。</figcaption>
+            </figure>

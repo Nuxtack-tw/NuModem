@@ -1,0 +1,159 @@
+<h3 id="tab-ssl">SSL — Kanal TLS</h3>
+            <p><strong>Cara kerja:</strong> halaman SSL adalah <strong>lapisan bawah bersama</strong> koneksi terenkripsi —
+            SSL context yang disetel di sini beserta sertifikat yang diunggah dipakai bersama oleh SSL raw socket, MQTT over SSL,
+            dan HTTPS. Angka detik dan perilaku pada bagian ini adalah nilai hasil uji nyata terhadap EG800K fisik pada Agustus 2026.</p>
+
+            <h4>Koneksi TLS pertama: lima langkah</h4>
+            <ol>
+                <li><strong>Jalankan ritual boot</strong> (lihat bagian "Ritual Boot"), lalu tekan
+                    <code>AT+QIACT?</code> untuk memastikan kanal data — harus terbalas
+                    <code>+QIACT: 1,1,…,"IP"</code>; bila tidak, jalankan dulu <code>AT+QIACT=1</code>.</li>
+                <li><strong>Setel context</strong>: isi <code>sslversion</code> dengan 4 (semua versi,
+                    kompatibilitas terbaik), <code>ciphersuite</code> dengan 0XFFFF (semua suite),
+                    <code>seclevel</code> isi dulu 0 — pastikan dulu kanalnya tembus, verifikasi disimpan untuk nanti.</li>
+                <li><strong>Buka koneksi</strong>: tekan <code>AT+QSSLOPEN</code> (angka akhir 0), isi host dan port di kartu parameter.
+                    ⚠ <code>OK</code> hanya berarti "perintah diterima"; berhasil-gagalnya tunggu URC:
+                    <code>+QSSLOPEN: 4,0</code> barulah berhasil (hasil uji: handshake 2.0 detik).</li>
+                <li><strong>Kirim data</strong>: tekan <code>AT+QSSLSEND</code> (dua tahap) —
+                    setelah <code>&gt;</code> muncul, kirim isinya; <strong>begitu panjang yang dideklarasikan tercapai, otomatis terkirim,
+                    bebas Ctrl+Z</strong> (batas satu paket 1460 bytes). Balasan lawan muncul sebagai
+                    <code>+QSSLURC: "recv",4</code>.</li>
+                <li><strong>Baca kembali dan tutup</strong>: <code>AT+QSSLRECV</code> (batas sekali baca 1500);
+                    membaca sampai <code>+QSSLRECV: 0</code> berarti sudah bersih, bukan error.
+                    <code>AT+QSSLCLOSE=4</code> menutup (default menunggu maksimum 10 detik;
+                    tombol satunya bisa menentukan detik, 0 = seketika).</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2.0 detik, 0 = berhasil
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← Begitu 15 bytes tercapai, otomatis terkirim
+SEND OK
++QSSLURC: "recv",4        ← 0.4 detik
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>Selama tersambung, tekan <code>AT+QSSLSTATE</code> untuk melihat semua koneksi (<code>=4</code>
+            menanyakan satu clientID; status 2 = tersambung). Perhatikan: <strong>port lokal selalu terbalas 0</strong> —
+            perilaku modul, bukan error.</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="Tab SSL">
+                <figcaption>Halaman SSL: setelan context, unggah sertifikat UFS, koneksi, kirim-terima, penutupan.</figcaption>
+            </figure>
+
+            <h4>Tiga mode akses (angka akhir <code>AT+QSSLOPEN</code>)</h4>
+            <table>
+                <tr><th>Angka akhir</th><th>Perilaku</th></tr>
+                <tr><td>0 buffer</td><td>Saat data diterima hanya mengirim <code>+QSSLURC: "recv",&lt;id&gt;</code>;
+                    Anda sendiri yang membacanya lewat <code>AT+QSSLRECV</code></td></tr>
+                <tr><td>1 push langsung</td><td>URC menyertakan panjang dan <strong>datanya langsung dimuntahkan di baris berikutnya</strong>;
+                    ⚠ pada mode ini <code>AT+QSSLRECV</code> membalas ERROR itu normal</td></tr>
+                <tr><td>2 transparan</td><td>Seluruh port AT berubah menjadi kanal data (tombol halaman ini hanya menyediakan 0 dan 1)</td></tr>
+            </table>
+
+            <h4>Setelan context satu per satu</h4>
+            <p>Bila tak yakin subitem apa saja yang didukung firmware, tekan dulu <code>AT+QSSLCFG=?</code> —
+            hasil uji membalas 17 subitem, lebih banyak daripada yang tercantum di manual aplikasi. Subitem yang lazim dipakai
+            punya sepasang tombol setel dan query; hasil uji: nilai yang ditulis lalu dibaca kembali persis sama.</p>
+            <table>
+                <tr><th>Subitem</th><th>Pabrik</th><th>Fungsi dan poin hasil uji</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>Versi protokol; 4 = mendukung semua</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>Suite enkripsi; 0XFFFF = mendukung semua</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0 = tanpa verifikasi, 1 = memverifikasi server
+                    (harus mengunggah sertifikat CA dulu), 2 = autentikasi dua arah (butuh pula sertifikat klien + kunci privat)</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>Jalur sertifikat CA, format
+                    <code>"UFS:namafile"</code>; berkasnya harus sudah ada di UFS (lihat bagian berikut)</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>Wajib dinyalakan untuk virtual host / CDN — saat satu IP menampung banyak domain, tanpa mengirim SNI
+                    Anda mendapat sertifikat yang tak cocok dan verifikasi pasti gagal 566</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>Dari pabrik, meski seclevel 1 dinyalakan, masa berlaku sertifikat tetap tak diperiksa</strong>.
+                    Untuk memeriksanya setel 0, dan jam modul harus benar</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>Detik tunggu maksimum handshake TLS (10–300)</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 Tiga nilai default pabrik dijumlahkan = sama sekali tak memverifikasi sertifikat</strong>
+                (seclevel 0, sni 0, ignorelocaltime 1); untuk verifikasi sungguhan, ketiganya harus disetel benar.
+                Dan ketiga setelan ini bersama <code>cacert</code> <strong>tidak tersimpan melintasi boot ulang</strong>
+                (terkonfirmasi lewat pengujian); setiap boot kembali ke nilai pabrik; sedangkan berkas sertifikat di UFS tak hilang saat daya putus.
+            </div>
+
+            <h4>Kelompok berkas UFS: bagaimana sertifikat masuk ke modul</h4>
+            <p>UFS adalah penyimpanan flash bawaan modul; hasil uji: kapasitas total <strong>280 KB</strong>, tiap berkas memakai satu
+            blok 4 KB. Sertifikat harus diunggah ke sini dulu agar <code>cacert</code> punya berkas untuk ditunjuk.
+            <strong>Unggahan lewat UART, nol kuota data</strong>; berkas biner pun bisa masuk.
+            <strong>Kartu Upload</strong>: setelah memilih berkas, nama dan ukurannya terisi otomatis; setelah dikirim, alat ini menunggu modul membalas
+            <code>CONNECT</code> baru mengirim byte mentah (bila tak kunjung datang, tidak dikirim). Saat selesai,
+            <strong>mesin anotasi otomatis membandingkan</strong> ukuran dan checksum yang dilaporkan modul:
+            ✅ = utuh tanpa cacat, ❌ = rusak saat transfer — hapus dulu lalu unggah ulang.</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← Lanjutkan dengan mengirim 1939 bytes
++QFUPL: 1939,4f64         ← Ukuran diterima,checksum; anotasi membandingkan otomatis ✅</pre>
+            <table>
+                <tr><th>Tombol</th><th>Kegunaan</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>Menampilkan semua berkas UFS beserta ukurannya —
+                    pakai untuk verifikasi setelah mengunggah (nol kuota)</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>Menanyakan sisa / total ruang dalam bytes (nol kuota)</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>Menghapus berkas tertentu (<code>*</code> = semua);
+                    berkas bernama sama yang tak dihapus dulu akan memblokir unggahan ulang</td></tr>
+            </table>
+            <div class="tip">
+                <strong>Dua perilaku hasil uji yang tak dijelaskan manual:</strong> (1) bentuk kode error FILE tak konsisten —
+                unggah ulang nama sama membalas teks <code>file already exist</code>, timeout membalas angka <code>421</code>;
+                alat ini bisa membaca keduanya; (2) bila kolom ukuran diisi lebih besar dari kenyataan, setelah timeout modul
+                <strong>tetap menyimpan isi yang benar-benar diterima</strong> — pembandingan checksum akan menangkapnya.
+            </div>
+
+            <h4>Praktik verifikasi sertifikat: metode uji berpasangan</h4>
+            <p>Alurnya: unggah sertifikat akar → arahkan <code>cacert</code> ke sana → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → sambungkan ke 443 target. <strong>Yang diunggah adalah sertifikat akar di puncak rantai sertifikat</strong>
+            (rantai badssl.com berlapis empat; unggah ISRG Root X1 yang paling atas).
+            <strong>Hanya menguji "sertifikat buruk tak bisa tersambung" tidaklah cukup</strong> — "semuanya tak bisa tersambung" pun akan lolos.
+            Ujilah berpasangan: sertifikat baik tersambung, sertifikat buruk tak tersambung,
+            <strong>kedua arah harus terpenuhi barulah sah</strong>. Hasil uji pembanding 2×5:</p>
+            <table>
+                <tr><th>Host</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com (pembanding positif)</td><td>Tersambung</td>
+                    <td><strong>Tersambung</strong> <code>4,0</code></td></tr>
+                <tr><td>expired (kedaluwarsa)</td><td>Tersambung</td><td>Ditolak 566</td></tr>
+                <tr><td>self-signed (tanda tangan sendiri)</td><td>Tersambung</td><td>Ditolak 566</td></tr>
+                <tr><td>wrong.host (nama host tak cocok)</td><td>Tersambung</td><td>Ditolak 566</td></tr>
+                <tr><td>untrusted-root (akar tak dipercaya)</td><td>Tersambung</td><td>Ditolak 566</td></tr>
+            </table>
+            <p>Batasan: <strong>keempat jenis kesalahan sertifikat semuanya membalas 566; modul tidak membedakan</strong> yang mana.
+            <code>AT+QIGETERROR</code> pun tak membantu — ia mengurus lapisan TCP/IP,
+            dan pada saat itu hanya membalas <code>0,operate successfully</code>.</p>
+            <div class="tip">
+                Untuk butir uji negatif, hindari expired — <code>ignorelocaltime</code> pabrik bernilai 1, sehingga kedaluwarsa itu sendiri
+                takkan diblokir (di tabel atas ia diblokir karena sekaligus tidak berada di bawah akar yang diunggah); untuk uji tunggal pakai wrong.host.
+                Selain itu <strong>perhatikan kuota</strong>: setiap handshake mengunduh rantai sertifikat lengkap, gagal pun tetap dibayar;
+                hasil uji: 30 kali handshake sekitar 150–200 KB.
+            </div>
+
+            <h4>🔴 Jebakan: setelah sekitar 20 kali buka-tutup beruntun, stack data terdegradasi seluruhnya</h4>
+            <div class="warning">
+                <strong>Gejala: semua <code>AT+QSSLOPEN</code> membalas 552</strong>, bahkan seclevel 0 pun tak bisa tersambung,
+                padahal semua swaperiksa bilang baik-baik saja. <strong>Pembedaan 30 detik</strong>: pakai
+                <code>AT+QIOPEN</code> TCP murni menembak target yang sama — ikut gagal berarti stack data rusak; jangan lagi memeriksa
+                setelan SSL. Restart PDP tak menyelamatkan; <strong>hanya ritual boot lengkap yang memulihkan</strong>.
+                Degradasi mencemari data pengujian dan mudah disalahvonis sebagai "diblokir verifikasi sertifikat" —
+                sebelum melakukan uji berpasangan, boot ulang dulu agar bersih.
+            </div>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>Verifikasi sertifikat gagal. Periksa berurutan: <code>sni</code> sudah menyala belum (paling sering),
+                        akar pada <code>cacert</code> benar atau tidak, sertifikatnya sendiri rusak;
+                        ketiga setelan itu kembali nol saat boot ulang</td></tr>
+                <tr><td>Setelah <code>OK</code> tak ada kelanjutan</td>
+                    <td><code>OK</code> hanya berarti diterima; hasilnya lewat URC, menunggu paling lama
+                        150 detik + <code>negotiatetime</code></td></tr>
+                <tr><td>Port AT tersangkut, tak menggubris perintah apa pun</td>
+                    <td>Panjang <code>AT+QSSLSEND</code> salah hitung, tersangkut di mode data dan menelan perintah —
+                        kirim ESC (0x1B) lewat tombol byte mentah halaman Hardware untuk lolos</td></tr>
+            </table>

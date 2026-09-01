@@ -1,0 +1,16 @@
+{
+ " 秒": " s",
+ "125 秒": "125 s",
+ "BSSID 上限": "BSSID máx.",
+ "{0} 成功": "{0} com sucesso",
+ "{0}成功": "{0} com sucesso",
+ "例：mqttgo.io": "ex.: mqttgo.io",
+ "充電中": "A carregar",
+ "列出全部 FTP 設定子項：9 項回支援值範圍。account 那行的密碼會被模組遮成 *（2026-08-07 P6 實測），帳號則是明文": "Lista todos os subitens de configuração FTP: 9 linhas com os intervalos de valores suportados. Na linha account o módulo mascara a palavra-passe com * (medido em 2026-08-07, P6); o nome de utilizador fica em claro",
+ "失敗": "Falhou",
+ "字串，最大 255 bytes。查詢指令讀回時密碼會被模組遮成 *（2026-08-07 P6 實測），但你在這裡輸入的原文仍是明碼": "Cadeia, máximo 255 bytes. Ao ser relida pelo comando de consulta, o módulo mascara a palavra-passe com * (medido em 2026-08-07, P6), mas o que escreve aqui continua em claro",
+ "成功": "Com sucesso",
+ "查詢目前帳密設定；密碼會被模組遮成 *（2026-08-07 P6 實測）": "Consulta as definições de conta atuais; o módulo mascara a palavra-passe com * (medido em 2026-08-07, P6)",
+ "查詢目前設定的 FTP 帳號與密碼。⚠ 手冊寫「回應會把密碼原樣印出」，但 2026-08-07 P6 實測本機韌體是遮成 * 的 —— 以實測為準，不要因為手冊那句話就不敢查。": "Consulta o nome de utilizador e a palavra-passe FTP atualmente definidos. ⚠ O manual diz que «a resposta imprime a palavra-passe tal como está», mas o teste P6 de 2026-08-07 mostra que este firmware a mascara com * —— confie na medição e não evite esta consulta por causa dessa frase do manual.",
+ "（空）": "(vazio)"
+}

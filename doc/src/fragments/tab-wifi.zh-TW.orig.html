@@ -1,0 +1,27 @@
+<h3 id="tab-wifi">WiFiScan —— Wi-Fi 掃描與網路定位</h3>
+            <p><strong>工作原理：</strong>模組可以掃描周邊 2.4GHz 熱點，回報 MAC、RSSI、頻道。
+            這些資料本身可以用來做「網路定位」—— 把熱點資訊送到雲端換座標，
+            <strong>室內也能定位</strong>，不需要衛星。</p>
+            <table>
+                <tr><th>指令</th><th>要注意的事</th></tr>
+                <tr><td><code>AT+QWIFISCAN</code></td>
+                    <td>結果在 <code>OK</code> 之後<strong>非同步</strong>回報，最長等 13 秒。
+                        本機出廠上限 5 個熱點</td></tr>
+                <tr><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>⚠ 本機實回的範圍是「輪數 1-3、熱點上限 4-10」，
+                        <strong>應用文件寫的 1-6 與 4-30 是錯的</strong></td></tr>
+                <tr><td><code>AT+QLBS</code></td>
+                    <td>QuecLocator 網路定位。<strong>需要向 Quectel 申請 token</strong>，
+                        沒有的話一律回 702</td></tr>
+            </table>
+            <div class="warning">
+                <strong>QuecLocator 沒有官方文件收錄在本專案。</strong>
+                那一組按鈕的說明只寫 2026-08-07 的實測事實，
+                從子項名稱推得的語意都標了「推測」。實測已知：
+                沒 token 與假 token 都回 702、token 讀回時被遮成 <code>*</code>、
+                <strong>設定用小寫鍵但讀回是駝峰</strong>（<code>latorder</code> → <code>latOrder</code>）。
+            </div>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="WiFiScan 頁簽與 QuecLocator 群">
+                <figcaption>WiFiScan 頁：掃描參數與 QuecLocator 網路定位。</figcaption>
+            </figure>

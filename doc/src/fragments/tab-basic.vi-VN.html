@@ -1,0 +1,157 @@
+<h3 id="tab-basic">Basic —— SIM, chẩn đoán và trạng thái cơ bản</h3>
+            <p><strong>Nguyên lý hoạt động:</strong> trang này là điểm xuất phát sau mỗi lần kết nối. Chạy xong nghi thức khởi động, terminal hiện
+            <code>RDY</code> rồi, hãy đến đây làm ba việc: đổi thông báo lỗi sang định dạng đọc hiểu được,
+            xác nhận SIM sẵn sàng, nhận diện xem thẻ này là ai. Cả trang ngoài <code>AT&amp;F</code> và mở khóa PIN / PUK ra,
+            toàn bộ là truy vấn chỉ đọc —— bấm không làm thay đổi trạng thái module;
+            các lệnh động chạm đến trạng thái kết nối tập trung ở những tab khác như Network, TCP/IP.
+            Mọi mẫu trong mục này đều là giá trị đo thực tế tháng 8 năm 2026 trên EG800K vật lý
+            (firmware EG800KCNGCR07A06M04).</p>
+
+            <h4>Sau khi khởi động: RDY không có nghĩa là SIM sẵn sàng</h4>
+            <p><code>RDY</code> là URC module chủ động gửi ra khi khởi động xong.
+            Nó chỉ nói lên giao diện AT đã sống, <strong>thẻ SIM vẫn còn đang thong thả khởi tạo phía sau</strong>.
+            Đo thực tế: <code>RDY</code> vừa hiện mà gửi ngay lệnh liên quan SIM sẽ nhận
+            <code>+CME ERROR: 14</code> (SIM busy) thậm chí <code>+CME ERROR: 13</code> (SIM failure);
+            <strong>chờ khoảng 6 giây</strong> rồi gửi thì mọi thứ bình thường.</p>
+            <div class="warning">
+                <strong>Khi viết script tự động hóa, đừng lấy RDY làm tín hiệu "có thể bắt tay vào việc".</strong>
+                Cách đúng, chọn một trong hai: sau RDY chừa cố định khoảng 6 giây đệm;
+                hoặc hỏi vòng <code>AT+QINISTAT</code>, chờ bit 1 (CPIN sẵn sàng) sáng lên rồi mới tiếp tục.
+            </div>
+
+            <h4>Echo (ATE): "module dội lại" và "terminal tự hiển thị" là hai chuyện khác nhau</h4>
+            <p>Echo là <strong>module</strong> gửi trả nguyên văn các ký tự bạn đưa sang (<code>ATE1</code> bật,
+            <code>ATE0</code> tắt); còn local echo của terminal là <strong>phía công cụ</strong> tự in chữ bạn gõ
+            lên màn hình trước. Hai công tắc độc lập với nhau: cả hai cùng bật thì mỗi chữ sẽ hiện hai lần.</p>
+            <ul>
+                <li><strong>Nút gạt echo</strong> của trang này chuyển trạng thái echo của module bằng một phím.
+                    Khởi động mặc định là <strong>bật</strong> (đo thực tế tham số AT <code>E:1</code> làm chứng).</li>
+                <li>Trạng thái hiển thị trên nút không phải nhớ suông —— công cụ <strong>tự hiệu chỉnh theo phản hồi thực tế</strong>
+                    (nhận được dòng echo là coi như đang bật); bạn gõ tay <code>ATE0</code> / <code>ATE1</code> /
+                    <code>AT&amp;F</code> ở dòng lệnh thì trạng thái nút cũng đồng bộ theo, không bị lệch nhịp.</li>
+                <li>Chuyển trạng thái là session-only: module khởi động lại là về mặc định. Muốn ghi vào mặc định khởi động phải gõ thêm
+                    <code>AT&amp;W</code> (trang này không làm nút đó, cần thì gõ tay ở dòng lệnh).</li>
+            </ul>
+
+            <h4>Biến thông báo lỗi thành thứ đọc hiểu được (CMEE)</h4>
+            <table>
+                <tr><th>Nút</th><th>Tác dụng</th></tr>
+                <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+                    <td>Mã lỗi đổi sang mô tả bằng chữ. Ví dụ thực: khi GNSS chưa định vị, chế độ số trả
+                        <code>+CME ERROR: 516</code>, chế độ chữ trả
+                        <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> —— cái sau không cần tra bảng cũng biết chuyện gì xảy ra.
+                        <strong>Công cụ này đặc biệt khuyên bấm nút này ngay sau nghi thức khởi động</strong></td></tr>
+                <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+                    <td>Mã lỗi dùng số —— công cụ sẽ tự tra bảng dịch con số thành chú giải đọc hiểu được</td></tr>
+            </table>
+            <div class="tip">
+                Cả hai thiết lập đều là <strong>session-only</strong>: modem khởi động lại là mất
+                (tải lại trang = RTS ngắt điện = khởi động lại, cũng tính). Ngoài ra đo thực tế phát hiện: kể cả đã bật
+                <code>CMEE=2</code>, một số ít hệ con (như lỗi FILE của hệ thống tệp) vẫn trộn lẫn chữ và số,
+                viết chương trình phân tích thì cả hai dạng đều phải đón.
+            </div>
+
+            <h4>AT&amp;F: về mặc định xuất xưởng —— phạm vi ảnh hưởng</h4>
+            <p>Nút <strong>Factory Reset</strong> đặt lại thiết lập AT về giá trị xuất xưởng,
+            là bước đầu tiên khi tiếp nhận một module đã bị chỉnh lung tung. Đây là nút duy nhất của trang này bấm vào sẽ bật hộp xác nhận trước.
+            Phạm vi ảnh hưởng đã xác nhận bằng đo thực tế: <strong>sẽ đặt echo về bật</strong>
+            (trạng thái nút gạt echo tự động bám theo), <strong>không ảnh hưởng baud rate</strong>;
+            các mục thiết lập còn lại có bị khôi phục hay không, xem mục <code>AT&amp;F</code> trong sổ tay đối chiếu từng dòng.</p>
+
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Tab Basic">
+                <figcaption>Ba cụm nút của trang Basic: Echo (echo và định dạng lỗi),
+                SIM (truy vấn và mở khóa PIN / PUK), Status (đồng hồ, điện áp, giờ mạng).</figcaption>
+            </figure>
+
+            <h4>Bộ ba truy vấn SIM: có trong máy không, có chờ mật khẩu không, khởi tạo tới đâu</h4>
+            <table>
+                <tr><th>Nút</th><th>Câu hỏi đặt ra</th><th>Cách đọc kết quả</th></tr>
+                <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+                    <td>Thẻ có cắm chắc không</td>
+                    <td>Phản hồi có hai cột: cột đầu là công tắc URC cắm/rút, <strong>cột thứ hai mới là trạng thái thẻ</strong>, đừng nhìn nhầm cột.
+                        Nút này trên máy này có tiền sử báo sai, xem cảnh báo bên dưới</td></tr>
+                <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+                    <td>Thẻ có đang chờ mật khẩu không</td>
+                    <td><code>+CPIN: READY</code> = "hiện không chờ bất kỳ mật khẩu nào".
+                        ⚠ <strong>Không có nghĩa là thẻ này không cần PIN</strong> —— thẻ đã đặt PIN sau khi mở khóa cũng trả READY.
+                        Không có thẻ thì trả <code>+CME ERROR: 10</code></td></tr>
+                <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+                    <td>Tiến độ khởi tạo</td>
+                    <td>Mặt nạ bit: 1 = CPIN sẵn sàng, 2 = SMS, 4 = danh bạ, 7 = xong toàn bộ.
+                        Máy này đo thực tế sau khi khởi động ổn định đọc được <strong>3</strong> (bit danh bạ không được đặt) ——
+                        phán đoán "làm việc được chưa" nhìn bit 1 là đủ, <strong>đừng chờ chết ở số 7</strong></td></tr>
+            </table>
+            <div class="warning">
+                <strong>Card In? trên máy này biết nói dối.</strong> Đo thực tế <code>AT+QSIMSTAT?</code> trả
+                <code>0,0</code> (thẻ đã bị rút), nhưng cùng thời điểm CPIN READY, mạng đã attach, đã lấy được IP ——
+                thẻ rõ ràng vẫn ổn. Suy đoán là board điều khiển không nối chân dò SIM_DET (hoặc <code>AT+QSIMDET</code> chưa bật),
+                giá trị đọc luôn là "chưa cắm". <strong>Muốn phán đoán thẻ có trong máy không, lấy <code>AT+CPIN?</code> hoặc
+                <code>AT+QINISTAT</code> làm chuẩn.</strong>
+            </div>
+
+            <h4>Thẻ này là ai: IMSI và ICCID</h4>
+            <p>Nút <strong>IMSI</strong> (<code>AT+CIMI</code>) trả về một chuỗi số trần,
+            là mã nhận dạng thuê bao của thẻ này trên mạng di động. Máy này đo thực tế <code>901405117661468</code>:
+            ba số đầu (MCC) là <strong>901 = dải số thẻ chuyển vùng quốc tế</strong> ——
+            thẻ trong máy này là thẻ IoT của 1NCE, điều đó cũng giải thích vì sao <code>AT+CEREG?</code>
+            cứ trả <code>0,5</code> (đã đăng ký, <strong>chuyển vùng</strong>): không phải tín hiệu bất thường,
+            mà là trạng thái thường trực của loại thẻ này. Trước khi chạy kiểm thử dữ liệu hãy nhận diện thẻ chuyển vùng, để ý cước lưu lượng.</p>
+            <p>Nút <strong>ICCID</strong> (<code>AT+QCCID</code>) tra số serial của thẻ,
+            đo thực tế trả <code>+QCCID: 89882280666176614687</code>.
+            ⚠ <strong>Trong sổ tay không có lệnh <code>AT+CCID</code></strong> ——
+            lệnh thường gặp trong các hướng dẫn của module hãng khác ở đây không dùng được, phải dùng <code>AT+QCCID</code> riêng của Quectel.</p>
+
+            <h4>Mở khóa PIN: tra số lần còn lại trước, rồi mới ra tay</h4>
+            <ol>
+                <li><strong>Bấm PIN Left trước</strong> (<code>AT+QPINC?</code>) xem số lần thử còn lại ——
+                    phạm vi sổ tay đưa ra: PIN còn 0–3 lần, PUK còn 0–10 lần.
+                    Ra tay trước hết phải biết mình còn mấy viên đạn.</li>
+                <li>Khi thẻ đang chờ PIN, bấm <strong>Enter PIN</strong>: sẽ mở <strong>thẻ tham số</strong> trước
+                    cho bạn điền PIN rồi mới gửi (mẫu lệnh <code>AT+CPIN="{pin}"</code>, chờ tối đa 5 giây).</li>
+                <li>Khi PIN hết lượt, thẻ chuyển sang đòi PUK thì bấm <strong>Unlock PUK</strong>:
+                    sổ tay quy định <strong>PUK phải gửi cùng PIN mới</strong>
+                    (<code>AT+CPIN="{puk}","{newpin}"</code>), cũng đi qua thẻ tham số, chờ tối đa 5 giây.</li>
+            </ol>
+            <div class="warning">
+                Mỗi lần gửi sai là mất một lần; khi PUK cạn đáy thì <strong>dừng tay đi tìm nhà mạng</strong>,
+                đừng đoán mò mà đốt sạch số lần còn lại.
+            </div>
+
+            <h4>Ba nút trạng thái: đồng hồ, điện áp, giờ mạng</h4>
+            <table>
+                <tr><th>Nút</th><th>Xem gì</th><th>Đo thực tế và cách đọc</th></tr>
+                <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+                    <td>Đồng hồ RTC của module</td>
+                    <td><code>+CCLK: "26/08/01,00:55:32+32"</code>.
+                        Cột múi giờ <code>+32</code> có đơn vị là "khắc" (15 phút): 32 x 15 phút = UTC+8.
+                        Máy này đo thực tế RTC đã được mạng chỉnh giờ, thời gian lẫn múi giờ đều đúng</td></tr>
+                <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+                    <td>Điện áp cấp nguồn</td>
+                    <td>Một số firmware không hỗ trợ, trả ERROR là bình thường; firmware máy này có hỗ trợ,
+                        đo thực tế <code>+CBC: 0,0,4264</code> —— cột cuối là điện áp (mV), tức 4.264 V</td></tr>
+                <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+                    <td>Giờ địa phương hiện tại suy ra từ đồng bộ mạng</td>
+                    <td>Đo thực tế <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>.
+                        Khác biệt so với Clock nằm ở <strong>nguồn gốc</strong>: CCLK đọc RTC của chính module,
+                        QLTS lấy thẳng giờ mạng; định dạng năm cũng khác (RTC hai chữ số, QLTS bốn chữ số), phân tích đừng lẫn lộn</td></tr>
+            </table>
+
+            <h4>Khắc phục sự cố</h4>
+            <table>
+                <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+                <tr><td>RDY vừa hiện đã tra SIM, trả lỗi 14 hoặc 13</td>
+                    <td>SIM còn đang khởi tạo (14 = SIM busy; 13 = SIM failure cũng từng xuất hiện ở giai đoạn này).
+                        Chờ khoảng 6 giây gửi lại là bình thường, đừng vội kết luận thẻ hỏng</td></tr>
+                <tr><td>Card In? nói thẻ bị rút, các chức năng khác lại đều bình thường</td>
+                    <td>Vấn đề chân dò SIM_DET (ca đo thực tế trên máy này), không phải vấn đề của thẻ.
+                        Chuyển sang xem <code>AT+CPIN?</code> / <code>AT+QINISTAT</code></td></tr>
+                <tr><td>Mỗi chữ trên màn hình hiện hai lần</td>
+                    <td>Echo của module và local echo của terminal cùng bật —— bấm nút gạt echo một cái là xong</td></tr>
+                <tr><td>Lỗi chỉ trả về con số lạnh lùng</td>
+                    <td>Chưa bật CMEE. Bấm Verbose Err; nó là session-only,
+                        sau mỗi lần nghi thức khởi động đều phải bấm lại</td></tr>
+                <tr><td>Lệnh gửi đi hoàn toàn không có phản hồi</td>
+                    <td>Mở lại port sẽ assert RTS lần nữa = ngắt điện, module thực ra đã khởi động lại.
+                        Bắt buộc chạy lại trọn vẹn nghi thức khởi động, bỏ qua là tất cả đều không phản hồi</td></tr>
+            </table>

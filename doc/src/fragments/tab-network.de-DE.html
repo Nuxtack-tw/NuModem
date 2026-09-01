@@ -1,0 +1,149 @@
+<h3 id="tab-network">Network — Registrierung, Netzbetreiber, HF</h3>
+            <p><strong>Funktionsweise:</strong> Alle Datenfunktionen setzen voraus, dass das Modul <strong>im Mobilfunknetz registriert</strong>
+            ist und <strong>der PDP-Datenkanal bereitsteht</strong> — diese Seite ist das Armaturenbrett und der Schalterkasten des Netzzugangs;
+            jede Fehlersuche nach dem Muster „kommt nicht ins Netz“ beginnt hier. Alle Zahlen in diesem Abschnitt sind Messwerte einer echten EG800K vom August 2026.</p>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Network-Tab">
+                <figcaption>Die fünf Schaltflächengruppen der Network-Seite: Registrierungsabfragen, Signal-URCs, PDP, Diagnose, HF-Steuerung.</figcaption>
+            </figure>
+
+            <h4>Bevor Sie anfangen: die URCs auf den UART umschalten</h4>
+            <p>Ab Werk schickt die EG800K ihre Eigenmeldungen (URCs) an <code>usbat</code> (den USB-AT-Port),
+            dieses Werkzeug arbeitet aber am UART — <strong>keine einzige URC kommt an</strong>: Signalmeldungen,
+            TCP-/MQTT-/Wi-Fi-Scan-Ergebnisse bleiben alle stumm, mit dem Symptom <strong>„alle Befehle antworten mit OK, nur Meldungen kommen keine“</strong>.</p>
+            <div class="warning">
+                <strong>Das ist die Ursache Nummer eins für „alle URCs sind verschwunden“.</strong>
+                Fragen Sie im Hardware-Tab mit <code>AT+QURCCFG="urcport"</code> nach;
+                steht dort nicht <code>"uart1"</code>, stellen Sie es mit der Umschaltfläche um — die Einstellung landet im NVRAM und überlebt Neustarts, einmal ändern genügt.
+            </div>
+
+            <h4>Schritt eins: den Registrierungsstatus prüfen</h4>
+            <p>Sobald nach der Boot-Sequenz <code>RDY</code> erschienen ist, drücken Sie zuerst <code>AT+CEREG?</code> (bei 4G-Modulen die verlässlichste Abfrage).
+            Die drei Registrierungs-Schaltflächen entsprechen drei Netzdomänen: <code>CEREG</code> = LTE/EPS, <code>CREG</code> = leitungsvermittelte Domäne,
+            <code>CGREG</code> = paketvermittelte Domäne; die zweite Zahl (stat) wird überall gleich gedeutet:</p>
+            <table>
+                <tr><th>stat</th><th>Bedeutung</th><th>Was tun</th></tr>
+                <tr><td>0</td><td>Noch nicht registriert</td><td>Kurz nach dem Einschalten üblich, ein paar Sekunden warten und erneut abfragen</td></tr>
+                <tr><td>1</td><td>Registriert (Heimnetz)</td><td>Normal, weiter im Text</td></tr>
+                <tr><td>2</td><td>Suche läuft</td><td>Warten</td></tr>
+                <tr><td>3</td><td>Vom Netz abgewiesen</td><td>SIM/Tarif prüfen, Ursache mit CEER ansehen</td></tr>
+                <tr><td>5</td><td>Registriert (Roaming)</td><td><strong>Der Normalzustand dieses Geräts</strong>, siehe unten</td></tr>
+            </table>
+            <div class="tip">
+                <strong>stat=5 ist keine Störung.</strong> Gemessen antworten alle drei Registrierungsabfragen mit <code>0,5</code>:
+                Die SIM ist eine 1NCE-IoT-Karte (MCC 901, internationale Roaming-Karte) und gilt in jedem Land als „Roaming“ —
+                behandeln Sie die 5 wie eine 1.
+            </div>
+            <p>Ist die Registrierung erfolgreich, aber das Netz nicht erreichbar, drücken Sie als Nächstes <code>AT+CGATT?</code> und prüfen den Attach an die Paketdomäne;
+            bei Bedarf mit <code>AT+CGATT=1</code> manuell anbinden, und wenn das scheitert, die Ursache mit <code>AT+CEER</code>
+            abfragen (eine andere Schicht als <code>QIGETERROR</code> auf der TCP/IP-Seite).
+            CGATT blockiert bis zu <strong>140 Sekunden</strong> — nicht wiederholt hämmern.</p>
+
+            <h4>Bei welchem Netzbetreiber und in welchem Band das Modul gerade hängt</h4>
+            <p><code>AT+COPS?</code> fragt den aktuell eingebuchten Netzbetreiber ab (letzte Ziffer 7 = LTE).
+            <strong>Falle: Der Betreibername kann ein Leerstring sein</strong> — gemessen kam <code>+COPS: 0,0,"",7</code> zurück,
+            keine Störung. Um den Betreiber zu sehen, drücken Sie stattdessen <code>AT+QNWINFO</code> (Funkstandard/Betreiber/Band/Kanal):</p>
+            <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+            <p>46692 = Chunghwa Telecom, Band 8; ohne Versorgung kommt <code>NO SERVICE</code>.
+            Diese Roaming-Karte sucht sich ihr Netz selbst: An verschiedenen Tagen hing sie gemessen bei Chunghwa Telecom auf Band 8 und bei FarEasTone (466-01) auf Band 3 —
+            Betreiber- und Bandwechsel sind normal. <code>AT+COPS=?</code> scannt alle Betreiber in der Umgebung:
+            <strong>blockiert bis zu 300 Sekunden und unterbricht laufende Dienste</strong> — nur drücken, wenn wirklich nötig.</p>
+
+            <h4>Signalstärke und -qualität: CSQ ist nur ein Grobwert</h4>
+            <p><code>AT+CSQ</code> liefert rssi und ber: rssi 0–31 entspricht -113 bis -51 dBm,
+            99 = nicht messbar (kurz nach dem Einschalten üblich, ein paar Sekunden warten). Gemessen rssi 18–24 (-77 bis -65 dBm, gut);
+            <strong>ber steht konstant auf 99 und ist ohne Aussagewert</strong>. Die drei echten Qualitätsgrößen von LTE —
+            <strong>RSRP (Stärke) / RSRQ (Qualität) / SINR (Signal-Rausch-Verhältnis, niedrig = gestört)</strong> —
+            bekommt man nur über die Gruppe Signal URC (<code>AT+QINDCFG="sqi"</code> ohne Wert = Schalter abfragen):</p>
+            <table>
+                <tr><th>Schaltfläche</th><th>Befehl</th><th>Wirkung</th></tr>
+                <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+                    <td>Schaltet die RSRP/RSRQ/SINR-Meldungen ein — <strong>unverzichtbar für Antennen- und Positionierungstests</strong>.
+                        Gemeldet wird nur, wenn sich das Signal „ändert“; tut sich nichts, die Antenne abschirmen oder ab- und wieder anstecken. Die Einstellung überlebt keinen Neustart</td></tr>
+                <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+                    <td>Meldet jede Signaländerung sofort — statt wildem CSQ-Drücken</td></tr>
+                <tr><td>URC Off/On</td><td><code>AT+QINDCFG="all",0/1</code></td>
+                    <td>Bei Meldungsflut die Stummschaltung mit einem Klick — hinterher wieder einschalten nicht vergessen</td></tr>
+            </table>
+
+            <h4>Der PDP-Kanal: 3GPP-Schicht vs. TCP/IP-Seite</h4>
+            <p>Der PDP context ist der vom Mobilfunknetz zugeteilte „Datenkanal“ — erst mit ihm gibt es eine IP. Diese Gruppe besteht aus reinen Leseabfragen der 3GPP-Standardschicht:
+            <code>AT+CGDCONT?</code> listet Contexts und APN, <code>AT+CGACT?</code> listet den Aktivierungszustand
+            (blockiert bis zu 150 Sekunden; ⚠ die Schreibform hat die umgekehrte Parameterreihenfolge), <code>AT+CGPADDR</code>
+            listet die erhaltenen IPs. <code>QIACT?</code>/<code>QICSGP</code> auf der TCP/IP-Seite gehören dagegen zum
+            <strong>Quectel-eigenen Stack und liegen nicht auf derselben Schicht</strong> — der Parallelvergleich zeigt, auf welcher Seite es hakt:
+            hier eine IP, dort keine = das Netz hat geliefert, aber der Stack ist nicht gestartet. Dieses Gerät aktiviert den PDP beim Einschalten automatisch und erhält eine IP.</p>
+            <p><code>AT+QGDCNT?</code> fragt das aufgelaufene Datenvolumen ab (die erste Zahl ist <strong>gesendet</strong>, die zweite empfangen) —
+            bei Roaming-Karten für Volumentests unverzichtbar. ⚠ <strong>Die Messung widerlegt den Schaltflächenhinweis „zählt über Neustarts hinweg“</strong>:
+            Der Zähler wird standardmäßig nicht ins NV geschrieben; einmal stromlos (auch durch Neuladen der Seite) und er steht auf null — notieren Sie die Werte sofort
+            oder sichern Sie sie mit <code>AT+QGDCNT=1</code> ins NV.</p>
+
+            <h4>Fehlersuche in der Praxis: Diese Karte erlaubt nur einen einzigen PDP</h4>
+            <p>Auf der TCP/IP-Seite antwortet <code>AT+QIACT=1</code> mit ERROR (<code>572,operation not
+            allowed</code>)? Das feste Drehbuch dieser Karte: Nach dem Einschalten hat die 3GPP-Schicht bereits <strong>automatisch einen PDP aktiviert</strong>,
+            aber <strong>die Context-Nummer wandert</strong> (gemessen wurden 1 und 9); ein zweiter Aktivierungsversuch liefert
+            <code>+CME ERROR: 100</code> ⇒ das Netz erlaubt nur einen einzigen PDP; und der contextID-Bereich von <code>QIACT</code>
+            reicht nur von 1–8 — liegt der PDP auf 9, kommt der Quectel-Stack schlicht nicht heran.
+            Die Lösung in zwei Schritten (einmal nach jedem Einschalten):</p>
+            <pre>AT+CGACT?             ← nachsehen, welche cid es ist (die Nummer wandert, nicht überspringen)
+AT+CGACT=0,&lt;diese cid&gt;   ← die 3GPP-Schicht gibt den Platz frei
+AT+QIACT=1            ← TCP/IP-Seite; +QIACT: 1,1,1,"10.187.7.8" bedeutet Erfolg</pre>
+            <p>Das Setzen des APN per <code>QICSGP</code> kann man sich mit dieser Karte sparen — gemessen übernimmt das Modul den vom Netz zugeteilten APN automatisch
+            (<code>iot.1nce.net</code>); nötig wird es erst bei Firmen-APN-Karten mit Benutzername und Passwort.</p>
+            <div class="warning">
+                <strong>Mitten im Test laufen plötzlich alle Anfragen in den Timeout? Denken Sie zuerst an PDP-Drift.</strong>
+                Gemessen lieferte <code>AT+QIACT?</code> auch dann noch eine IP, während HTTP in Serie scheiterte (Fehler 716, konstant 30 Sekunden Timeout) —
+                in diesem Moment lügt die Abfrage; gleichen Sie mit <code>AT+CGACT?</code> gegen
+                (gemessen: 1,0 und 9,1 = auf 9 gedriftet).
+                Lösung: <code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;gedriftete cid&gt;</code> →
+                <code>AT+QIACT=1</code>, danach per Ping verifizieren.
+            </div>
+
+            <h4>CFUN-Funktionsstufen und HF-Steuerung</h4>
+            <p>Die gesamte Gruppe RF Control verändert den Modulzustand; alles rot umrandete Schaltflächen mit Rückfrage vor dem Ausführen.
+            Sehen Sie mit <code>AT+CFUN?</code> zuerst die aktuelle Stufe an, bevor Sie handeln:</p>
+            <table>
+                <tr><th>Befehl</th><th>Stufe</th><th>Bedeutung</th></tr>
+                <tr><td><code>AT+CFUN=1</code></td><td>Volle Funktion</td>
+                    <td>HF komplett an; <strong>zur Wiederherstellung immer diese Schaltfläche</strong></td></tr>
+                <tr><td><code>AT+CFUN=4</code></td><td>Flugmodus</td>
+                    <td>Senden und Empfangen aus, SIM bleibt aktiv — der Startpunkt für Tests des „Wiedereinbuchens“</td></tr>
+                <tr><td><code>AT+CFUN=0</code></td><td>Minimal</td>
+                    <td>Auch die SIM wird deaktiviert; das Handbuch schreibt nur „Minimum functionality“ ohne Details</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>Softreset</td>
+                    <td>Startet das gesamte Modul neu. ⚠ Der AT-Port fällt kurz aus; erneut auf <code>RDY</code> warten</td></tr>
+            </table>
+            <p>CFUN blockiert bis zu 15 Sekunden. <strong>Hat die SIM eine PIN-Sperre, muss nach dem Zurückschalten auf CFUN=1 die PIN neu eingegeben werden,
+            sonst registriert sich das Modul nicht.</strong> <code>AT+CGATT=0</code> (PS Detach) löst das Modul aus der Paketdomäne —
+            <strong>das reißt alle TCP-/MQTT-Verbindungen ab</strong>; nur für Tests des „Wiederanbindens“ verwenden.</p>
+
+            <h4>Für Fortgeschrittene: Basisstationsdaten lesen mit QENG (Eingabe über die Befehlszeile)</h4>
+            <p>Dafür gibt es auf dieser Seite keine Schaltfläche — tippen Sie in der Befehlszeile <code>AT+QENG="servingcell"</code>
+            und lesen Sie die Parameter der versorgenden Zelle aus; die gemessenen Schlüsselfelder:</p>
+            <table>
+                <tr><th>Feld</th><th>Messwert</th><th>Deutung</th></tr>
+                <tr><td>MCC/MNC</td><td>466/01</td><td>Taiwan/FarEasTone</td></tr>
+                <tr><td>Cell ID/TAC</td><td><code>ABCDE02</code>/<code>1234</code> (hex)</td>
+                    <td>Dezimal 180149762/4660; eNodeB = ECI≫8 = 703710, Sektor = 2</td></tr>
+                <tr><td>PCID/EARFCN</td><td>144/1550</td>
+                    <td>Physische Zellkennung (<strong>nicht global eindeutig</strong>)/Band 3</td></tr>
+                <tr><td>RSRP/RSRQ/RSSI/SINR</td><td>-113/-18/-92/-1</td>
+                    <td>RSRP unter -100 gilt als schlecht; SINR -1 dB = mangelhafte Qualität</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Cell ID und TAC sind hexadezimal — vor jeder Datenbankabfrage in Dezimalzahlen umrechnen.</strong>
+                Datenbanken wie OpenCelliD erwarten ausnahmslos Dezimalwerte; wer <code>ABCDE02</code> direkt einwirft, bekommt nur „kein Treffer“.
+                Außerdem liefert <code>AT+QENG="neighbourcell"</code> nur die PCID und
+                <strong>keine globale Cell ID</strong> (eine Beschränkung des LTE-Standards).
+            </div>
+
+            <h4>Fehlersuche</h4>
+            <table>
+                <tr><th>Symptom</th><th>Ursache und Abhilfe</th></tr>
+                <tr><td>Alle Befehle antworten mit OK, aber keine einzige Eigenmeldung erscheint</td>
+                    <td>urcport steht auf usbat (Werkswert) — im Hardware-Tab auf uart1 umschalten</td></tr>
+                <tr><td><code>QIACT=1</code> antwortet mit ERROR (572)</td>
+                    <td>Der einzige PDP-Platz ist belegt — die zweischrittige Fehlerbehebung oben durchgehen</td></tr>
+                <tr><td>Aufeinanderfolgende Anfragen laufen alle konstant nach 30 Sekunden in den Timeout</td>
+                    <td>PDP-Drift — mit <code>AT+CGACT?</code> gegenprüfen, nicht allein <code>QIACT?</code> glauben</td></tr>
+            </table>

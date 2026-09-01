@@ -1,0 +1,157 @@
+<h3 id="tab-basic">Basic —— SIM、診斷與基本狀態</h3>
+            <p><strong>工作原理：</strong>這一頁是每次連線後的起點。開機儀式跑完、終端出現
+            <code>RDY</code> 之後，先來這裡做三件事：把錯誤訊息換成看得懂的格式、
+            確認 SIM 就緒、認一下這張卡是誰。整頁除了 <code>AT&amp;F</code> 與 PIN／PUK 解鎖，
+            全部是唯讀查詢——按了不會改變模組狀態；
+            會動到連線狀態的指令集中在 Network、TCP/IP 等其他頁簽。
+            本節樣本皆為 2026 年 8 月對實體 EG800K
+            （韌體 EG800KCNGCR07A06M04）的實測值。</p>
+
+            <h4>開機之後：RDY 不等於 SIM 就緒</h4>
+            <p><code>RDY</code> 是模組開機完成時主動送出的 URC。
+            它只代表 AT 介面活了，<strong>SIM 卡還在後面慢慢初始化</strong>。
+            實測：<code>RDY</code> 一出現就送 SIM 相關指令，會回
+            <code>+CME ERROR: 14</code>（SIM busy）甚至 <code>+CME ERROR: 13</code>（SIM failure）；
+            <strong>等約 6 秒</strong>後再送就一切正常。</p>
+            <div class="warning">
+                <strong>寫自動化腳本時，不要拿 RDY 當「可以開工」的訊號。</strong>
+                正確做法二選一：RDY 後固定留約 6 秒緩衝；
+                或輪詢 <code>AT+QINISTAT</code>，等 bit 1（CPIN 就緒）亮起再繼續。
+            </div>
+
+            <h4>複誦（ATE）：「模組回音」與「終端回顯」是兩回事</h4>
+            <p>複誦是<strong>模組</strong>把你送過去的字元原樣回送（<code>ATE1</code> 開、
+            <code>ATE0</code> 關）；終端機的本地回顯則是<strong>工具端</strong>自己把你打的字
+            先印上畫面。兩個開關互相獨立：兩邊都開，每個字就會出現兩次。</p>
+            <ul>
+                <li>本頁的<strong>複誦切換鈕</strong>單鍵切換模組複誦。
+                    開機預設為<strong>開</strong>（實測 AT 參數 <code>E:1</code> 佐證）。</li>
+                <li>鈕上顯示的狀態不是憑空記的——工具<strong>依實際回應自動校正</strong>
+                    （收到複誦行即視為開）；你在命令列手打 <code>ATE0</code>／<code>ATE1</code>／
+                    <code>AT&amp;F</code>，鈕的狀態也會同步，不會脫節。</li>
+                <li>切換是 session-only：模組重開就回到預設。要寫進開機預設得另外下
+                    <code>AT&amp;W</code>（本頁沒做這顆鈕，需要就在命令列手打）。</li>
+            </ul>
+
+            <h4>把錯誤訊息變成看得懂的（CMEE）</h4>
+            <table>
+                <tr><th>按鈕</th><th>效果</th></tr>
+                <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+                    <td>錯誤碼改用文字描述。實例：GNSS 未定位時，數字模式回
+                        <code>+CME ERROR: 516</code>，文字模式回
+                        <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code>——後者不查表就知道發生什麼事。
+                        <strong>本工具強烈建議開機儀式後就按這顆</strong></td></tr>
+                <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+                    <td>錯誤碼用數字——工具會自動查表把號碼翻成中文註解</td></tr>
+            </table>
+            <div class="tip">
+                兩種設定都是 <strong>session-only</strong>：modem 重開就沒了
+                （重載頁面＝RTS 斷電＝重開，也算）。另外實測發現：即使開了
+                <code>CMEE=2</code>，少數子系統（如檔案系統 FILE 錯誤）仍會文字、數字混出，
+                寫解析程式時兩種形式都要接。
+            </div>
+
+            <h4>AT&amp;F：回原廠預設——影響範圍</h4>
+            <p><strong>Factory Reset</strong> 鈕把 AT 設定重置為原廠值，
+            是接手一顆被亂設過的模組時的第一步。這是本頁唯一按下去會先跳確認的按鈕。
+            已實測確認的影響範圍：<strong>會把複誦設回開啟</strong>
+            （複誦切換鈕的狀態會自動跟上）、<strong>不影響鮑率</strong>；
+            其餘各條設定是否被還原，見手冊 <code>AT&amp;F</code> 條目逐項確認。</p>
+
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Basic 頁簽">
+                <figcaption>Basic 頁的三組按鈕：Echo（複誦與錯誤格式）、
+                SIM（查詢與 PIN／PUK 解鎖）、Status（時鐘、電壓、網路時間）。</figcaption>
+            </figure>
+
+            <h4>SIM 三連查：在不在、等不等密碼、初始化到哪</h4>
+            <table>
+                <tr><th>按鈕</th><th>問的問題</th><th>判讀</th></tr>
+                <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+                    <td>卡有沒有插好</td>
+                    <td>回應兩欄：第一欄是插拔 URC 開關、<strong>第二欄才是卡狀態</strong>，別看錯欄。
+                        本機這顆有誤報前科，見下方警告</td></tr>
+                <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+                    <td>卡在不在等密碼</td>
+                    <td><code>+CPIN: READY</code> ＝「目前沒有在等任何密碼」。
+                        ⚠ <strong>不等於這張卡不需要 PIN</strong>——設了 PIN 的卡解鎖後也回 READY。
+                        無卡回 <code>+CME ERROR: 10</code></td></tr>
+                <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+                    <td>初始化進度</td>
+                    <td>位元遮罩：1＝CPIN 就緒、2＝SMS、4＝電話簿，7＝全部完成。
+                        本機實測開機穩定後讀到 <strong>3</strong>（電話簿位元未設）——
+                        判斷「能不能開工」看 bit 1 就夠，<strong>別死等 7</strong></td></tr>
+            </table>
+            <div class="warning">
+                <strong>Card In? 在本機會說謊。</strong>實測 <code>AT+QSIMSTAT?</code> 回
+                <code>0,0</code>（卡已移除），但同一時刻 CPIN READY、網路已附著、已取得 IP——
+                卡明明好好的。推測是控制板未接 SIM_DET 偵測腳（或 <code>AT+QSIMDET</code> 未啟用），
+                讀值恆為「未插入」。<strong>判斷卡在不在，以 <code>AT+CPIN?</code> 或
+                <code>AT+QINISTAT</code> 為準。</strong>
+            </div>
+
+            <h4>這張卡是誰：IMSI 與 ICCID</h4>
+            <p><strong>IMSI</strong> 鈕（<code>AT+CIMI</code>）回一串裸數字，
+            是這張卡在行動網路上的用戶識別碼。本機實測 <code>901405117661468</code>：
+            開頭三碼（MCC）是 <strong>901 ＝ 國際漫遊卡號段</strong>——
+            本機這張是 1NCE 物聯網卡，這也解釋了為什麼 <code>AT+CEREG?</code>
+            一直回 <code>0,5</code>（已註冊、<strong>漫遊</strong>）：不是訊號異常，
+            是這種卡的常態。跑數據測試前先認出漫遊卡，留意流量資費。</p>
+            <p><strong>ICCID</strong> 鈕（<code>AT+QCCID</code>）查卡片序號，
+            實測回 <code>+QCCID: 89882280666176614687</code>。
+            ⚠ <strong>手冊裡沒有 <code>AT+CCID</code> 這條指令</strong>——
+            別家模組教學常見的那條在這裡行不通，要用 Quectel 專屬的 <code>AT+QCCID</code>。</p>
+
+            <h4>PIN 解鎖：先查剩餘次數，再動手</h4>
+            <ol>
+                <li><strong>先按 PIN Left</strong>（<code>AT+QPINC?</code>）看剩餘嘗試次數——
+                    手冊給的範圍：PIN 剩 0–3 次、PUK 剩 0–10 次。
+                    動手前先知道自己還剩幾發。</li>
+                <li>卡在等 PIN 時按 <strong>Enter PIN</strong>：會先展開<strong>參數卡</strong>
+                    讓你填 PIN 再送出（指令樣板 <code>AT+CPIN="{pin}"</code>，最長等 5 秒）。</li>
+                <li>PIN 次數用完、卡改要 PUK 時按 <strong>Unlock PUK</strong>：
+                    手冊規定 <strong>PUK 必須和新 PIN 一起送</strong>
+                    （<code>AT+CPIN="{puk}","{newpin}"</code>），同樣走參數卡、最長等 5 秒。</li>
+            </ol>
+            <div class="warning">
+                每送錯一次就少一次；PUK 見底時<strong>停手找電信商</strong>，
+                不要用猜的把次數燒完。
+            </div>
+
+            <h4>狀態三顆：時鐘、電壓、網路時間</h4>
+            <table>
+                <tr><th>按鈕</th><th>看什麼</th><th>實測與判讀</th></tr>
+                <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+                    <td>模組 RTC 時鐘</td>
+                    <td><code>+CCLK: "26/08/01,00:55:32+32"</code>。
+                        時區欄 <code>+32</code> 的單位是「刻」（15 分鐘）：32 × 15 分＝UTC+8。
+                        本機實測 RTC 已被網路對時，時間與時區皆正確</td></tr>
+                <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+                    <td>供電電壓</td>
+                    <td>部分韌體不支援、回 ERROR 屬正常；本機韌體有支援，
+                        實測 <code>+CBC: 0,0,4264</code>——末欄是電壓（mV），即 4.264 V</td></tr>
+                <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+                    <td>網路同步推算的目前本地時間</td>
+                    <td>實測 <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>。
+                        與 Clock 的差別在<strong>來源</strong>：CCLK 讀模組自己的 RTC、
+                        QLTS 直接取網路時間；年份格式也不同（RTC 兩碼、QLTS 四碼），解析別搞混</td></tr>
+            </table>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td>RDY 剛出現就查 SIM，回錯誤 14 或 13</td>
+                    <td>SIM 還在初始化（14＝SIM busy；13＝SIM failure 在這階段也出現過）。
+                        等約 6 秒再送即正常，別急著斷定卡壞了</td></tr>
+                <tr><td>Card In? 說卡被移除，其他功能卻都正常</td>
+                    <td>SIM_DET 偵測腳問題（本機實測案例），不是卡的問題。
+                        改看 <code>AT+CPIN?</code>／<code>AT+QINISTAT</code></td></tr>
+                <tr><td>畫面上每個字都出現兩次</td>
+                    <td>模組複誦與終端本地回顯同時開著——按一下複誦切換鈕即可</td></tr>
+                <tr><td>錯誤只回冷冰冰的數字</td>
+                    <td>還沒開 CMEE。按 Verbose Err；它是 session-only，
+                        每次開機儀式後都要重按</td></tr>
+                <tr><td>指令送出去完全沒有回應</td>
+                    <td>重開 port 會重新 assert RTS＝斷電，模組其實已重開機。
+                        必須重跑完整開機儀式，跳過則全部無回應</td></tr>
+            </table>

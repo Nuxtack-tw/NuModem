@@ -1,0 +1,4 @@
+{
+ "登出 FTP(S) 伺服器。⚠ 立刻回的 OK 只代表指令收下 —— 必須等到 +QFTPCLOSE: 0,0 才算關完，期間狀態是 3（關閉中），這時下任何 FTP 指令一律回 +CME ERROR: 603（伺服器忙碌）。2026-08-07 P6 實測：把 OK 當成關好就重新 QFTPOPEN，會一路 603 到以為模組壞了": "FTP(S) sunucusundan çıkış yapar. ⚠ Hemen dönen OK yalnızca komutun kabul edildiği anlamına gelir — oturum ancak +QFTPCLOSE: 0,0 geldiğinde kapanmış olur. Arada durum 3'tür (kapanıyor) ve o sırada verilen her FTP komutu +CME ERROR: 603 (sunucu meşgul) döndürür. 2026-08-07 tarihli P6 turunda ölçüldü: o OK'i «kapandı» sayıp hemen yeniden açmak, tam olarak bozuk bir modül gibi görünen bir 603 dizisi üretir",
+ "（密碼會被模組遮成 *，2026-08-07 P6 實測；設定時輸入的原文才是明碼）": "(modül parolayı * ile gizler, 2026-08-07 tarihli P6 turunda ölçüldü; yalnızca ayarlarken yazdığınız metin açıktır)"
+}

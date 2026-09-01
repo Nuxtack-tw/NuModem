@@ -1,0 +1,138 @@
+<h3 id="tab-ftp">FTP —— 檔案傳輸</h3>
+            <p><strong>工作原理：</strong>FTP 有<strong>兩條通道</strong>：控制通道走命令、
+            資料通道走檔案內容。登入、改名、刪除、查大小只走控制通道；
+            LIST、上傳、下載要<strong>另開一條資料連線</strong> ——
+            本節大半的怪現象（615、603 連發）都由此而來。
+            貫穿全節的 Quectel 通則：<strong><code>OK</code> 只代表「指令收下」</strong>，
+            真正結果之後才以 URC 送達。本節回應與數字全是 2026 年 8 月對實體 EG800K 的實測值。</p>
+
+            <h4>開始之前：兩個前提</h4>
+            <ul>
+                <li><strong>PDP 要先啟用</strong>：本頁第一顆 <code>AT+QIACT?</code> 就是做這個檢查 ——
+                    回得出 <code>+QIACT: 1,1,…,"IP"</code> 才能繼續，只回 OK 就先到 TCP/IP 頁按
+                    Act PDP（PDP 未啟用時 QFTPOPEN 必失敗）。</li>
+                <li><strong>URC 要走 UART</strong>：FTP 指令幾乎全是「先 OK、結果再以 URC 送達」，
+                    <code>AT+QURCCFG="urcport"</code> 不是 <code>"uart1"</code> 的話，
+                    這裡只看得到一堆 OK（設定見 Hardware 頁）。</li>
+            </ul>
+
+            <h4>登入動線：設定 → 開啟 → 等 URC</h4>
+            <ol>
+                <li><strong>綁 PDP context</strong>：<code>AT+QFTPCFG="contextid",1</code>
+                    （出廠即為 1，查詢鈕可讀回確認）。</li>
+                <li><strong>設帳密</strong>：<code>AT+QFTPCFG="account","帳號","密碼"</code>，
+                    <strong>必須在 QFTPOPEN 之前</strong>設好。</li>
+                <li><strong>模式與型態</strong>：<code>transmode</code> 設 1
+                    （被動；NAT 後方一律用它，FTPS 必須）；
+                    <code>filetype</code> 純文字檔用 1、其餘用 0。</li>
+                <li><strong>登入</strong>：<code>AT+QFTPOPEN="主機",21</code> 立即回 OK（只是收下），
+                    等 <code>+QFTPOPEN: 0,0</code> 才是登入成功（最長 125 秒）。
+                    再按 <code>AT+QFTPSTAT</code> 應回 1（閒置；2＝傳輸中、3＝關閉中）。</li>
+            </ol>
+            <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK                ← 只代表指令收下
++QFTPOPEN: 0,0    ← 這一行才是登入成功</pre>
+            <p>其餘設定項：<code>AT+QFTPCFG=?</code> 一鍵列出全部 10 個可設定項與範圍（零流量）。
+            <code>rsptimeout</code>（20–180，預設 90 秒）是多數指令的最大回應時間、
+            也是資料模式中兩包資料的最大間隔；<code>ssltype</code>／<code>sslctxid</code> 是
+            FTPS 用（純 FTP 維持 0，SSL 參數在 SSL 頁設）；
+            <code>data_address</code>／<code>cache</code>／<code>restenable</code>
+            屬特殊環境微調，用途見各鈕說明與手冊。</p>
+            <div class="tip">
+                <strong>密碼遮蔽（實測，與手冊不符）：</strong>查詢 <code>AT+QFTPCFG="account"</code>
+                讀回時密碼被遮成 <code>*</code>（手冊說原樣印出）。但帳號仍是明文，
+                <strong>設定那一行的密碼也是明碼</strong>，截圖錄影要留意的是設定行。
+            </div>
+            <div class="warning">
+                <strong>🔴 <code>AT+QFTPCLOSE</code> 是非同步的 —— <code>OK</code> 不代表關好了。</strong>
+                要等 <code>+QFTPCLOSE: 0,0</code> 才算登出完成；期間 <code>AT+QFTPSTAT</code>
+                回 3（關閉中），下任何 FTP 指令<strong>一律回 <code>+CME ERROR: 603</code></strong>（伺服器忙碌）。
+                <br><br>
+                症狀極具誤導性：一連串 603 看起來像模組壞了或被伺服器封鎖，
+                其實只是還沒關完（實測當天就因此繞了一大圈）。等待上限＝rsptimeout。
+                另外它只登出 FTP；要徹底重置網路，到 TCP/IP 頁按 Deact PDP。
+            </div>
+
+            <h4>目錄與檔案管理：把伺服器當檔案總管用</h4>
+            <p>全套伺服器端檔案操作（LIST／NLST／MLSD 要開資料連線，其餘只走控制通道）。
+            成功回應一律 <code>+QFTPXXX: 0,…</code> —— 第一個數字 0 就是成功：</p>
+            <table>
+                <tr><th>指令</th><th>做什麼</th><th>成功回應（實測）</th></tr>
+                <tr><td><code>AT+QFTPPWD</code></td><td>查目前工作目錄</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+                <tr><td><code>AT+QFTPCWD</code></td><td>切換工作目錄，之後的操作以此為基準</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPLIST</code></td><td>完整清單直接吐在終端機（兩顆鈕：目前目錄／指定目錄）</td><td>內容後 <code>+QFTPLIST: 0,1175</code>（尾數＝位元組數）</td></tr>
+                <tr><td><code>AT+QFTPNLST</code>／<code>AT+QFTPMLSD</code></td><td>只列檔名（省流量）／MLSD 標準格式（好解析）</td><td>同 LIST</td></tr>
+                <tr><td><code>AT+QFTPSIZE</code></td><td>查檔案大小，不下載內容</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+                <tr><td><code>AT+QFTPMDTM</code></td><td>查檔案修改時間，不下載內容</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+                <tr><td><code>AT+QFTPMKDIR</code>／<code>AT+QFTPRMDIR</code></td><td>建立／刪除資料夾</td><td><code>…: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPRENAME</code></td><td>檔案或資料夾改名</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPDEL</code></td><td>刪除檔案</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+            </table>
+            <p>招式（實測整串通過）：<strong>拿 SIZE 當存在性檢查</strong> ——
+            改名後查舊名回 <code>+QFTPSIZE: 627,550</code>、新名回 <code>0,20</code>；
+            刪除後再查又是 <code>627,550</code>，不下載半個 byte 就驗證了每一步。
+            <code>627,550</code> 是<strong>兩層錯誤碼</strong>：627＝模組層「FTP 未執行所請求的動作」、
+            550＝FTP 協定層伺服器回覆「檔案或目錄不存在」，本工具的註解會分層翻譯。</p>
+
+            <h4>下載：內容直接印在終端機（COM:）</h4>
+            <p><code>AT+QFTPGET="檔名","COM:"</code> —— <code>CONNECT</code> 後檔案內容直接吐在終端機，
+            結尾 <code>+QFTPGET: 0,&lt;位元組數&gt;</code>（實測 readme.txt 回 0,379）。
+            另一顆<strong>分塊下載</strong>鈕多帶起點與長度參數，是最推薦的下載方式：
+            先用 SIZE 查大小、再分塊拿，避免整檔爆流量。
+            <code>AT+QFTPLEN</code> 查上一次 PUT／GET／LIST／NLST 實際傳了多少 byte。</p>
+
+            <h4>上傳：兩段式，送滿宣告長度自動結束</h4>
+            <p><code>AT+QFTPPUT="檔名","COM:",0,&lt;長度&gt;,1</code> 是兩段式指令：
+            等 <code>CONNECT</code>（進入資料模式）後送出<strong>剛好</strong>宣告長度的位元組數，
+            模組數滿自動退出資料模式，不必送 Ctrl+Z。本工具長度自動計算，參數卡貼上內容即可。</p>
+            <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT                        ← 進入資料模式
+NuModem-P6-FTP-test\n          ← 送出剛好 20 bytes
+OK
++QFTPPUT: 0,20                 ← 伺服器收到 20 bytes</pre>
+            <p>這 20 bytes 實測時特地從主機端用 Python ftplib 抓回逐位元組比對 —— 完全相符。
+            <strong>UFS 中轉形式</strong>：手冊另支援檔名寫成 <code>"UFS:xxx"</code>、
+            以模組內建儲存區中轉，細節見 FTPS 應用筆記；要先把電腦檔案放進 UFS，
+            用 SSL 頁「UFS 檔案」羣的 Upload 鈕（<code>AT+QFUPL</code>，走 UART 零流量、
+            自動比對 checksum）。</p>
+            <div class="warning">
+                <strong>⚠ <code>+++</code> 對 FTP 是「中止」不是「暫停」。</strong>
+                手冊（FTPS AN v1.5 p13）寫逃逸後可用 <code>ATO</code> 重回資料模式續傳，
+                <strong>實測不成立</strong>（測兩次結果一致）：逃逸後 <code>AT+QFTPSTAT</code>
+                回 1（閒置）而不是 2（傳輸中），<code>ATO</code> 回 <code>NO CARRIER</code> ——
+                傳輸已被整個中止，沒有可回復的連線。所以 <code>+++</code> 只能用來從失控的
+                資料模式脫身，不能拿來暫停大檔下載。
+                <br><br>
+                正確下法：<strong>前後各靜默 1 秒、以原始位元組送、不加 CR</strong>（加了不生效）——
+                本頁的 <code>+++</code> 鈕已照此規矩送；<code>ATO</code> 鈕依手冊語意保留。
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="FTP 頁簽">
+                <figcaption>FTP 頁：登入設定、目錄與檔案管理、上傳下載。</figcaption>
+            </figure>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td><code>+CME ERROR: 603</code> 連發</td>
+                    <td>① QFTPCLOSE 後還在關閉中（QFTPSTAT 回 3）—— 等 <code>+QFTPCLOSE: 0,0</code>；
+                        ② 先前發生過 615 —— <strong>615 之後所有 FTP 指令一律 603</strong>，直到正確關閉為止</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>開資料連線失敗：<strong>控制通道正常、資料通道全滅</strong>
+                        （SIZE 有回應，PUT／GET／LIST 全倒）。多半是伺服器端問題 ——
+                        dlptest 從兩條不同網路路徑測都失敗、rebex 全程零失敗；
+                        讀取用 rebex、寫入才用 dlptest 且一次做完</td></tr>
+                <tr><td><code>627,550</code></td>
+                    <td>檔案或目錄不存在 —— 檔名或路徑打錯，先 QFTPPWD／QFTPLIST 確認自己在哪</td></tr>
+                <tr><td>重開機後第一個 PUT 就 615</td>
+                    <td>資料堆疊退化：QFTPCLOSE 與 PDP 重啟都救不回，
+                        <strong>只有完整開機儀式能復原</strong>。鑑別法：用 TCP/IP 頁
+                        <code>AT+QIOPEN</code> 打同一目標 —— 也失敗＝整個堆疊壞了，別再查 FTP 設定</td></tr>
+                <tr><td>指令回 OK 後什麼都沒發生</td>
+                    <td>結果 URC 跑去 USB 埠了 —— 查 <code>AT+QURCCFG="urcport"</code>
+                        是不是 uart1</td></tr>
+                <tr><td><code>AT+QFTPOPEN</code> 直接失敗</td>
+                    <td>PDP 沒啟用 —— 先按本頁 <code>AT+QIACT?</code>，沒有 IP 就到 TCP/IP 頁 Act PDP</td></tr>
+            </table>

@@ -1,0 +1,17 @@
+{
+ "⚠ 本機出廠為空，沒有它 AT+QLBS 會回 10002（token 不存在）。⚠ 若回 702 那是伺服器逾時、不是 token 問題 —— 先確認 AT+QIACT? 有 PDP。設定後讀回會被模組遮成 *，跟 FTP 密碼一樣": "⚠ Empty from the factory on this unit; without it AT+QLBS answers 10002 (the token does not exist). ⚠ If it answers 702 that is a server timeout, not a token problem —— first make sure AT+QIACT? shows a PDP context. Once set, reading it back shows only *, exactly like the FTP password",
+ "設定 QuecLocator token。⚠ 這串要向 Quectel 申請，本機出廠是空的 —— 沒有它 AT+QLBS 會回 10002（token 不存在）。⚠ 若回的是 702 那是「伺服器逾時」不是 token 問題 —— 先查 AT+QIACT? 有沒有 PDP。讀回時會被模組遮成 *": "Set the QuecLocator token. ⚠ You have to request this string from Quectel; this unit ships with none —— without it AT+QLBS answers 10002 (the token does not exist). ⚠ If what comes back is 702, that is a \"server timeout\", not a token problem —— first check whether AT+QIACT? shows a PDP context. Reading it back shows only *",
+ "網路定位失敗 —— 錯誤 {0}：伺服器逾時未回應": "Network positioning failed —— error {0}: the server timed out without answering",
+ "定位失敗": "Positioning failed",
+ "IMEI 不合法": "Invalid IMEI",
+ "token 不存在": "The token does not exist",
+ "同一 token 的裝置數超過上限": "The same token has exceeded its device-count limit",
+ "同一裝置單日定位次數超過上限": "The same device has exceeded its daily limit on positioning requests",
+ "同一 token 的總定位次數超過上限": "The same token has exceeded its total limit on positioning requests",
+ "token 已過期": "The token has expired",
+ "伺服器不接受此 IMEI": "The server does not accept this IMEI",
+ "同一 token 單日定位次數超過上限": "The same token has exceeded its daily limit on positioning requests",
+ "（QuecLocator 走 HTTP，此碼可能是 HTTP 層錯誤；官方 10000-10008 表未收錄）": " (QuecLocator runs over HTTP, so this code may be an HTTP-layer error; it is not in the official 10000-10008 table)",
+ "（不是 token 問題！先確認 AT+QIACT? 回得出 IP —— 沒有 PDP 就連不到 QuecLocator 伺服器。逾時秒數見 AT+QLBSCFG=\"timeout\"）": " (Not a token problem! First make sure AT+QIACT? returns an IP —— with no PDP context there is no route to the QuecLocator server. For the timeout in seconds see AT+QLBSCFG=\"timeout\")",
+ "（模組讀回時會遮成 *；沒設 token 時 AT+QLBS 回 10002）": " (the module masks it with * when reading back; with no token set AT+QLBS answers 10002)"
+}

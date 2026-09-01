@@ -1,0 +1,155 @@
+<h3 id="tab-hardware">Hardware —— accensione e porta seriale</h3>
+            <p><strong>Principio di funzionamento:</strong> questa pagina è il fondamento dell'intero strumento:
+            Control contiene i due pulsanti del rituale di accensione (Power/Reset), Module è l'identificazione del prodotto,
+            Serial le impostazioni della UART, Power il risparmio energetico, URC gestisce la porta di uscita dei messaggi
+            spontanei del modulo, più una fila di <strong>pulsanti a byte grezzi</strong> (Ctrl+Z/ESC/+++)
+            come uscita di emergenza dalla modalità dati.
+            Tutte le altre schede poggiano su due premesse: <strong>il modulo è stato acceso secondo il rituale</strong> e
+            <strong>gli URC passano da uart1</strong> —— entrambe le cose si completano in questa pagina.
+            Comportamenti e numeri di questa sezione sono misure di agosto 2026 su un EG800K reale.</p>
+
+            <h4>Perché serve il rituale di accensione: RTS = alimentazione, DTR = Reset</h4>
+            <p>La scheda di controllo abbinata a questo strumento riutilizza per altri scopi due segnali di handshake RS-232: è la chiave per capire l'intera pagina:</p>
+            <table>
+                <tr><th>Segnale</th><th>Collegato in realtà a</th><th>Logica</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Interruttore di alimentazione del modulo</td>
+                    <td><strong>Logica negativa</strong>: RTS OFF = alimentato, RTS ON = spento</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Pin di Reset del modulo</td>
+                    <td>DTR ON = Reset alto (avvio possibile), DTR OFF = Reset basso</td></tr>
+            </table>
+            <p>Caratteristiche del circuito (confermate sul campo): alla prima connessione RTS deve andare <strong>prima su ON e poi su OFF</strong>,
+            altrimenti l'alimentazione non si accende davvero —— impostarlo direttamente su OFF non garantisce la corrente; anche DTR deve percorrere <strong>ON→OFF→ON</strong>,
+            altrimenti il Reset non viene davvero rilasciato. Lo spegnimento (RTS ON) è un taglio secco: il modulo <strong>non invia alcun messaggio di commiato</strong>.</p>
+            <div class="warning">
+                <strong>Ricaricare la pagina = togliere corrente.</strong> Quando il browser riapre la porta seriale RTS viene rialzato
+                e il modulo perde di colpo l'alimentazione —— completata la riconnessione automatica <strong>bisogna rieseguire il rituale di accensione</strong>.
+                Trappola vissuta: saltato il rituale e inviati 17 comandi, sono partiti tutti senza alcun ritorno (solo righe TX, zero RX).
+                Davanti a qualsiasi "un attimo fa andava tutto bene e ora non risponde più niente", pensa prima a questo.
+            </div>
+
+            <h4>I pulsanti Power e Reset: come premerli e cosa vedrai</h4>
+            <p>I due pulsanti sono l'incarnazione dei due segnali della tabella sopra e sono <strong>collegati in modo bidirezionale</strong>
+            agli indicatori RTS/DTR della barra dei segnali (da scollegati sono in grigio e non premibili). Web Serial non può rileggere
+            lo stato reale dei segnali di uscita: la barra mostra il valore che questo strumento ritiene di aver inviato.</p>
+            <ol>
+                <li><strong>Power</strong> (a interruttore): verde acceso = alimentazione ON (= RTS OFF).
+                    Il rituale di accensione richiede che RTS passi per ON→OFF: se il pulsante è già acceso, prima spegnilo e poi riaccendilo.</li>
+                <li><strong>Reset</strong> (momentaneo): premuto = DTR OFF, rilasciato = DTR ON;
+                    una pressione con rilascio equivale a un Reset (la sequenza standard fa una pausa di 0.3 secondi nel mezzo).</li>
+                <li><strong>Attendi RDY</strong>: entro pochi secondi nel terminale compare l'annuncio di avvio del modulo <code>RDY</code>.</li>
+                <li><strong>Verifica con ATI</strong>: deve rispondere <code>Quectel</code>/<code>EG800K</code>/
+                    <code>Revision: …</code>/<code>OK</code>. Se la risposta arriva, UART e modulo sono entrambi vivi.</li>
+            </ol>
+            <div class="tip">
+                Dopo l'accensione conviene prima verificare che l'echo (ATE) sia attivo (di fabbrica lo è), poi inviare <code>AT+CMEE=2</code> ——
+                senza, vedrai soltanto uno scarno <code>ERROR</code>; con, ottieni il testo leggibile di
+                <code>+CME ERROR: …</code>. Entrambe le impostazioni valgono solo per la sessione: vanno ripetute a ogni riavvio del modulo.
+            </div>
+
+            <h4>Module: i cinque pulsanti di identificazione</h4>
+            <table>
+                <tr><th>Pulsante</th><th>Comando</th><th>Cosa vedrai</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>Marca, modello e versione del firmware in un colpo solo —— il primo comando da inviare dopo l'accensione</td></tr>
+                <tr><td>Vendor/Model/FW Ver</td>
+                    <td><code>AT+GMI</code>/<code>AT+GMM</code>/<code>AT+GMR</code></td>
+                    <td>Le tre righe di ATI interrogate una per una (equivalgono rispettivamente a CGMI/CGMM/CGMR).
+                        Versione firmware di questa unità, misurata: <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>IMEI del modulo (15 cifre). Traffico zero, si può inviare in qualsiasi momento</td></tr>
+            </table>
+
+            <h4>Serial: AT&amp;V legge i parametri, IPR cambia il baud rate</h4>
+            <p><strong>AT Params (<code>AT&amp;V</code>)</strong>: elenca i valori correnti di tutti i parametri AT a lettera singola.
+            I comandi a lettera singola come <code>ATE</code>/<code>ATQ</code>/<code>ATV</code> <strong>non hanno una forma di interrogazione propria:
+            si leggono solo da qui</strong>. Misurato su questa unità: <code>E:1 Q:0 V:1 S3:13 S4:10</code> ——
+            echo attivo, codici di risultato in formato testo, fine riga = CR (ASCII 13): esattamente le premesse su cui questo strumento analizza le risposte.</p>
+            <p><strong>Baud? (<code>AT+IPR?</code>)</strong>: interroga il baud rate attuale della UART; di fabbrica 115200.<br>
+            <strong>Baud List (<code>AT+IPR=?</code>)</strong>: restituisce due elenchi ——
+            il primo con i baud rate rilevabili automaticamente, il secondo con quelli disponibili solo in modalità fissa. Dopo aver eseguito questo pulsante,
+            il menu a discesa di Set Baud viene sostituito dall'elenco realmente riportato dall'unità. Misurato: il secondo elenco di questa unità arriva fino a
+            <strong>1000000 bps —— un valore che nella tabella del §3.4 del manuale non compare</strong>.</p>
+            <p><strong>Set Baud (<code>AT+IPR={rate};&amp;W</code>, scheda parametri)</strong>:
+            alla pressione compare prima una finestra di conferma —— è il pulsante di questa pagina con cui è più facile chiudersi fuori da soli.</p>
+            <div class="warning">
+                <strong>Le tre trappole del cambio di baud rate (tutte confermate sul campo):</strong><br>
+                ① appena arriva l'<code>OK</code> il cambio è <strong>immediatamente effettivo</strong>:
+                dall'istante successivo questo strumento e il modulo parlano lingue diverse;<br>
+                ② <code>AT&amp;F</code> (ripristino di fabbrica) <strong>non</strong> riporta indietro il baud rate —— non contare che ti salvi;<br>
+                ③ senza <code>&amp;W</code> nulla viene salvato —— e riconnettersi = togliere corrente: il modulo si risveglierebbe al vecchio baud rate
+                mentre la tua porta resterebbe su quello nuovo, <strong>doppia perdita di contatto</strong>.
+                Per questo lo strumento impone la forma combinata <code>;&amp;W</code>.<br>
+                Recupero in quattro passi (la finestra di conferma li ricorda): disconnetti → cambia il baud rate nell'area di connessione → riconnetti → riesegui il rituale di accensione.
+            </div>
+
+            <h4>Power: risparmio energetico QSCLK</h4>
+            <p><strong>Sleep? (<code>AT+QSCLK?</code>)</strong>: interroga se al modulo è consentito entrare in sospensione.
+            Misurato: di fabbrica vale <code>0</code> = disabilitato, il modulo resta sempre sveglio.
+            Questa pagina offre solo il pulsante di interrogazione: un modulo addormentato <strong>smette di rispondere agli AT</strong>,
+            e il metodo di risveglio del manuale è abbassare DTR ——
+            ma su questa scheda di controllo DTR è già collegato al pin di Reset (vedi l'inizio di questa sezione).
+            Se dalla riga di comando hai abilitato la sospensione per conto tuo e il modulo non si sveglia più,
+            per uscirne basta rieseguire il rituale di accensione (togliere e ridare corrente); i dettagli sono nella application note ufficiale sul risparmio energetico.</p>
+
+            <h4>URC: quando non ricevi messaggi, vieni qui per primo</h4>
+            <p>Un <strong>URC (Unsolicited Result Code, codice di risultato non richiesto)</strong> è un messaggio che il modulo
+            "sputa fuori di propria iniziativa, senza che nessuno glielo chieda": non è la risposta ad alcun comando ——
+            il <code>RDY</code> di avvio, l'arrivo di dati TCP, i messaggi MQTT,
+            i risultati della scansione Wi-Fi, la notifica di caricamento del firmware GNSS lo sono tutti. La loro porta di uscita
+            <strong>di fabbrica è la porta USB (usbat)</strong> —— questo strumento, che passa dalla UART, non ne riceve nemmeno uno;
+            il sintomo è inconfondibile: <strong>i comandi rispondono tutti OK, ma i messaggi non arrivano mai</strong>.</p>
+            <table>
+                <tr><th>Pulsante</th><th>Comando</th><th>Uso</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>Interroga dove vengono mandati ora gli URC —— quando non li ricevi, <strong>è la prima cosa da interrogare</strong>;
+                        deve rispondere <code>"uart1"</code> perché tu possa riceverli</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>Quali porte di uscita supporta questa unità. Misurato: risponde <code>("usbat","usbmodem","uart1")</code>,
+                        <strong>senza la "all" citata dal manuale</strong> (il manuale annota che alcuni modelli non la supportano)</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>Passa alla UART principale. Va in NVRAM e sopravvive ai riavvii: <strong>basta cambiarlo una volta</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>L'interruttore generale degli URC, l'altra grande causa dei "gli URC non arrivano".
+                        Misurato: su questa unità è già a 1 (attivo) di fabbrica; il problema sta quasi sempre nella porta di uscita</td></tr>
+            </table>
+
+            <h4>I pulsanti a byte grezzi: l'uscita di emergenza dalla modalità dati</h4>
+            <p>Parecchi comandi sono <strong>in due fasi</strong>: prima si invia il comando, si attende dal modulo il prompt <code>&gt;</code>,
+            poi si invia il contenuto. Una volta entrati in questa <strong>modalità dati</strong>, il modulo ingoia come dato ogni carattere che digiti ——
+            compresi i comandi AT che vorresti impartire. Lunghezza calcolata male, ripensamento a metà, comando incastrato: i tasti normali non ti salvano,
+            serve questa fila di pulsanti che inviano un singolo byte grezzo:</p>
+            <table>
+                <tr><th>Pulsante</th><th>Invia</th><th>Quando usarlo</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td>Il <strong>terminatore</strong> della modalità dati: spedisce per davvero il contenuto accumulato</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td><strong>Annulla</strong> la modalità dati e scarta il contenuto accumulato.
+                        La via di fuga preferita quando un comando in due fasi resta incastrato e la porta AT non risponde più (manuale §2.3.8)</td></tr>
+                <tr><td>+++</td><td>tre segni + (byte grezzi)</td>
+                    <td>Per scappare dalla <strong>modalità dati trasparente</strong> (come il trasferimento COM: dell'FTP) e tornare alla modalità AT.
+                        La regola è ferrea: <strong>1 secondo di silenzio prima e dopo, e mai alcun CR/LF</strong> ——
+                        misurato: con un CR aggiunto non ha effetto; va inviato con questo pulsante, non digitato nella riga di comando</td></tr>
+            </table>
+            <div class="warning">
+                <strong>La prova sul campo smentisce il manuale: +++ è un "abort", non una "pausa".</strong>
+                La application note FTPS v1.5, pagina 13, dice che dopo +++ si può tornare in modalità dati con <code>ATO</code> e riprendere il trasferimento;
+                sull'unità reale <code>ATO</code> risponde soltanto <code>NO CARRIER</code>: il trasferimento è già stato interrotto.
+                Usa +++ come un freno d'emergenza, senza aspettarti di poter riprendere la marcia dopo la frenata.
+            </div>
+
+            <h4>Risoluzione dei problemi</h4>
+            <table>
+                <tr><th>Sintomo</th><th>Causa e rimedio</th></tr>
+                <tr><td>Nessun comando riceve risposta</td>
+                    <td>Esamina i tre sospetti in ordine: ① il rituale di accensione non è stato eseguito (se hai ricaricato la pagina è di sicuro lui);
+                        ② il fine riga è impostato su LF —— il modulo <strong>riconosce solo CR</strong>, con LF non risponde affatto;
+                        ③ baud rate disallineato (vedi il recupero in quattro passi)</td></tr>
+                <tr><td>Hai premuto Reset ma RDY non arriva</td>
+                    <td>Guarda prima se il pulsante Power è acceso —— a modulo senza corrente premere Reset non serve a niente, per quante volte tu lo faccia;
+                        alla prima connessione l'alimentazione deve passare per ON→OFF</td></tr>
+                <tr><td>I comandi rispondono tutti OK, ma gli URC proprio non arrivano</td>
+                    <td>Nove volte su dieci urcport è ancora sull'usbat di fabbrica: interroga con URC Port? e correggi con URC → UART;
+                        se ancora non va, controlla l'interruttore generale URC Switch</td></tr>
+                <tr><td>La porta AT di colpo "ingoia i comandi": qualunque cosa digiti, nessuna risposta</td>
+                    <td>Sei incastrato nella modalità dati: tutto ciò che digiti viene raccolto come dati —— premi ESC per uscirne</td></tr>
+            </table>

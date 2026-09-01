@@ -1,0 +1,138 @@
+<h3 id="tab-ftp">FTP — Dateiübertragung</h3>
+            <p><strong>Funktionsweise:</strong> FTP hat <strong>zwei Kanäle</strong>: Der Steuerkanal trägt die Kommandos,
+            der Datenkanal die Dateiinhalte. Anmelden, Umbenennen, Löschen und Größenabfragen laufen nur über den Steuerkanal;
+            LIST, Upload und Download <strong>öffnen eine zusätzliche Datenverbindung</strong> —
+            daher stammen die meisten Merkwürdigkeiten dieses Abschnitts (Serien von 615 und 603).
+            Die Quectel-Grundregel, die den ganzen Abschnitt durchzieht: <strong><code>OK</code> heißt nur „Befehl angenommen“</strong>;
+            das eigentliche Ergebnis trifft später als URC ein. Alle Antworten und Zahlen in diesem Abschnitt sind Messwerte, die im August 2026 an einer echten EG800K erhoben wurden.</p>
+
+            <h4>Bevor Sie anfangen: zwei Voraussetzungen</h4>
+            <ul>
+                <li><strong>Der PDP muss aktiviert sein</strong>: Die erste Schaltfläche dieser Seite, <code>AT+QIACT?</code>, macht genau diese Prüfung —
+                    nur wenn <code>+QIACT: 1,1,…,"IP"</code> zurückkommt, geht es weiter; kommt nur OK, erst auf der TCP/IP-Seite
+                    Act PDP drücken (ohne aktivierten PDP scheitert QFTPOPEN garantiert).</li>
+                <li><strong>Die URCs müssen über den UART laufen</strong>: Fast alle FTP-Befehle folgen dem Muster „erst OK, das Ergebnis kommt als URC“;
+                    steht <code>AT+QURCCFG="urcport"</code> nicht auf <code>"uart1"</code>,
+                    sieht man hier nur einen Haufen OKs (Einstellung siehe Hardware-Seite).</li>
+            </ul>
+
+            <h4>Der Anmeldeablauf: konfigurieren → öffnen → auf die URC warten</h4>
+            <ol>
+                <li><strong>PDP context binden</strong>: <code>AT+QFTPCFG="contextid",1</code>
+                    (ab Werk bereits 1; die Abfrage-Schaltfläche liest es zur Bestätigung zurück).</li>
+                <li><strong>Zugangsdaten setzen</strong>: <code>AT+QFTPCFG="account","Konto","Passwort"</code>,
+                    <strong>muss vor QFTPOPEN</strong> gesetzt sein.</li>
+                <li><strong>Modus und Typ</strong>: <code>transmode</code> auf 1 setzen
+                    (passiv; hinter NAT grundsätzlich, für FTPS zwingend);
+                    <code>filetype</code> für reine Textdateien 1, sonst 0.</li>
+                <li><strong>Anmelden</strong>: <code>AT+QFTPOPEN="Host",21</code> antwortet sofort mit OK (nur angenommen);
+                    erst das <code>+QFTPOPEN: 0,0</code> ist die erfolgreiche Anmeldung (maximal 125 Sekunden).
+                    Danach sollte <code>AT+QFTPSTAT</code> 1 melden (untätig; 2 = Übertragung läuft, 3 = wird geschlossen).</li>
+            </ol>
+            <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK                ← heißt nur: Befehl angenommen
++QFTPOPEN: 0,0    ← erst diese Zeile ist die erfolgreiche Anmeldung</pre>
+            <p>Die übrigen Konfigurationspunkte: <code>AT+QFTPCFG=?</code> listet mit einem Klick alle 10 einstellbaren Punkte samt Bereichen auf (kein Datenvolumen).
+            <code>rsptimeout</code> (20–180, Standard 90 Sekunden) ist die maximale Antwortzeit der meisten Befehle
+            und zugleich die maximale Lücke zwischen zwei Datenpaketen im Datenmodus; <code>ssltype</code>/<code>sslctxid</code> gehören zu
+            FTPS (für reines FTP auf 0 lassen; die SSL-Parameter werden auf der SSL-Seite gesetzt);
+            <code>data_address</code>/<code>cache</code>/<code>restenable</code>
+            sind Feinjustierungen für Sonderumgebungen — ihr Zweck steht in den Schaltflächenbeschreibungen und im Handbuch.</p>
+            <div class="tip">
+                <strong>Passwortmaskierung (gemessen, abweichend vom Handbuch):</strong> Beim Auslesen mit <code>AT+QFTPCFG="account"</code>
+                wird das Passwort zu <code>*</code> maskiert (laut Handbuch würde es unverändert gedruckt). Das Konto bleibt aber Klartext,
+                und <strong>in der Setz-Zeile steht das Passwort ebenfalls im Klartext</strong> — bei Screenshots und Aufnahmen ist die Setz-Zeile das Risiko.
+            </div>
+            <div class="warning">
+                <strong>🔴 <code>AT+QFTPCLOSE</code> ist asynchron — das <code>OK</code> heißt nicht, dass zu ist.</strong>
+                Erst mit <code>+QFTPCLOSE: 0,0</code> ist die Abmeldung abgeschlossen; solange sie läuft, meldet <code>AT+QFTPSTAT</code>
+                3 (wird geschlossen), und jeder weitere FTP-Befehl <strong>antwortet ausnahmslos mit <code>+CME ERROR: 603</code></strong> (Server beschäftigt).
+                <br><br>
+                Das Symptom führt maximal in die Irre: Eine Serie von 603 sieht aus wie ein kaputtes Modul oder eine Serversperre,
+                dabei ist das Schließen nur noch nicht fertig (am Messtag hat genau das einen großen Umweg gekostet). Die Wartegrenze = rsptimeout.
+                Außerdem meldet der Befehl nur FTP ab; für einen vollständigen Netz-Reset auf der TCP/IP-Seite Deact PDP drücken.
+            </div>
+
+            <h4>Verzeichnis- und Dateiverwaltung: den Server als Dateimanager benutzen</h4>
+            <p>Der komplette Satz serverseitiger Dateioperationen (LIST/NLST/MLSD öffnen eine Datenverbindung, der Rest läuft nur über den Steuerkanal).
+            Die Erfolgsantwort lautet immer <code>+QFTPXXX: 0,…</code> — die erste Zahl 0 ist der Erfolg:</p>
+            <table>
+                <tr><th>Befehl</th><th>Was er tut</th><th>Erfolgsantwort (gemessen)</th></tr>
+                <tr><td><code>AT+QFTPPWD</code></td><td>Aktuelles Arbeitsverzeichnis abfragen</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+                <tr><td><code>AT+QFTPCWD</code></td><td>Arbeitsverzeichnis wechseln; alle weiteren Operationen beziehen sich darauf</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPLIST</code></td><td>Vollständige Liste direkt ins Terminal (zwei Schaltflächen: aktuelles Verzeichnis/angegebenes Verzeichnis)</td><td>nach dem Inhalt <code>+QFTPLIST: 0,1175</code> (die letzte Zahl = Bytezahl)</td></tr>
+                <tr><td><code>AT+QFTPNLST</code>/<code>AT+QFTPMLSD</code></td><td>Nur Dateinamen (spart Volumen)/MLSD-Standardformat (gut zu parsen)</td><td>wie LIST</td></tr>
+                <tr><td><code>AT+QFTPSIZE</code></td><td>Dateigröße abfragen, ohne den Inhalt herunterzuladen</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+                <tr><td><code>AT+QFTPMDTM</code></td><td>Änderungszeit der Datei abfragen, ohne den Inhalt herunterzuladen</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+                <tr><td><code>AT+QFTPMKDIR</code>/<code>AT+QFTPRMDIR</code></td><td>Ordner anlegen/löschen</td><td><code>…: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPRENAME</code></td><td>Datei oder Ordner umbenennen</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPDEL</code></td><td>Datei löschen</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+            </table>
+            <p>Ein Kniff (die ganze Kette gemessen bestanden): <strong>SIZE als Existenzprüfung benutzen</strong> —
+            nach dem Umbenennen liefert der alte Name <code>+QFTPSIZE: 627,550</code>, der neue <code>0,20</code>;
+            nach dem Löschen kommt wieder <code>627,550</code> — jeder Schritt verifiziert, ohne ein einziges Byte herunterzuladen.
+            <code>627,550</code> sind <strong>zwei Fehlercode-Ebenen</strong>: 627 = Modulebene „FTP hat die angeforderte Aktion nicht ausgeführt“,
+            550 = FTP-Protokollebene, Serverantwort „Datei oder Verzeichnis existiert nicht“; die Kommentare dieses Werkzeugs übersetzen beide Ebenen getrennt.</p>
+
+            <h4>Download: Der Inhalt landet direkt im Terminal (COM:)</h4>
+            <p><code>AT+QFTPGET="Dateiname","COM:"</code> — nach dem <code>CONNECT</code> wird der Dateiinhalt direkt ins Terminal gespuckt,
+            am Ende <code>+QFTPGET: 0,&lt;Bytezahl&gt;</code> (gemessen lieferte readme.txt 0,379).
+            Die zweite Schaltfläche <strong>Blockdownload</strong> trägt zusätzlich Startpunkt und Länge und ist der empfohlene Weg:
+            erst mit SIZE die Größe abfragen, dann blockweise holen — das bewahrt vor einer Volumenexplosion durch Komplettdateien.
+            <code>AT+QFTPLEN</code> zeigt, wie viele Bytes der letzte PUT/GET/LIST/NLST tatsächlich übertragen hat.</p>
+
+            <h4>Upload: zweistufig — bei erreichter angekündigter Länge endet er automatisch</h4>
+            <p><code>AT+QFTPPUT="Dateiname","COM:",0,&lt;Länge&gt;,1</code> ist ein zweistufiger Befehl:
+            Nach dem <code>CONNECT</code> (Eintritt in den Datenmodus) senden Sie <strong>genau</strong> so viele Bytes wie angekündigt;
+            das Modul verlässt den Datenmodus automatisch, sobald die Zahl erreicht ist — kein Ctrl+Z nötig. Dieses Werkzeug berechnet die Länge automatisch; einfach den Inhalt in die Parameterkarte einfügen.</p>
+            <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT                        ← Eintritt in den Datenmodus
+NuModem-P6-FTP-test\n          ← genau 20 bytes senden
+OK
++QFTPPUT: 0,20                 ← der Server hat 20 bytes erhalten</pre>
+            <p>Diese 20 bytes wurden bei der Messung eigens vom Rechner aus mit Python ftplib zurückgeholt und byteweise verglichen — vollständige Übereinstimmung.
+            <strong>Die UFS-Zwischenspeicherform</strong>: Das Handbuch unterstützt zusätzlich Dateinamen der Form <code>"UFS:xxx"</code>
+            mit dem eingebauten Speicher des Moduls als Zwischenstation, Details in der FTPS Application Note; um eine PC-Datei zuerst ins UFS zu bringen,
+            dient die Upload-Schaltfläche der Gruppe „UFS-Dateien“ auf der SSL-Seite (<code>AT+QFUPL</code>, läuft über den UART ohne Datenvolumen
+            und vergleicht die checksum automatisch).</p>
+            <div class="warning">
+                <strong>⚠ <code>+++</code> ist für FTP ein „Abbruch“, keine „Pause“.</strong>
+                Das Handbuch (FTPS AN v1.5 p13) schreibt, nach der Flucht könne man mit <code>ATO</code> in den Datenmodus zurückkehren und fortsetzen —
+                <strong>die Messung widerlegt das</strong> (zweimal getestet, gleiches Ergebnis): Nach der Flucht meldet <code>AT+QFTPSTAT</code>
+                1 (untätig) statt 2 (Übertragung läuft), und <code>ATO</code> antwortet mit <code>NO CARRIER</code> —
+                die Übertragung ist komplett abgebrochen, es gibt keine Verbindung, zu der man zurückkehren könnte. <code>+++</code> taugt also nur dazu, sich aus einem entgleisten
+                Datenmodus zu befreien, nicht dazu, einen großen Download zu pausieren.
+                <br><br>
+                Die korrekte Anwendung: <strong>davor und danach je 1 Sekunde Stille, als Rohbytes senden, kein CR</strong> (mit CR wirkt es nicht) —
+                die <code>+++</code>-Schaltfläche dieser Seite sendet bereits nach dieser Regel; die <code>ATO</code>-Schaltfläche bleibt gemäß der Handbuchsemantik erhalten.
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="FTP-Tab">
+                <figcaption>Die FTP-Seite: Anmeldekonfiguration, Verzeichnis- und Dateiverwaltung, Upload und Download.</figcaption>
+            </figure>
+
+            <h4>Fehlersuche</h4>
+            <table>
+                <tr><th>Symptom</th><th>Ursache und Abhilfe</th></tr>
+                <tr><td>Serien von <code>+CME ERROR: 603</code></td>
+                    <td>① Nach QFTPCLOSE läuft das Schließen noch (QFTPSTAT meldet 3) — auf <code>+QFTPCLOSE: 0,0</code> warten;
+                        ② zuvor gab es eine 615 — <strong>nach einer 615 antworten alle FTP-Befehle mit 603</strong>, bis korrekt geschlossen wurde</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>Öffnen der Datenverbindung fehlgeschlagen: <strong>Steuerkanal in Ordnung, Datenkanal komplett tot</strong>
+                        (SIZE antwortet, PUT/GET/LIST fallen alle um). Meist ein Problem auf Serverseite —
+                        dlptest scheiterte über zwei verschiedene Netzpfade, rebex blieb durchgehend fehlerfrei;
+                        zum Lesen rebex nehmen, zum Schreiben nur dlptest und alles in einem Rutsch erledigen</td></tr>
+                <tr><td><code>627,550</code></td>
+                    <td>Datei oder Verzeichnis existiert nicht — Dateiname oder Pfad vertippt; erst mit QFTPPWD/QFTPLIST klären, wo man steht</td></tr>
+                <tr><td>Nach dem Neustart scheitert schon der erste PUT mit 615</td>
+                    <td>Degradierter Datenstack: Weder QFTPCLOSE noch ein PDP-Neustart retten etwas,
+                        <strong>nur die vollständige Boot-Sequenz stellt den Zustand wieder her</strong>. Die Unterscheidung: mit
+                        <code>AT+QIOPEN</code> der TCP/IP-Seite dasselbe Ziel ansteuern — scheitert auch das, ist der ganze Stack kaputt; suchen Sie nicht weiter in den FTP-Einstellungen</td></tr>
+                <tr><td>Nach dem OK eines Befehls passiert gar nichts</td>
+                    <td>Die Ergebnis-URCs sind zum USB-Port gelaufen — prüfen, ob <code>AT+QURCCFG="urcport"</code>
+                        auf uart1 steht</td></tr>
+                <tr><td><code>AT+QFTPOPEN</code> scheitert sofort</td>
+                    <td>Der PDP ist nicht aktiviert — erst <code>AT+QIACT?</code> auf dieser Seite drücken; ohne IP auf der TCP/IP-Seite Act PDP</td></tr>
+            </table>

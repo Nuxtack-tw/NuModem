@@ -1,0 +1,138 @@
+<h3 id="tab-ftp">FTP — pemindahan fail</h3>
+            <p><strong>Prinsip kerja:</strong> FTP mempunyai <strong>dua saluran</strong>: saluran kawalan membawa arahan,
+            saluran data membawa kandungan fail. Log masuk, menukar nama, memadam dan menyemak saiz hanya melalui saluran kawalan;
+            LIST, muat naik dan muat turun perlu <strong>membuka satu lagi sambungan data</strong> —
+            kebanyakan kejadian pelik dalam bahagian ini (615, 603 bertubi-tubi) berpunca daripada situ.
+            Peraturan am Quectel yang merentasi seluruh bahagian ini: <strong><code>OK</code> hanya bermakna "arahan diterima"</strong>,
+            dan keputusan sebenarnya tiba kemudian melalui URC. Semua respons dan nombor dalam bahagian ini ialah nilai ujian sebenar terhadap EG800K fizikal pada Ogos 2026.</p>
+
+            <h4>Sebelum bermula: dua prasyarat</h4>
+            <ul>
+                <li><strong>PDP mesti diaktifkan dahulu</strong>: butang pertama <code>AT+QIACT?</code> pada halaman ini melakukan pemeriksaan itu —
+                    ia mesti dapat memulangkan <code>+QIACT: 1,1,…,"IP"</code> barulah boleh diteruskan; jika ia hanya memulangkan OK, pergi ke halaman TCP/IP dan tekan
+                    Act PDP dahulu (apabila PDP belum diaktifkan, QFTPOPEN pasti gagal).</li>
+                <li><strong>URC mesti melalui UART</strong>: hampir semua arahan FTP mengikut corak "OK dahulu, keputusan tiba kemudian melalui URC";
+                    jika <code>AT+QURCCFG="urcport"</code> bukan <code>"uart1"</code>,
+                    di sini anda hanya akan nampak setimbun OK (tetapannya pada halaman Hardware).</li>
+            </ul>
+
+            <h4>Aliran log masuk: tetapkan → buka → tunggu URC</h4>
+            <ol>
+                <li><strong>Ikat PDP context</strong>: <code>AT+QFTPCFG="contextid",1</code>
+                    (nilai kilangnya memang 1; butang pertanyaan boleh membacanya balik untuk pengesahan).</li>
+                <li><strong>Tetapkan akaun dan kata laluan</strong>: <code>AT+QFTPCFG="account","akaun","katalaluan"</code>,
+                    dan ia <strong>mesti ditetapkan sebelum QFTPOPEN</strong>.</li>
+                <li><strong>Mod dan jenis</strong>: <code>transmode</code> ditetapkan 1
+                    (pasif; sentiasa gunakannya di belakang NAT, dan FTPS mewajibkannya);
+                    <code>filetype</code> gunakan 1 untuk fail teks biasa, 0 untuk yang lain.</li>
+                <li><strong>Log masuk</strong>: <code>AT+QFTPOPEN="hos",21</code> segera memulangkan OK (hanya diterima),
+                    dan <code>+QFTPOPEN: 0,0</code> barulah bermakna log masuk berjaya (sehingga 125 saat).
+                    Kemudian tekan <code>AT+QFTPSTAT</code>; ia sepatutnya memulangkan 1 (melahu; 2 = sedang memindah, 3 = sedang ditutup).</li>
+            </ol>
+            <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK                ← hanya bermakna arahan diterima
++QFTPOPEN: 0,0    ← baris inilah log masuk berjaya</pre>
+            <p>Item tetapan lain: <code>AT+QFTPCFG=?</code> menyenaraikan kesemua 10 item boleh tetap dan julatnya dengan satu tekanan (sifar trafik).
+            <code>rsptimeout</code> (20–180, lalai 90 saat) ialah masa respons maksimum bagi kebanyakan arahan,
+            dan juga selang maksimum antara dua paket data dalam mod data; <code>ssltype</code> / <code>sslctxid</code> adalah
+            untuk FTPS (kekalkan 0 bagi FTP tulen; parameter SSL ditetapkan pada halaman SSL);
+            <code>data_address</code> / <code>cache</code> / <code>restenable</code>
+            tergolong sebagai penalaan halus untuk persekitaran khas, dan kegunaannya ada pada keterangan setiap butang serta manual.</p>
+            <div class="tip">
+                <strong>Penutupan kata laluan (ujian sebenar, tidak sepadan dengan manual):</strong> apabila <code>AT+QFTPCFG="account"</code>
+                ditanya, kata laluan ditutup sebagai <code>*</code> semasa dibaca balik (manual berkata ia dicetak sebagaimana adanya). Tetapi akaunnya tetap teks jelas,
+                dan <strong>kata laluan pada baris penetapan itu juga teks jelas</strong>; baris penetapan itulah yang perlu diberi perhatian semasa tangkap skrin dan rakaman.
+            </div>
+            <div class="warning">
+                <strong>🔴 <code>AT+QFTPCLOSE</code> adalah tak segerak — <code>OK</code> tidak bermakna ia sudah ditutup.</strong>
+                Anda mesti menunggu <code>+QFTPCLOSE: 0,0</code> barulah log keluar dianggap selesai; dalam tempoh itu <code>AT+QFTPSTAT</code>
+                memulangkan 3 (sedang ditutup), dan sebarang arahan FTP yang dihantar <strong>akan sentiasa memulangkan <code>+CME ERROR: 603</code></strong> (pelayan sibuk).
+                <br><br>
+                Gejalanya amat mengelirukan: rentetan 603 kelihatan seperti modul rosak atau disekat pelayan,
+                sedangkan sebenarnya ia cuma belum selesai ditutup (pada hari ujian sebenar, ini menyebabkan banyak masa terbuang berpusing-pusing). Had menunggu = rsptimeout.
+                Selain itu ia hanya melog keluar FTP; untuk menetapkan semula rangkaian sepenuhnya, pergi ke halaman TCP/IP dan tekan Deact PDP.
+            </div>
+
+            <h4>Pengurusan direktori dan fail: gunakan pelayan itu seperti pengurus fail</h4>
+            <p>Set penuh operasi fail di pihak pelayan (LIST / NLST / MLSD perlu membuka sambungan data; yang lain hanya melalui saluran kawalan).
+            Respons kejayaan sentiasa <code>+QFTPXXX: 0,…</code> — nombor pertama 0 itulah kejayaan:</p>
+            <table>
+                <tr><th>Arahan</th><th>Apa yang dilakukannya</th><th>Respons kejayaan (ujian sebenar)</th></tr>
+                <tr><td><code>AT+QFTPPWD</code></td><td>Menyemak direktori kerja semasa</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+                <tr><td><code>AT+QFTPCWD</code></td><td>Menukar direktori kerja; operasi seterusnya berasaskannya</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPLIST</code></td><td>Senarai penuh terus dimuntahkan pada terminal (dua butang: direktori semasa / direktori tertentu)</td><td>Selepas kandungannya, <code>+QFTPLIST: 0,1175</code> (nombor akhir = bilangan bait)</td></tr>
+                <tr><td><code>AT+QFTPNLST</code> / <code>AT+QFTPMLSD</code></td><td>Menyenaraikan nama fail sahaja (menjimatkan trafik) / format piawai MLSD (mudah dihurai)</td><td>Sama seperti LIST</td></tr>
+                <tr><td><code>AT+QFTPSIZE</code></td><td>Menyemak saiz fail tanpa memuat turun kandungannya</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+                <tr><td><code>AT+QFTPMDTM</code></td><td>Menyemak masa ubah suai fail tanpa memuat turun kandungannya</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+                <tr><td><code>AT+QFTPMKDIR</code> / <code>AT+QFTPRMDIR</code></td><td>Mencipta / memadam folder</td><td><code>…: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPRENAME</code></td><td>Menukar nama fail atau folder</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPDEL</code></td><td>Memadam fail</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+            </table>
+            <p>Helah (keseluruhan rentetan lulus dalam ujian sebenar): <strong>gunakan SIZE sebagai pemeriksaan kewujudan</strong> —
+            selepas menukar nama, menyemak nama lama memulangkan <code>+QFTPSIZE: 627,550</code>, manakala nama baharu memulangkan <code>0,20</code>;
+            selepas dipadam, menyemaknya sekali lagi memulangkan <code>627,550</code>, jadi setiap langkah disahkan tanpa memuat turun satu bait pun.
+            <code>627,550</code> ialah <strong>kod ralat dua lapisan</strong>: 627 = lapisan modul "FTP tidak melaksanakan tindakan yang diminta",
+            550 = balasan pelayan lapisan protokol FTP "fail atau direktori tidak wujud", dan anotasi alat ini menterjemahkannya lapisan demi lapisan.</p>
+
+            <h4>Muat turun: kandungan terus dicetak pada terminal (COM:)</h4>
+            <p><code>AT+QFTPGET="nama_fail","COM:"</code> — selepas <code>CONNECT</code>, kandungan fail terus dimuntahkan pada terminal,
+            dengan <code>+QFTPGET: 0,&lt;bilangan bait&gt;</code> di hujungnya (ujian sebenar: readme.txt memulangkan 0,379).
+            Satu lagi butang <strong>muat turun berblok</strong> membawa parameter titik mula dan panjang, dan itulah cara muat turun yang paling disyorkan:
+            semak saiz dengan SIZE dahulu, kemudian ambil blok demi blok, supaya keseluruhan fail tidak meletupkan trafik.
+            <code>AT+QFTPLEN</code> menyemak berapa bait yang sebenarnya dipindah oleh PUT / GET / LIST / NLST terakhir.</p>
+
+            <h4>Muat naik: dua peringkat, tamat automatik apabila panjang yang diisytiharkan cukup</h4>
+            <p><code>AT+QFTPPUT="nama_fail","COM:",0,&lt;panjang&gt;,1</code> ialah arahan dua peringkat:
+            selepas menunggu <code>CONNECT</code> (memasuki mod data), hantar <strong>tepat</strong> bilangan bait yang diisytiharkan,
+            dan modul akan keluar daripada mod data secara automatik sebaik ia cukup, tanpa perlu menghantar Ctrl+Z. Alat ini mengira panjang secara automatik; cukup tampalkan kandungan pada kad parameter.</p>
+            <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT                        ← memasuki mod data
+NuModem-P6-FTP-test\n          ← tepat 20 bytes dihantar
+OK
++QFTPPUT: 0,20                 ← pelayan menerima 20 bytes</pre>
+            <p>Semasa ujian sebenar, 20 bytes ini sengaja diambil semula dari pihak hos dengan Python ftplib untuk dibandingkan bait demi bait — ia sepadan sepenuhnya.
+            <strong>Bentuk perantaraan UFS</strong>: manual turut menyokong nama fail ditulis sebagai <code>"UFS:xxx"</code>,
+            iaitu menggunakan kawasan storan terbina dalam modul sebagai perantara; butirannya lihat nota aplikasi FTPS. Fail komputer perlu dimasukkan ke UFS dahulu,
+            menggunakan butang Upload dalam kumpulan "Fail UFS" pada halaman SSL (<code>AT+QFUPL</code>, melalui UART dengan sifar trafik,
+            dan checksum dibandingkan secara automatik).</p>
+            <div class="warning">
+                <strong>⚠ <code>+++</code> bagi FTP bermaksud "batal", bukan "jeda".</strong>
+                Manual (FTPS AN v1.5 p13) menulis bahawa selepas melepaskan diri anda boleh menggunakan <code>ATO</code> untuk kembali ke mod data dan menyambung pemindahan,
+                tetapi <strong>ujian sebenar tidak menyokongnya</strong> (diuji dua kali dengan keputusan yang sama): selepas melepaskan diri, <code>AT+QFTPSTAT</code>
+                memulangkan 1 (melahu) dan bukan 2 (sedang memindah), manakala <code>ATO</code> memulangkan <code>NO CARRIER</code> —
+                pemindahan itu telah dibatalkan sepenuhnya dan tiada sambungan yang boleh dipulihkan. Jadi <code>+++</code> hanya boleh digunakan untuk keluar daripada
+                mod data yang tidak terkawal, dan tidak boleh digunakan untuk menjeda muat turun fail besar.
+                <br><br>
+                Cara menghantar yang betul: <strong>senyap 1 saat sebelum dan selepasnya, dihantar sebagai bait mentah, tanpa CR</strong> (menambahnya tidak berkesan) —
+                butang <code>+++</code> pada halaman ini sudah menghantarnya mengikut peraturan itu; butang <code>ATO</code> dikekalkan mengikut maksud manual.
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="Tab FTP">
+                <figcaption>Halaman FTP: tetapan log masuk, pengurusan direktori dan fail, muat naik dan muat turun.</figcaption>
+            </figure>
+
+            <h4>Penyelesaian masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Punca dan penyelesaian</th></tr>
+                <tr><td><code>+CME ERROR: 603</code> bertubi-tubi</td>
+                    <td>① Selepas QFTPCLOSE ia masih dalam proses penutupan (QFTPSTAT memulangkan 3) — tunggu <code>+QFTPCLOSE: 0,0</code>;
+                        ② 615 pernah berlaku sebelum ini — <strong>selepas 615, semua arahan FTP sentiasa memulangkan 603</strong> sehingga ia ditutup dengan betul</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>Pembukaan sambungan data gagal: <strong>saluran kawalan normal, saluran data mati sepenuhnya</strong>
+                        (SIZE ada respons, PUT / GET / LIST semuanya tumbang). Kebanyakannya masalah di pihak pelayan —
+                        dlptest gagal apabila diuji dari dua laluan rangkaian berbeza, manakala rebex sifar kegagalan sepanjang masa;
+                        gunakan rebex untuk membaca, dan gunakan dlptest hanya untuk menulis serta selesaikannya sekali gus</td></tr>
+                <tr><td><code>627,550</code></td>
+                    <td>Fail atau direktori tidak wujud — nama fail atau laluan tersalah taip; gunakan QFTPPWD / QFTPLIST dahulu untuk mengesahkan di mana anda berada</td></tr>
+                <tr><td>PUT pertama selepas but semula terus memberi 615</td>
+                    <td>Kemerosotan tindanan data: QFTPCLOSE mahupun memulakan semula PDP tidak menyelamatkannya,
+                        <strong>hanya ritual but yang lengkap dapat memulihkannya</strong>. Kaedah pembezaan: gunakan
+                        <code>AT+QIOPEN</code> pada halaman TCP/IP ke sasaran yang sama — jika itu pun gagal, keseluruhan tindanan telah rosak, jangan lagi menyiasat tetapan FTP</td></tr>
+                <tr><td>Selepas arahan memulangkan OK, tiada apa-apa yang berlaku</td>
+                    <td>URC keputusan pergi ke port USB — semak sama ada <code>AT+QURCCFG="urcport"</code>
+                        ialah uart1</td></tr>
+                <tr><td><code>AT+QFTPOPEN</code> terus gagal</td>
+                    <td>PDP tidak diaktifkan — tekan <code>AT+QIACT?</code> pada halaman ini dahulu; jika tiada IP, pergi ke halaman TCP/IP dan tekan Act PDP</td></tr>
+            </table>

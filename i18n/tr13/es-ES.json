@@ -1,0 +1,4 @@
+{
+ "登出 FTP(S) 伺服器。⚠ 立刻回的 OK 只代表指令收下 —— 必須等到 +QFTPCLOSE: 0,0 才算關完，期間狀態是 3（關閉中），這時下任何 FTP 指令一律回 +CME ERROR: 603（伺服器忙碌）。2026-08-07 P6 實測：把 OK 當成關好就重新 QFTPOPEN，會一路 603 到以為模組壞了": "Cerrar sesión en el servidor FTP(S). ⚠ El OK que vuelve de inmediato solo significa que se aceptó el comando: la sesión no está cerrada hasta que llega +QFTPCLOSE: 0,0. Mientras tanto el estado es 3 (cerrando), y cualquier comando FTP que lances en ese momento devuelve +CME ERROR: 603 (servidor ocupado). Medido en la tanda P6 del 2026-08-07: tomar ese OK por «ya está cerrado» y reabrir en seguida produce una ristra de 603 que parece exactamente un módulo averiado",
+ "（密碼會被模組遮成 *，2026-08-07 P6 實測；設定時輸入的原文才是明碼）": "(el módulo enmascara la contraseña con *, medido en la tanda P6 del 2026-08-07; solo el texto que escribes al configurarla va en claro)"
+}

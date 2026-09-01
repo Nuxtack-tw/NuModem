@@ -1,0 +1,160 @@
+<h3 id="tab-ssl">SSL —— canale TLS</h3>
+            <p><strong>Principio di funzionamento:</strong> la pagina SSL è lo <strong>strato di base condiviso</strong> delle connessioni cifrate ——
+            il context SSL configurato qui e i certificati caricati servono insieme i raw socket SSL, MQTT over SSL
+            e HTTPS. Tempi e comportamenti di questa sezione sono valori misurati ad agosto 2026 su un EG800K reale.</p>
+
+            <h4>La prima connessione TLS: cinque passi</h4>
+            <ol>
+                <li><strong>Esegui il rituale di accensione</strong> (vedi la sezione "Rituale di accensione"), poi premi
+                    <code>AT+QIACT?</code> per verificare il canale dati —— deve rispondere
+                    <code>+QIACT: 1,1,…,"IP"</code>; se non lo fa, prima <code>AT+QIACT=1</code>.</li>
+                <li><strong>Configura il context</strong>: <code>sslversion</code> a 4 (tutte le versioni,
+                    la massima compatibilità), <code>ciphersuite</code> a 0XFFFF (tutte le suite),
+                    <code>seclevel</code> per ora a 0 —— prima accertati che il canale passi, la verifica viene dopo.</li>
+                <li><strong>Apri la connessione</strong>: premi <code>AT+QSSLOPEN</code> (ultimo parametro 0) e compila
+                    host e porta nella scheda parametri. ⚠ L'<code>OK</code> significa solo "comando accettato": l'esito sta nell'URC:
+                    solo <code>+QSSLOPEN: 4,0</code> è il successo (handshake misurato in 2.0 secondi).</li>
+                <li><strong>Invia dati</strong>: premi <code>AT+QSSLSEND</code> (in due fasi) ——
+                    quando compare <code>&gt;</code> invia il testo, <strong>a lunghezza dichiarata raggiunta parte da solo,
+                    niente Ctrl+Z</strong> (limite 1460 bytes a pacchetto). Quando la controparte risponde compare
+                    <code>+QSSLURC: "recv",4</code>.</li>
+                <li><strong>Leggi e chiudi</strong>: <code>AT+QSSLRECV</code> (massimo 1500 per lettura);
+                    leggere fino a <code>+QSSLRECV: 0</code> significa che hai svuotato tutto, non è un errore.
+                    <code>AT+QSSLCLOSE=4</code> chiude (attesa predefinita fino a 10 secondi;
+                    l'altro pulsante accetta i secondi, 0 = immediato).</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2.0 secondi, 0 = riuscito
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← raggiunti i 15 bytes parte da solo
+SEND OK
++QSSLURC: "recv",4        ← 0.4 secondi
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>A connessione aperta puoi premere <code>AT+QSSLSTATE</code> per vedere tutte le connessioni (<code>=4</code>
+            interroga il singolo clientID, stato 2 = connesso). Nota che <strong>la porta locale risponde sempre 0</strong> ——
+            comportamento del modulo, non un errore.</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="Scheda SSL">
+                <figcaption>Pagina SSL: configurazione del context, caricamento certificati in UFS, connessione, scambio dati, chiusura.</figcaption>
+            </figure>
+
+            <h4>Le tre modalità di accesso (ultimo parametro di <code>AT+QSSLOPEN</code>)</h4>
+            <table>
+                <tr><th>Ultimo parametro</th><th>Comportamento</th></tr>
+                <tr><td>0 buffer</td><td>All'arrivo dei dati emette solo <code>+QSSLURC: "recv",&lt;id&gt;</code>:
+                    li leggi tu con <code>AT+QSSLRECV</code></td></tr>
+                <tr><td>1 push diretto</td><td>L'URC porta anche la lunghezza e <strong>i dati vengono sputati subito nella riga seguente</strong>;
+                    ⚠ in questa modalità è normale che <code>AT+QSSLRECV</code> risponda ERROR</td></tr>
+                <tr><td>2 trasparente</td><td>La porta AT diventa interamente un canale dati (i pulsanti di questa pagina prevedono solo 0 e 1)</td></tr>
+            </table>
+
+            <h4>La configurazione del context voce per voce</h4>
+            <p>Se non sai quali sottovoci il firmware supporti, premi prima <code>AT+QSSLCFG=?</code> ——
+            misurato: risponde 17 sottovoci, più di quante ne elenchi la application note. Le sottovoci d'uso comune hanno entrambi
+            i pulsanti di scrittura e lettura; misurato: dopo la scrittura la rilettura coincide alla perfezione.</p>
+            <table>
+                <tr><th>Sottovoce</th><th>Di fabbrica</th><th>Effetto e punti misurati</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>Versione del protocollo; 4 = tutte supportate</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>Suite di cifratura; 0XFFFF = tutte supportate</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0 = nessuna verifica, 1 = verifica del server
+                    (serve prima caricare il certificato CA), 2 = autenticazione reciproca (servono anche certificato client + chiave privata)</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>Percorso del certificato CA, formato
+                    <code>"UFS:nomefile"</code>; il file deve già stare nella UFS (vedi la sezione seguente)</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>Obbligatorio verso virtual host e CDN —— con più domini sullo stesso IP, senza SNI
+                    ottieni un certificato che non combacia e la verifica fallisce sempre con 566</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>Di fabbrica, perfino con seclevel 1 attivo, la scadenza del certificato non viene controllata</strong>.
+                    Per controllarla imposta 0, e l'orologio del modulo deve essere giusto</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>Attesa massima dell'handshake TLS in secondi (10–300)</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 I tre valori di fabbrica messi insieme = nessuna verifica del certificato</strong>
+                (seclevel 0, sni 0, ignorelocaltime 1): per verificare sul serio vanno impostati bene tutti e tre.
+                E questi tre valori, insieme a <code>cacert</code>, <strong>non sopravvivono al riavvio</strong>
+                (confermato sul campo): a ogni accensione tornano ai valori di fabbrica; i file dei certificati nella UFS invece
+                non si perdono togliendo la corrente.
+            </div>
+
+            <h4>Il gruppo file UFS: come i certificati entrano nel modulo</h4>
+            <p>La UFS è la memoria flash integrata del modulo: capienza totale misurata <strong>280 KB</strong>, ogni file occupa un
+            blocco da 4 KB. I certificati vanno caricati prima qui, altrimenti <code>cacert</code> non ha alcun file da indicare.
+            <strong>Il caricamento passa dalla UART, a traffico dati zero</strong>, e anche i file binari entrano.
+            <strong>Scheda Upload</strong>: scelto il file, nome e dimensione si compilano da soli; dopo l'invio lo strumento attende il
+            <code>CONNECT</code> del modulo prima di spedire i byte grezzi (se non arriva, non spedisce). Al termine
+            <strong>il motore delle note confronta da solo</strong> dimensione e checksum riportati dal modulo:
+            ✅ = integro, ❌ = trasferimento rovinato: cancella e ricarica.</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← seguono i 1939 bytes
++QFUPL: 1939,4f64         ← dimensione ricevuta,checksum; la nota li confronta da sola ✅</pre>
+            <table>
+                <tr><th>Pulsante</th><th>Uso</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>Elenca tutti i file della UFS con le dimensioni ——
+                    dopo un caricamento usalo per verificare (traffico zero)</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>Interroga spazio libero/totale in bytes (traffico zero)</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>Cancella il file indicato (<code>*</code> = tutti);
+                    senza cancellare prima l'omonimo, il ricaricamento viene bloccato</td></tr>
+            </table>
+            <div class="tip">
+                <strong>Due comportamenti misurati che il manuale non dichiara:</strong> (1) i codici di errore FILE hanno forme incoerenti ——
+                il ricaricamento di un omonimo risponde con il testo <code>file already exist</code>, il timeout con il numero <code>421</code>;
+                questo strumento li interpreta entrambi; (2) dichiarando una dimensione maggiore del reale, allo scadere del timeout il modulo
+                <strong>salva comunque quanto realmente ricevuto</strong> —— il confronto del checksum lo scopre.
+            </div>
+
+            <h4>Verifica dei certificati sul campo: il metodo del test in coppia</h4>
+            <p>Procedura: carica il certificato radice → punta <code>cacert</code> su di lui → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → collegati alla 443 del bersaglio. <strong>Da caricare è il certificato radice in cima alla catena</strong>
+            (la catena di badssl.com ha quattro livelli: si carica l'ISRG Root X1 in vetta).
+            <strong>Testare solo "il certificato cattivo non si collega" non basta</strong> —— anche "non si collega niente" passerebbe.
+            Serve il test in coppia: il certificato buono si collega, quello cattivo no,
+            <strong>e conta solo se valgono entrambe le direzioni</strong>. Confronto misurato 2×5:</p>
+            <table>
+                <tr><th>Host</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com (controllo positivo)</td><td>Si collega</td>
+                    <td><strong>Si collega</strong> <code>4,0</code></td></tr>
+                <tr><td>expired (scaduto)</td><td>Si collega</td><td>Rifiutato 566</td></tr>
+                <tr><td>self-signed (autofirmato)</td><td>Si collega</td><td>Rifiutato 566</td></tr>
+                <tr><td>wrong.host (nome host errato)</td><td>Si collega</td><td>Rifiutato 566</td></tr>
+                <tr><td>untrusted-root (radice non fidata)</td><td>Si collega</td><td>Rifiutato 566</td></tr>
+            </table>
+            <p>Limite: <strong>tutti e quattro gli errori di certificato rispondono 566, il modulo non distingue</strong> quale sia.
+            Nemmeno <code>AT+QIGETERROR</code> aiuta —— lavora al livello TCP/IP,
+            e qui risponde solo <code>0,operate successfully</code>.</p>
+            <div class="tip">
+                Nei test negativi evita expired —— di fabbrica <code>ignorelocaltime</code> è 1, e la scadenza da sola
+                non viene bloccata (nella tabella sopra viene bloccato perché nel contempo non discende dalla radice caricata):
+                per il test singolo usa wrong.host. E <strong>occhio al traffico</strong>: ogni handshake scarica l'intera catena di certificati,
+                e i fallimenti si pagano lo stesso; misurati circa 150–200 KB per 30 handshake.
+            </div>
+
+            <h4>🔴 Trappola: dopo circa 20 aperture e chiusure consecutive, lo stack dati degrada del tutto</h4>
+            <div class="warning">
+                <strong>Sintomo: tutti gli <code>AT+QSSLOPEN</code> rispondono 552</strong>, non ci si collega nemmeno con seclevel 0,
+                e ogni autoverifica dice che va tutto bene. <strong>Discriminazione in 30 secondi</strong>: colpisci lo stesso bersaglio con il
+                <code>AT+QIOPEN</code> del TCP puro —— se fallisce anche lui, lo stack dati è rotto: smetti di frugare
+                nelle impostazioni SSL. Il riavvio del PDP non lo recupera, <strong>solo il rituale di accensione completo ripristina</strong>.
+                Il degrado inquina i dati di test e si scambia facilmente per "bloccato dalla verifica del certificato" ——
+                prima di un test in coppia, riavvia e riparti pulito.
+            </div>
+
+            <h4>Risoluzione dei problemi</h4>
+            <table>
+                <tr><th>Sintomo</th><th>Causa e rimedio</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>Verifica del certificato fallita. Controlla in ordine: <code>sni</code> attivo o no (il più frequente),
+                        la radice di <code>cacert</code> è quella giusta, il certificato stesso è rovinato;
+                        le tre impostazioni si azzerano a ogni riavvio</td></tr>
+                <tr><td>Dopo l'<code>OK</code> più nulla</td>
+                    <td>L'<code>OK</code> significa solo "accettato": l'esito viaggia via URC, con attese fino a
+                        150 secondi + <code>negotiatetime</code></td></tr>
+                <tr><td>La porta AT si incastra e ignora ogni comando</td>
+                    <td>Lunghezza di <code>AT+QSSLSEND</code> calcolata male: sei incastrato in modalità dati che ingoia i comandi ——
+                        esci inviando ESC (0x1B) con il pulsante dei byte grezzi della pagina Hardware</td></tr>
+            </table>

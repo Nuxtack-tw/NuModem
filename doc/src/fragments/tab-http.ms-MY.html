@@ -1,0 +1,152 @@
+<h3 id="tab-http">HTTP — permintaan web</h3>
+            <p><strong>Prinsip kerja:</strong> HTTP pada modul ini berlaku dalam <strong>tiga peringkat</strong>:
+            tetapkan URL dahulu (langkah ini sendiri pun dua peringkat), kemudian hantar permintaan (GET / POST), akhir sekali baca balik responsnya.
+            Keputusan setiap peringkat bukan berada dalam <code>OK</code>, sebaliknya dalam URC yang tiba selepasnya —
+            jadi <code>AT+QURCCFG="urcport"</code> mesti <code>"uart1"</code> (boleh diubah pada halaman Hardware),
+            jika tidak satu keputusan pun tidak akan kelihatan. Semua data ialah ujian sebenar unit fizikal pada 2026-08.</p>
+
+            <h4>Sebelum bermula: saluran data mesti ada dahulu</h4>
+            <p>Prasyaratnya ialah PDP telah diaktifkan dan IP telah diperoleh (<code>AT+QIACT=1</code> pada halaman TCP/IP).
+            <strong>Kumpulan Connect</strong> pada halaman ini hanya mengandungi pemeriksaan baca sahaja:
+            <code>AT+CPIN?</code> / <code>AT+CGATT?</code> / <code>AT+CGREG?</code> /
+            <code>AT+QIACT?</code>, <code>AT+QIDNSCFG=1</code> (DNS 0.0.0.0 = tiada yang diperuntukkan),
+            <code>AT+QIGETERROR</code> (⚠ hanya sah bagi arahan TCP/IP yang terakhir,
+            jadi tekan <strong>serta-merta</strong> selepas kegagalan).</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> menipu.</strong> Ujian sebenar pernah menemui PDP hanyut di pertengahan:
+                semua permintaan gagal sepenuhnya dan memulangkan ralat 716 dengan <strong>tamat masa tetap 30 saat</strong>,
+                sedangkan <code>AT+QIACT?</code> tetap memulangkan IP. Banding silang dengan <code>AT+CGACT?</code>;
+                jika tidak konsisten bermakna ia telah hanyut. Cara membaiki: <code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;cid yang dihanyuti&gt;</code> → <code>AT+QIACT=1</code>,
+                dan teruskan hanya selepas ping menjadi.
+            </div>
+
+            <h4>GET pertama: empat langkah</h4>
+            <ol>
+                <li><strong>Tetapan awal</strong> (kumpulan Config, sifar trafik): kad parameter <code>contextid</code>
+                    ditetapkan kepada 1 (mengikat PDP context yang hendak digunakan); tiga suis <code>rspout/auto</code>,
+                    <code>requestheader</code> dan <code>responseheader</code> dikekalkan pada 0
+                    (sebabnya di bawah); <code>AT+QHTTPCFG?</code> membaca balik semua tetapan sekali gus untuk disemak,
+                    dan <code>AT+QHTTPCFG=?</code> menyenaraikan item yang boleh ditetapkan.</li>
+                <li><strong>Tetapkan URL (dua peringkat)</strong>: kad <code>AT+QHTTPURL</code> hanya mempunyai satu
+                    butang "Hantar (dua peringkat)" — anda isikan URL, dan panjangnya dikira automatik oleh program. Alirannya: hantar
+                    <code>AT+QHTTPURL=&lt;panjang&gt;,80</code> dahulu, tunggu <code>CONNECT</code>
+                    untuk memasuki mod data, kemudian hantar bait URL itu sebagaimana adanya, <strong>tanpa sebarang penamat baris</strong>
+                    (CR/LF akan dikira ke dalam panjang).
+                    <code>http://www.example.com/</code> panjangnya tepat 23. Selepas dihantar tekan
+                    <code>AT+QHTTPURL?</code> untuk membacanya balik; jika sama aksara demi aksara bermakna penamat baris tidak tercampur.</li>
+                <li><strong>Hantar permintaan</strong>: <code>AT+QHTTPGET=80</code> (saat menunggu respons).
+                    <code>OK</code> hanya bermakna "arahan diterima"; keputusan sebenarnya ialah URC yang menyusul,
+                    <code>+QHTTPGET: 0,200</code>, dan cara mentafsirnya ada pada perenggan berikut.</li>
+                <li><strong>Baca respons</strong>: <code>AT+QHTTPREAD=80</code>.
+                    Selepas <code>CONNECT</code> semuanya bait mentah (ujian sebenar example.com ialah
+                    559 bytes), diikuti <code>OK</code> —
+                    tetapi <strong><code>+QHTTPREAD: 0</code> pada baris tersendiri di hujunglah penanda tamat sebenar</strong>.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="Tab HTTP">
+                <figcaption>Halaman HTTP: empat kumpulan Config / Connect / Transfer / Close.</figcaption>
+            </figure>
+
+            <h4>Mentafsir +QHTTPGET: lajur pertama bukan kod status HTTP</h4>
+            <p>URC keputusan GET / POST / POSTFILE semuanya tiga lajur
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code>:
+            <code>err</code> <strong>0 = arahan berjaya dilaksanakan</strong>, bukan 0 ialah ralat lapisan modul (716, 711…);
+            <code>httprspcode</code> ialah kod status HTTP, dan ia <strong>hanya dilaporkan apabila err=0</strong>
+            (dinyatakan jelas dalam manual; alat ini mempunyai anotasi rujukan terbina dalam untuk 200 / 403 / 404 / 409 / 411 / 500);
+            <code>content_length</code> pilihan — ia hanya ada apabila pengepala respons pelayan mengandungi CONTENT-LENGTH,
+            dan GET biasa selalunya hanya mempunyai dua lajur. Jadi <code>+QHTTPGET: 0,404,0</code> dalam ujian sebenar
+            <strong>bukan kegagalan</strong>: arahan itu berjaya, cuma pelayan berkata ia tidak menemuinya.</p>
+
+            <h4>Membaca respons: perangkap AT+QHTTPREAD</h4>
+            <p>Parameternya ialah "saat maksimum antara dua paket data", bukan jumlah tempoh.
+            <strong>Perisian tegar unit ini hanya menerima satu parameter</strong>: cara membaca berperingkat
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> dalam dokumen aplikasi memulangkan <code>ERROR</code> bogel dalam ujian sebenar
+            (disahkan melalui pengesanan <code>=?</code>), dan butangnya telah dibuang —
+            untuk pengambilan berperingkat gunakan <code>GETEX</code>.</p>
+            <div class="warning">
+                <strong>Perangkap saling terkunci: sebaik <code>rspout/auto</code> ditetapkan 1, jenis READ semuanya gagal</strong>
+                (dinyatakan jelas dalam manual). Ia membuatkan modul memuntahkan respons secara automatik, dengan kos jenis READ mati sepenuhnya,
+                jadi butang ini mempunyai dialog pengesahan. Apabila READ tiba-tiba mati semuanya, semak <code>AT+QHTTPCFG?</code> dahulu.
+            </div>
+
+            <h4>Pengambilan berperingkat: AT+QHTTPGETEX membaca bait demi bait</h4>
+            <p><code>AT+QHTTPGETEX=&lt;saat&gt;,&lt;ofset mula&gt;,&lt;panjang&gt;</code>
+            menggunakan HTTP Range untuk mengambil serpihan tertentu sahaja lalu menjimatkan trafik. Ujian sebenar (kandungan titik akhir ditetapkan sebagai
+            <code>abcdefghijklmnop</code>): ofset 0 ambil 8 memulangkan <code>+QHTTPGET: 0,206,8</code>
+            dan membaca <code>abcdefgh</code>; ofset 8 ambil 8 lagi membaca <code>ijklmnop</code>.
+            Tafsiran: <strong>kod status mesti 206</strong>; jika ia memulangkan <strong>200 dan kandungannya sama setiap kali</strong>
+            bermakna pelayan tidak menyokong Range, bukan modul yang rosak.
+            ⚠ Ia hanya boleh dilaksanakan apabila <code>requestheader=0</code>.</p>
+
+            <h4>POST: dua peringkat dan Content-Type</h4>
+            <p>Kad <code>AT+QHTTPPOST</code> juga dua peringkat: anda isikan body dan panjangnya dikira automatik; mula-mula hantar
+            <code>AT+QHTTPPOST=&lt;panjang&gt;,&lt;saat input&gt;,&lt;saat respons&gt;</code>,
+            tunggu <code>CONNECT</code> kemudian hantar body. Tiga perkara:</p>
+            <ul>
+                <li><strong><code>CONNECT</code> boleh mengambil masa sehingga 125 saat</strong> (dinyatakan jelas dalam manual) —
+                    tamat masa menunggu gesaan mesti ditetapkan cukup 125 saat; jangan meneruskan nilai 5 saat daripada MQTT.</li>
+                <li>Had body 1 MB (julat ujian sebenar <code>=?</code> ialah 1–1024000).</li>
+                <li>Tetapkan Content-Type dahulu dengan kad parameter <code>contenttype</code>
+                    (kod jenis 0 = form-urlencoded).</li>
+            </ul>
+            <p>Ujian sebenar: POST <code>Message=HelloQuectel</code> (20 bytes) memulangkan
+            <code>+QHTTPPOST: 0,200,440</code>; JSON yang dipulangkan READ mengesahkan pasangan kunci-nilai sampai,
+            panjangnya dikira betul, dan Content-Type berkesan, manakala User-Agent ialah
+            <code>QUECTEL_MODULE</code> yang dilaporkan modul sendiri.</p>
+
+            <h4>Pengepala tersuai dan pengepala respons</h4>
+            <ul>
+                <li><code>reqheader/add</code>: menambah satu pengepala permintaan tersuai (manual tidak menyertakan contoh);
+                    butang pertanyaan boleh menyemak berapa banyak yang telah ditambah; <code>reqheader/remove</code> membuangnya.</li>
+                <li><code>requestheader</code> ditetapkan 1 = keseluruhan pengepala permintaan disusun sendiri, malah GET pun menjadi dua peringkat,
+                    dan <code>GETEX</code> tidak boleh digunakan. Biasanya kekalkan pada 0.</li>
+                <li>Selepas <code>responseheader</code> ditetapkan 1, READ turut memuntahkan pengepala respons HTTP
+                    (ujian sebenar: X-Test tersuai pun dapat dibawa balik). Kembalikan kepada 0 selepas menguji.</li>
+                <li><code>closed/ind</code>: menghidupkan laporan URC bagi "session telah ditutup".</li>
+            </ul>
+
+            <h4>Versi fail: POSTFILE dan READFILE (UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="nama_fail",&lt;saat&gt;</code> menghantar POST dengan fail dalam sistem fail modul (UFS)
+            sebagai body; <code>AT+QHTTPREADFILE="nama_fail",&lt;saat&gt;</code> menyimpan respons sebagai
+            fail UFS. ⚠ Alat ini buat masa ini <strong>tidak dapat memuat naik fail ke UFS terlebih dahulu, dan tidak dapat membaca balik
+            kandungan fail UFS</strong>; kedua-dua arahan ini disediakan untuk digandingkan dengan aliran di pihak perisian tegar.</p>
+
+            <h4>HTTPS: laluan tanpa pengesahan</h4>
+            <p>HTTPS = HTTP + SSL context. Kumpulan Connect menyediakan laluan terpendek; tekan kelima-limanya mengikut turutan:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP diarahkan menggunakan SSL context 1
+AT+QSSLCFG="sslversion",1,4        ← versi TLS diserahkan kepada pelayan untuk dirundingkan
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← suite penyulitan dibuka sepenuhnya
+AT+QSSLCFG="seclevel",1,0          ← sijil tidak disahkan (lihat di bawah)
+AT+QSSLCFG="sni",1,1               ← hidupkan SNI (nilai kilang ialah 0!)</pre>
+            <p>Selepas itu tukar URL supaya bermula dengan <code>https://</code> lalu GET / READ seperti biasa —
+            ujian sebenar: HTML yang dibaca balik sama aksara demi aksara dengan versi teks jelas.
+            <strong><code>seclevel=0</code> (tidak mengesahkan sijil) ialah satu-satunya laluan yang dapat diselesaikan sepenuhnya oleh alat ini</strong>
+            — untuk mengesahkan sijil, sijil CA mesti ditulis ke UFS dahulu; butiran SSL (<code>AT+QSSLCFG=?</code>
+            menyenaraikan semua sub-item, <code>negotiatetime</code> melaraskan saat menunggu jabat tangan) ada dalam bahagian "SSL — saluran TLS".
+            <strong>SNI dari kilang ialah 0</strong>: tanpa menghidupkannya, tapak HTTPS yang berkongsi IP akan memberi sijil yang tidak sepadan,
+            dan sekali disahkan ia gagal. <strong>Rantaian sijil ialah pengguna trafik terbesar</strong>: satu pusingan HTTPS GET lebih kurang 8–15 KB,
+            manakala teks jelas hanya lebih kurang 1 KB.</p>
+
+            <h4>Pengalihan dan penamatan</h4>
+            <p><strong>Pengalihan (manual tidak menulisnya; dijelaskan melalui ujian sebenar)</strong>: modul mengikut 302 secara automatik, tetapi
+            <strong>ia hanya menerima Location berbentuk laluan mutlak</strong> — laluan relatif terus memulangkan ralat 711
+            dan gagal serta-merta dalam 1 milisaat. <strong>Penamatan</strong>:
+            <code>AT+QHTTPSTOP</code> (kumpulan Close) membatalkan permintaan yang sedang berjalan dan memutuskan session;
+            apabila statusnya kelihatan pelik, atau muncul ralat 704 (mod data diduduki), tekan butang ini dahulu untuk membersihkannya.</p>
+
+            <h4>Penyelesaian masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Punca dan penyelesaian</th></tr>
+                <tr><td>Langsung tiada URC keputusan kelihatan</td><td><code>urcport</code> bukan <code>uart1</code>;
+                    pergi ke halaman Hardware untuk mengubahnya</td></tr>
+                <tr><td>Semua URL memulangkan 716 dengan tamat masa tetap 30 saat</td>
+                    <td>Hanyutan PDP; lihat amaran di atas</td></tr>
+                <tr><td>Satu URL tunggal memulangkan 716</td><td>Ujian sebenar: kegagalan DNS juga 716 (bukan
+                    714 seperti tekaan dokumen lama); selepas itu READ memulangkan 705 sebagai rantaian yang normal</td></tr>
+                <tr><td><code>READ</code> / <code>GETEX</code> tiba-tiba gagal</td>
+                    <td><code>rspout/auto</code> dan <code>requestheader</code>
+                        kedua-duanya mesti 0 (lihat di atas)</td></tr>
+                <tr><td><code>AT</code> pun tidak berbalas</td>
+                    <td>Modul tergantung (ditemui dalam ujian sebenar, manual tidak menerangkannya) — jalankan semula ritual but</td></tr>
+            </table>

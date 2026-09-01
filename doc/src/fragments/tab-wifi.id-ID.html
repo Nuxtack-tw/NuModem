@@ -1,0 +1,150 @@
+<h3 id="tab-wifi">WiFiScan — Pemindaian Wi-Fi dan Penentuan Posisi Jaringan</h3>
+            <p><strong>Cara kerja:</strong> EG800K adalah modul LTE, <strong>tanpa kemampuan internet Wi-Fi</strong>,
+            tetapi punya penerima Wi-Fi bawaan yang "hanya memindai tanpa menyambung": secara pasif menerima frame beacon
+            yang disiarkan hotspot 2.4GHz di sekitar, lalu melaporkan alamat MAC (BSSID), RSSI (kekuatan sinyal), dan kanal
+            setiap hotspot. Pemindaian adalah penerimaan RF murni, <strong>nol kuota data</strong>; ia sendiri tidak menghasilkan koordinat —
+            daftar MAC + RSSI harus dikirim ke basis data posisi hotspot di cloud untuk ditukar menjadi lintang-bujur;
+            inilah penentuan posisi jaringan yang <strong>bisa dipakai di dalam ruangan, tanpa bergantung satelit</strong>.
+            Semua angka dan perilaku pada bagian ini adalah nilai hasil uji nyata terhadap EG800K fisik pada Agustus 2026.</p>
+
+            <h4>Dua kelompok tombol halaman ini</h4>
+            <p>Paruh atas <strong>Wi-Fi Scan</strong> empat tombol (pemindaian murni), paruh bawah
+            <strong>QuecLocator (QLBS)</strong> tiga belas tombol (baca dulu paragraf kebenaran di belakang sebelum menekan):</p>
+            <table>
+                <tr><th>Tombol</th><th>Perintah</th><th>Fungsi dan poin hasil uji</th></tr>
+                <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>Menanyakan rentang parameter. Perangkat ini nyatanya membalas
+                        <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+                <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+                    <td>Membaca parameter kini. Nilai pabrik perangkat ini <code>12000,1,5,5,0</code> =
+                        batas waktu 12 detik, 1 putaran, hotspot maksimum 5, timeout RRC 5 detik, prioritas 0</td></tr>
+                <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+                    <td>Memindai sekali dengan parameter kini. Hasilnya dilaporkan <strong>asinkron</strong> setelah <code>OK</code>,
+                        menunggu maksimum 13 detik</td></tr>
+                <tr><td>Scan (custom)</td><td>Kartu parameter</td>
+                    <td>Memindai setelah mengatur sendiri batas waktu (milidetik) / jumlah putaran / hotspot maksimum / timeout RRC / prioritas</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="Tab WiFiScan dan kelompok QuecLocator">
+                <figcaption>Halaman WiFiScan: empat tombol pemindaian dan kelompok QuecLocator (QLBS).</figcaption>
+            </figure>
+
+            <h4>Pemindaian pertama: cara menekannya, apa yang akan terlihat</h4>
+            <ol>
+                <li><strong>Jalankan ritual boot</strong> (lihat bagian "Ritual Boot").</li>
+                <li><strong>Pastikan URC lewat UART</strong>: <code>AT+QURCCFG="urcport"</code> harus membalas
+                    <code>"uart1"</code>. Nilai pabriknya <code>"usbat"</code> —
+                    seluruh hasil pemindaian dikirim ke port USB; di sini hanya terlihat <code>OK</code>,
+                    bahkan TIMEOUT pun tak kunjung datang (setelan ditulis ke NVRAM, cukup diubah sekali).</li>
+                <li><strong>Tekan <code>Scan</code></strong>: modul membalas <code>OK</code> dulu,
+                    yang berarti "pemindaian dimulai", <strong>bukan hasil</strong>. Dalam beberapa detik (paling lama sampai batas waktu pemindaian)
+                    hasil dilaporkan baris demi baris, tiap baris beranotasi otomatis (MAC / RSSI / kanal).</li>
+            </ol>
+
+            <h4>Membaca hasil pemindaian</h4>
+            <p>Laporan hasil uji tampak seperti ini (2026-08-29, terpindai 7 hotspot, RSSI -37 ~ -89 dBm):</p>
+            <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+            <p>Urutan kolomnya <code>(ecn, ssid, rssi, mac, channel)</code>.
+            <strong>Firmware perangkat ini selalu membalas <code>-</code> untuk ecn dan ssid</strong> (hasil uji 2026-08-02),
+            sehingga dari daftar tak terlihat "ini Wi-Fi milik siapa" —
+            untuk penentuan posisi justru pas: yang dimakan basis data memang MAC + RSSI.
+            Intuisi RSSI: -30 ~ -50 sangat dekat, -60 ~ -75 biasa, di bawah -80 sangat lemah.</p>
+            <p>Bila dalam batas waktu tak satu pun hotspot terpindai, balasannya <code>+QWIFISCAN:TIMEOUT</code> —
+            <strong>penyelesaian normal, bukan error</strong> (tanpa spasi setelah titik dua; parser alat ini sudah menanganinya).
+            Ingin memindai lebih banyak: lewat kartu parameter naikkan hotspot maksimum dari nilai pabrik 5 (batas perangkat ini 10),
+            dan setel putaran ke 2-3 (hasil uji: hasil lintas putaran dideduplikasi).</p>
+            <div class="warning">
+                <strong>Tidak semua hotspot terpindai bisa dipakai untuk penentuan posisi.</strong> Hasil uji 2026-08-29: dari 7 hotspot,
+                4 di antaranya "alamat kelola lokal" (berawalan <code>C2:</code> / <code>62:</code> / <code>9E:</code>,
+                bit 0x02 pada byte pertama bernilai 1 — BSSID virtual dari kloning multi-SSID);
+                <strong>basis data penentuan posisi biasanya langsung mengabaikan alamat semacam ini</strong>,
+                sehingga bahan yang benar-benar terpakai tinggal 3 alamat global.
+            </div>
+            <div class="warning">
+                <strong>Rentang parameter di dokumen aplikasi V1.2 salah untuk perangkat ini.</strong>
+                Dokumen melonggarkan putaran ke 1-6 dan hotspot maksimum ke 4-30, tetapi rentang yang nyatanya dibalas firmware perangkat ini tetap
+                <strong>putaran 1-3, hotspot maksimum 4-10</strong> (hasil uji 2026-08-06).
+                Jadikan balasan nyata <code>Support?</code> patokan; jangan menyalin angka dokumen.
+            </div>
+
+            <h4>Kelompok tombol QuecLocator (QLBS): lihat dulu kebenarannya sebelum menekan</h4>
+            <p>QuecLocator adalah layanan penentuan posisi cloud milik Quectel: <code>AT+QLBS</code> (tombol <code>Locate</code>)
+            satu perintah — firmware sendiri mengumpulkan bahan, mengirimnya ke server untuk dicari di basis data, lalu mengembalikan koordinat.
+            Tiga kenyataan:</p>
+            <ol>
+                <li><strong>Butuh token, dan ini layanan berbayar.</strong> Dokumen resmi menulis tegas harus menghubungi
+                    dukungan teknis Quectel untuk mengajukan (tanpa registrasi mandiri). Token perangkat ini kosong dari pabrik.</li>
+                <li><strong>Dari 16 dokumen resmi EG800K, tak satu pun menyebut QuecLocator.</strong>
+                    Dokumen aplikasi yang ada di tangan diperuntukkan EC200U / EG915U (sintaks dan kode error terbukti cocok lewat pengujian),
+                    bukan dokumen resmi perangkat ini.</li>
+                <li><strong>Proyek ini sudah memutuskan tidak memakainya</strong> (2026-08-29): logika penentuan posisi terkunci di dalam firmware;
+                    begitu layanannya tutup, seluruh perintah AT-nya langsung mati dan vendornya tak bisa ditukar
+                    (forum Quectel sudah mengonfirmasi seri BG95 berhenti didukung).
+                    Tombolnya dipertahankan hanya untuk "verifikasi sambil lalu bila mendapat token gratis".</li>
+            </ol>
+            <div class="warning">
+                <strong><code>+QLBS: 702</code> adalah "server timeout", bukan masalah token.</strong>
+                Proyek ini pernah salah memvonis 702 sebagai "tak punya token" selama tiga minggu penuh — kebenarannya: saat itu lupa
+                mengaktifkan PDP dulu, modul sama sekali tak bisa mencapai server, dan setelah timeout penuh (pabrik 60 detik) membalas 702.
+                Eksperimen pembanding 2026-08-29 (token kosong sepanjang proses):
+                PDP belum aktif membalas <code>702</code>; setelah aktif membalas <code>10002</code> (token tidak ada) —
+                <strong>server bisa dicapai dari Taiwan; yang kurang hanyalah token</strong>.
+                Sebelum mengirim <code>AT+QLBS</code>, wajib <code>AT+QIACT=1</code> dulu (memakan kuota).
+            </div>
+            <p>Ketujuh subitem setelan punya tombol query / setel masing-masing; <code>Cfg?</code> (<code>AT+QLBSCFG=?</code>)
+            sekali klik menampilkan semua rentangnya (nol kuota). Nilai pabrik perangkat ini dan poin hasil uji:</p>
+            <table>
+                <tr><th>Subitem (tombol)</th><th>Nilai pabrik</th><th>Poin hasil uji</th></tr>
+                <tr><td><code>token</code> (Set Token / Token?)</td><td>Kosong</td>
+                    <td>Pembacaan selalu disamarkan menjadi <code>*</code>; jalur penyetelannya terbukti berfungsi</td></tr>
+                <tr><td><code>server</code> (Server? / Set Server)</td>
+                    <td><code>www.queclocator.com:80</code></td><td>Alamat server penentuan posisi</td></tr>
+                <tr><td><code>timeout</code> (Timeout? / Set Timeout)</td><td>60 detik</td>
+                    <td>Inilah timeout yang ditunggu si 702; rentang 10-120</td></tr>
+                <tr><td><code>asynch</code> (Async? / Set Async)</td><td>0</td>
+                    <td>Pengalih sinkron / asinkron</td></tr>
+                <tr><td><code>latorder</code> (LatOrder?)</td><td>0</td>
+                    <td>Urutan keluaran lintang-bujur. ⚠ Penyetelan memakai kunci huruf kecil, pembacaannya malah camelCase <code>latOrder</code></td></tr>
+                <tr><td><code>withtime</code> (WithTime?)</td><td>0</td>
+                    <td>Apakah balasan menyertakan waktu; nama kunci saat dibaca <code>withTime</code></td></tr>
+                <tr><td><code>timeupdate</code> (TimeUpd?)</td><td>0</td>
+                    <td>Apakah hasil penentuan posisi dipakai mengoreksi jam modul; nama kunci saat dibaca <code>timeUpdate</code></td></tr>
+            </table>
+            <p>Bila benar-benar mendapat token: isikan lewat <code>Set Token</code> → konfirmasi dengan <code>Token?</code>
+            (tampil <code>*</code>) → aktifkan PDP di halaman TCP/IP → <code>Locate</code>.</p>
+
+            <h4>Jalur alternatif: penentuan posisi jaringan tanpa token (hasil uji 71 meter)</h4>
+            <p>Penentuan posisi jaringan tak harus lewat QuecLocator. Jalur alternatif sudah tembus ujung-ke-ujung pada 2026-08-29:
+            modul hanya mengeluarkan bahan (halaman ini memindai hotspot, <code>AT+QENG="servingcell"</code> membaca BTS),
+            keluaran terminal disimpan lalu diserahkan ke <code>tools/wifi_geolocate.py</code> yang mencari basis data publik di sisi PC —
+            <strong>modul nol kuota, bebas layanan Quectel</strong>.
+            Hasil uji (dibandingkan nilai sejati GNSS hari yang sama): pencarian tabel BTS dengan Unwired Labs (registrasi gratis)
+            <strong>galat 71 meter</strong> (kesimpulan penutup jalur penentuan posisi ini), dengan beaconDB (bebas kunci) 632 meter;
+            pencarian tabel Wi-Fi tersangkut di vendor — ekosistem gratisnya sudah runtuh (beaconDB tak mencakup wilayah ini,
+            paket gratis Unwired Labs tak menyertakan Wi-Fi, Google / HERE mewajibkan kartu kredit), ditangguhkan.</p>
+            <div class="tip">
+                <strong>71 meter adalah "ketepatan pencarian tabel", bukan "presisi pengukuran".</strong>
+                Penentuan posisi BTS memakai Cell ID untuk mencari koordinat terdaftar BTS itu; cell yang sama selamanya mengembalikan titik yang sama —
+                berganti BTS, galatnya bisa berskala kilometer; ±1051 meter yang dilaporkan layanannya sendiri itulah estimasi yang jujur.
+                Selain itu Cell ID dan TAC berbasis <strong>heksadesimal</strong>;
+                sebelum mencari tabel wajib dikonversi ke desimal (perkakasnya sudah menangani ini).
+            </div>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td>Menekan <code>Scan</code> hanya membalas <code>OK</code>, hasil tak pernah muncul</td>
+                    <td>URC dikirim ke port USB — periksa dengan <code>AT+QURCCFG="urcport"</code>;
+                        bila bukan <code>"uart1"</code>, ubah (ditulis ke NVRAM)</td></tr>
+                <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+                    <td>Tak ada hotspot terpindai dalam batas waktu; penyelesaian normal, bukan error. Pindah tempat atau perpanjang batas waktu</td></tr>
+                <tr><td><code>+QLBS: 702</code></td>
+                    <td>Server timeout — hampir selalu karena lupa <code>AT+QIACT=1</code>, bukan masalah token</td></tr>
+                <tr><td><code>+QLBS: 10002</code></td>
+                    <td>Token tidak ada — harus mengajukan berbayar ke Quectel; proyek ini sudah memutuskan tak memakainya,
+                        beralih ke jalur alternatif di atas</td></tr>
+                <tr><td>Ingin memakai <code>AT+QCELLLOC</code></td>
+                    <td>Perangkat ini <strong>tidak mendukungnya</strong> (membalas ERROR) — itu perintah seri EC2x</td></tr>
+            </table>

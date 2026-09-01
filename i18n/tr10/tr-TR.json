@@ -1,0 +1,20 @@
+{
+ "0=不做任何驗證；1=驗證伺服器（需先把受信任 CA 憑證放進模組 UFS）；2=伺服器＋用戶端雙向驗證（遠端要求時，還需 client cert 與 private key）。手冊 §4 明說：seclevel 設 1 或 2 就必須先用 AT+QFUPL 把憑證上傳到模組。⚠ 舊版說明寫「本工具送不出憑證所以必定失敗」是錯的 —— PEM 是純 ASCII，2026-08-07 P5 實測已成功上傳 1939 bytes 的 ISRG Root X1 並通過驗證。目前 UI 沒有上傳按鈕，要用 AT+QFUPL 手動走兩段式流程。⚠ 另注意 sni 出廠預設是 0：同一 IP 掛多網域的伺服器（badssl.com 就是）不送 SNI 會拿到不匹配的憑證，驗證必敗 566。": "0 = hiçbir doğrulama yok; 1 = sunucuyu doğrula (modülün UFS'inde güvenilir bir CA sertifikası hâlihazırda bulunmalı); 2 = sunucu ve istemcinin karşılıklı doğrulaması (karşı taraf isterse ayrıca istemci sertifikası ve özel anahtar gerekir). Kılavuz §4 açıkça söylüyor: seclevel 1 veya 2 iken önce AT+QFUPL ile sertifika yüklenmelidir. ⚠ Buradaki eski not — «bu araç sertifika gönderemez, bu yüzden hep başarısız olur» — yanlıştı: PEM saf ASCII'dir ve 2026-08-07'de P5 turunda 1939 baytlık ISRG Root X1 yüklenip doğrulamadan geçildi. Arayüzde henüz yükleme düğmesi yok, dolayısıyla AT+QFUPL'un iki aşamalı akışını elle yürütmek gerekiyor. ⚠ Ayrıca sni fabrika değeri 0'dır: tek IP üzerinde birden çok alan adı barındıran bir sunucu (badssl.com böyledir) SNI gönderilmediğinde uyuşmayan bir sertifika döndürür ve doğrulama 566 ile kesinlikle başarısız olur.",
+ "模組回 > 之後會「數滿指定長度的位元組」才送出。若長度算錯或中途取消，AT 口會卡在資料模式吞掉後續指令 —— 用 Hardware 頁的原始位元組按鈕送 ESC（0x1B）即可脫身，不必關連線或重啟模組。資料會實際上網，產生流量。": "Modül > yanıtını verdikten sonra, ancak bildirdiğiniz bayt sayısını tam olarak saydığında gönderir. Uzunluk yanlışsa ya da yarıda bırakırsanız AT bağlantı noktası veri kipinde kalır ve sonrasında yazdığınız her şeyi yutar — çıkmak için Hardware sayfasındaki ham bayt düğmesiyle ESC (0x1B) gönderin; bağlantıyı kapatmanız ya da modülü yeniden başlatmanız gerekmez. Veri gerçekten ağa çıkar ve trafik harcar.",
+ "只查 clientID {0} 這一條連線，回報遠端位址與埠、本地埠、狀態碼、PDP 與 SSL context ID 及所用 AT 埠。": "Yalnızca clientID {0} olan bağlantıyı sorgular; uzak adres ve bağlantı noktasını, yerel bağlantı noktasını, durum kodunu, PDP ve SSL context kimliklerini ve kullanılan AT bağlantı noktasını bildirir.",
+ "對 clientID {0} 送出固定長度 {1} bytes：模組回 > 提示後要「剛好」送滿 {2} 個位元組才會發出，": "clientID {0} üzerinden tam {1} bayt gönderir: modül > yanıtını verdikten sonra, ancak tam {2} bayt geldiğinde iletir, ",
+ "從 clientID {0} 的接收緩衝讀最多 {1} bytes（範圍 0–1500、預設 1500）；": "clientID {0} alım arabelleğinden en çok {1} bayt okur (aralık 0–1500, varsayılan 1500); ",
+ "用 PDP context {0}、SSL context {1} 連到 {2}:{3}，這條連線的 clientID 是 {4}；": "PDP context {0} ve SSL context {1} üzerinden {2}:{3} adresine bağlanır; bu bağlantının clientID'si {4}; ",
+ "關閉 clientID {0} 並把 close_timeout 設為 {1}": "clientID {0} bağlantısını kapatır, close_timeout {1}",
+ "關閉 clientID {0} 的 SSL 連線，未帶逾時參數即採預設 10 秒；": "clientID {0} üzerindeki SSL bağlantısını kapatır; zaman aşımı parametresi verilmezse varsayılan 10 saniye geçerlidir; ",
+ " 秒": " saniye",
+ "。先回 OK 只代表指令收下，成敗看 +QSSLOPEN URC": ". Hemen dönen OK yalnızca komutun kabul edildiği anlamına gelir — başarı ya da başarısızlık +QSSLOPEN URC'siyle gelir",
+ "不必送 Ctrl+Z。單次上限 1460，超出範圍回 ERROR": "Ctrl+Z gerekmez. Çağrı başına sınır 1460'tır; aralık dışında ERROR döner",
+ "同一 SSL context 的連線全關後，模組才釋放該 context": "modül, SSL context'i ancak üzerindeki tüm bağlantılar kapandıktan sonra serbest bırakır",
+ "末碼 0＝緩衝模式，資料要自己下 AT+QSSLRECV 讀": "sondaki 0 = arabellek kipi, veriyi AT+QSSLRECV ile kendiniz alırsınız",
+ "末碼 1＝直推模式，收到的資料由 +QSSLURC 連同內容直接吐出，不必再讀": "sondaki 1 = doğrudan itme, gelen veri içeriğiyle birlikte doğrudan bir +QSSLURC içinde çıkar, ayrıca okumaya gerek yoktur",
+ "末碼 2＝透傳模式，AT 埠變成資料通道": "sondaki 2 = saydam kip, AT bağlantı noktası veri kanalına dönüşür",
+ "讀到 +QSSLRECV: 0 就代表緩衝空了，只有緩衝模式需要這條": "+QSSLRECV: 0 okunması arabelleğin boş olduğu anlamına gelir; bu komuta yalnızca arabellek kipinde ihtiyaç vardır",
+ "，範圍 0–65535": ", aralık 0–65535",
+ "＝立即關閉不等待": " = beklemeden hemen kapat"
+}

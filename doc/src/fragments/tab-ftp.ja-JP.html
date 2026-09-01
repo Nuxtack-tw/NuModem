@@ -1,0 +1,139 @@
+<h3 id="tab-ftp">FTP —— ファイル転送</h3>
+            <p><strong>動作原理：</strong>FTP には<strong>2 本のチャネル</strong>があります：制御チャネルはコマンドを、
+            データチャネルはファイル内容を運びます。ログイン、リネーム、削除、サイズ照会は制御チャネルだけで済みますが、
+            LIST、アップロード、ダウンロードは<strong>別にデータ接続を 1 本開く</strong>必要があります ——
+            本節の怪現象の大半（615、603 の連発）はここから来ます。
+            節全体を貫く Quectel の通則：<strong><code>OK</code> は「コマンドを受け付けた」の意味でしかなく</strong>、
+            本当の結果は後から URC で届きます。本節の応答と数値はすべて 2026 年 8 月に実機 EG800K で実測した値です。</p>
+
+            <h4>始める前に：2 つの前提</h4>
+            <ul>
+                <li><strong>PDP を先に有効化すること</strong>：本ページ最初の <code>AT+QIACT?</code> がまさにこのチェックです ——
+                    <code>+QIACT: 1,1,…,"IP"</code> が返ってはじめて先へ進めます。OK しか返らなければ、先に TCP/IP ページで
+                    Act PDP を押してください（PDP 未有効のままでは QFTPOPEN は必ず失敗します）。</li>
+                <li><strong>URC が UART を通っていること</strong>：FTP コマンドはほぼすべて「まず OK、結果は URC で届く」型です。
+                    <code>AT+QURCCFG="urcport"</code> が <code>"uart1"</code> でなければ、
+                    ここには OK の山しか見えません（設定は Hardware ページを参照）。</li>
+            </ul>
+
+            <h4>ログインの動線：設定 → オープン → URC を待つ</h4>
+            <ol>
+                <li><strong>PDP context に紐付け</strong>：<code>AT+QFTPCFG="contextid",1</code>
+                    （出荷時から 1。照会ボタンで読み戻して確認できます）。</li>
+                <li><strong>アカウントを設定</strong>：<code>AT+QFTPCFG="account","ユーザー名","パスワード"</code>。
+                    <strong>必ず QFTPOPEN より前に</strong>設定しておきます。</li>
+                <li><strong>モードと型</strong>：<code>transmode</code> は 1
+                    （パッシブ。NAT の内側では常にこれ、FTPS では必須）。
+                    <code>filetype</code> はプレーンテキストなら 1、それ以外は 0。</li>
+                <li><strong>ログイン</strong>：<code>AT+QFTPOPEN="ホスト",21</code> は即 OK を返しますが（受け付けただけ）、
+                    <code>+QFTPOPEN: 0,0</code> を待ってはじめてログイン成功です（最長 125 秒）。
+                    続けて <code>AT+QFTPSTAT</code> を押すと 1 が返るはずです（アイドル。2＝転送中、3＝クローズ中）。</li>
+            </ol>
+            <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK                ← コマンドを受け付けただけ
++QFTPOPEN: 0,0    ← この行こそログイン成功</pre>
+            <p>残りの設定項目：<code>AT+QFTPCFG=?</code> はワンキーで全 10 の設定可能項目と範囲を一覧します（通信量ゼロ）。
+            <code>rsptimeout</code>（20–180、既定 90 秒）は多くのコマンドの最大応答時間であり、
+            データモード中の 2 パケット間の最大間隔でもあります。<code>ssltype</code>／<code>sslctxid</code> は
+            FTPS 用（純粋な FTP では 0 のまま。SSL パラメータは SSL ページで設定）。
+            <code>data_address</code>／<code>cache</code>／<code>restenable</code>
+            は特殊環境向けの微調整で、用途は各ボタンの説明とマニュアルを参照してください。</p>
+            <div class="tip">
+                <strong>パスワードのマスク（実測、マニュアルと不一致）：</strong><code>AT+QFTPCFG="account"</code>
+                の照会での読み戻しではパスワードが <code>*</code> にマスクされます（マニュアルはそのまま印字と記載）。ただしユーザー名は平文のままで、
+                <strong>設定した行のパスワードも平文です</strong>。スクリーンショットや録画で気を付けるべきは設定行の方です。
+            </div>
+            <div class="warning">
+                <strong>🔴 <code>AT+QFTPCLOSE</code> は非同期です —— <code>OK</code> は閉じ終えた意味ではありません。</strong>
+                <code>+QFTPCLOSE: 0,0</code> を待ってはじめてログアウト完了です。その間 <code>AT+QFTPSTAT</code>
+                は 3（クローズ中）を返し、どの FTP コマンドを打っても<strong>一律 <code>+CME ERROR: 603</code></strong>（サーバービジー）です。
+                <br><br>
+                症状は極めて紛らわしいものです：603 の連発はモジュールの故障やサーバーからの遮断に見えますが、
+                実はまだ閉じ終えていないだけです（実測当日、これで大回りしました）。待ちの上限＝rsptimeout。
+                またこれは FTP からログアウトするだけです。ネットワークを徹底的にリセットするには、TCP/IP ページで Deact PDP を押します。
+            </div>
+
+            <h4>ディレクトリとファイル管理：サーバーをファイルマネージャとして使う</h4>
+            <p>サーバー側ファイル操作の一式です（LIST／NLST／MLSD はデータ接続を開き、それ以外は制御チャネルのみ）。
+            成功応答は一律 <code>+QFTPXXX: 0,…</code> —— 最初の数字が 0 なら成功です：</p>
+            <table>
+                <tr><th>コマンド</th><th>何をするか</th><th>成功応答（実測）</th></tr>
+                <tr><td><code>AT+QFTPPWD</code></td><td>現在の作業ディレクトリを照会</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+                <tr><td><code>AT+QFTPCWD</code></td><td>作業ディレクトリを切り替え。以後の操作はこれが基準</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPLIST</code></td><td>完全な一覧をターミナルに直接吐く（2 ボタン：現在のディレクトリ／指定ディレクトリ）</td><td>内容の後に <code>+QFTPLIST: 0,1175</code>（末尾の数＝バイト数）</td></tr>
+                <tr><td><code>AT+QFTPNLST</code>／<code>AT+QFTPMLSD</code></td><td>ファイル名のみ列挙（通信量節約）／MLSD 標準形式（解析しやすい）</td><td>LIST と同じ</td></tr>
+                <tr><td><code>AT+QFTPSIZE</code></td><td>ファイルサイズを照会、内容はダウンロードしない</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+                <tr><td><code>AT+QFTPMDTM</code></td><td>ファイル更新時刻を照会、内容はダウンロードしない</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+                <tr><td><code>AT+QFTPMKDIR</code>／<code>AT+QFTPRMDIR</code></td><td>フォルダの作成／削除</td><td><code>…: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPRENAME</code></td><td>ファイルまたはフォルダのリネーム</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPDEL</code></td><td>ファイルの削除</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+            </table>
+            <p>技（実測で一連すべて合格）：<strong>SIZE を存在チェックとして使う</strong> ——
+            リネーム後に旧名を照会すると <code>+QFTPSIZE: 627,550</code>、新名は <code>0,20</code>。
+            削除後にもう一度照会するとまた <code>627,550</code>。1 byte もダウンロードせずに各ステップを検証できました。
+            <code>627,550</code> は<strong>2 層のエラーコード</strong>です：627＝モジュール層「FTP は要求された動作を実行しなかった」、
+            550＝FTP プロトコル層のサーバー回答「ファイルまたはディレクトリが存在しない」。本ツールの注釈は層ごとに翻訳します。</p>
+
+            <h4>ダウンロード：内容をターミナルに直接印字（COM:）</h4>
+            <p><code>AT+QFTPGET="ファイル名","COM:"</code> —— <code>CONNECT</code> の後、ファイル内容がターミナルに直接吐かれ、
+            末尾に <code>+QFTPGET: 0,&lt;バイト数&gt;</code>（実測では readme.txt が 0,379 を返しました）。
+            もう 1 つの<strong>分割ダウンロード</strong>ボタンは開始位置と長さのパラメータが付き、最も推奨するダウンロード方法です：
+            先に SIZE でサイズを照会し、分割で取れば、ファイル丸ごとで通信量が爆発するのを避けられます。
+            <code>AT+QFTPLEN</code> は直前の PUT／GET／LIST／NLST が実際に何 byte 転送したかを照会します。</p>
+
+            <h4>アップロード：2 段階、宣言した長さを送り切ると自動終了</h4>
+            <p><code>AT+QFTPPUT="ファイル名","COM:",0,&lt;長さ&gt;,1</code> は 2 段階コマンドです：
+            <code>CONNECT</code>（データモード入り）を待って、宣言した長さ<strong>ちょうど</strong>のバイト数を送出すると、
+            モジュールは数え切った時点で自動的にデータモードを抜けます。Ctrl+Z を送る必要はありません。本ツールは長さを自動計算するので、
+            パラメータカードに内容を貼るだけです。</p>
+            <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT                        ← データモードに入る
+NuModem-P6-FTP-test\n          ← ちょうど 20 bytes を送出
+OK
++QFTPPUT: 0,20                 ← サーバーが 20 bytes を受信</pre>
+            <p>この 20 bytes は実測時、わざわざホスト側から Python の ftplib で取り戻してバイト単位で比較しました —— 完全一致。
+            <strong>UFS 中継形式</strong>：マニュアルはファイル名を <code>"UFS:xxx"</code> と書き、
+            モジュール内蔵ストレージで中継する形式にも対応しています。詳細は FTPS アプリケーションノートを参照。先に PC のファイルを UFS へ入れるには、
+            SSL ページ「UFS ファイル」グループの Upload ボタン（<code>AT+QFUPL</code>、UART 経由で通信量ゼロ、
+            checksum を自動照合）を使います。</p>
+            <div class="warning">
+                <strong>⚠ <code>+++</code> は FTP にとって「中断」であって「一時停止」ではありません。</strong>
+                マニュアル（FTPS AN v1.5 p13）はエスケープ後 <code>ATO</code> でデータモードに戻って転送を続けられると書いていますが、
+                <strong>実測では成立しません</strong>（2 回試して結果は一致）：エスケープ後 <code>AT+QFTPSTAT</code>
+                は 2（転送中）ではなく 1（アイドル）を返し、<code>ATO</code> は <code>NO CARRIER</code> を返します ——
+                転送はまるごと中断済みで、復帰できる接続はありません。したがって <code>+++</code> は制御不能になった
+                データモードから脱出するためだけに使い、大きいファイルのダウンロードの一時停止には使えません。
+                <br><br>
+                正しい打ち方：<strong>前後にそれぞれ 1 秒の無音、生バイトで送り、CR を付けない</strong>（付けると効きません）——
+                本ページの <code>+++</code> ボタンはこの規則どおりに送ります。<code>ATO</code> ボタンはマニュアルの語義どおり残してあります。
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="FTP タブ">
+                <figcaption>FTP ページ：ログイン設定、ディレクトリとファイル管理、アップロードとダウンロード。</figcaption>
+            </figure>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td><code>+CME ERROR: 603</code> の連発</td>
+                    <td>① QFTPCLOSE 後まだクローズ中（QFTPSTAT が 3 を返す）—— <code>+QFTPCLOSE: 0,0</code> を待つ。
+                        ② 以前に 615 が発生した —— <strong>615 の後はすべての FTP コマンドが一律 603</strong>、正しく閉じるまで続きます</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>データ接続のオープン失敗：<strong>制御チャネルは正常、データチャネルは全滅</strong>
+                        （SIZE は応答するのに、PUT／GET／LIST は全部倒れる）。大半はサーバー側の問題です ——
+                        dlptest は 2 つの異なるネットワーク経路から試してどちらも失敗、rebex は終始失敗ゼロ。
+                        読み取りは rebex を、書き込みのときだけ dlptest を使い、一気に済ませてください</td></tr>
+                <tr><td><code>627,550</code></td>
+                    <td>ファイルまたはディレクトリが存在しない —— ファイル名かパスの打ち間違い。まず QFTPPWD／QFTPLIST で自分の居場所を確認</td></tr>
+                <tr><td>再起動後、最初の PUT がいきなり 615</td>
+                    <td>データスタックの退化：QFTPCLOSE でも PDP 再起動でも救えず、
+                        <strong>完全な起動シーケンスだけが復旧手段です</strong>。鑑別法：TCP/IP ページの
+                        <code>AT+QIOPEN</code> で同じ相手を叩く —— これも失敗＝スタック全体が壊れているので、FTP 設定をこれ以上調べない</td></tr>
+                <tr><td>コマンドが OK を返した後、何も起きない</td>
+                    <td>結果 URC が USB ポートへ行っています —— <code>AT+QURCCFG="urcport"</code>
+                        が uart1 かどうかを確認</td></tr>
+                <tr><td><code>AT+QFTPOPEN</code> が即失敗する</td>
+                    <td>PDP が有効化されていません —— まず本ページの <code>AT+QIACT?</code> を押し、IP が無ければ TCP/IP ページで Act PDP</td></tr>
+            </table>

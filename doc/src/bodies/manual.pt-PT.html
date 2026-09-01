@@ -1,0 +1,2017 @@
+
+    <header class="header">
+        <h1>📡 Manual de Utilização do NuModem EG800</h1>
+        <p class="subtitle">Controlar um modem 4G a partir do navegador —— comandos AT, anotações em tempo real, 18 idiomas</p>
+        <span class="version">V26.0.76</span>
+    </header>
+
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="#intro">Introdução</a>
+            <a href="#requirements">Requisitos</a>
+            <a href="#quickstart">Início rápido</a>
+            <a href="#boot">Ritual de arranque</a>
+            <a href="#terminal">Terminal</a>
+            <a href="#signals">Barra de sinais</a>
+            <a href="#panel">Painel AT</a>
+            <a href="#tabs">Dez separadores</a>
+            <a href="#method">Método de teste</a>
+            <a href="#faq">FAQ</a>
+        </div>
+    </nav>
+
+    <main class="container">
+
+        <section id="intro">
+            <h2><span class="icon">🎯</span> Introdução</h2>
+            <p>O NuModem EG800 é uma consola de controlo de modem 4G num <strong>único ficheiro HTML</strong>. Envia comandos AT
+            diretamente para os módulos Quectel <strong>EG800K</strong> através da Web Serial API do navegador,
+            sem instalar seja o que for, sem software além do controlador do dispositivo e sem qualquer servidor de back-end.</p>
+
+            <p>Em que difere de um terminal de porta série vulgar? Difere em que <strong>percebe comandos AT</strong>.
+            Cada comando que envia e cada linha que o módulo devolve levam ao lado, em tempo real, uma explicação em linguagem humana ——
+            incluindo aqueles códigos de erro que são apenas números.</p>
+
+            <div class="info-box">
+                <div class="info-box-title">O que este manual cobre</div>
+                Desde abrir a página, ligar o módulo e correr o ritual de arranque, até ao
+                <strong>princípio de funcionamento</strong> e à <strong>forma de testar</strong> de cada grupo de comandos AT
+                nos dez separadores. Todas as descrições de comportamento vêm de testes reais feitos em
+                agosto de 2026 sobre um EG800K físico, não são copiadas do manual ——
+                <strong>onde o manual está errado, este texto di-lo sem rodeios</strong>.
+            </div>
+
+            <figure class="shot">
+                <img src="img/02-hardware-boot.png" alt="Ecrã principal do NuModem: painel de comandos AT à esquerda, terminal com anotações à direita">
+                <figcaption>Ecrã principal. À esquerda o painel de comandos AT, à direita o terminal ——
+                o <code>//</code> no fim de cada linha é a anotação em tempo real.</figcaption>
+            </figure>
+                    <h3>Idioma e tema</h3>
+            <figure class="shot">
+                <img src="img/08-language-menu.png" alt="O menu de idiomas no canto superior direito: 18 idiomas">
+                <figcaption>O menu de idiomas no canto superior direito: 18 idiomas. Os textos da interface e as anotações dos comandos AT mudam em conjunto.</figcaption>
+            </figure>
+            <figure class="shot">
+                <img src="img/09-theme-light.png" alt="Tema claro">
+                <figcaption>Tema claro. Um clique no canto superior direito; a escolha fica guardada no navegador e é reutilizada da próxima vez.</figcaption>
+            </figure>
+        </section>
+
+        <section id="requirements">
+            <h2><span class="icon">💻</span> Requisitos do sistema</h2>
+
+            <h3>Navegador</h3>
+            <p>O NuModem assenta na <strong>Web Serial API</strong>, e esta API só existe
+            nos navegadores da família Chromium.</p>
+            <table>
+                <tr><th>Navegador</th><th>Versão</th><th>Estado</th></tr>
+                <tr><td>Google Chrome</td><td>89 ou superior</td><td>✅ Recomendado</td></tr>
+                <tr><td>Microsoft Edge</td><td>89 ou superior</td><td>✅ Suportado</td></tr>
+                <tr><td>Opera</td><td>75 ou superior</td><td>✅ Suportado</td></tr>
+                <tr><td>Firefox</td><td>—</td><td>❌ Não tem Web Serial API</td></tr>
+                <tr><td>Safari</td><td>—</td><td>❌ Não tem Web Serial API</td></tr>
+            </table>
+
+            <div class="warning">
+                <strong>Abrir diretamente com <code>file://</code> funciona</strong> — o Chromium
+                trata os ficheiros locais como origem segura, por isso a Web Serial não é bloqueada.
+                Descarregue, faça duplo clique em <code>NuModem_EG800.html</code> e ligue-se; servir por
+                <code>https://</code> ou <code>http://localhost</code> funciona igualmente bem.
+                A única diferença é que sob <code>file://</code> o <code>fetch()</code> fica bloqueado
+                pelo CORS — mas os ficheiros de tradução são carregados com etiquetas
+                <code>&lt;script&gt;</code>, pelo que os 18 idiomas continuam a funcionar.
+            </div>
+
+            <h3>Hardware</h3>
+            <table>
+                <tr><th>Item</th><th>Descrição</th></tr>
+                <tr><td>Módulo</td><td>Quectel série EG800K (todos os testes deste texto foram feitos com o firmware
+                    <code>EG800KCNGCR07A06M04</code>)</td></tr>
+                <tr><td>Interface</td><td>Ponte USB-UART. Nos testes foi usado um CH343 (<code>1A86:55D3</code>)</td></tr>
+                <tr><td>Baud rate</td><td><strong>115200</strong></td></tr>
+                <tr><td>Fim de linha</td><td><strong>CR</strong> (com LF o módulo não responde de todo)</td></tr>
+                <tr><td>Cartão SIM</td><td>Só é preciso para funções de dados. Nos testes foi usado um cartão IoT 1NCE, com APN atribuído automaticamente</td></tr>
+            </table>
+            <p>A placa de controlo tem de conseguir <strong>controlar a alimentação do módulo por RTS</strong> e
+            <strong>o pino de Reset por DTR</strong>, senão o ritual de arranque não é possível (ver <a href="#boot">Ritual de arranque</a>).</p>
+        </section>
+
+        <section id="quickstart">
+            <h2><span class="icon">🚀</span> Início rápido</h2>
+
+            <h3>Passo 1 —— Abrir o NuModem</h3>
+            <p>Abra <code>NuModem_EG800.html</code> no Chrome ou Edge — basta um duplo clique, não é preciso servidor.</p>
+
+            <h3>Passo 2 —— Ligar o módulo</h3>
+            <p>Prima <strong>Ligar</strong>, no canto superior esquerdo. O navegador abre a janela de escolha de porta; escolha a sua ponte USB-UART.
+            A seta à direita expande uma lista pendente, para escolher diretamente uma porta já autorizada antes.</p>
+            <div class="tip">
+                Depois de autorizar uma vez, nas visitas seguintes basta premir «Ligar» e a ligação faz-se logo, sem voltar a perguntar.
+                Se tiver vários dispositivos série, é mais rápido escolher pela lista pendente.
+            </div>
+
+            <h3>Passo 3 —— Confirmar o baud rate</h3>
+            <p>O seletor de baud rate no topo está por predefinição em <strong>115200</strong>, que é o valor de fábrica do EG800K; normalmente não é preciso mexer.</p>
+
+            <h3>Passo 4 —— Correr o ritual de arranque</h3>
+            <p><strong>Este passo não se salta.</strong> No instante em que o navegador abre a porta série, o RTS volta a ser colocado em alto,
+            e nesta placa de controlo o RTS é um interruptor de alimentação de lógica negativa —— ou seja,
+            <strong>ao ligar-se corta-se a alimentação do módulo</strong>.
+            Os passos detalhados vêm na secção seguinte.</p>
+
+            <div class="warning">
+                O sintoma clássico de saltar o ritual de arranque é: <strong>vê no terminal todos os comandos que envia, mas não há absolutamente nenhuma resposta</strong>.
+                Não é o baud rate errado nem os fios trocados: é o módulo que simplesmente não tem alimentação.
+            </div>
+        </section>
+
+        <section id="boot">
+            <h2><span class="icon">🔌</span> Ritual de arranque (a secção mais importante)</h2>
+
+            <p>O EG800K não arranca só por ter corrente. Esta placa de controlo liga dois sinais de saída RS-232 aos pinos de controlo do módulo:</p>
+
+            <table>
+                <tr><th>Sinal</th><th>Ligado a</th><th>Lógica</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Interruptor de alimentação do módulo</td>
+                    <td><strong>Lógica negativa</strong>: RTS <strong>OFF = alimentado</strong>, RTS ON = sem alimentação</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Pino de Reset do módulo</td>
+                    <td>DTR <strong>ON = Reset em alto</strong> (pode arrancar), OFF = Reset em baixo</td></tr>
+            </table>
+
+            <h3>Procedimento padrão</h3>
+            <p>Mude para o separador <strong>Hardware</strong>; lá há dois botões dedicados:</p>
+            <ol>
+                <li><strong>Power</strong> —— faz o RTS percorrer um ciclo ON → OFF.
+                    O botão a verde indica que a alimentação está ligada (isto é, o RTS está em OFF).
+                    <br>⚠ Pôr diretamente em OFF não garante alimentação: <strong>tem mesmo de ser primeiro ON e só depois OFF</strong>.</li>
+                <li>Espere um segundo.</li>
+                <li><strong>Reset</strong> —— é um botão do tipo «só faz efeito enquanto premido»:
+                    ao premir, o DTR vai a OFF; ao largar, volta a ON. Mantenha premido cerca de 300 milissegundos.</li>
+                <li>Espere que apareça <code>RDY</code> no terminal. Nos testes aparece em poucos segundos.</li>
+            </ol>
+
+            <p>Também pode clicar diretamente em <code>RTS</code> / <code>DTR</code> na barra de sinais; o efeito é o mesmo,
+            só que a sequência fica por sua conta.</p>
+
+            <h3>Como confirmar que arrancou</h3>
+            <p>O terminal deve cuspir isto, por esta ordem:</p>
+            <pre>RDY              ← arranque do módulo concluído
++CFUN: 1         ← rádio (RF) ligado
++CPIN: READY     ← SIM pronto
++QUSIM: 1
++QIND: SMS DONE  ← inicialização de SMS concluída
++QIND: PB DONE   ← inicialização da lista telefónica concluída</pre>
+            <p>Depois envie um <code>ATI</code> para validar: deve devolver três linhas —— marca, modelo e versão de firmware —— mais <code>OK</code>.</p>
+
+            <div class="important">
+                <strong>⚠ Sempre que recarregar a página tem de repetir o ritual de arranque.</strong>
+                Recarregar reabre a porta série, e reabrir a porta série volta a fazer assert do RTS ——
+                ou seja, corta outra vez a alimentação do módulo. É esta a causa nº 1 de se julgar erradamente que «o módulo está avariado» ao usar esta ferramenta.
+            </div>
+
+            <h3>Os dois comandos a enviar logo após o arranque</h3>
+            <table>
+                <tr><th>Comando</th><th>Porquê</th></tr>
+                <tr><td><code>ATE1</code></td>
+                    <td>Ativa o eco. O módulo devolve tal e qual o comando que recebeu,
+                    o que permite comparar no terminal «o que enviou» com «o que o módulo recebeu mesmo»; um erro de escrita salta logo à vista.</td></tr>
+                <tr><td><code>AT+CMEE=2</code></td>
+                    <td>Passa as mensagens de erro para texto descritivo. Sem isto, um erro é apenas um seco <code>ERROR</code>;
+                    com isto vê mensagens legíveis como <code>+CME ERROR: SIM not inserted</code>.</td></tr>
+            </table>
+            <p><strong>Ambos são session-only</strong>: depois de o módulo reiniciar, têm de ser reenviados.</p>
+
+            <div class="warning">
+                <strong>🔴 Quando não chega nenhum URC, a primeira coisa a verificar é <code>AT+QURCCFG="urcport"</code>.</strong>
+                De fábrica o módulo envia os URC (mensagens de reporte não solicitadas) para a <strong>porta AT USB</strong>,
+                e esta ferramenta, que usa a UART, não recebe nem um —— o sintoma é «todos os comandos respondem OK mas nunca há mensagens a seguir»:
+                localização GNSS, chegada de dados TCP, mensagens MQTT e resultados do scan Wi-Fi ficam todos em silêncio.
+                Solução: <code>AT+QURCCFG="urcport","uart1"</code>, que escreve na NVRAM e sobrevive a reinícios.
+            </div>
+        </section>
+
+        <section id="terminal">
+            <h2><span class="icon">📟</span> Terminal</h2>
+
+            <p>A metade direita é o terminal. A grande diferença face a um terminal série comum é que <strong>cada linha vem anotada</strong>.</p>
+
+            <h3>Quatro cores</h3>
+            <table>
+                <tr><th>Cor</th><th>Significa</th></tr>
+                <tr><td><strong>TX</strong></td><td>Dados que enviou</td></tr>
+                <tr><td><strong>RX</strong></td><td>Dados devolvidos pelo módulo</td></tr>
+                <tr><td><strong>SYS</strong></td><td>Mensagens de sistema da própria ferramenta (ligação, mudanças de sinal, entrada e saída do modo de dados)</td></tr>
+                <tr><td><strong>CMT</strong></td><td>Anotações —— as explicações começadas por <code>//</code></td></tr>
+            </table>
+            <p>As quatro cores são configuráveis: clique no quadrado de cor para abrir a paleta.</p>
+
+            <h3>Motor de anotações</h3>
+            <p>É o núcleo do NuModem. Faz duas coisas:</p>
+            <ul>
+                <li><strong>Explica o comando que envia</strong> —— por exemplo, ao enviar
+                    <code>AT+QSSLSEND=4,18</code> aparece ao lado «envia 18 bytes de comprimento fixo para o clientID 4:
+                    depois de o módulo responder com o prompt <code>&gt;</code> tem de enviar 'exatamente' 18 bytes para que sejam transmitidos, não é preciso Ctrl+Z».</li>
+                <li><strong>Descodifica a resposta do módulo</strong> —— sobretudo os códigos puramente numéricos.
+                    Por exemplo, <code>+QFTPSIZE: 627,550</code> é decomposto em duas camadas:
+                    «erro 627: o FTP não executou a ação pedida; o servidor respondeu 550: ação não executada: ficheiro ou diretório inexistente».</li>
+            </ul>
+
+            <div class="tip">
+                As anotações acompanham <strong>os parâmetros que preencheu de facto</strong>. O mesmo botão com valores diferentes
+                produz números diferentes na anotação —— não é um texto de ajuda fixo.
+            </div>
+
+            <h3>Fim de linha</h3>
+            <p>À direita da caixa de entrada escolhe-se o fim de linha. <strong>Com o EG800K tem de ser CR</strong>;
+            com LF o módulo não responde de todo. É a definição em que mais gente tropeça.</p>
+
+            <h3>Outros</h3>
+            <ul>
+                <li>Em baixo são mostrados os <strong>totais de bytes RX / TX</strong> e o nome da porta atual.</li>
+                <li>No canto superior direito há uma fila de botões: anotações ligadas/desligadas, fim de linha, marca temporal, deslocamento automático, limpar.</li>
+                <li>A zona do terminal tem ainda dois separadores, <strong>Estado dos satélites</strong> e <strong>Mapa</strong>,
+                    com conteúdo depois de a localização GNSS ser obtida.</li>
+            </ul>
+        </section>
+
+        <section id="signals">
+            <h2><span class="icon">🚦</span> Barra de sinais RS-232</h2>
+
+            <p>Depois de ligar, aparece por baixo da barra de título uma fila inteira de indicadores de sinal, dividida em dois grupos.</p>
+
+            <h3>LOCAL (OUT) —— as suas saídas, clicáveis</h3>
+            <table>
+                <tr><th>Sinal</th><th>Função nesta placa</th></tr>
+                <tr><td><strong>BRK</strong></td><td>Sinal de Break</td></tr>
+                <tr><td><strong>RTS</strong></td><td><strong>Alimentação do módulo</strong> (lógica negativa, OFF = alimentado)</td></tr>
+                <tr><td><strong>DTR</strong></td><td><strong>Reset do módulo</strong> (ON = Reset em alto)</td></tr>
+            </table>
+
+            <h3>REMOTE (IN) —— saídas do módulo, só de leitura</h3>
+            <p><code>DCD</code> / <code>DSR</code> / <code>CTS</code> / <code>RI</code>,
+            mais dois indicadores: <code>ACT</code> (há dados a circular) e <code>ERR</code> (erro de enquadramento/paridade).</p>
+
+            <div class="warning">
+                <strong>A Web Serial não permite reler o estado dos sinais que a própria envia.</strong>
+                Por isso os três indicadores LOCAL mostram «o valor que a ferramenta julga ter enviado», não uma leitura real do hardware.
+                Para confirmar que a ação surtiu mesmo efeito, é mais fiável olhar para as mensagens de sistema no terminal (do género <code>RTS → ON</code>).
+            </div>
+        </section>
+
+        <section id="panel">
+            <h2><span class="icon">🎛️</span> Como funciona o painel de comandos AT</h2>
+
+            <p>A metade esquerda são dez separadores e mais de duzentos botões. Antes de ver cada separador, convém perceber estes mecanismos comuns,
+            porque servem em todas as páginas.</p>
+
+            <h3>Dois tipos de botão</h3>
+            <table>
+                <tr><th>Estilo</th><th>Comportamento</th></tr>
+                <tr><td>Botão normal</td><td>Ao clicar, <strong>envia diretamente</strong></td></tr>
+                <tr><td>Contorno tracejado</td><td>Tem parâmetros a preencher. Depois de preenchidos pode «Enviar»,
+                    ou «Colocar na linha de comandos» para atirar o comando montado para a caixa de entrada em baixo e ainda o alterar</td></tr>
+            </table>
+
+
+            <figure class="shot narrow">
+                <img src="img/13-btn-kinds.png" alt="Um botão simples envia de imediato; um cartão tracejado pede parâmetros primeiro — depois pode enviá-lo ou empurrar o comando montado para a linha de comandos e editá-lo.">
+                <figcaption>Um botão simples <strong>envia de imediato</strong>; um cartão tracejado pede parâmetros primeiro — depois pode enviá-lo ou empurrar o comando montado para a linha de comandos e editá-lo.</figcaption>
+            </figure>
+            <h3>Campos de parâmetros</h3>
+            <p>Cada campo tem a sua explicação (aparece ao passar o rato por cima), e o que lá está escrito são as gamas <strong>medidas nesta unidade</strong>,
+            não cópias do manual. Por exemplo, o campo «número de rondas» do scan Wi-Fi diz 1-3,
+            porque é isso que <code>AT+QWIFISCAN=?</code> devolve de facto —— o 1-6 escrito na nota de aplicação está errado.</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/14-params.png" alt="Campos de parâmetros. Cada um mostra a sua dica ao passar o rato, e os intervalos são medidos nesta unidade: «rondas» diz 1-3 e «BSSID máx.» diz 4-10, que é o que AT+QWIFISCAN=? devolve na realidade, não uma cópia da nota de aplicação. O 1 e o 10 pré-preenchidos são apenas valores predefinidos.">
+                <figcaption>Campos de parâmetros. Cada um mostra a sua dica ao passar o rato, e os intervalos são <strong>medidos nesta unidade</strong>: «rondas» diz 1-3 e «BSSID máx.» diz 4-10, que é o que <code>AT+QWIFISCAN=?</code> devolve na realidade, não uma cópia da nota de aplicação. O 1 e o 10 pré-preenchidos são apenas valores predefinidos.</figcaption>
+            </figure>
+            <h3>Envio de dados em duas fases</h3>
+            <p>Há comandos que não terminam com uma única linha. O seu fluxo é:</p>
+            <pre>Enviar o comando  →  módulo responde &gt; ou CONNECT  →  enviar exatamente N bytes  →  módulo devolve o resultado</pre>
+            <p>Estes botões têm um campo próprio de «conteúdo dos dados», e <strong>o comprimento é calculado automaticamente e inserido no comando</strong>:
+            não tem de contar. Pertencem a esta categoria
+            <code>AT+QISEND</code>, <code>AT+QSSLSEND</code>, <code>AT+QMTPUBEX</code>,
+            <code>AT+QHTTPURL</code>, <code>AT+QHTTPPOST</code> e <code>AT+QFTPPUT</code>.</p>
+
+            <div class="warning">
+                <strong>Enganar-se no comprimento acaba mal.</strong> O módulo fica à espera até receber exatamente o número de bytes que declarou,
+                e durante esse tempo a porta AT está em «modo de dados» —— tudo o que escrever a seguir é engolido como dados.
+                <br><br>
+                Como sair: <strong>envie um ESC (0x1B) com o botão de bytes em bruto do separador Hardware</strong>.
+                Não é preciso desligar a ligação nem reiniciar o módulo.
+            </div>
+
+
+            <figure class="shot narrow">
+                <img src="img/15-two-stage.png" alt="Envio em duas fases. O 6 em AT+QISEND=0,6 é calculado pela ferramenta; só preenche o campo de dados.">
+                <figcaption>Envio em duas fases. O <strong>6 em <code>AT+QISEND=0,6</code> é calculado pela ferramenta</strong>; só preenche o campo de dados.</figcaption>
+            </figure>
+            <h3>Sequências de escape</h3>
+            <p>O campo de conteúdo dos dados é uma caixa de texto de uma só linha, onde não se conseguem escrever caracteres de controlo como mudança de linha ou Tab.
+            Por isso estes campos suportam sequências de escape:</p>
+            <table>
+                <tr><th>Notação</th><th>Byte enviado</th></tr>
+                <tr><td><code>\n</code></td><td>0x0A mudança de linha</td></tr>
+                <tr><td><code>\r</code></td><td>0x0D retorno de carro</td></tr>
+                <tr><td><code>\t</code></td><td>0x09 Tab</td></tr>
+                <tr><td><code>\0</code></td><td>0x00 NUL</td></tr>
+                <tr><td><code>\xHH</code></td><td>Qualquer byte, com HH em hexadecimal</td></tr>
+                <tr><td><code>\\</code></td><td>A própria barra invertida</td></tr>
+            </table>
+            <p><strong>A descodificação ocorre antes do envio, e o comprimento é contado sobre os bytes já descodificados.</strong>
+            Por exemplo, <code>hello\n</code> são 7 caracteres no campo, mas o que sai são 6 bytes,
+            e o comprimento inscrito no comando fica 6.</p>
+
+            <div class="tip">
+                <strong>Porque é que isto importa:</strong> muitos servidores de teste fazem eco <strong>linha a linha</strong>
+                (devolvem o que recebem, mas só agem ao ver uma mudança de linha).
+                Se o payload não terminar em <code>\n</code>, nunca recebe resposta ——
+                e o aspeto é o de «a ligação está avariada».
+            </div>
+
+
+            <figure class="shot narrow">
+                <img src="img/16-escapes.png" alt="Sequências de escape. O campo tem 10 caracteres, A\tB\x21\n, que descodificam para apenas 5 bytes — o comando passa a AT+QISEND=0,5.">
+                <figcaption>Sequências de escape. O campo tem 10 caracteres, <code>A\tB\x21\n</code>, que descodificam para apenas <strong>5 bytes</strong> — o comando passa a <code>AT+QISEND=0,5</code>.</figcaption>
+            </figure>
+            <h3>Indicação de timeout</h3>
+            <p>Alguns comandos AT bloqueiam durante muito tempo. O ⏱ nos botões é o tempo máximo de espera indicado no manual,
+            por exemplo <code>AT+QIACT=1</code> até 150 segundos e <code>AT+COPS=?</code> até 300 segundos.
+            <strong>Quando parecer que não há resposta há muito tempo, veja primeiro esta indicação</strong>: quase sempre é só ainda não ter chegado a hora.</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/17-timeout.png" alt="A marca ⏱ é a espera máxima indicada no manual. AT+COPS=? demora até 300 s — veja aqui primeiro quando parece não voltar nada; normalmente ainda não passou o tempo.">
+                <figcaption>A marca ⏱ é a espera máxima indicada no manual. <code>AT+COPS=?</code> demora até 300 s — veja aqui primeiro quando parece não voltar nada; normalmente ainda não passou o tempo.</figcaption>
+            </figure>
+            <h3>Caixas de confirmação</h3>
+            <p>Só aparecem em ações que deixam a porta AT presa em modo de dados, ou que são irreversíveis (apagar ficheiros remotos, reiniciar o módulo por software, mudar o baud rate).
+            <strong>O simples facto de «gastar tráfego» não o trava</strong> ——
+            esse tipo de aviso está antes na descrição do botão.</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/18-confirm.png" alt="Só os vermelhos perguntam antes. Mudar o nome (azul) sai logo; apagar (vermelho) pergunta uma vez.">
+                <figcaption><strong>Só os vermelhos perguntam antes.</strong> Mudar o nome (azul) sai logo; apagar (vermelho) pergunta uma vez.</figcaption>
+            </figure>
+            <h3>Interruptores locais</h3>
+            <p>Alguns botões têm por baixo uma pequena caixa de seleção: isso é <strong>comportamento do lado da ferramenta</strong>, não um comando AT.
+            Por exemplo, por baixo de <code>AT+QICLOSE=0</code> está «fechar automaticamente ao detetar <code>+QIURC: "closed",0</code>».
+            Estas opções ficam guardadas no navegador e continuam lá da próxima vez.</p>
+        
+            <figure class="shot narrow">
+                <img src="img/19-auto-opt.png" alt="A caixinha por baixo de um botão é um comportamento da ferramenta, não um comando AT. Fica guardada no navegador e permanece da próxima vez.">
+                <figcaption>A caixinha por baixo de um botão é um <strong>comportamento da ferramenta</strong>, não um comando AT. Fica guardada no navegador e permanece da próxima vez.</figcaption>
+            </figure>
+</section>
+
+        <section id="tabs">
+            <h2><span class="icon">🗂️</span> Os dez separadores</h2>
+
+            <p>A ordem dos separadores tem significado: <strong>da esquerda para a direita é, grosso modo, a ordem por que deve trabalhar</strong>.
+            Hardware para arrancar → Basic para confirmar que o módulo está vivo → Network para confirmar que há rede ——
+            e só depois vêm os cinco separadores dos vários protocolos de dados.</p>
+
+            <h3 id="tab-hardware">Hardware —— arranque e porta série</h3>
+            <p><strong>Princípio de funcionamento:</strong> esta página é o alicerce de toda a ferramenta:
+            Control tem os dois botões do ritual de arranque (Power/Reset), Module é a identificação do produto,
+            Serial é a configuração da UART, Power é o baixo consumo, URC gere a porta de saída das mensagens espontâneas do módulo,
+            e há ainda uma fila de <strong>botões de bytes em bruto</strong> (Ctrl+Z/ESC/+++) que servem de saída de emergência do modo de dados.
+            Todos os outros separadores assentam em dois pré-requisitos: <strong>o módulo foi ligado segundo o ritual</strong> e
+            <strong>os URC saem pela uart1</strong> —— ambas as coisas se resolvem nesta página.
+            Todos os comportamentos e números desta secção são medições feitas em agosto de 2026 num EG800K físico.</p>
+
+            <h4>Porque existe um ritual de arranque: RTS = alimentação, DTR = Reset</h4>
+            <p>A placa de controlo que acompanha esta ferramenta desvia dois sinais de handshake do RS-232 para outros fins; esta é a chave para entender a página inteira:</p>
+            <table>
+                <tr><th>Sinal</th><th>Ligado na prática a</th><th>Lógica</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Interruptor de alimentação do módulo</td>
+                    <td><strong>Lógica negativa</strong>: RTS OFF = alimentado, RTS ON = sem alimentação</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Pino de Reset do módulo</td>
+                    <td>DTR ON = Reset em alto (pode arrancar), DTR OFF = Reset em baixo</td></tr>
+            </table>
+            <p>Particularidade do circuito (confirmada em teste): na primeira ligação o RTS tem de ir
+            <strong>primeiro a ON e só depois a OFF</strong> para a alimentação abrir mesmo ——
+            pô-lo diretamente em OFF não garante corrente; o DTR também tem de percorrer <strong>ON→OFF→ON</strong>
+            para o Reset subir de verdade. O corte de alimentação (RTS ON) é abrupto: o módulo <strong>não envia nenhuma mensagem de despedida</strong>.</p>
+            <div class="warning">
+                <strong>Recarregar a página = cortar a alimentação.</strong> Quando o navegador reabre a porta série volta a fazer assert do RTS,
+                e o módulo perde a corrente de imediato —— terminada a religação automática, <strong>é obrigatório repetir o ritual de arranque</strong>.
+                Já se tropeçou nisto em teste: saltando o ritual, foram enviados 17 comandos e todos ficaram sem resposta (só linhas TX, zero RX).
+                Perante qualquer «ainda agora funcionava e agora não responde a nada», pense primeiro nisto.
+            </div>
+
+            <h4>Os botões Power e Reset: como se carrega e o que se vê</h4>
+            <p>Os dois botões são a encarnação dos dois sinais da tabela acima e estão <strong>sincronizados nos dois sentidos</strong>
+            com os indicadores RTS/DTR da barra de sinais (sem ligação ficam esbatidos e inativos). A Web Serial não consegue ler
+            o estado real dos sinais de saída; o que a barra de sinais mostra é o valor que esta ferramenta acredita ter enviado.</p>
+            <ol>
+                <li><strong>Power</strong> (comutável): verde aceso = alimentação ON (= RTS OFF).
+                    O ritual de arranque exige que o RTS percorra ON→OFF: se o botão já estiver aceso, clique primeiro para desligar e depois para ligar.</li>
+                <li><strong>Reset</strong> (momentâneo): premir = DTR OFF, largar = DTR ON;
+                    um premir-e-largar é um Reset (a sequência padrão faz uma pausa de 0,3 segundos no meio).</li>
+                <li><strong>Esperar o RDY</strong>: em poucos segundos o terminal mostra o anúncio de arranque do módulo, <code>RDY</code>.</li>
+                <li><strong>Validar com ATI</strong>: deve responder <code>Quectel</code>/<code>EG800K</code>/
+                    <code>Revision: …</code>/<code>OK</code>. Se responde, a UART e o módulo estão vivos.</li>
+            </ol>
+            <div class="tip">
+                Depois do arranque, convém confirmar que o eco (ATE) está ligado (de fábrica vem ligado) e enviar <code>AT+CMEE=2</code> ——
+                sem isto, um erro é apenas um seco <code>ERROR</code>; com isto passa a haver o texto legível de
+                <code>+CME ERROR: …</code>. Ambos são session-only: a cada rearranque do módulo há que reenviá-los.
+            </div>
+
+            <h4>Module: cinco botões de identificação</h4>
+            <table>
+                <tr><th>Botão</th><th>Comando</th><th>O que se vê</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>Marca/modelo/versão de firmware, três em um —— é o primeiro comando a enviar depois do arranque</td></tr>
+                <tr><td>Vendor/Model/FW Ver</td>
+                    <td><code>AT+GMI</code>/<code>AT+GMM</code>/<code>AT+GMR</code></td>
+                    <td>Consultam em separado as três linhas do ATI (equivalentes, respetivamente, a CGMI/CGMM/CGMR).
+                        A versão de firmware desta unidade, medida: <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>O IMEI do módulo (15 dígitos). Zero tráfego, pode ser enviado a qualquer momento</td></tr>
+            </table>
+
+            <h4>Serial: AT&amp;V lê os parâmetros, IPR muda o baud rate</h4>
+            <p><strong>AT Params (<code>AT&amp;V</code>)</strong>: lista o valor atual de todos os parâmetros AT de letra única.
+            Os comandos de letra única como <code>ATE</code>/<code>ATQ</code>/<code>ATV</code> <strong>não têm forma de consulta própria;
+            só este comando os lê</strong>. Medido nesta unidade: <code>E:1 Q:0 V:1 S3:13 S4:10</code> ——
+            eco ligado, códigos de resultado em modo texto, fim de linha = CR (ASCII 13); é exatamente o pré-requisito com que esta ferramenta interpreta as respostas.</p>
+            <p><strong>Baud? (<code>AT+IPR?</code>)</strong>: consulta o baud rate atual da UART; de fábrica, 115200.<br>
+            <strong>Baud List (<code>AT+IPR=?</code>)</strong>: devolve duas listas ——
+            a primeira são os baud rates com autodeteção, a segunda os que só existem em modo fixo. Depois de correr este botão,
+            o menu do Set Baud passa a usar a lista realmente reportada por esta unidade. Em teste, a segunda lista desta unidade
+            vai até <strong>1000000 bps —— um valor que a tabela do §3.4 do manual não tem</strong>.</p>
+            <p><strong>Set Baud (<code>AT+IPR={rate};&amp;W</code>, cartão de parâmetros)</strong>:
+            ao premir aparece primeiro uma caixa de confirmação —— é o botão desta página com que é mais fácil fechar-se a porta a si próprio.</p>
+            <div class="warning">
+                <strong>A tripla armadilha de mudar o baud rate (todas confirmadas em teste):</strong><br>
+                ① Mal chega o <code>OK</code>, a mudança <strong>entra logo em vigor</strong>
+                e, no instante seguinte, esta ferramenta e o módulo deixam de se entender;<br>
+                ② <code>AT&amp;F</code> (reposição de fábrica) <strong>não</strong> repõe o baud rate —— não conte com ele para o salvar;<br>
+                ③ Sem <code>&amp;W</code> nada é gravado —— e religar = cortar a alimentação: o módulo acorda no baud rate antigo
+                enquanto a configuração da sua porta ficou no novo, <strong>desencontro a dobrar</strong>.
+                Por isso esta ferramenta obriga à forma combinada <code>;&amp;W</code>.<br>
+                Recuperação em quatro passos (a caixa de confirmação também os lembra): desligar → mudar o baud rate na zona de ligação → religar → repetir o ritual de arranque.
+            </div>
+
+            <h4>Power: baixo consumo QSCLK</h4>
+            <p><strong>Sleep? (<code>AT+QSCLK?</code>)</strong>: consulta se o módulo está autorizado a entrar em sono.
+            Medido nesta unidade, de fábrica vem a <code>0</code> = desativado, módulo sempre acordado.
+            Esta página só oferece o botão de consulta: um módulo adormecido <strong>deixa de responder a AT</strong>, e o método de despertar do manual
+            é baixar o DTR —— mas nesta placa o DTR já foi ligado ao pino de Reset (ver o início desta secção). Se ativar o sono
+            pela linha de comandos e não conseguir acordá-lo, corra de novo o ritual de arranque (cortar e repor a alimentação) para se libertar;
+            os detalhes estão na application note oficial de baixo consumo.</p>
+
+            <h4>URC: quando não chegam mensagens, comece por aqui</h4>
+            <p>Um <strong>URC (Unsolicited Result Code, código de resultado não solicitado)</strong> é uma mensagem que o módulo
+            «emite por iniciativa própria, sem lhe ser pedida», e não a resposta a comando nenhum —— o <code>RDY</code> do arranque, a chegada de dados TCP,
+            as mensagens MQTT, os resultados do scan Wi-Fi e o aviso de carregamento do firmware GNSS são todos URC. A porta de saída
+            <strong>vem de fábrica apontada à porta USB (usbat)</strong> —— esta ferramenta, que trabalha pela UART, não recebe nem um,
+            e o sintoma é típico: <strong>todos os comandos respondem OK, mas as mensagens nunca chegam</strong>.</p>
+            <table>
+                <tr><th>Botão</th><th>Comando</th><th>Utilidade</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>Consulta para onde os URC estão a ser enviados —— quando não recebe URC, <strong>é a primeira coisa a consultar</strong>;
+                        só se recebem se devolver <code>"uart1"</code></td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>Que portas de saída esta unidade suporta. Em teste devolveu <code>("usbat","usbmodem","uart1")</code>,
+                        <strong>sem o "all" que o manual menciona</strong> (o manual nota que alguns modelos não o suportam)</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>Muda para a UART principal. Grava em NVRAM e sobrevive aos rearranques: <strong>basta mudar uma vez</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>O interruptor geral dos URC, a outra grande causa de «não chegam URC».
+                        Em teste, esta unidade vem de fábrica a 1 (ligado); o problema está quase sempre na porta de saída</td></tr>
+            </table>
+
+            <h4>Botões de bytes em bruto: a saída de emergência do modo de dados</h4>
+            <p>Muitos comandos são <strong>em duas fases</strong>: envia-se o comando, espera-se que o módulo responda com o prompt <code>&gt;</code>
+            e só então se envia o conteúdo. Uma vez dentro desse <strong>modo de dados</strong>, o módulo engole como dados cada carácter que digitar ——
+            incluindo os comandos AT que quisesse enviar. Com o comprimento mal calculado, um arrependimento a meio ou um comando encravado,
+            as teclas normais não salvam ninguém; salva esta fila de botões que enviam um único byte em bruto:</p>
+            <table>
+                <tr><th>Botão</th><th>Envia</th><th>Quando usar</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td>O <strong>terminador</strong> do modo de dados: envia de facto o conteúdo acumulado</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td><strong>Cancela</strong> o modo de dados e descarta o conteúdo acumulado.
+                        A tecla de fuga de eleição quando um comando em duas fases encrava e a porta AT deixa de responder (manual §2.3.8)</td></tr>
+                <tr><td>+++</td><td>Três sinais + (bytes em bruto)</td>
+                    <td>Fugir do <strong>modo de dados transparente</strong> (como a transferência COM: do FTP) de volta ao modo AT.
+                        A regra é rígida: <strong>1 segundo de silêncio antes e depois, e nunca com CR/LF</strong> ——
+                        em teste, com um CR deixou de funcionar; tem de ser enviado com este botão, não digitado na linha de comandos</td></tr>
+            </table>
+            <div class="warning">
+                <strong>O teste desmente o manual: +++ é «abortar», não «pausar».</strong>
+                A application note de FTPS v1.5, página 13, diz que depois do +++ se pode voltar ao modo de dados com <code>ATO</code> e retomar a transferência;
+                no equipamento real o <code>ATO</code> só responde <code>NO CARRIER</code>: a transferência já foi abortada.
+                Use o +++ como travão de emergência, sem esperar continuar a viagem depois de travar.
+            </div>
+
+            <h4>Resolução de problemas</h4>
+            <table>
+                <tr><th>Sintoma</th><th>Causa e solução</th></tr>
+                <tr><td>Nenhum comando tem resposta</td>
+                    <td>Verifique os três suspeitos por ordem: ① não correu o ritual de arranque (se recarregou a página, é isto de certeza);
+                        ② fim de linha definido como LF —— o módulo <strong>só aceita CR</strong>, e com LF não responde nada;
+                        ③ baud rate desencontrado (ver a recuperação em quatro passos)</td></tr>
+                <tr><td>Premiu Reset mas o RDY nunca chega</td>
+                    <td>Veja primeiro se o botão Power está aceso —— sem alimentação, pode premir Reset as vezes que quiser;
+                        na primeira ligação a alimentação tem de percorrer ON→OFF</td></tr>
+                <tr><td>Os comandos respondem OK, mas os URC nunca vêm</td>
+                    <td>Quase de certeza o urcport ainda está no usbat de fábrica: consulte com URC Port? e mude com URC → UART;
+                        se ainda assim nada, verifique o interruptor geral URC Switch</td></tr>
+                <tr><td>A porta AT de repente «engole comandos» e nada do que digita tem resposta</td>
+                    <td>Ficou presa no modo de dados: tudo o que digita está a ser recolhido como dados —— prima ESC para se libertar</td></tr>
+            </table>
+
+            <h3 id="tab-basic">Basic —— SIM, diagnóstico e estado básico</h3>
+            <p><strong>Princípio de funcionamento:</strong> esta página é o ponto de partida depois de cada ligação. Terminado o ritual de arranque
+            e aparecido o <code>RDY</code> no terminal, venha aqui fazer três coisas: pôr as mensagens de erro num formato legível,
+            confirmar que o SIM está pronto e identificar de quem é o cartão. Com exceção do <code>AT&amp;F</code> e do desbloqueio por PIN/PUK,
+            a página inteira são consultas só de leitura —— premir não altera o estado do módulo;
+            os comandos que mexem no estado da ligação estão concentrados nos outros separadores, como Network e TCP/IP.
+            Todas as amostras desta secção são valores medidos em agosto de 2026 num EG800K físico
+            (firmware EG800KCNGCR07A06M04).</p>
+
+            <h4>Depois do arranque: RDY não significa SIM pronto</h4>
+            <p>O <code>RDY</code> é o URC que o módulo emite por iniciativa própria quando conclui o arranque.
+            Só quer dizer que a interface AT está viva; <strong>o cartão SIM ainda está atrás, a inicializar-se devagar</strong>.
+            Medido: enviar comandos de SIM assim que o <code>RDY</code> aparece devolve
+            <code>+CME ERROR: 14</code> (SIM busy) e até <code>+CME ERROR: 13</code> (SIM failure);
+            <strong>esperando cerca de 6 segundos</strong> antes de enviar, corre tudo bem.</p>
+            <div class="warning">
+                <strong>Ao escrever scripts de automação, não use o RDY como sinal de «pode começar-se a trabalhar».</strong>
+                A prática correta é uma de duas: deixar sempre uma margem de cerca de 6 segundos depois do RDY;
+                ou sondar <code>AT+QINISTAT</code> e só continuar quando o bit 1 (CPIN pronto) acender.
+            </div>
+
+            <h4>Eco (ATE): «eco do módulo» e «eco local do terminal» são coisas diferentes</h4>
+            <p>O eco é o <strong>módulo</strong> a devolver tal e qual os caracteres que lhe enviou (<code>ATE1</code> liga,
+            <code>ATE0</code> desliga); o eco local do terminal é a <strong>ferramenta</strong> a imprimir no ecrã, por si própria,
+            o que você digita. Os dois interruptores são independentes: com ambos ligados, cada carácter aparece duas vezes.</p>
+            <ul>
+                <li>O <strong>botão de comutação do eco</strong> desta página liga e desliga o eco do módulo com um só clique.
+                    O valor por omissão no arranque é <strong>ligado</strong> (comprovado em teste pelo parâmetro AT <code>E:1</code>).</li>
+                <li>O estado mostrado no botão não é uma memória cega —— a ferramenta <strong>corrige-se automaticamente pelas respostas reais</strong>
+                    (receber uma linha de eco vale como «ligado»); se digitar à mão <code>ATE0</code>/<code>ATE1</code>/
+                    <code>AT&amp;F</code> na linha de comandos, o estado do botão acompanha, sem se desencontrar.</li>
+                <li>A comutação é session-only: quando o módulo rearranca, volta ao valor por omissão. Para a gravar como predefinição de arranque
+                    é preciso enviar também <code>AT&amp;W</code> (esta página não tem esse botão; se precisar, digite-o na linha de comandos).</li>
+            </ul>
+
+            <h4>Tornar as mensagens de erro legíveis (CMEE)</h4>
+            <table>
+                <tr><th>Botão</th><th>Efeito</th></tr>
+                <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+                    <td>Os códigos de erro passam a descrições em texto. Exemplo: sem fix GNSS, o modo numérico devolve
+                        <code>+CME ERROR: 516</code> e o modo de texto devolve
+                        <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> —— com o segundo percebe-se o que aconteceu sem consultar tabelas.
+                        <strong>Esta ferramenta recomenda vivamente premi-lo logo a seguir ao ritual de arranque</strong></td></tr>
+                <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+                    <td>Os códigos de erro ficam numéricos —— a ferramenta consulta automaticamente a tabela e traduz o número numa anotação legível</td></tr>
+            </table>
+            <div class="tip">
+                Ambas as definições são <strong>session-only</strong>: rearrancar o modem apaga-as
+                (recarregar a página = corte de alimentação pelo RTS = rearranque, também conta). Outra descoberta de teste: mesmo com
+                <code>CMEE=2</code> ligado, alguns subsistemas (como os erros FILE do sistema de ficheiros) continuam a misturar texto e números;
+                ao escrever um interpretador, aceite as duas formas.
+            </div>
+
+            <h4>AT&amp;F: repor as predefinições de fábrica —— o alcance</h4>
+            <p>O botão <strong>Factory Reset</strong> repõe as definições AT nos valores de fábrica;
+            é o primeiro passo quando se herda um módulo desconfigurado por alguém. É o único botão desta página que pede confirmação antes de agir.
+            Alcance confirmado em teste: <strong>volta a ligar o eco</strong>
+            (o estado do botão de comutação do eco acompanha automaticamente) e <strong>não afeta o baud rate</strong>;
+            quanto a saber se cada uma das restantes definições é reposta, confirme item a item na entrada <code>AT&amp;F</code> do manual.</p>
+
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Separador Basic">
+                <figcaption>Os três grupos de botões da página Basic: Echo (eco e formato de erros),
+                SIM (consultas e desbloqueio por PIN/PUK), Status (relógio, tensão, hora da rede).</figcaption>
+            </figure>
+
+            <h4>A tripla consulta do SIM: está lá, espera password, até onde inicializou</h4>
+            <table>
+                <tr><th>Botão</th><th>Pergunta que faz</th><th>Interpretação</th></tr>
+                <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+                    <td>O cartão está bem inserido?</td>
+                    <td>A resposta tem duas colunas: a primeira é o interruptor do URC de inserção/remoção e
+                        <strong>só a segunda é o estado do cartão</strong> —— não troque as colunas.
+                        Nesta unidade este botão tem cadastro de falsos alarmes, ver o aviso abaixo</td></tr>
+                <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+                    <td>O cartão está à espera de password?</td>
+                    <td><code>+CPIN: READY</code> = «neste momento não espera password nenhuma».
+                        ⚠ <strong>Não quer dizer que este cartão dispense PIN</strong> —— um cartão com PIN também responde READY depois de desbloqueado.
+                        Sem cartão responde <code>+CME ERROR: 10</code></td></tr>
+                <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+                    <td>Progresso da inicialização</td>
+                    <td>Máscara de bits: 1 = CPIN pronto, 2 = SMS, 4 = lista telefónica, 7 = tudo concluído.
+                        Medido nesta unidade, estabilizado o arranque, lê-se <strong>3</strong> (o bit da lista telefónica não sobe) ——
+                        para decidir «pode trabalhar-se» basta olhar ao bit 1, <strong>não fique à espera do 7</strong></td></tr>
+            </table>
+            <div class="warning">
+                <strong>Nesta unidade o Card In? mente.</strong> Em teste, o <code>AT+QSIMSTAT?</code> devolveu
+                <code>0,0</code> (cartão removido), mas no mesmo instante o CPIN estava READY, a rede attach feita e o IP obtido ——
+                o cartão estava perfeitamente bem. A suspeita é que a placa de controlo não liga o pino de deteção SIM_DET
+                (ou que o <code>AT+QSIMDET</code> não está ativado), e a leitura fica presa em «não inserido». <strong>Para saber se o cartão está lá,
+                confie no <code>AT+CPIN?</code> ou no <code>AT+QINISTAT</code>.</strong>
+            </div>
+
+            <h4>De quem é o cartão: IMSI e ICCID</h4>
+            <p>O botão <strong>IMSI</strong> (<code>AT+CIMI</code>) devolve uma fiada de dígitos nus:
+            o identificador de assinante deste cartão na rede móvel. Medido nesta unidade: <code>901405117661468</code>;
+            os três primeiros dígitos (MCC) são <strong>901 = gama de numeração de roaming internacional</strong> ——
+            o cartão desta unidade é um SIM IoT da 1NCE, o que também explica porque é que o <code>AT+CEREG?</code>
+            responde sempre <code>0,5</code> (registado, <strong>em roaming</strong>): não é anomalia de sinal,
+            é o estado normal deste tipo de cartão. Antes de testes de dados, reconheça o cartão de roaming e atente nos tarifários de tráfego.</p>
+            <p>O botão <strong>ICCID</strong> (<code>AT+QCCID</code>) consulta o número de série do cartão;
+            em teste devolveu <code>+QCCID: 89882280666176614687</code>.
+            ⚠ <strong>O manual não tem nenhum comando <code>AT+CCID</code></strong> ——
+            aquele que aparece nos tutoriais de módulos de outras marcas não funciona aqui; use o <code>AT+QCCID</code> próprio da Quectel.</p>
+
+            <h4>Desbloqueio por PIN: consulte primeiro as tentativas restantes, só depois avance</h4>
+            <ol>
+                <li><strong>Prima primeiro PIN Left</strong> (<code>AT+QPINC?</code>) para ver as tentativas restantes ——
+                    gamas dadas pelo manual: PIN, 0–3 tentativas; PUK, 0–10 tentativas.
+                    Antes de avançar, saiba quantos tiros ainda tem.</li>
+                <li>Com o cartão à espera de PIN, prima <strong>Enter PIN</strong>: abre primeiro um <strong>cartão de parâmetros</strong>
+                    para preencher o PIN antes de enviar (modelo do comando <code>AT+CPIN="{pin}"</code>, espera até 5 segundos).</li>
+                <li>Esgotado o PIN, quando o cartão passa a exigir PUK, prima <strong>Unlock PUK</strong>:
+                    o manual manda que <strong>o PUK seja enviado junto com o novo PIN</strong>
+                    (<code>AT+CPIN="{puk}","{newpin}"</code>); passa igualmente pelo cartão de parâmetros e espera até 5 segundos.</li>
+            </ol>
+            <div class="warning">
+                Cada envio errado consome uma tentativa; com o PUK a esgotar-se, <strong>pare e procure a operadora</strong>,
+                em vez de queimar as tentativas às cegas.
+            </div>
+
+            <h4>Os três botões de estado: relógio, tensão, hora da rede</h4>
+            <table>
+                <tr><th>Botão</th><th>O que mostra</th><th>Medição e interpretação</th></tr>
+                <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+                    <td>Relógio RTC do módulo</td>
+                    <td><code>+CCLK: "26/08/01,00:55:32+32"</code>.
+                        O campo de fuso <code>+32</code> vem em «quartos» (15 minutos): 32 × 15 min = UTC+8.
+                        Medido nesta unidade, o RTC já tinha sido acertado pela rede, com hora e fuso corretos</td></tr>
+                <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+                    <td>Tensão de alimentação</td>
+                    <td>Alguns firmwares não o suportam e responder ERROR é normal; o firmware desta unidade suporta-o,
+                        e mediu-se <code>+CBC: 0,0,4264</code> —— a última coluna é a tensão (mV), ou seja 4,264 V</td></tr>
+                <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+                    <td>Hora local atual deduzida da sincronização de rede</td>
+                    <td>Medido: <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>.
+                        A diferença para o Clock está na <strong>fonte</strong>: o CCLK lê o RTC do próprio módulo,
+                        o QLTS vai buscar a hora diretamente à rede; o formato do ano também difere (RTC com dois dígitos, QLTS com quatro), não os confunda ao interpretar</td></tr>
+            </table>
+
+            <h4>Resolução de problemas</h4>
+            <table>
+                <tr><th>Sintoma</th><th>Causa e solução</th></tr>
+                <tr><td>Consultar o SIM logo a seguir ao RDY devolve o erro 14 ou 13</td>
+                    <td>O SIM ainda está a inicializar (14 = SIM busy; nesta fase também já apareceu o 13 = SIM failure).
+                        Esperando cerca de 6 segundos volta ao normal; não se apresse a declarar o cartão avariado</td></tr>
+                <tr><td>O Card In? diz que o cartão foi removido, mas tudo o resto funciona</td>
+                    <td>Problema do pino de deteção SIM_DET (caso medido nesta unidade), não do cartão.
+                        Olhe antes para <code>AT+CPIN?</code>/<code>AT+QINISTAT</code></td></tr>
+                <tr><td>Cada carácter aparece duas vezes no ecrã</td>
+                    <td>O eco do módulo e o eco local do terminal estão ligados ao mesmo tempo —— basta premir o botão de comutação do eco</td></tr>
+                <tr><td>Os erros vêm só como números frios</td>
+                    <td>O CMEE ainda não foi ligado. Prima Verbose Err; é session-only,
+                        e tem de ser premido de novo depois de cada ritual de arranque</td></tr>
+                <tr><td>Os comandos saem e não há absolutamente nenhuma resposta</td>
+                    <td>Reabrir a porta volta a fazer assert do RTS = corte de alimentação: na prática o módulo rearrancou.
+                        É obrigatório repetir o ritual de arranque completo; saltá-lo deixa tudo sem resposta</td></tr>
+            </table>
+
+            <h3 id="tab-network">Network —— registo, operadora, rádio</h3>
+            <p><strong>Princípio de funcionamento:</strong> para qualquer função de dados funcionar, é preciso <strong>estar registado na rede móvel</strong>
+            e ter <strong>o canal de dados PDP pronto</strong> —— esta página é o painel de instrumentos e os interruptores da entrada na rede,
+            e é aqui que começa todo o diagnóstico de «não consigo ligar à rede». Todos os valores desta secção foram medidos em agosto de 2026 num EG800K físico.</p>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Separador Network">
+                <figcaption>Os cinco grupos de botões da página Network: consulta de registo, Signal URC, PDP, diagnóstico, controlo de rádio.</figcaption>
+            </figure>
+
+            <h4>Antes de começar: mande primeiro os URC para a UART</h4>
+            <p>O EG800K vem de fábrica a enviar as mensagens espontâneas (URC) para <code>usbat</code> (a porta AT do USB),
+            e esta ferramenta trabalha pela UART —— <strong>não se recebe nem um URC</strong>: reportes de sinal,
+            resultados TCP/MQTT/scan Wi-Fi, tudo em silêncio; o sintoma é <strong>«os comandos respondem todos OK, mas não há mensagens»</strong>.</p>
+            <div class="warning">
+                <strong>É esta a causa número um de «os URC desapareceram todos».</strong>
+                Vá ao separador Hardware, consulte com <code>AT+QURCCFG="urcport"</code>
+                e, se não for <code>"uart1"</code>, mude com o botão de comutação —— a definição grava em NVRAM: muda-se uma vez e sobrevive aos rearranques.
+            </div>
+
+            <h4>Primeiro passo: confirmar o estado de registo</h4>
+            <p>Depois de ver o <code>RDY</code> do ritual de arranque, prima primeiro <code>AT+CEREG?</code> (num módulo 4G é o mais fiável).
+            Os três botões de registo correspondem a três domínios: <code>CEREG</code> = LTE/EPS, <code>CREG</code> = domínio de comutação de circuitos,
+            <code>CGREG</code> = domínio de comutação de pacotes; o segundo número (stat) interpreta-se da mesma forma:</p>
+            <table>
+                <tr><th>stat</th><th>Significado</th><th>O que fazer</th></tr>
+                <tr><td>0</td><td>Ainda não registado</td><td>Comum logo após o arranque; espere uns segundos e volte a consultar</td></tr>
+                <tr><td>1</td><td>Registado (rede própria)</td><td>Normal, siga em frente</td></tr>
+                <tr><td>2</td><td>A procurar</td><td>Espere</td></tr>
+                <tr><td>3</td><td>Rejeitado pela rede</td><td>Verifique SIM/tarifário; veja a razão com o CEER</td></tr>
+                <tr><td>5</td><td>Registado (roaming)</td><td><strong>O estado normal desta unidade</strong>, ver abaixo</td></tr>
+            </table>
+            <div class="tip">
+                <strong>stat=5 não é avaria.</strong> Em teste, as três consultas de registo devolveram <code>0,5</code>:
+                o SIM é um cartão IoT da 1NCE (cartão de roaming internacional, MCC 901), que conta como «roaming» em qualquer país;
+                onde vir 5, leia 1.
+            </div>
+            <p>Registado mas sem acesso à rede? Prima a seguir <code>AT+CGATT?</code> para consultar o attach ao domínio de pacotes;
+            se necessário, faça o attach manual com <code>AT+CGATT=1</code>; falhando, veja a razão com <code>AT+CEER</code>
+            (uma camada diferente do <code>QIGETERROR</code> da página TCP/IP).
+            O CGATT bloqueia até <strong>140 segundos</strong>: não o prima em rajada.</p>
+
+            <h4>Em que operadora e em que banda está agora</h4>
+            <p><code>AT+COPS?</code> consulta a operadora onde está registado (o 7 no fim = LTE).
+            <strong>Armadilha: o nome da operadora pode ser uma string vazia</strong> —— em teste veio <code>+COPS: 0,0,"",7</code>,
+            e não é avaria. Para ver a operadora, prima antes <code>AT+QNWINFO</code> (tecnologia/operadora/banda/canal):</p>
+            <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+            <p>46692 = Chunghwa Telecom, Band 8; sem serviço devolve <code>NO SERVICE</code>.
+            Este cartão de roaming escolhe a rede sozinho: em dias diferentes mediu-se a Chunghwa Telecom em Band 8 e a FarEasTone (466-01) em Band 3,
+            e mudar de operadora e de banda é normal. O <code>AT+COPS=?</code> procura todas as operadoras em volta:
+            <strong>bloqueia até 300 segundos e interrompe os serviços em curso</strong>; prima só quando tiver a certeza de que precisa.</p>
+
+            <h4>Força e qualidade do sinal: o CSQ é só um valor grosseiro</h4>
+            <p><code>AT+CSQ</code> devolve rssi e ber: rssi 0–31 corresponde a -113 a -51 dBm,
+            99 = indetetável (comum logo após o arranque; espere uns segundos). Medido: rssi 18–24 (-77 a -65 dBm, bom);
+            <strong>o ber fica sempre em 99, sem valor de referência</strong>. Os três verdadeiros indicadores de qualidade do LTE,
+            <strong>RSRP (força) / RSRQ (qualidade) / SINR (relação sinal-ruído; baixo = interferido)</strong>,
+            só se obtêm com o grupo Signal URC (<code>AT+QINDCFG="sqi"</code> sem valor = consultar o interruptor):</p>
+            <table>
+                <tr><th>Botão</th><th>Comando</th><th>Função</th></tr>
+                <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+                    <td>Liga o reporte de RSRP/RSRQ/SINR —— <strong>indispensável em testes de antena e de posicionamento</strong>.
+                        Só emite quando o sinal «muda»; se nada acontecer, tape a antena ou tire-a e volte a pô-la; a definição não sobrevive ao rearranque</td></tr>
+                <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+                    <td>Reporta assim que o sinal muda, em vez de martelar o CSQ</td></tr>
+                <tr><td>URC Off/On</td><td><code>AT+QINDCFG="all",0/1</code></td>
+                    <td>Silenciar num clique quando o ecrã fica inundado —— lembre-se de voltar a ligar depois</td></tr>
+            </table>
+
+            <h4>Canal PDP: camada 3GPP vs página TCP/IP</h4>
+            <p>O PDP context é o «canal de dados» atribuído pela rede móvel; sem ele não há IP. Este grupo são consultas só de leitura da camada padrão 3GPP:
+            <code>AT+CGDCONT?</code> lista contexts e APN, <code>AT+CGACT?</code> lista o estado de ativação
+            (bloqueia até 150 segundos; ⚠ na forma de escrita a ordem dos parâmetros é a inversa), <code>AT+CGPADDR</code>
+            lista os IP obtidos. Os <code>QIACT?</code>/<code>QICSGP</code> da página TCP/IP são
+            <strong>a pilha própria da Quectel, não a mesma camada</strong> —— comparar lado a lado permite ver de que lado está a avaria:
+            aqui há IP e lá não = a rede deu, mas a pilha não arrancou. Esta unidade ativa o PDP e obtém IP automaticamente ao arrancar.</p>
+            <p><code>AT+QGDCNT?</code> consulta o tráfego acumulado (o primeiro número é o <strong>enviado</strong>, o segundo o recebido) ——
+            obrigatório para medir tráfego num cartão de roaming. ⚠ <strong>O teste desmente a dica do botão sobre «acumular entre arranques»</strong>:
+            por omissão o contador não é gravado em NV e um corte de alimentação (incluindo recarregar a página) põe-no a zero —— anote na hora,
+            ou grave em NV com <code>AT+QGDCNT=1</code>.</p>
+
+            <h4>Diagnóstico na prática: este cartão só permite um único PDP</h4>
+            <p>Na página TCP/IP, <code>AT+QIACT=1</code> responde ERROR (<code>572,operation not
+            allowed</code>)? O guião fixo deste cartão: depois do arranque, a camada 3GPP <strong>já ativou sozinha um PDP</strong>,
+            mas <strong>o número do context flutua</strong> (em teste viram-se 1 e 9); abrir um segundo devolve
+            <code>+CME ERROR: 100</code> ⇒ a rede só permite um PDP; e o contextID do <code>QIACT</code>
+            só vai de 1 a 8: quando o PDP calha no 9, a pilha da Quectel nem lhe consegue tocar.
+            Solução em dois passos (uma vez depois de cada arranque):</p>
+            <pre>AT+CGACT?             ← ver qual é o cid (o número flutua; não se pode saltar)
+AT+CGACT=0,&lt;esse cid&gt;   ← a camada 3GPP liberta a vaga
+AT+QIACT=1            ← página TCP/IP; devolver +QIACT: 1,1,1,"10.187.7.8" é sucesso</pre>
+            <p>Definir o APN com <code>QICSGP</code> é dispensável neste cartão —— em teste o módulo sincroniza sozinho o APN atribuído pela rede
+            (<code>iot.1nce.net</code>); só é necessário com cartões de APN empresarial com utilizador e password.</p>
+            <div class="warning">
+                <strong>A meio dos testes começa tudo a expirar? Suspeite primeiro da deriva do PDP.</strong>
+                Em teste, com os HTTP a falharem todos em série (erro 716, timeout fixo de 30 segundos), o <code>AT+QIACT?</code>
+                continuava a devolver um IP —— nesse momento ele engana, e há que cruzar com o <code>AT+CGACT?</code>
+                (medido: 1,0 e 9,1 = derivou para o 9).
+                Solução: <code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;cid da deriva&gt;</code> →
+                <code>AT+QIACT=1</code>, e valide com um ping.
+            </div>
+
+            <h4>Níveis de funcionalidade CFUN e controlo de rádio</h4>
+            <p>O grupo RF Control inteiro altera o estado do módulo; são todos botões de moldura vermelha que pedem confirmação.
+            Antes de agir, veja o nível atual com <code>AT+CFUN?</code>:</p>
+            <table>
+                <tr><th>Comando</th><th>Nível</th><th>Significado</th></tr>
+                <tr><td><code>AT+CFUN=1</code></td><td>Funcionalidade plena</td>
+                    <td>Rádio todo ligado; <strong>para recuperar, prima sempre este</strong></td></tr>
+                <tr><td><code>AT+CFUN=4</code></td><td>Modo de avião</td>
+                    <td>Emissão e receção desligadas, SIM ainda ativo —— o ponto de partida para testar a «reentrada na rede»</td></tr>
+                <tr><td><code>AT+CFUN=0</code></td><td>Mínimo</td>
+                    <td>O SIM também é desativado; o manual diz apenas Minimum functionality, sem detalhes</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>Reinício por software</td>
+                    <td>Reinicia o módulo inteiro. ⚠ A porta AT fica inoperante por instantes; espere de novo pelo <code>RDY</code></td></tr>
+            </table>
+            <p>O CFUN bloqueia até 15 segundos. <strong>Se o SIM tiver PIN, depois de voltar a CFUN=1 é preciso reintroduzir o PIN
+            para haver registo.</strong> O <code>AT+CGATT=0</code> (PS Detach) sai do domínio de pacotes ——
+            <strong>derruba todas as ligações TCP/MQTT</strong>; use-o só para testar o «re-attach».</p>
+
+            <h4>Avançado: ler a informação da célula com QENG (entrada na linha de comandos)</h4>
+            <p>Esta página não tem botão para isto —— digite na linha de comandos <code>AT+QENG="servingcell"</code>
+            para ler os parâmetros da célula servidora; campos-chave medidos:</p>
+            <table>
+                <tr><th>Campo</th><th>Valor medido</th><th>Interpretação</th></tr>
+                <tr><td>MCC/MNC</td><td>466/01</td><td>Taiwan/FarEasTone</td></tr>
+                <tr><td>Cell ID/TAC</td><td><code>ABCDE02</code>/<code>1234</code> (hex)</td>
+                    <td>Em decimal 180149762/4660; eNodeB = ECI≫8 = 703710, setor = 2</td></tr>
+                <tr><td>PCID/EARFCN</td><td>144/1550</td>
+                    <td>Identificador físico da célula (<strong>não é globalmente único</strong>)/Band 3</td></tr>
+                <tr><td>RSRP/RSRQ/RSSI/SINR</td><td>-113/-18/-92/-1</td>
+                    <td>RSRP abaixo de -100 conta como fraco; SINR -1 dB = qualidade má</td></tr>
+            </table>
+            <div class="warning">
+                <strong>O Cell ID e o TAC vêm em hexadecimal; antes de consultar bases de dados há que converter para decimal.</strong>
+                O OpenCelliD e afins só aceitam decimal; atirar-lhes <code>ABCDE02</code> tal e qual só devolve «registo inexistente».
+                Além disso, o <code>AT+QENG="neighbourcell"</code> devolve apenas o PCID,
+                <strong>sem Cell ID global</strong> (limitação do padrão LTE).
+            </div>
+
+            <h4>Resolução de problemas</h4>
+            <table>
+                <tr><th>Sintoma</th><th>Causa e solução</th></tr>
+                <tr><td>Os comandos respondem todos OK, mas as mensagens espontâneas nunca aparecem</td>
+                    <td>O urcport está em usbat (valor de fábrica) —— mude para uart1 no separador Hardware</td></tr>
+                <tr><td><code>QIACT=1</code> responde ERROR (572)</td>
+                    <td>A vaga única de PDP está ocupada —— siga o diagnóstico em dois passos acima</td></tr>
+                <tr><td>Pedidos consecutivos expiram todos num timeout fixo de 30 segundos</td>
+                    <td>Deriva do PDP —— cruze com <code>AT+CGACT?</code>; não confie só no <code>QIACT?</code></td></tr>
+            </table>
+
+            <h3 id="tab-gnss">GNSS —— localização por satélite</h3>
+            <p><strong>Princípio de funcionamento:</strong> o GNSS é uma função <strong>independente da rede móvel</strong> ——
+            não precisa de um SIM com rede, não precisa de PDP e não gasta tráfego (exceto o AGNSS, ver abaixo).
+            Depois de ativado, o módulo recebe sozinho o sinal dos satélites, e você sonda o resultado da posição com <code>AT+QGPSLOC</code>.
+            Todos os segundos e comportamentos desta secção são valores medidos em agosto de 2026 num EG800K físico.</p>
+
+            <h4>Antes de começar: a antena decide tudo</h4>
+            <p>A primeira causa das falhas de posicionamento não é enganar-se no comando, é
+            <strong>a antena não captar sinal</strong>.
+            Comparação medida: dentro de casa, com uma antena fraca, o módulo conseguia listar a posição de 38 satélites
+            e mesmo assim <strong>não ouvia nem um</strong> (SNR todos a 00); depois de trocar para uma
+            <strong>antena GNSS ativa (active)</strong> e de a pôr à janela,
+            o arranque a frio obteve fix em 95 segundos.</p>
+            <div class="warning">
+                <strong>Dentro de casa não se testa GNSS —— por muito que espere, não serve de nada.</strong> Sem vista para o céu,
+                o <code>$GNGGA</code> devolve «00 satélites usados, qualidade de fix 0»
+                e o <code>AT+QGPSLOC</code> devolve sempre o erro 516.
+                Leve a antena para a janela ou para o exterior antes de começar —— não é uma questão de paciência, é uma questão de física.
+            </div>
+
+            <h4>O primeiro fix: cinco passos</h4>
+            <ol>
+                <li><strong>Correr o ritual de arranque</strong> (ver a secção «Ritual de arranque»).
+                    ⚠ Cada recarregamento da página equivale a cortar a alimentação: o estado de ativação do GNSS
+                    e as efemérides recebidas a meio perdem-se por completo, e recomeça-se deste passo.</li>
+                <li><strong>Confirmar que os URC saem pela UART</strong>: <code>AT+QURCCFG="urcport"</code> tem de devolver
+                    <code>"uart1"</code>. O valor de fábrica é <code>"usbat"</code>; sem esta mudança, muitas mensagens de resultado
+                    são enviadas para a porta USB e aqui não se vê nada (a definição fica em NVRAM, basta mudar uma vez).</li>
+                <li><strong>Ligar o GNSS</strong>: clique em <code>AT+QGPS=1</code>.
+                    Em poucos segundos aparece <code>+QGPS: "firmware",0,0</code> (firmware GNSS carregado com sucesso).
+                    Se já estiver ligado e voltar a clicar, devolve <code>+CME ERROR: 504</code>, inofensivo.</li>
+                <li><strong>Ver a receção</strong>: clique em <code>AT+QGPSGNMEA="GSV"</code> para ler os satélites visíveis.
+                    A zona do terminal abre automaticamente o separador <strong>Estado dos satélites</strong>, com o gráfico de barras de sinal e a carta do céu ——
+                    a interpretação vem no parágrafo seguinte.</li>
+                <li><strong>Sondar a posição</strong>: clique em <code>AT+QGPSLOC=2</code> a cada 5–10 segundos.
+                    Devolver <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> (erro 516) significa que ainda não há fix ——
+                    <strong>basta continuar a esperar</strong>. Com sucesso devolve as coordenadas,
+                    e a zona do terminal abre automaticamente o separador <strong>Mapa</strong> e desenha lá a posição.</li>
+            </ol>
+            <figure class="shot narrow">
+                <img src="img/07-gnss.png" alt="Separador GNSS">
+                <figcaption>Página GNSS: ligar/desligar, leitura NMEA, consulta de posição e aceleração AGNSS.</figcaption>
+            </figure>
+
+            <h4>Ler o separador Estado dos satélites: «ver» não é o mesmo que «ouvir»</h4>
+            <p>No GSV cada satélite traz quatro números: número, elevação, azimute e <strong>SNR (relação sinal-ruído, dB-Hz)</strong>.
+            Os três primeiros dizem apenas «onde ele deve estar no céu»; <strong>só o SNR prova que o sinal está mesmo a ser recebido</strong>.</p>
+            <table>
+                <tr><th>SNR</th><th>Significado</th></tr>
+                <tr><td>(vazio) ou 00</td><td>Nada recebido —— sabe-se onde está, mas não se ouve</td></tr>
+                <tr><td>14–28</td><td>Marginal: a desmodulação das efemérides falha e recomeça vezes sem conta; o fix fica lento e instável</td></tr>
+                <tr><td>30 ou mais</td><td>Desmodulação estável; <strong>com a maioria dos satélites a este nível, o fix vem depressa</strong></td></tr>
+                <tr><td>40 ou mais</td><td>O nível de céu aberto com boa antena</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/20-sat-view.png" alt="Separador Estado dos satélites: gráfico de barras de SNR e carta do céu">
+                <figcaption>O separador Estado dos satélites no momento do fix: 31/41 satélites com sinal, gráficos de barras de SNR
+                e carta do céu das quatro constelações (GPS/QZSS/GLONASS/BDS).
+                A maioria das barras acima de 20 e algumas a chegar a 40 —— é este o aspeto de «ouvir».</figcaption>
+            </figure>
+
+            <h4>Porquê esperar: os limites físicos do arranque a frio e os tempos medidos</h4>
+            <p>O fix precisa da órbita exata de cada satélite (as efemérides), e as efemérides vêm escondidas no sinal
+            que o satélite difunde a <strong>50 bps</strong> —— cada satélite exige cerca de 18–30 segundos de desmodulação
+            contínua e sem erros, um único bit errado obriga a recomeçar, e ainda são precisos pelo menos 4 satélites.
+            É por isto que o «arranque a frio» é lento.
+            Medições nesta unidade (mesmo local, antena ativa, resolução de medida ±5 segundos):</p>
+            <table>
+                <tr><th>Cenário</th><th>Tempo até ao primeiro fix (medido)</th></tr>
+                <tr><td>Arranque a frio (sem qualquer assistência)</td><td><strong>95 segundos</strong></td></tr>
+                <tr><td>Arranque a frio + AGNSS</td><td><strong>52 segundos</strong> (e cerca de 20 segundos antes já devolve uma primeira posição grosseira)</td></tr>
+                <tr><td>AGNSS + efemérides recentes remanescentes (uso diário repetido)</td><td><strong>25 segundos</strong></td></tr>
+            </table>
+            <div class="tip">
+                <strong>Não recarregue a página durante os testes.</strong> Nesta ferramenta, por desenho do hardware, RTS = alimentação;
+                recarregar a página = cortar a alimentação = perder as efemérides todas, e tudo recomeça do arranque a frio.
+                Para fazer uma pausa envie <code>AT+QGPSEND</code>, não corte a alimentação.
+            </div>
+
+            <h4>Aceleração AGNSS: o fluxo completo</h4>
+            <p><strong>Princípio:</strong> o AGNSS passa a descarregar as efemérides da rede (cerca de 32–34 KB de cada vez),
+            saltando a desmodulação lenta a 50 bps. Ele <strong>não consegue criar sinal de satélite do nada</strong> ——
+            dentro de casa continua a não haver fix; o que ele poupa é só o tempo de «esperar pelas efemérides».</p>
+            <p>Há dois pré-requisitos fáceis de esquecer; faltando qualquer um deles, o AGNSS <strong>fica simplesmente quieto, sem reportar erro nenhum</strong>:</p>
+            <table>
+                <tr><th>Pré-requisito</th><th>Comando</th><th>Armadilha</th></tr>
+                <tr><td>AGNSS ativado</td><td><code>AT+QAGPS=1</code></td>
+                    <td>⚠ <strong>Só faz efeito depois de reiniciar</strong> (fica em NVRAM, basta definir uma vez)</td></tr>
+                <tr><td>PDP ativado</td><td><code>AT+QIACT=1</code></td>
+                    <td>⚠ Tem de ser reenviado em cada arranque. <strong><code>AT+CGATT?</code> devolver 1 não conta</strong> ——
+                        o attach é apenas o registo na camada de rede; só há canal de dados quando <code>AT+QIACT?</code> devolve
+                        <code>+QIACT: 1,1,…,"endereço IP"</code></td></tr>
+            </table>
+            <p>Sequência completa (depois de cada arranque):</p>
+            <pre>AT+QIACT=1          ← abrir o canal de dados (espera até 150 segundos; gera tráfego)
+AT+QIACT?           ← tem de aparecer +QIACT: 1,1,…,"IP"
+AT+QGPS=1           ← ligar o GNSS; o AGNSS descarrega aqui automaticamente os dados de assistência
+AT+QGPSLOC=2        ← sondar a cada 5–10 segundos</pre>
+            <p><strong>Como confirmar que o AGNSS está mesmo a trabalhar?</strong> O firmware desta unidade <strong>não</strong> emite
+            avisos do género <code>+QGPS: "agps"</code> (confirmado em teste); há que procurar indícios, e basta um destes três:</p>
+            <ol>
+                <li><code>AT+QGDCNT?</code> consultado duas vezes, antes e depois de <code>AT+QGPS=1</code>:
+                    cerca de 30 KB a mais no sentido de receção = os dados de assistência foram descarregados</li>
+                <li>O GSV lista em poucos segundos <strong>a posição de uma grande quantidade de satélites</strong> (o SNR pode continuar a 00) ——
+                    as posições vieram por download; a desmodular sozinho nunca seria tão rápido</li>
+                <li>O campo de hora do <code>$GNGGA</code> tem valor (a hora também faz parte dos dados de assistência)</li>
+            </ol>
+            <div class="warning">
+                <strong>Armadilha do falso fix: coordenadas com zero satélites não são um fix.</strong>
+                Cerca de 20 segundos depois de o AGNSS arrancar, o <code>AT+QGPSLOC</code> pode devolver umas coordenadas,
+                mas repare bem: <code>HDOP 0.00, altitude 0.0, 00 satélites usados</code> ——
+                isso é a <strong>injeção da posição de referência</strong> contida nos dados de assistência, não um resultado de medição,
+                e o erro pode ser enorme.
+                <br><br>
+                <strong>O critério de um fix verdadeiro: satélites usados &gt; 0, modo de fix ≥ 2, HDOP &gt; 0.</strong>
+                Ao escrever automação ou lógica de produto, não basta olhar a «se vieram coordenadas».
+            </div>
+
+            <h4>apflash: rápido mesmo depois de cortar a alimentação (com condições)</h4>
+            <p><code>AT+QGPSCFG="apflash"</code> vem de fábrica a 1: cada fix bem-sucedido guarda as efemérides na
+            flash, e no arranque seguinte são importadas automaticamente —— cortando e repondo a alimentação dentro de uma hora,
+            o arranque a frio passa a um arranque quente rápido, <strong>com zero tráfego</strong>. Duas limitações: as efemérides
+            expiram ao fim de cerca de uma hora; e <strong>é preciso já ter conseguido um fix pelo menos uma vez</strong>,
+            para haver algo na flash para importar —— num módulo que nunca obteve fix, o apflash não ajuda nada.</p>
+
+            <h4>Depois do fix: a página Mapa</h4>
+            <p>Cada <code>AT+QGPSLOC</code> bem-sucedido desenha a posição na página Mapa:
+            o marcador azul é a posição mais recente, a linha ciano é o trajeto percorrido, e cada ponto do trajeto mostra,
+            ao passar o rato, a hora local e a altitude.
+            A barra de resumo mostra coordenadas/altitude/HDOP/número de satélites, com a hora convertida automaticamente
+            para o fuso horário local segundo a longitude.</p>
+            <figure class="shot">
+                <img src="img/21-map-track.png" alt="Página Mapa: trajeto de posições">
+                <figcaption>A página Mapa depois do fix: marcador = posição mais recente, linha ciano = trajeto;
+                a barra de resumo no topo tem coordenadas, altitude, HDOP, satélites usados e hora local.</figcaption>
+            </figure>
+
+            <h4>Resolução de problemas</h4>
+            <table>
+                <tr><th>Sintoma</th><th>Causa e solução</th></tr>
+                <tr><td><code>+CME ERROR: 505</code></td>
+                    <td>O GNSS ainda não foi ligado —— primeiro <code>AT+QGPS=1</code>.
+                        Tem de ser religado a cada arranque (incluindo recarregar a página)</td></tr>
+                <tr><td><code>+CME ERROR: 504</code></td><td>O GNSS já estava ligado; foi só uma ativação repetida, inofensiva</td></tr>
+                <tr><td>Erro 516 (NOT_FIXED_NOW)</td>
+                    <td>Ainda não há fix. Se o GSV mostra sinal (SNR ≥ 30), continue a esperar;
+                        tudo a 00 é problema de antena/ambiente, e esperar mais tempo não resolve</td></tr>
+                <tr><td>Não se obtém o fluxo NMEA contínuo</td>
+                    <td>De fábrica o <code>outport</code> é <code>usbnmea</code>: o fluxo contínuo sai pela porta USB.
+                        Na porta AT basta apanhar frase a frase com <code>AT+QGPSGNMEA</code> (é preciso antes
+                        <code>nmeasrc,1</code>; o botão desta página já o traz)</td></tr>
+                <tr><td><code>AT+QGPSDEL</code> para forçar um arranque a frio</td>
+                    <td>⚠ Não use —— nesta unidade o firmware responde <code>(0-2)</code> ao <code>=?</code>,
+                        mas <strong>recusa os três parâmetros todos</strong> (INVALID_PARA), e o comando nem consta da documentação oficial.
+                        Para um arranque a frio: <code>apflash,0</code> + cortar e repor a alimentação (no fim do teste, volte a pôr 1)</td></tr>
+                <tr><td>Mudou uma definição e não fez efeito</td>
+                    <td><code>QAGPS</code> só faz efeito depois de reiniciar; <code>gnssconfig</code> (combinação de constelações)
+                        idem. Depois da mudança, corra uma vez o ritual de arranque</td></tr>
+            </table>
+
+            <h3 id="tab-tcpip">TCP/IP —— a raiz das ligações de dados</h3>
+            <p><strong>Princípio de funcionamento:</strong> esta página é o alicerce de todos os protocolos de dados. <strong>O PDP context
+            (o canal de dados atribuído pela rede móvel) só é ativado e desativado nesta página</strong>; as páginas SSL/HTTP/MQTT/FTP
+            têm apenas consultas só de leitura, para evitar que o mesmo comando em dois sítios se pise mutuamente.
+            Todas as armadilhas e segundos desta secção foram medidos em agosto de 2026 no equipamento real.</p>
+            <figure class="shot">
+                <img src="img/03-tcpip.png" alt="Separador TCP/IP">
+                <figcaption>Página TCP/IP: PDP, envio e receção por socket e ferramentas de diagnóstico.</figcaption>
+            </figure>
+
+            <h4>Primeiro passo: ativar o PDP (QICSGP/QIACT/QIDEACT)</h4>
+            <p>Prima <strong>Act PDP</strong> (<code>AT+QIACT=1</code>): bloqueia até 150 segundos,
+            não envie outros comandos entretanto, e a partir daqui começa a gerar-se tráfego (em roaming, atenção aos custos). Depois do sucesso,
+            <strong>prima obrigatoriamente Query IP</strong> (<code>AT+QIACT?</code>) e confirme que devolve <code>+QIACT: 1,1,1,"endereço IP"</code>
+            —— antes da ativação responde apenas OK. Para desligar, prima <strong>Deact PDP</strong> (<code>AT+QIDEACT=1</code>,
+            até 40 segundos), que força o fecho de todas as ligações por baixo dele. O <strong>Set APN</strong>
+            (<code>AT+QICSGP</code>) normalmente não é preciso —— o módulo sincroniza sozinho o APN atribuído pela rede
+            (em teste, o cartão 1NCE já lia <code>iot.1nce.net</code> logo após o arranque); só é necessário com APN empresarial com utilizador e password.</p>
+            <div class="warning">
+                <strong>Act PDP responde ERROR e o Last Error dá 572? Este cartão só permite um PDP.</strong>
+                No arranque a rede já ativou um automaticamente e <strong>o número flutua</strong> (em teste viram-se 9 e 1);
+                o <code>AT+QIACT</code> só alcança 1–8. Solução: na página Network, <code>AT+CGACT?</code>
+                para ver o número → <code>AT+CGACT=0,&lt;número&gt;</code> para libertar a vaga → prima Act PDP de novo.
+                <br><br>
+                <strong>A meio dos testes cai tudo? O <code>AT+QIACT?</code> engana</strong> —— com o PDP em deriva
+                ele continua a devolver um IP; só cruzando com o <code>AT+CGACT?</code> é que se vê. Recuperação:
+                Deact PDP → <code>AT+CGACT=0,&lt;número da deriva&gt;</code> → Act PDP → validar com Ping.
+            </div>
+
+            <h4>Abrir uma ligação: OK significa apenas «comando aceite»</h4>
+            <p>Prima <strong>Open TCP</strong> e preencha no cartão de parâmetros o host e a porta
+            (<code>AT+QIOPEN=1,0,"TCP","host",porta,0,0</code>; context 1, connectID 0 e
+            modo buffer já fixados). <strong>O OK significa apenas que o comando foi aceite</strong>; o êxito ou a falha vêm no URC
+            <code>+QIOPEN: 0,&lt;err&gt;</code>: 0 = sucesso, até 150 segundos;
+            <strong>563 = o connectID ainda está aberto</strong>: prima primeiro Close Sock.
+            <strong>All Socks</strong> (<code>AT+QISTATE</code>) lista todos os sockets;
+            state 2 = ligado.</p>
+
+            <h4>Enviar dados: três maneiras</h4>
+            <table>
+                <tr><th>Botão</th><th>Descrição</th></tr>
+                <tr><td><strong>Send Text</strong><br><code>AT+QISEND=0,&lt;len&gt;</code></td>
+                    <td>Duas fases de comprimento fixo: espera o <code>&gt;</code> e envia o conteúdo; o comprimento é calculado automaticamente e
+                        <strong>dispensa o Ctrl+Z</strong>. A primeira escolha para texto puro; limite de 1460 bytes,
+                        com escapes <code>\n \r \t \xHH</code></td></tr>
+                <tr><td><strong>Os três botões Send Var</strong><br><code>AT+QISEND=0</code></td>
+                    <td>Comprimento variável: entra no modo de dados e vai recebendo até ver um Ctrl+Z (0x1A), e só então envia ——
+                        pode escrever-se em várias vezes, ver o parágrafo seguinte</td></tr>
+                <tr><td><strong>Send Hex</strong><br><code>AT+QISENDEX=0,"hex"</code></td>
+                    <td>De linha única, sem entrar no modo de dados. Envia bytes arbitrários (incluindo 0x00);
+                        limite de 512 caracteres hex = 256 bytes reais</td></tr>
+            </table>
+            <p><strong>Enviar (continuar a escrever)</strong>: a primeira pressão entra no modo de dados e cada pressão seguinte acrescenta um troço
+            (já no modo de dados o comando não é reenviado —— reenviá-lo tornar-se-ia dados); <strong>Enviar e terminar automaticamente</strong>
+            acrescenta e remata com Ctrl+Z, o mais rápido quando só há um troço; <strong>Terminar (Ctrl+Z)</strong> despacha de uma vez
+            o conteúdo acumulado. Enquanto está no modo de dados o terminal assinala-o; para desistir prima
+            <strong>ESC Cancel</strong> (0x1B, a tecla de fuga quando as duas fases encravam).
+            ⚠ Os dados não podem conter 0x1A (seria tomado por um fim antecipado); para caracteres de controlo use o Send Hex.</p>
+            <div class="tip">
+                <strong>SEND OK não significa que o outro lado recebeu</strong>; significa apenas que os dados foram entregues ao módulo. Prima
+                <strong>Check ACK</strong> (<code>AT+QISEND=0,0</code>) para ver enviados/ACK recebidos:
+                <strong>só o acked conta</strong>.
+            </div>
+
+            <h4>Receber dados: não aparecem sozinhos, é preciso premir Read Data</h4>
+            <p>No modo buffer, os dados recebidos <strong>não</strong> aparecem automaticamente no terminal: o módulo emite apenas o aviso
+            <code>+QIURC: "recv",0</code>, e há que os extrair com <strong>Read Data</strong>
+            (<code>AT+QIRD=0,1500</code>), <strong>repetindo a leitura até vir <code>+QIRD: 0</code></strong>
+            —— sem esvaziar tudo, não haverá próximo aviso.
+            <strong>Unread Len</strong> (<code>AT+QIRD=0,0</code>) consulta total recebido/lido/por ler.
+            Terminadas as trocas, prima <strong>Close Sock</strong> (<code>AT+QICLOSE=0</code>, até 10 segundos).
+            ⚠ <strong>Não chega nenhum aviso recv?</strong> Na página Hardware, confira se
+            <code>AT+QURCCFG="urcport"</code> está em <code>uart1</code> ——
+            o valor de fábrica é a porta USB, e os URC vão todos para lá.</p>
+
+            <h4>Os dois feitios do interlocutor incorporado tcpbin.com</h4>
+            <p>O destino por omissão do Open TCP é o servidor echo gratuito <code>tcpbin.com:4242</code>,
+            com dois feitios medidos:</p>
+            <ul>
+                <li><strong>Echo linha a linha, com quebra de linha (0A) no fim</strong>: enviado Hello sem 0A, 6 segundos
+                    sem resposta; acrescentado o 0A, resposta imediata em 0,1 segundos. No Send Text termine com <code>\n</code>,
+                    no Send Hex acabe com <code>0A</code>.</li>
+                <li><strong>Timeout de inatividade de 15 segundos</strong>: em inatividade, a ligação é cortada e chega
+                    <code>+QIURC: "closed",0</code>. Nada tem a ver com o QIRD (que só lê o buffer local,
+                    sem tocar na rede). Para manter a ligação, envie dados em intervalos de menos de 10 segundos. Depois do closed, o socket fica em closing:
+                    <strong>é obrigatório premir primeiro Close Sock</strong> antes de o reutilizar, senão o QIOPEN devolve 563.</li>
+            </ul>
+
+            <h4>O trio de diagnóstico: Ping/DNS Lookup/NTP Sync</h4>
+            <table>
+                <tr><th>Botão (todos exigem Act PDP primeiro)</th><th>Comportamento e medições</th></tr>
+                <tr><td><strong>Ping</strong><br><code>AT+QPING</code></td>
+                    <td>Timeout de 4 segundos ×4, já fixado. Medido em 8.8.8.8: tudo a passar, RTT 160–270 ms.
+                        ⚠ Muitos servidores bloqueiam ICMP: <strong>o ping falhar não significa que o TCP não ligue</strong>;
+                        para conectividade, vá direto ao Open TCP</td></tr>
+                <tr><td><strong>DNS Lookup</strong><br><code>AT+QIDNSGIP</code></td>
+                    <td>O resultado vem no URC <code>+QIURC: "dnsgip"</code> (até 60 segundos);
+                        em teste veio em duas partes e com vários IP</td></tr>
+                <tr><td><strong>NTP Sync</strong><br><code>AT+QNTP</code></td>
+                    <td>Até 125 segundos, porta 123 já fixada; o resultado vem no URC <code>+QNTP</code>.
+                        ⚠ <strong>A hora é UTC mas traz a marca do fuso local</strong> (+32 quartos = GMT+8; a diferença medida foi exatamente
+                        8 horas); para a hora local use <code>AT+CCLK?</code></td></tr>
+            </table>
+
+            <h4>Deu erro: prima primeiro Last Error, e faça depois a triagem de 30 segundos</h4>
+            <p>Perante um ERROR, prima <strong>imediatamente</strong> <strong>Last Error</strong>
+            (<code>AT+QIGETERROR</code>) —— só o último erro fica guardado; coberto pelo seguinte, deixa de se poder consultar.
+            Ele consulta a camada da pilha Quectel; para a camada de rede use o <code>AT+CEER</code> da página Network.</p>
+            <div class="warning">
+                <strong>🔴 Degradação da pilha de dados —— o buraco que mais tempo custa.</strong> Sintoma: todas as ligações
+                falham, mas os autodiagnósticos dizem que está tudo bem (QIACT? com IP, QIGETERROR devolve 0). Em teste disparou
+                depois de cerca de 20 aberturas e fechos consecutivos de SSL, e até o QIOPEN de TCP puro devolvia 552; QIDEACT+QIACT não salva:
+                <strong>só repetir o ritual de arranque recupera</strong>.<br><br>
+                <strong>A triagem de 30 segundos</strong>: bata no mesmo destino com Open TCP —— também falha = a pilha inteira
+                está avariada, repita o ritual de arranque; sucesso = o problema está no protocolo de cima, continue a investigar.
+            </div>
+
+            <h4>Keepalive: aguenta o NAT da operadora, não aguenta o tcpbin</h4>
+            <p><strong>QICFG=?</strong> lista os subitens e as gamas, <strong>Keepalive?</strong> consulta o valor atual,
+            <strong>Keepalive On/Off</strong> liga e desliga —— estes quatro comandos, <strong>em si</strong>, são zero tráfego;
+            uma vez ativo, basta haver um socket parado para os pacotes de sonda contarem como tráfego móvel.
+            <strong>Ele não trava o timeout de 15 segundos do tcpbin</strong>: em teste, mesmo ligado, a ligação caiu aos 15,1 segundos ——
+            o keepalive é uma sonda vazia da camada TCP, invisível para a aplicação; e o interval mínimo é de 25 segundos,
+            à partida maior do que 15. Para aguentar timeouts da camada de aplicação só enviando dados reais (por exemplo, Send Hex com
+            <code>0A</code> a cada 10 segundos). A verdadeira utilidade é a <strong>manutenção do NAT da operadora</strong>
+            (o NAT dos cartões IoT é reciclado ao fim de poucos minutos de inatividade).</p>
+            <p>Contas de tráfego (<strong>estimativa, não medição</strong>): cada sonda de ida e volta ronda os 80 bytes;
+            com o idle por omissão = 30 segundos em inatividade contínua → cerca de 9,4 KB por hora, cerca de 225 KB por dia,
+            <strong>cerca de 6,8 MB por mês</strong>; idle = 600 segundos → cerca de 11 KB por dia.
+            Em cartões pré-pagos por volume, como os da 1NCE, aumente o idle. Sem sockets abertos, não gasta tráfego nenhum.</p>
+
+            <h4>Resolução de problemas</h4>
+            <table>
+                <tr><th>Sintoma</th><th>Causa e solução</th></tr>
+                <tr><td><code>+QIOPEN: 0,563</code></td>
+                    <td>O connectID ainda está aberto —— primeiro Close Sock</td></tr>
+                <tr><td>Não chega <code>+QIURC: "recv"</code></td>
+                    <td>① O urcport não é uart1 (página Hardware)
+                        ② Não se leu até <code>+QIRD: 0</code> e o aviso ficou suprimido</td></tr>
+                <tr><td>Aparece <code>+QIURC: "closed",0</code></td>
+                    <td>Timeout de inatividade de 15 segundos do tcpbin; depois do Close Sock pode reabrir</td></tr>
+                <tr><td>Duas fases encravadas, porta AT sem resposta</td>
+                    <td>Prima ESC Cancel para se libertar; se não resultar, Reset na página Hardware</td></tr>
+                <tr><td>Todas as ligações falham mas o autodiagnóstico está todo verde</td>
+                    <td>Degradação da pilha de dados —— feita a triagem, repita o ritual de arranque</td></tr>
+                <tr><td>Act PDP responde ERROR, ou a meio dos testes cai tudo</td>
+                    <td>Vaga única de PDP ocupada/deriva do PDP —— ver as duas caixas de diagnóstico do «Primeiro passo»</td></tr>
+            </table>
+
+            <h3 id="tab-mqtt">MQTT —— mensagens para a Internet das Coisas</h3>
+            <p><strong>Princípio de funcionamento:</strong> o MQTT é um protocolo de «broker» (servidor intermediário de mensagens):
+            os dispositivos não se ligam diretamente entre si; cada um liga-se ao broker e publica ou subscreve mensagens em «tópicos» (topics).
+            No EG800K ele tem duas camadas: primeiro o <code>AT+QMTOPEN</code> abre a «ligação de rede» (TCP até ao broker),
+            depois o <code>AT+QMTCONN</code> faz o «login MQTT»; só com as duas camadas de pé é possível subscrever e publicar.
+            Fixe já isto: <strong>os resultados dos comandos MQTT seguem todos o padrão «primeiro OK, depois URC»</strong> (tal como o FTP) ——
+            o <code>OK</code> significa apenas que o comando foi aceite; o êxito ou a falha vêm no URC de resultado seguinte.</p>
+            <p>Esta página usa sempre o client 0; o firmware suporta ainda múltiplos clients (0–5), SSL e autenticação de plataformas cloud
+            (confirmado em teste com <code>=?</code>); para usos avançados, veja a application note de MQTT.</p>
+
+            <h4>Antes de começar: dois pré-requisitos</h4>
+            <ol>
+                <li><strong>Os URC têm de sair pela UART</strong>: <code>AT+QURCCFG="urcport"</code> tem de devolver
+                    <code>"uart1"</code>. O valor de fábrica é <code>"usbat"</code>, e os resultados do MQTT são todos URC ——
+                    sem esta mudança, <strong>cada comando responde só OK e nada mais acontece</strong>
+                    (a página Basic tem o botão; grava em NVRAM, basta mudar uma vez).</li>
+                <li><strong>O PDP tem de estar ativo</strong>: prima primeiro <code>AT+QIACT=1</code> na página TCP/IP
+                    (até 150 segundos); sem isso o <code>+QMTOPEN</code> devolve <strong>3 = falha na ativação do PDP</strong>.
+                    Todo o percurso gera tráfego de dados, estimado em cerca de 5 KB.</li>
+            </ol>
+
+            <h4>Onde testar: quatro brokers públicos gratuitos</h4>
+            <p>O cartão de parâmetros do <code>AT+QMTOPEN</code> traz um menu de brokers (mantendo a escrita livre);
+            os quatro aceitam anónimos, sem registo. Dados medidos em agosto de 2026 (rajada de 100 mensagens do lado do PC, ping do lado do módulo):</p>
+            <table>
+                <tr><th>Broker</th><th>Rajada de 100</th><th>Ping do módulo</th><th>Notas</th></tr>
+                <tr><td><strong>mqttgo.io</strong> (por omissão)</td><td><strong>100/100</strong></td>
+                    <td><strong>190–210 ms</strong></td><td>HiNet, Taiwan; 1883 em claro/8883 TLS</td></tr>
+                <tr><td>broker.hivemq.com</td><td>100/100</td><td>Bloqueia ICMP</td>
+                    <td>Se o <code>AT+QPING</code> devolver 559, sem pânico —— em teste, o TCP 1883 dos quatro passou todo;
+                        teste a alcançabilidade diretamente com <code>AT+QMTOPEN</code></td></tr>
+                <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+                    <td>O próprio site avisa que não é para usos importantes; a poluição de tópicos é a mais grave</td></tr>
+                <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>Bloqueia ICMP</td>
+                    <td><strong>Tem limite de ritmo de publicação</strong>; tem Dashboard web</td></tr>
+            </table>
+            <p>Estes quatro são <strong>completamente públicos</strong>: qualquer pessoa pode subscrever os seus tópicos
+            e mensagens alheias podem misturar-se —— é exatamente o problema que o sufixo aleatório vem resolver.</p>
+
+            <h4>O sufixo aleatório do client ID e do tópico: muda a cada recarregamento</h4>
+            <p>O client ID e o tópico por omissão não estão gravados a ferro: ao carregar a página gera-se automaticamente um sufixo de 6 caracteres hexadecimais,
+            que compõe <code>numodem-&lt;sufixo&gt;</code> e <code>test/numodem-&lt;sufixo&gt;</code>;
+            os botões Subscribe/Publish/Unsub partilham o mesmo sufixo (senão o auto-loop não bateria certo). Há duas razões:</p>
+            <ul>
+                <li><strong>Nomes iguais levam a expulsões</strong>: o MQTT 3.1.1 §3.1.4 manda o broker desligar o que se ligou primeiro ——
+                    duas pessoas com o mesmo ID fixo expulsam-se mutuamente, e o sintoma parece «o módulo desliga-se sem razão».</li>
+                <li><strong>Um tópico fixo recebe mensagens de outros</strong>: julga que recebeu o que publicou, mas não foi ——
+                    pior do que não receber, porque dá um falso «passou».</li>
+            </ul>
+            <div class="warning">
+                <strong>⚠ A cada recarregamento da página o sufixo muda ——
+                a subscrição e a publicação têm de acontecer dentro do mesmo ciclo de vida da página.</strong>
+                E mais: nesta ferramenta RTS = alimentação, recarregar a página = cortar a corrente ao módulo, e a ligação MQTT desaparece por inteiro;
+                há que recomeçar do ritual de arranque e do <code>AT+QMTOPEN</code>.
+            </div>
+
+            <h4>O percurso completo: ligar → subscrever → publicar → receber a própria mensagem</h4>
+            <p>A validação mais convincente é o <strong>auto-loop</strong>: subscrever e publicar no mesmo tópico,
+            recebendo de volta a própria mensagem —— valida de uma vez a cadeia inteira de envio e receção. Em cada passo, espere o URC de resultado antes de avançar:</p>
+            <ol>
+                <li><strong>Definir a versão do protocolo</strong>: prima Ver 3.1.1 (<code>AT+QMTCFG="version",0,4</code>;
+                    3 = 3.1, 4 = 3.1.1). Com Version? consulta o valor atual (sem valor = consulta).
+                    O cartão de parâmetros Keepalive permite ajustar o intervalo de manutenção; sem ajustar também se testa.</li>
+                <li><strong>Abrir a rede</strong>: prima Open Net (<code>AT+QMTOPEN=0,"broker",1883</code>).
+                    Vem primeiro o <code>OK</code>; o êxito ou a falha estão no URC <code>+QMTOPEN: 0,&lt;result&gt;</code>
+                    (0 = sucesso), esperando até 120 segundos. Com Open? consulta as ligações abertas
+                    (sem ligações responde um <code>OK</code> vazio; medido, é normal).</li>
+                <li><strong>Login MQTT</strong>: prima Connect (<code>AT+QMTCONN=0,"numodem-&lt;sufixo&gt;"</code>).
+                    O URC de sucesso é sempre <code>+QMTCONN: 0,0,0</code>. Os brokers públicos dispensam credenciais;
+                    quando forem precisas, acrescente <code>,"user","pass"</code> no fim dos parâmetros.
+                    Com Conn? consulta o estado (1 = inicial, 2 = a ligar, 3 = ligado, 4 = a desligar).</li>
+                <li><strong>Subscrever</strong>: prima Subscribe (<code>AT+QMTSUB=0,1,"test/numodem-&lt;sufixo&gt;",0</code>,
+                    msgid fixo em 1). O URC de sucesso tem a forma <code>+QMTSUB: 0,1,0,0</code>.
+                    A partir daí, as mensagens deste tópico chegam todas no URC <code>+QMTRECV</code>.</li>
+                <li><strong>Publicar</strong>: prima Publish (<code>AT+QMTPUBEX</code>, duas fases, ver o parágrafo seguinte).
+                    O URC de sucesso é <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code>.</li>
+                <li><strong>Receber de volta</strong>: o destino da publicação é o tópico subscrito; logo a seguir vê-se
+                    <code>+QMTRECV</code> com o tópico e o corpo da mensagem acabada de publicar —— auto-loop bem-sucedido.
+                    Um payload multibyte (UTF-8) também chega sem truncagem nem corrupção.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="Separador MQTT">
+                <figcaption>Página MQTT: menu de brokers, ligação, subscrição e publicação; os valores por omissão já trazem o sufixo aleatório.</figcaption>
+            </figure>
+
+            <h4>As duas fases do QMTPUBEX: ao perfazer o comprimento envia sozinho, sem Ctrl+Z</h4>
+            <p>O último parâmetro do <code>AT+QMTPUBEX</code> é <strong>o comprimento (em bytes), não o conteúdo da mensagem</strong>
+            (caso encerrado pela application note de MQTT §3.3.8 —— a forma de linha única com a mensagem lá dentro devolve sempre ERROR).
+            O fluxo correto é em duas fases: enviar o comando → o módulo responde com o prompt <code>&gt;</code> → enviar exatamente N bytes;
+            o módulo <strong>envia automaticamente assim que o comprimento perfaz, sem precisar de Ctrl+Z</strong>
+            (diferente do modo de dados do <code>AT+QISEND</code> da página TCP).
+            O botão Publish trata de tudo: basta preencher o conteúdo no cartão de parâmetros,
+            e o comprimento é calculado pelos bytes UTF-8 (um carácter chinês ocupa 3 bytes; em teste, uma palavra de dois caracteres → 6).</p>
+            <ul>
+                <li>Os comandos com payload <strong>não oferecem «colocar na linha de comandos»</strong> —— a linha de comandos acrescenta sempre o fim de linha,
+                    e esse CR entraria no comprimento e desalinharia tudo; envie com o botão.</li>
+                <li>O firmware tem ainda o <code>AT+QMTPUB</code> (variante em modo de dados, rematada com Ctrl+Z) ——
+                    esta ferramenta usa sempre o <code>QMTPUBEX</code>; não é preciso aprender os dois.</li>
+            </ul>
+
+            <h4>Interpretar os códigos de resultado: cada comando tem a sua gama</h4>
+            <div class="warning">
+                <strong>Não aplique a tabela de códigos do comando A ao comando B.</strong>
+                No <code>+QMTOPEN</code>, 3 é «falha na ativação do PDP»;
+                no <code>+QMTPUBEX</code>, o valor 3 nem sequer existe.
+                <br><br>
+                O mais fácil de ler mal é <code>+QMTCONN: 0,1</code> ——
+                <strong>tanto pode ser a resposta de consulta «estado 1 = a inicializar» como o resultado de escrita «pacote em retransmissão»</strong>.
+                Uma linha sozinha não chega para distinguir, e por isso esta ferramenta mostra as duas leituras lado a lado, sem adivinhar.
+            </div>
+            <p>Não precisa de decorar tabelas: do <code>+QMTOPEN</code> ao <code>+QMTRECV</code>/<code>+QMTSTAT</code>,
+            a zona do terminal anota coluna a coluna, em linguagem corrente, todos os URC de resultado segundo as sete tabelas da application note de MQTT v1.5.</p>
+
+            <h4>Desligar e arrumar</h4>
+            <ul>
+                <li><strong>Só quer parar de receber, mantendo a ligação</strong>: prima Unsub
+                    (<code>AT+QMTUNS=0,2,"tópico"</code>, msgid fixo em 2).</li>
+                <li><strong>Desligar normalmente</strong>: prima Disconnect (<code>AT+QMTDISC=0</code>,
+                    envia o MQTT DISCONNECT), que responde <code>+QMTDISC: 0,0</code>.
+                    <strong>Depois disto não é preciso premir Close Net</strong> —— o <code>AT+QMTCLOSE=0</code>
+                    é para forçar o fecho quando «o QMTDISC falhou e a camada de rede ficou presa».</li>
+            </ul>
+            <p>Um desligamento que não foi você a pedir (expulsão, timeout de keepalive, queda de rede) é reportado pelo URC de
+            desligamento anormal <code>+QMTSTAT</code> (exemplo: <code>+QMTSTAT: 0,5</code>; a zona do terminal anota a razão);
+            nesse caso, recomece do <code>AT+QMTOPEN</code>.</p>
+
+            <h4>Resolução de problemas</h4>
+            <table>
+                <tr><th>Sintoma</th><th>Causa e solução</th></tr>
+                <tr><td>Cada comando responde OK e depois nada acontece</td>
+                    <td>Os URC estão a ir para a porta USB —— o <code>urcport</code> de fábrica é <code>usbat</code>;
+                        mude para <code>uart1</code> (ver o pré-requisito 1)</td></tr>
+                <tr><td><code>+QMTOPEN: 0,3</code></td>
+                    <td>Falha na ativação do PDP —— primeiro <code>AT+QIACT=1</code> (página TCP/IP) e repita</td></tr>
+                <tr><td>Subscreveu mas não recebe as próprias mensagens</td>
+                    <td>Recarregou a página a meio —— o sufixo mudou e o módulo também rearrancou sem corrente.
+                        Refaça o percurso inteiro dentro do mesmo ciclo de vida da página</td></tr>
+                <tr><td>Recebe mensagens que não publicou</td>
+                    <td>Poluição de tópicos dos brokers públicos (a pior é no mosquitto). O tópico por omissão já traz sufixo aleatório;
+                        em tópicos personalizados, escolha nomes únicos</td></tr>
+                <tr><td>Em publicações em massa perde-se parte das mensagens</td>
+                    <td>O emqx tem limite de ritmo de publicação (na rajada de 100 medida só chegaram 40) ——
+                        mude para o mqttgo.io ou o hivemq (100/100, sem limitação)</td></tr>
+                <tr><td>Espera muito tempo e o URC de resultado não vem</td>
+                    <td>Esta família é lenta por natureza: <code>QMTOPEN</code> até 120 segundos,
+                        <code>QMTCONN</code>/<code>QMTSUB</code>/<code>QMTPUBEX</code> até 600 segundos
+                        (PUBEX = timeout de pacote de 60 segundos × 10 tentativas); as dicas dos botões já o indicam, não é um bloqueio</td></tr>
+            </table>
+
+            <h3 id="tab-wifi">WiFiScan —— scan Wi-Fi e localização por rede</h3>
+            <p><strong>Princípio de funcionamento:</strong> o EG800K é um módulo LTE <strong>sem capacidade de acesso à Internet por Wi-Fi</strong>,
+            mas traz um recetor Wi-Fi «que só escuta, nunca liga»: recebe passivamente as tramas beacon difundidas pelos hotspots de 2,4 GHz em volta
+            e reporta, para cada hotspot, o endereço MAC (BSSID), o RSSI (força de sinal) e o canal.
+            O scan é receção RF pura, <strong>zero tráfego de dados</strong>; por si só não produz coordenadas ——
+            só enviando a lista de MAC+RSSI a uma base de dados de posições de hotspots na cloud é que se obtêm latitude e longitude;
+            é esta a localização por rede que <strong>funciona dentro de casa, sem depender de satélites</strong>.
+            Todos os números e comportamentos desta secção são valores medidos em agosto de 2026 num EG800K físico.</p>
+
+            <h4>Os dois grupos de botões desta página</h4>
+            <p>Na metade de cima, os quatro botões <strong>Wi-Fi Scan</strong> (scan puro); na de baixo,
+            os treze botões <strong>QuecLocator (QLBS)</strong> (leia primeiro a secção da verdade, mais abaixo, antes de premir):</p>
+            <table>
+                <tr><th>Botão</th><th>Comando</th><th>Função e pontos medidos</th></tr>
+                <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>Consulta as gamas dos parâmetros. Esta unidade devolveu
+                        <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+                <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+                    <td>Lê os parâmetros atuais. De fábrica, nesta unidade, <code>12000,1,5,5,0</code> =
+                        limite de tempo 12 segundos, 1 ronda, máximo de 5 hotspots, timeout RRC de 5 segundos, prioridade 0</td></tr>
+                <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+                    <td>Faz um scan com os parâmetros atuais. Os resultados chegam <strong>assíncronos</strong>, depois do <code>OK</code>,
+                        esperando até 13 segundos</td></tr>
+                <tr><td>Scan (custom)</td><td>Cartão de parâmetros</td>
+                    <td>Scan com limite de tempo (milissegundos)/rondas/máximo de hotspots/timeout RRC/prioridade personalizados</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="Separador WiFiScan e grupo QuecLocator">
+                <figcaption>Página WiFiScan: os quatro botões de scan e o grupo QuecLocator (QLBS).</figcaption>
+            </figure>
+
+            <h4>O primeiro scan: como se prime e o que se vê</h4>
+            <ol>
+                <li><strong>Corra o ritual de arranque</strong> (ver a secção «Ritual de arranque»).</li>
+                <li><strong>Confirme que os URC saem pela UART</strong>: <code>AT+QURCCFG="urcport"</code> tem de devolver
+                    <code>"uart1"</code>. O valor de fábrica é <code>"usbat"</code> ——
+                    os resultados do scan iriam todos para a porta USB e aqui só se veria o <code>OK</code>,
+                    sem sequer chegar o TIMEOUT (a definição grava em NVRAM; basta mudar uma vez).</li>
+                <li><strong>Prima <code>Scan</code></strong>: o módulo responde primeiro <code>OK</code>,
+                    o que significa «o scan começou», <strong>não é o resultado</strong>. Em poucos segundos (no máximo, o limite de tempo do scan)
+                    os resultados chegam linha a linha, cada uma com anotação automática (MAC/RSSI/canal).</li>
+            </ol>
+
+            <h4>Interpretar os resultados do scan</h4>
+            <p>Um reporte medido tem este aspeto (2026-08-29, 7 hotspots detetados, RSSI de -37 a -89 dBm):</p>
+            <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+            <p>A ordem dos campos é <code>(ecn, ssid, rssi, mac, channel)</code>.
+            <strong>No firmware desta unidade o ecn e o ssid devolvem sempre <code>-</code></strong> (medido em 2026-08-02),
+            e a lista não mostra «de quem é este Wi-Fi» ——
+            para localizar chega perfeitamente: as bases de dados só comem MAC+RSSI.
+            Intuição para o RSSI: -30 a -50 muito perto, -60 a -75 normal, abaixo de -80 muito fraco.</p>
+            <p>Se dentro do limite de tempo não se apanhar hotspot nenhum, vem <code>+QWIFISCAN:TIMEOUT</code> ——
+            <strong>fim normal, não é erro</strong> (sem espaço a seguir aos dois pontos; o interpretador desta ferramenta já o trata).
+            Para apanhar mais: use o cartão de parâmetros para subir o máximo de hotspots dos 5 de fábrica (limite desta unidade: 10)
+            e as rondas para 2-3 (em teste, os resultados entre rondas são desduplicados).</p>
+            <div class="warning">
+                <strong>Nem todos os hotspots apanhados servem para localizar.</strong> Na medição de 2026-08-29, dos 7 hotspots,
+                4 eram «endereços administrados localmente» (começados por <code>C2:</code>/<code>62:</code>/<code>9E:</code>,
+                com o bit 0x02 do primeiro byte a 1 —— BSSID virtuais de clones multi-SSID);
+                <strong>as bases de dados de localização costumam ignorar esses endereços</strong>, e o material útil ficou reduzido a 3 endereços globais.
+            </div>
+            <div class="warning">
+                <strong>As gamas de parâmetros da application note V1.2 estão erradas para esta unidade.</strong>
+                O documento alarga as rondas para 1-6 e o máximo de hotspots para 4-30, mas o firmware desta unidade continua a devolver
+                <strong>rondas 1-3 e máximo de hotspots 4-10</strong> (medido em 2026-08-06).
+                Fie-se no que o <code>Support?</code> devolve, não copie os números do documento.
+            </div>
+
+            <h4>O grupo de botões QuecLocator (QLBS): a verdade antes de premir</h4>
+            <p>O QuecLocator é o serviço de localização na cloud da Quectel: com um único comando, <code>AT+QLBS</code> (botão
+            <code>Locate</code>), o firmware recolhe sozinho o material, consulta o servidor e devolve as coordenadas. Três realidades:</p>
+            <ol>
+                <li><strong>Exige token, e é um serviço pago.</strong> A documentação oficial diz expressamente que há que contactar o
+                    suporte técnico da Quectel para o pedir (sem registo self-service). Nesta unidade o token vem vazio de fábrica.</li>
+                <li><strong>Nenhum dos 16 documentos oficiais do EG800K menciona o QuecLocator.</strong>
+                    A application note disponível é a do EC200U/EG915U (sintaxe e códigos de erro conferem com o medido),
+                    não é documentação oficial desta unidade.</li>
+                <li><strong>Este projeto já decidiu não o adotar</strong> (2026-08-29): a lógica de localização está fechada no firmware;
+                    se o serviço fechar, o comando AT inteiro morre e o fornecedor não pode ser substituído
+                    (o fórum da Quectel já confirmou o fim do suporte na série BG95).
+                    Os botões ficam, só para «validar de passagem se algum dia houver um token gratuito».</li>
+            </ol>
+            <div class="warning">
+                <strong><code>+QLBS: 702</code> é «timeout do servidor», não um problema de token.</strong>
+                Este projeto interpretou mal o 702 como «falta o token» durante três semanas inteiras —— a verdade é que na altura
+                se esquecera de ativar o PDP: o módulo nem chegava ao servidor e, esgotado o timeout (60 segundos de fábrica), devolvia 702.
+                Experiência de controlo de 2026-08-29 (token vazio do princípio ao fim):
+                com o PDP desativado devolve <code>702</code>; ativado, devolve <code>10002</code> (token inexistente) ——
+                <strong>o servidor é alcançável a partir de Taiwan; só falta mesmo o token</strong>.
+                Antes de enviar <code>AT+QLBS</code>, faça sempre <code>AT+QIACT=1</code> (gera tráfego).
+            </div>
+            <p>Os sete subitens de configuração têm botões de consulta e de escrita; o <code>Cfg?</code> (<code>AT+QLBSCFG=?</code>)
+            lista todas as gamas num clique (zero tráfego). Valores de fábrica desta unidade e pontos medidos:</p>
+            <table>
+                <tr><th>Subitem (botões)</th><th>Valor de fábrica</th><th>Pontos medidos</th></tr>
+                <tr><td><code>token</code> (Set Token/Token?)</td><td>Vazio</td>
+                    <td>Na leitura vem sempre mascarado com <code>*</code>; o caminho de escrita está comprovadamente funcional</td></tr>
+                <tr><td><code>server</code> (Server?/Set Server)</td>
+                    <td><code>www.queclocator.com:80</code></td><td>Endereço do servidor de localização</td></tr>
+                <tr><td><code>timeout</code> (Timeout?/Set Timeout)</td><td>60 segundos</td>
+                    <td>É este o timeout que o 702 espera; gama 10-120</td></tr>
+                <tr><td><code>asynch</code> (Async?/Set Async)</td><td>0</td>
+                    <td>Comutação síncrono/assíncrono</td></tr>
+                <tr><td><code>latorder</code> (LatOrder?)</td><td>0</td>
+                    <td>Ordem de saída latitude/longitude. ⚠ Escreve-se com a chave em minúsculas, mas a leitura devolve em camelCase: <code>latOrder</code></td></tr>
+                <tr><td><code>withtime</code> (WithTime?)</td><td>0</td>
+                    <td>Se a resposta traz a hora; a chave na leitura é <code>withTime</code></td></tr>
+                <tr><td><code>timeupdate</code> (TimeUpd?)</td><td>0</td>
+                    <td>Se o resultado da localização acerta o relógio do módulo; a chave na leitura é <code>timeUpdate</code></td></tr>
+            </table>
+            <p>Se conseguir mesmo um token: preencha em <code>Set Token</code> → confirme com <code>Token?</code>
+            (mostra <code>*</code>) → ative o PDP na página TCP/IP → <code>Locate</code>.</p>
+
+            <h4>A rota alternativa: localização por rede sem token (71 metros medidos)</h4>
+            <p>A localização por rede não depende do QuecLocator. A rota alternativa ficou fechada de ponta a ponta em 2026-08-29:
+            o módulo só fornece o material (esta página faz o scan dos hotspots, e <code>AT+QENG="servingcell"</code> lê a célula),
+            a saída do terminal é guardada em ficheiro e entregue ao <code>tools/wifi_geolocate.py</code>, que consulta bases de dados públicas no PC ——
+            <strong>zero tráfego no módulo e sem serviços Quectel</strong>.
+            Medições (comparadas com a verdade GNSS do mesmo dia): consulta de célula com a Unwired Labs (registo gratuito), <strong>erro de
+            71 metros</strong> (a conclusão que fecha esta linha de localização); com a beaconDB (sem chave), 632 metros;
+            a consulta Wi-Fi ficou presa nos fornecedores —— o ecossistema gratuito ruiu (a beaconDB não cobre esta zona,
+            o plano gratuito da Unwired Labs não inclui Wi-Fi, Google/HERE exigem cartão de crédito): adiada.</p>
+            <div class="tip">
+                <strong>Os 71 metros são um «acerto de tabela», não «precisão de medição».</strong>
+                A localização por célula usa o Cell ID para consultar as coordenadas registadas daquela estação; a mesma célula devolve sempre o mesmo ponto ——
+                mudando de estação, o erro pode passar à ordem dos quilómetros; os ±1051 metros que o próprio serviço reporta é que são a estimativa honesta.
+                Além disso, o Cell ID e o TAC vêm em <strong>hexadecimal</strong>
+                e têm de ser convertidos para decimal antes da consulta (a ferramenta já o faz).
+            </div>
+
+            <h4>Resolução de problemas</h4>
+            <table>
+                <tr><th>Sintoma</th><th>Causa e solução</th></tr>
+                <tr><td>Premir <code>Scan</code> só devolve <code>OK</code> e os resultados nunca aparecem</td>
+                    <td>Os URC estão a ir para a porta USB —— consulte com <code>AT+QURCCFG="urcport"</code>
+                        e, se não for <code>"uart1"</code>, mude (grava em NVRAM)</td></tr>
+                <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+                    <td>Nenhum hotspot dentro do limite de tempo; fim normal, não é erro. Mude de sítio ou alargue o limite</td></tr>
+                <tr><td><code>+QLBS: 702</code></td>
+                    <td>Timeout do servidor —— quase sempre esqueceu-se do <code>AT+QIACT=1</code>; não é problema de token</td></tr>
+                <tr><td><code>+QLBS: 10002</code></td>
+                    <td>Token inexistente —— há que o pedir, pago, à Quectel; este projeto decidiu não o adotar
+                        e segue a rota alternativa acima</td></tr>
+                <tr><td>Quer usar o <code>AT+QCELLLOC</code></td>
+                    <td>Esta unidade <strong>não o suporta</strong> (devolve ERROR) —— é um comando da série EC2x</td></tr>
+            </table>
+
+            <h3 id="tab-ssl">SSL —— o túnel TLS</h3>
+            <p><strong>Princípio de funcionamento:</strong> a página SSL é a <strong>base partilhada</strong> das ligações cifradas ——
+            o SSL context aqui definido e os certificados aqui carregados servem simultaneamente o SSL raw socket, o MQTT over SSL
+            e o HTTPS. Todos os segundos e comportamentos desta secção foram medidos em agosto de 2026 num EG800K físico.</p>
+
+            <h4>A primeira ligação TLS: cinco passos</h4>
+            <ol>
+                <li><strong>Corra o ritual de arranque</strong> (ver a secção «Ritual de arranque») e prima depois
+                    <code>AT+QIACT?</code> para confirmar o canal de dados —— tem de vir
+                    <code>+QIACT: 1,1,…,"IP"</code>; se não vier, primeiro <code>AT+QIACT=1</code>.</li>
+                <li><strong>Configurar o context</strong>: <code>sslversion</code> a 4 (todas as versões,
+                    a melhor compatibilidade), <code>ciphersuite</code> a 0XFFFF (todos os conjuntos),
+                    <code>seclevel</code> primeiro a 0 —— comece por confirmar que o túnel liga; a verificação fica para depois.</li>
+                <li><strong>Abrir a ligação</strong>: prima <code>AT+QSSLOPEN</code> (último dígito 0) e preencha no cartão de parâmetros
+                    o host e a porta. ⚠ O <code>OK</code> significa apenas «comando aceite»; o êxito ou a falha esperam pelo URC:
+                    só <code>+QSSLOPEN: 4,0</code> é sucesso (handshake medido em 2,0 segundos).</li>
+                <li><strong>Enviar dados</strong>: prima <code>AT+QSSLSEND</code> (duas fases) ——
+                    aparecido o <code>&gt;</code>, envie o conteúdo; <strong>ao perfazer o comprimento declarado envia sozinho,
+                    sem Ctrl+Z</strong> (limite de 1460 bytes por pacote). Quando o outro lado responde, aparece
+                    <code>+QSSLURC: "recv",4</code>.</li>
+                <li><strong>Ler e fechar</strong>: <code>AT+QSSLRECV</code> (máximo de 1500 por leitura);
+                    ler até <code>+QSSLRECV: 0</code> significa que esvaziou tudo, não é erro.
+                    Feche com <code>AT+QSSLCLOSE=4</code> (espera por omissão até 10 segundos;
+                    o outro botão permite indicar os segundos, 0 = imediato).</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2,0 segundos, 0 = sucesso
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← ao perfazer 15 bytes envia sozinho
+SEND OK
++QSSLURC: "recv",4        ← 0,4 segundos
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>Durante a ligação pode premir <code>AT+QSSLSTATE</code> para ver todas as ligações (<code>=4</code>
+            consulta um único clientID; estado 2 = ligado). Atenção: <strong>a porta local devolve sempre 0</strong> ——
+            comportamento do módulo, não é erro.</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="Separador SSL">
+                <figcaption>Página SSL: configuração do context, upload de certificados para a UFS, ligação, envio e receção, fecho.</figcaption>
+            </figure>
+
+            <h4>Os três modos de acesso (último dígito do <code>AT+QSSLOPEN</code>)</h4>
+            <table>
+                <tr><th>Último dígito</th><th>Comportamento</th></tr>
+                <tr><td>0 buffer</td><td>Ao receber dados emite apenas <code>+QSSLURC: "recv",&lt;id&gt;</code>;
+                    leia você mesmo com <code>AT+QSSLRECV</code></td></tr>
+                <tr><td>1 push direto</td><td>O URC traz também o comprimento e <strong>os dados são despejados logo na linha seguinte</strong>;
+                    ⚠ neste modo é normal o <code>AT+QSSLRECV</code> devolver ERROR</td></tr>
+                <tr><td>2 transparente</td><td>A porta AT inteira torna-se canal de dados (os botões desta página só cobrem 0 e 1)</td></tr>
+            </table>
+
+            <h4>A configuração do context, item a item</h4>
+            <p>Sem certeza de que subitens o firmware suporta, prima primeiro <code>AT+QSSLCFG=?</code> ——
+            em teste devolveu 17 subitens, mais do que a application note lista. Os subitens comuns têm botões de escrita e de consulta;
+            em teste, o que se escreveu leu-se de volta exatamente igual.</p>
+            <table>
+                <tr><th>Subitem</th><th>De fábrica</th><th>Função e pontos medidos</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>Versão do protocolo; 4 = todas suportadas</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>Conjunto de cifras; 0XFFFF = todos suportados</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0 = não verifica, 1 = verifica o servidor
+                    (exige o certificado CA carregado antes), 2 = autenticação mútua (exige ainda certificado de cliente + chave privada)</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>Caminho do certificado CA, no formato
+                    <code>"UFS:ficheiro"</code>; o ficheiro tem de estar já na UFS (ver a secção seguinte)</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>Obrigatório ligar para virtual hosts/CDN —— com vários domínios no mesmo IP, não enviar SNI
+                    faz chegar um certificado que não corresponde, e a verificação falha sempre com 566</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>De fábrica, mesmo com o seclevel 1 ligado, a validade do certificado não é verificada</strong>.
+                    Para a verificar, ponha 0 —— e o relógio do módulo tem de estar certo</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>Espera máxima do handshake TLS, em segundos (10–300)</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 As três predefinições de fábrica somadas = nenhuma verificação de certificados</strong>
+                (seclevel 0, sni 0, ignorelocaltime 1); para verificar a sério, as três têm de estar bem postas.
+                E estas três definições, tal como o <code>cacert</code>, <strong>não sobrevivem ao rearranque</strong>
+                (confirmado em teste): a cada arranque voltam aos valores de fábrica; já os ficheiros de certificado na UFS não se perdem sem corrente.
+            </div>
+
+            <h4>O grupo de ficheiros UFS: como os certificados entram no módulo</h4>
+            <p>A UFS é a memória flash incorporada do módulo: capacidade total medida de <strong>280 KB</strong>, cada ficheiro ocupando um
+            bloco de 4 KB. Os certificados têm de ser carregados primeiro para aqui, para o <code>cacert</code> ter um ficheiro a que apontar.
+            <strong>O upload vai pela UART, com zero tráfego de dados</strong>, e ficheiros binários também entram.
+            <strong>O cartão Upload</strong>: escolhido o ficheiro, o nome e o tamanho preenchem-se sozinhos; depois do envio, a ferramenta espera que o módulo
+            responda <code>CONNECT</code> antes de mandar os bytes em bruto (sem <code>CONNECT</code>, não envia). No fim,
+            <strong>o motor de anotações compara automaticamente</strong> o tamanho e o checksum reportados pelo módulo:
+            ✅ = íntegro, ❌ = corrompeu-se na viagem —— apague primeiro e volte a enviar.</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← enviam-se a seguir 1939 bytes
++QFUPL: 1939,4f64         ← tamanho recebido,checksum; a anotação compara sozinha ✅</pre>
+            <table>
+                <tr><th>Botão</th><th>Utilidade</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>Lista todos os ficheiros da UFS e os tamanhos ——
+                    use-o para validar depois do upload (zero tráfego)</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>Consulta o espaço livre/total em bytes (zero tráfego)</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>Apaga o ficheiro indicado (<code>*</code> = todos);
+                    sem apagar o homónimo primeiro, o reenvio é barrado</td></tr>
+            </table>
+            <div class="tip">
+                <strong>Dois comportamentos medidos que o manual não explicita:</strong> (1) os códigos de erro FILE são inconsistentes ——
+                reenviar um homónimo devolve o texto <code>file already exist</code>, um timeout devolve o número <code>421</code>;
+                esta ferramenta interpreta as duas formas; (2) declarando um tamanho maior do que o real, o módulo, esgotado o timeout,
+                <strong>guarda na mesma o que recebeu</strong> —— a comparação de checksum apanha-o.
+            </div>
+
+            <h4>Verificação de certificados na prática: o teste aos pares</h4>
+            <p>Fluxo: carregar o certificado raiz → apontar-lhe o <code>cacert</code> → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → ligar ao 443 do destino. <strong>O que se carrega é o certificado raiz, o topo da cadeia</strong>
+            (a cadeia do badssl.com tem quatro níveis; carrega-se o ISRG Root X1 do topo).
+            <strong>Testar só que «o certificado mau não liga» não chega</strong> —— com «nada liga» também passaria.
+            Teste aos pares: o certificado bom liga e o mau não liga;
+            <strong>só conta se as duas direções se verificarem</strong>. Controlo 2×5 medido:</p>
+            <table>
+                <tr><th>Host</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com (controlo positivo)</td><td>Liga</td>
+                    <td><strong>Liga</strong> <code>4,0</code></td></tr>
+                <tr><td>expired (expirado)</td><td>Liga</td><td>Recusado, 566</td></tr>
+                <tr><td>self-signed (autoassinado)</td><td>Liga</td><td>Recusado, 566</td></tr>
+                <tr><td>wrong.host (hostname não corresponde)</td><td>Liga</td><td>Recusado, 566</td></tr>
+                <tr><td>untrusted-root (raiz não confiável)</td><td>Liga</td><td>Recusado, 566</td></tr>
+            </table>
+            <p>Limitação: <strong>os quatro tipos de erro de certificado devolvem todos 566; o módulo não distingue</strong> qual foi.
+            O <code>AT+QIGETERROR</code> também não ajuda —— trata da camada TCP/IP
+            e aqui responde apenas <code>0,operate successfully</code>.</p>
+            <div class="tip">
+                Nos testes negativos evite o expired —— de fábrica o <code>ignorelocaltime</code> está a 1, e a expiração por si só
+                não é barrada (na tabela acima ele foi barrado por, ao mesmo tempo, não descender da raiz carregada); para um teste isolado use o wrong.host.
+                E <strong>atenção ao tráfego</strong>: cada handshake descarrega a cadeia de certificados completa, e as falhas pagam-se na mesma;
+                medidos, 30 handshakes rondam 150–200 KB.
+            </div>
+
+            <h4>🔴 Armadilha: ao fim de cerca de 20 aberturas e fechos seguidos, a pilha de dados degrada-se por inteiro</h4>
+            <div class="warning">
+                <strong>Sintoma: todos os <code>AT+QSSLOPEN</code> devolvem 552</strong>, nem com seclevel 0
+                se liga, e cada autodiagnóstico diz que está tudo bem. <strong>Triagem de 30 segundos</strong>: bata no mesmo destino
+                com o <code>AT+QIOPEN</code> de TCP puro —— também falha, então a pilha de dados está avariada; pare de vasculhar
+                as definições SSL. Reiniciar o PDP não salva: <strong>só o ritual de arranque completo recupera</strong>.
+                A degradação contamina os dados de teste e engana facilmente como «barrado pela verificação de certificados» ——
+                antes do teste aos pares, rearranque para limpar tudo.
+            </div>
+
+            <h4>Resolução de problemas</h4>
+            <table>
+                <tr><th>Sintoma</th><th>Causa e solução</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>Falha na verificação do certificado. Verifique por ordem: o <code>sni</code> está ligado? (o mais comum),
+                        a raiz do <code>cacert</code> é a certa?, o certificado em si está estragado?;
+                        as três definições voltam a zero a cada rearranque</td></tr>
+                <tr><td>Depois do <code>OK</code> nada acontece</td>
+                    <td>O <code>OK</code> significa apenas «aceite»; o resultado vem por URC, esperando no máximo
+                        150 segundos + <code>negotiatetime</code></td></tr>
+                <tr><td>A porta AT encrava e ignora todos os comandos</td>
+                    <td>Comprimento do <code>AT+QSSLSEND</code> mal calculado: presa no modo de dados a engolir comandos ——
+                        envie um ESC (0x1B) com o botão de bytes em bruto da página Hardware para se libertar</td></tr>
+            </table>
+
+            <h3 id="tab-http">HTTP —— pedidos web</h3>
+            <p><strong>Princípio de funcionamento:</strong> o HTTP do módulo é <strong>em três atos</strong>:
+            primeiro define-se o URL (um passo que, por sua vez, é em duas fases), depois faz-se o pedido (GET/POST) e por fim lê-se a resposta.
+            O resultado de cada ato não está no <code>OK</code>, mas no URC que chega depois ——
+            por isso o <code>AT+QURCCFG="urcport"</code> tem de ser <code>"uart1"</code> (muda-se na página Hardware);
+            senão, não se vê resultado nenhum. Todos os dados foram medidos no equipamento real em agosto de 2026.</p>
+
+            <h4>Antes de começar: tenha primeiro o canal de dados</h4>
+            <p>O pré-requisito é o PDP ativo e com IP (o <code>AT+QIACT=1</code> da página TCP/IP).
+            O <strong>grupo Connect</strong> desta página só tem verificações de leitura:
+            <code>AT+CPIN?</code>/<code>AT+CGATT?</code>/<code>AT+CGREG?</code>/
+            <code>AT+QIACT?</code>, <code>AT+QIDNSCFG=1</code> (DNS 0.0.0.0 = não atribuído),
+            <code>AT+QIGETERROR</code> (⚠ só vale para o último comando TCP/IP;
+            depois de uma falha, prima-o <strong>imediatamente</strong>).</p>
+            <div class="warning">
+                <strong>O <code>AT+QIACT?</code> engana.</strong> Em teste apanhou-se uma deriva do PDP a meio:
+                todos os pedidos falhavam, com <strong>timeout fixo de 30 segundos</strong> e erro 716,
+                e o <code>AT+QIACT?</code> continuava a devolver um IP. Cruze com o <code>AT+CGACT?</code>:
+                se não baterem certo, é deriva. Reparação: <code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;cid da deriva&gt;</code> → <code>AT+QIACT=1</code>,
+                e só continue depois de um ping passar.
+            </div>
+
+            <h4>O primeiro GET: quatro passos</h4>
+            <ol>
+                <li><strong>Configuração prévia</strong> (grupo Config, zero tráfego): no cartão de parâmetros
+                    <code>contextid</code> ponha 1 (o PDP context a usar); os três interruptores <code>rspout/auto</code>,
+                    <code>requestheader</code> e <code>responseheader</code> ficam a 0
+                    (a razão vem adiante); <code>AT+QHTTPCFG?</code> lê todas as definições de uma vez para conferir,
+                    e <code>AT+QHTTPCFG=?</code> lista os itens configuráveis.</li>
+                <li><strong>Definir o URL (duas fases)</strong>: o cartão do <code>AT+QHTTPURL</code> só tem um botão
+                    «Enviar (duas fases)» —— você preenche o URL, o comprimento é calculado pelo programa. Fluxo: envia-se primeiro
+                    <code>AT+QHTTPURL=&lt;comprimento&gt;,80</code>, espera-se o <code>CONNECT</code>
+                    que entra no modo de dados, e mandam-se os bytes do URL tal e qual, <strong>sem nenhum fim de linha</strong>
+                    (um CR/LF entraria no comprimento).
+                    <code>http://www.example.com/</code> tem exatamente comprimento 23. No fim, releia com
+                    <code>AT+QHTTPURL?</code>: igual letra a letra = não se infiltrou nenhum fim de linha.</li>
+                <li><strong>Fazer o pedido</strong>: <code>AT+QHTTPGET=80</code> (segundos de espera pela resposta).
+                    O <code>OK</code> significa apenas «comando aceite»; o resultado a sério é o URC posterior
+                    <code>+QHTTPGET: 0,200</code>; a interpretação vem no parágrafo seguinte.</li>
+                <li><strong>Ler a resposta</strong>: <code>AT+QHTTPREAD=80</code>.
+                    Depois do <code>CONNECT</code> vêm só bytes em bruto (no example.com mediram-se
+                    559 bytes), seguidos do <code>OK</code> ——
+                    mas <strong>a marca de fim é o <code>+QHTTPREAD: 0</code> sozinho na última linha</strong>.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="Separador HTTP">
+                <figcaption>Página HTTP: os quatro grupos Config/Connect/Transfer/Close.</figcaption>
+            </figure>
+
+            <h4>Interpretar o +QHTTPGET: a primeira coluna não é o código de estado HTTP</h4>
+            <p>Os URC de resultado de GET/POST/POSTFILE têm três colunas,
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code>:
+            <code>err</code> <strong>0 = o comando executou com sucesso</strong>; diferente de 0 é erro da camada do módulo (716, 711…);
+            <code>httprspcode</code> é o código de estado HTTP, <strong>reportado apenas quando err=0</strong>
+            (o manual di-lo expressamente; a ferramenta traz anotações para 200/403/404/409/411/500);
+            <code>content_length</code> é opcional —— só existe se o cabeçalho da resposta trouxer CONTENT-LENGTH,
+            e um GET normal traz muitas vezes só duas colunas. Portanto o <code>+QHTTPGET: 0,404,0</code> medido
+            <strong>não é uma falha</strong>: o comando teve sucesso; foi o servidor que disse «não encontrado».</p>
+
+            <h4>Ler a resposta: as armadilhas do AT+QHTTPREAD</h4>
+            <p>O parâmetro é «o intervalo máximo, em segundos, entre dois pacotes de dados», não a duração total.
+            <strong>O firmware desta unidade só aceita um parâmetro</strong>: a leitura por troços
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> da application note devolveu em teste um
+            <code>ERROR</code> nu (comprovado pela sondagem com <code>=?</code>), e o botão foi removido ——
+            para ler por troços use o <code>GETEX</code>.</p>
+            <div class="warning">
+                <strong>Armadilha de interbloqueio: com <code>rspout/auto</code> a 1, os READ falham todos</strong>
+                (o manual di-lo expressamente). Ele faz o módulo despejar a resposta sozinho, ao preço de aniquilar os READ;
+                por isso esse botão tem caixa de confirmação. Se os READ caírem todos de repente, consulte primeiro <code>AT+QHTTPCFG?</code>.
+            </div>
+
+            <h4>Ler por troços: AT+QHTTPGETEX byte a byte</h4>
+            <p><code>AT+QHTTPGETEX=&lt;segundos&gt;,&lt;offset inicial&gt;,&lt;comprimento&gt;</code>
+            usa o HTTP Range para apanhar só o troço indicado e poupar tráfego. Medido (endpoint com conteúdo fixo
+            <code>abcdefghijklmnop</code>): offset 0, comprimento 8 devolve <code>+QHTTPGET: 0,206,8</code>
+            e lê-se <code>abcdefgh</code>; offset 8, mais 8, lê-se <code>ijklmnop</code>.
+            Interpretação: <strong>o código de estado tem de ser 206</strong>; um <strong>200 com o mesmo conteúdo de cada vez</strong>
+            = o servidor não suporta Range, não é o módulo avariado.
+            ⚠ Só executa com <code>requestheader=0</code>.</p>
+
+            <h4>POST: duas fases e Content-Type</h4>
+            <p>O cartão do <code>AT+QHTTPPOST</code> também é em duas fases: você preenche o body, o comprimento é calculado; envia-se primeiro
+            <code>AT+QHTTPPOST=&lt;comprimento&gt;,&lt;segundos de entrada&gt;,&lt;segundos de resposta&gt;</code>,
+            espera-se o <code>CONNECT</code> e manda-se o body. Três coisas:</p>
+            <ul>
+                <li><strong>O <code>CONNECT</code> pode demorar até 125 segundos</strong> (o manual di-lo expressamente) ——
+                    o timeout de espera do prompt tem de cobrir os 125 segundos; não herde os 5 segundos do MQTT.</li>
+                <li>Body até 1 MB (gama medida com <code>=?</code>: 1–1024000).</li>
+                <li>O Content-Type define-se antes, no cartão de parâmetros <code>contenttype</code>
+                    (código de tipo 0 = form-urlencoded).</li>
+            </ul>
+            <p>Medido: POST de <code>Message=HelloQuectel</code> (20 bytes) devolveu
+            <code>+QHTTPPOST: 0,200,440</code>; o JSON lido no READ confirma que o par chave-valor chegou,
+            que o comprimento estava certo e que o Content-Type surtiu efeito; o User-Agent auto-reportado pelo módulo é
+            <code>QUECTEL_MODULE</code>.</p>
+
+            <h4>Cabeçalhos personalizados e cabeçalhos da resposta</h4>
+            <ul>
+                <li><code>reqheader/add</code>: acrescenta um cabeçalho de pedido personalizado (o manual não traz exemplo);
+                    o botão de consulta mostra quantos já foram acrescentados; <code>reqheader/remove</code> remove.</li>
+                <li><code>requestheader</code> a 1 = monta você mesmo o cabeçalho de pedido inteiro; até o GET passa a duas fases,
+                    e o <code>GETEX</code> deixa de funcionar. No dia a dia, mantenha 0.</li>
+                <li><code>responseheader</code> a 1 faz o READ despejar também os cabeçalhos da resposta HTTP
+                    (em teste até um X-Test personalizado veio de volta). Terminado o teste, volte a 0.</li>
+                <li><code>closed/ind</code>: liga o URC de aviso «a sessão foi fechada».</li>
+            </ul>
+
+            <h4>Versão com ficheiros: POSTFILE e READFILE (UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="ficheiro",&lt;segundos&gt;</code> envia um POST usando como body um ficheiro
+            do sistema de ficheiros do módulo (UFS); <code>AT+QHTTPREADFILE="ficheiro",&lt;segundos&gt;</code> guarda a resposta
+            num ficheiro da UFS. ⚠ Esta ferramenta, por agora, <strong>não consegue carregar ficheiros para a UFS nem ler
+            o conteúdo de ficheiros da UFS</strong>; estes dois comandos destinam-se a fluxos do lado do firmware.</p>
+
+            <h4>HTTPS: o caminho sem verificação</h4>
+            <p>HTTPS = HTTP + SSL context. O grupo Connect traz preparado o caminho mais curto; prima os cinco por ordem:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← o HTTP passa a usar o SSL context 1
+AT+QSSLCFG="sslversion",1,4        ← a versão TLS fica para o servidor negociar
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← conjuntos de cifras todos abertos
+AT+QSSLCFG="seclevel",1,0          ← não verifica o certificado (ver abaixo)
+AT+QSSLCFG="sni",1,1               ← liga o SNI (de fábrica é 0!)</pre>
+            <p>Depois, troque o URL para começar por <code>https://</code> e faça GET/READ como sempre ——
+            em teste, o HTML lido foi letra a letra igual ao da versão em claro.
+            <strong>O <code>seclevel=0</code> (sem verificar certificados) é o único caminho que esta ferramenta percorre até ao fim</strong>
+            —— para verificar certificados é preciso escrever antes o certificado CA na UFS; os detalhes de SSL (o <code>AT+QSSLCFG=?</code>
+            lista todos os subitens, o <code>negotiatetime</code> ajusta a espera do handshake) estão na secção «SSL —— o túnel TLS».
+            <strong>O SNI vem de fábrica a 0</strong>: sem o ligar, os sites HTTPS em IP partilhado entregam um certificado que não corresponde
+            e a verificação falha logo. <strong>A cadeia de certificados é o grosso do tráfego</strong>: uma ronda de HTTPS GET ronda 8–15 KB,
+            em claro fica-se por cerca de 1 KB.</p>
+
+            <h4>Redirecionamentos e arrumação</h4>
+            <p><strong>Redirecionamentos (o manual não os descreve; esclarecido em teste)</strong>: o módulo segue automaticamente os 302, mas
+            <strong>só aceita Location com caminho absoluto</strong> —— um caminho relativo devolve logo o erro 711,
+            falhando de imediato em 1 milissegundo. <strong>Arrumação</strong>:
+            <code>AT+QHTTPSTOP</code> (grupo Close) cancela o pedido em curso e corta a sessão;
+            com o estado esquisito, ou perante o erro 704 (modo de dados ocupado), prima-o primeiro para limpar tudo.</p>
+
+            <h4>Resolução de problemas</h4>
+            <table>
+                <tr><th>Sintoma</th><th>Causa e solução</th></tr>
+                <tr><td>Não se vê nenhum URC de resultado</td><td>O <code>urcport</code> não é <code>uart1</code>;
+                    mude na página Hardware</td></tr>
+                <tr><td>Todos os URL dão 716, com timeout fixo de 30 segundos</td>
+                    <td>Deriva do PDP; ver o aviso acima</td></tr>
+                <tr><td>Um único URL devolve 716</td><td>Em teste, a falha de DNS também dá 716 (e não o
+                    714 que os documentos antigos supunham); o 705 do READ a seguir é o encadeamento normal</td></tr>
+                <tr><td><code>READ</code>/<code>GETEX</code> falham de repente</td>
+                    <td><code>rspout/auto</code> e <code>requestheader</code>
+                        têm ambos de estar a 0 (ver acima)</td></tr>
+                <tr><td>O <code>AT</code> não responde a nada</td>
+                    <td>O módulo pendurou-se (aconteceu em teste; o manual não o descreve) —— repita o ritual de arranque</td></tr>
+            </table>
+
+            <h3 id="tab-ftp">FTP —— transferência de ficheiros</h3>
+            <p><strong>Princípio de funcionamento:</strong> o FTP tem <strong>dois canais</strong>: o canal de controlo leva os comandos,
+            o canal de dados leva o conteúdo dos ficheiros. Login, renomear, apagar e consultar tamanhos vão só pelo canal de controlo;
+            LIST, upload e download exigem <strong>abrir uma ligação de dados à parte</strong> ——
+            e daí vem a maioria das esquisitices desta secção (as rajadas de 615 e 603).
+            A regra geral da Quectel que atravessa toda a secção: <strong>o <code>OK</code> significa apenas «comando aceite»</strong>;
+            o resultado a sério chega depois, por URC. Todas as respostas e números desta secção são medições de agosto de 2026 num EG800K físico.</p>
+
+            <h4>Antes de começar: dois pré-requisitos</h4>
+            <ul>
+                <li><strong>O PDP tem de estar ativo</strong>: o primeiro botão desta página, <code>AT+QIACT?</code>, faz exatamente essa verificação ——
+                    só se continua se vier <code>+QIACT: 1,1,…,"IP"</code>; se só vier OK, vá primeiro à página TCP/IP e prima
+                    Act PDP (com o PDP desativado o QFTPOPEN falha de certeza).</li>
+                <li><strong>Os URC têm de sair pela UART</strong>: os comandos FTP são quase todos «primeiro OK, resultado depois por URC»;
+                    se o <code>AT+QURCCFG="urcport"</code> não for <code>"uart1"</code>,
+                    aqui só se vê uma pilha de OK (a definição está na página Hardware).</li>
+            </ul>
+
+            <h4>O percurso de login: configurar → abrir → esperar o URC</h4>
+            <ol>
+                <li><strong>Vincular o PDP context</strong>: <code>AT+QFTPCFG="contextid",1</code>
+                    (de fábrica já é 1; o botão de consulta relê para confirmar).</li>
+                <li><strong>Definir as credenciais</strong>: <code>AT+QFTPCFG="account","utilizador","password"</code>,
+                    <strong>obrigatoriamente antes do QFTPOPEN</strong>.</li>
+                <li><strong>Modo e tipo</strong>: <code>transmode</code> a 1
+                    (passivo; atrás de NAT use-o sempre, e no FTPS é obrigatório);
+                    <code>filetype</code> a 1 para ficheiros de texto puro, 0 para o resto.</li>
+                <li><strong>Login</strong>: <code>AT+QFTPOPEN="host",21</code> responde OK de imediato (é só a aceitação);
+                    o login só é bem-sucedido com <code>+QFTPOPEN: 0,0</code> (até 125 segundos).
+                    Prima depois <code>AT+QFTPSTAT</code>, que deve devolver 1 (ocioso; 2 = a transferir, 3 = a fechar).</li>
+            </ol>
+            <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK                ← significa apenas comando aceite
++QFTPOPEN: 0,0    ← só esta linha é o login bem-sucedido</pre>
+            <p>Restantes itens de configuração: <code>AT+QFTPCFG=?</code> lista num clique os 10 itens configuráveis e as gamas (zero tráfego).
+            O <code>rsptimeout</code> (20–180, por omissão 90 segundos) é o tempo máximo de resposta da maioria dos comandos
+            e também o intervalo máximo entre dois pacotes no modo de dados; <code>ssltype</code>/<code>sslctxid</code> são
+            para FTPS (em FTP puro mantenha 0; os parâmetros SSL definem-se na página SSL);
+            <code>data_address</code>/<code>cache</code>/<code>restenable</code>
+            são afinações para ambientes especiais; a utilidade está nas dicas dos botões e no manual.</p>
+            <div class="tip">
+                <strong>Mascaramento da password (medido, em desacordo com o manual):</strong> ao consultar <code>AT+QFTPCFG="account"</code>,
+                a password vem mascarada com <code>*</code> (o manual diz que é impressa tal e qual). Mas o utilizador continua em claro,
+                e <strong>a password da linha de escrita também vai em claro</strong>; em capturas de ecrã e gravações, o perigo está na linha de escrita.
+            </div>
+            <div class="warning">
+                <strong>🔴 O <code>AT+QFTPCLOSE</code> é assíncrono —— o <code>OK</code> não significa que fechou.</strong>
+                O logout só está completo com <code>+QFTPCLOSE: 0,0</code>; entretanto o <code>AT+QFTPSTAT</code>
+                devolve 3 (a fechar) e qualquer comando FTP <strong>responde sempre <code>+CME ERROR: 603</code></strong> (servidor ocupado).
+                <br><br>
+                O sintoma é altamente enganador: uma série de 603 parece o módulo avariado ou um bloqueio do servidor,
+                mas é só o fecho ainda por acabar (no próprio dia dos testes deu-se uma volta enorme por causa disto). O limite de espera = rsptimeout.
+                E ele só faz o logout do FTP; para repor a rede por completo, prima Deact PDP na página TCP/IP.
+            </div>
+
+            <h4>Gestão de diretórios e ficheiros: o servidor como gestor de ficheiros</h4>
+            <p>O conjunto completo de operações de ficheiros no servidor (LIST/NLST/MLSD abrem ligação de dados; as restantes vão só pelo canal de controlo).
+            A resposta de sucesso é sempre <code>+QFTPXXX: 0,…</code> —— primeiro número 0 é sucesso:</p>
+            <table>
+                <tr><th>Comando</th><th>O que faz</th><th>Resposta de sucesso (medida)</th></tr>
+                <tr><td><code>AT+QFTPPWD</code></td><td>Consulta o diretório de trabalho atual</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+                <tr><td><code>AT+QFTPCWD</code></td><td>Muda o diretório de trabalho, base das operações seguintes</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPLIST</code></td><td>Despeja a listagem completa no terminal (dois botões: diretório atual/diretório indicado)</td><td>Depois do conteúdo, <code>+QFTPLIST: 0,1175</code> (o número final = bytes)</td></tr>
+                <tr><td><code>AT+QFTPNLST</code>/<code>AT+QFTPMLSD</code></td><td>Só os nomes (poupa tráfego)/formato padrão MLSD (fácil de interpretar)</td><td>Igual ao LIST</td></tr>
+                <tr><td><code>AT+QFTPSIZE</code></td><td>Consulta o tamanho do ficheiro, sem descarregar o conteúdo</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+                <tr><td><code>AT+QFTPMDTM</code></td><td>Consulta a hora de modificação, sem descarregar o conteúdo</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+                <tr><td><code>AT+QFTPMKDIR</code>/<code>AT+QFTPRMDIR</code></td><td>Cria/apaga pastas</td><td><code>…: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPRENAME</code></td><td>Renomeia ficheiro ou pasta</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPDEL</code></td><td>Apaga ficheiros</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+            </table>
+            <p>Um truque (sequência inteira validada em teste): <strong>usar o SIZE como teste de existência</strong> ——
+            depois de renomear, consultar o nome antigo devolve <code>+QFTPSIZE: 627,550</code> e o novo devolve <code>0,20</code>;
+            depois de apagar, a consulta volta a dar <code>627,550</code> —— cada passo fica validado sem descarregar um único byte.
+            O <code>627,550</code> são <strong>duas camadas de códigos de erro</strong>: 627 = camada do módulo, «o FTP não executou a ação pedida»;
+            550 = camada do protocolo FTP, resposta do servidor «ficheiro ou diretório inexistente»; as anotações desta ferramenta traduzem camada a camada.</p>
+
+            <h4>Download: o conteúdo impresso diretamente no terminal (COM:)</h4>
+            <p><code>AT+QFTPGET="ficheiro","COM:"</code> —— depois do <code>CONNECT</code>, o conteúdo do ficheiro é despejado no terminal,
+            rematado por <code>+QFTPGET: 0,&lt;bytes&gt;</code> (medido com o readme.txt: 0,379).
+            O outro botão, de <strong>download por blocos</strong>, leva ainda os parâmetros de início e comprimento, e é a forma de download mais recomendada:
+            consulte primeiro o tamanho com o SIZE e traga por blocos, evitando que o ficheiro inteiro rebente o tráfego.
+            O <code>AT+QFTPLEN</code> consulta quantos bytes o último PUT/GET/LIST/NLST transferiu de facto.</p>
+
+            <h4>Upload: duas fases; ao perfazer o comprimento declarado, termina sozinho</h4>
+            <p><code>AT+QFTPPUT="ficheiro","COM:",0,&lt;comprimento&gt;,1</code> é um comando em duas fases:
+            depois do <code>CONNECT</code> (entrada no modo de dados) enviam-se <strong>exatamente</strong> os bytes do comprimento declarado,
+            e o módulo, ao perfazer a conta, sai sozinho do modo de dados, sem Ctrl+Z. Esta ferramenta calcula o comprimento automaticamente: basta colar o conteúdo no cartão de parâmetros.</p>
+            <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT                        ← entrada no modo de dados
+NuModem-P6-FTP-test\n          ← enviam-se exatamente 20 bytes
+OK
++QFTPPUT: 0,20                 ← o servidor recebeu 20 bytes</pre>
+            <p>Estes 20 bytes foram propositadamente trazidos de volta do lado do host com o ftplib do Python e comparados byte a byte —— coincidência total.
+            <strong>A forma com escala na UFS</strong>: o manual também aceita o nome escrito como <code>"UFS:xxx"</code>,
+            fazendo escala na memória interna do módulo; os detalhes estão na application note de FTPS. Para pôr antes um ficheiro do computador na UFS,
+            use o botão Upload do grupo «ficheiros UFS» da página SSL (<code>AT+QFUPL</code>, pela UART com zero tráfego
+            e comparação automática de checksum).</p>
+            <div class="warning">
+                <strong>⚠ Para o FTP, o <code>+++</code> é «abortar», não «pausar».</strong>
+                O manual (FTPS AN v1.5, p. 13) diz que depois da fuga se pode voltar ao modo de dados com <code>ATO</code> e retomar,
+                <strong>mas em teste não se confirma</strong> (dois ensaios, mesmo resultado): depois da fuga o <code>AT+QFTPSTAT</code>
+                devolve 1 (ocioso) e não 2 (a transferir), e o <code>ATO</code> responde <code>NO CARRIER</code> ——
+                a transferência foi abortada por inteiro e não há ligação a retomar. Portanto o <code>+++</code> serve só para escapar de um
+                modo de dados fora de controlo, não para pausar o download de um ficheiro grande.
+                <br><br>
+                A forma correta de o enviar: <strong>1 segundo de silêncio antes e depois, em bytes em bruto, sem CR</strong> (com CR não funciona) ——
+                o botão <code>+++</code> desta página já cumpre a regra; o botão <code>ATO</code> fica, com a semântica do manual.
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="Separador FTP">
+                <figcaption>Página FTP: configuração do login, gestão de diretórios e ficheiros, upload e download.</figcaption>
+            </figure>
+
+            <h4>Resolução de problemas</h4>
+            <table>
+                <tr><th>Sintoma</th><th>Causa e solução</th></tr>
+                <tr><td>Rajada de <code>+CME ERROR: 603</code></td>
+                    <td>① Depois do QFTPCLOSE ainda está a fechar (QFTPSTAT devolve 3) —— espere o <code>+QFTPCLOSE: 0,0</code>;
+                        ② houve antes um 615 —— <strong>depois de um 615, todos os comandos FTP dão 603</strong>, até um fecho correto</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>Falha na abertura da ligação de dados: <strong>canal de controlo saudável, canal de dados aniquilado</strong>
+                        (o SIZE responde; PUT/GET/LIST caem todos). Quase sempre é problema do servidor ——
+                        o dlptest falhou por dois caminhos de rede diferentes, o rebex passou sem uma falha;
+                        para leituras use o rebex, para escritas use o dlptest e despache tudo de uma vez</td></tr>
+                <tr><td><code>627,550</code></td>
+                    <td>Ficheiro ou diretório inexistente —— nome ou caminho mal escritos; confirme primeiro onde está com QFTPPWD/QFTPLIST</td></tr>
+                <tr><td>Depois do rearranque, o primeiro PUT já dá 615</td>
+                    <td>Degradação da pilha de dados: nem o QFTPCLOSE nem o reinício do PDP salvam;
+                        <strong>só o ritual de arranque completo recupera</strong>. Triagem: bata no mesmo destino com o
+                        <code>AT+QIOPEN</code> da página TCP/IP —— também falha = a pilha inteira está avariada; pare de vasculhar as definições FTP</td></tr>
+                <tr><td>O comando responde OK e depois nada acontece</td>
+                    <td>Os URC de resultado foram para a porta USB —— confira se o <code>AT+QURCCFG="urcport"</code>
+                        é uart1</td></tr>
+                <tr><td>O <code>AT+QFTPOPEN</code> falha logo</td>
+                    <td>PDP desativado —— prima primeiro o <code>AT+QIACT?</code> desta página; sem IP, vá à página TCP/IP e prima Act PDP</td></tr>
+            </table>
+
+            </section>
+
+        <section id="method">
+            <h2><span class="icon">🧪</span> Método de teste</h2>
+
+            <p>Esta secção é sobre «como testar sem chegar a conclusões falsas». Tudo isto foi aprendido a bater com a cabeça.</p>
+
+            <h3>O OK quase nunca significa «concluído»</h3>
+            <p>Os módulos Quectel têm um padrão comum: <strong>responder primeiro <code>OK</code> para dizer que o comando foi aceite,
+            e mandar o verdadeiro resultado por URC</strong>. Pertencem a este grupo
+            <code>QIOPEN</code>, <code>QSSLOPEN</code>, <code>QMTOPEN</code>,
+            <code>QFTPOPEN</code> e <strong>o mais esquecido de todos, o <code>QFTPCLOSE</code></strong>.
+            Tomar o <code>OK</code> por conclusão e avançar logo para a ação seguinte foi a causa do maior desperdício de tempo neste projeto.</p>
+
+            <h3>Sem grupo de controlo não se tiram conclusões</h3>
+            <p>Dois exemplos:</p>
+            <ul>
+                <li><strong>Verificação de certificados</strong>: se só se testar «o certificado mau não liga», «nada liga» também passa.
+                    É preciso provar em simultâneo que o certificado bom liga.</li>
+                <li><strong>Aceleração AGNSS</strong>: o 7-2, «TTFF de arranque a frio», é à partida o grupo de controlo do 7-4.
+                    Dentro de casa, sem sinal de satélite, nenhum dos dois obtém posição, e o teste só produz «ambos falharam».</li>
+            </ul>
+
+            <h3>No fim de cada ronda de testes, correr uma verificação de saúde</h3>
+            <p>O módulo degrada-se. Ao fim de cerca de 20 ciclos seguidos de abrir e fechar ligações,
+            entra num estado em que «o canal de controlo continua vivo e o canal de dados está todo morto» ——
+            e ainda por cima o <code>QSSLSTATE</code> está vazio, o <code>QIACT?</code> mostra IP
+            e o <code>QIGETERROR</code> devolve 0, ou seja, <strong>parece tudo perfeitamente normal</strong>.</p>
+            <p>Este estado contamina os dados de teste. Aconteceu mesmo: durante a degradação, alguns hosts também não ligavam com a «verificação desligada»,
+            e isso quase foi tomado por resultado da verificação de certificados. <strong>Antes de fechar cada ronda, valide com um alvo que se sabe estar acessível</strong>;
+            só assim os dados são de fiar.</p>
+            <div class="tip">
+                <strong>Como distinguir: aponte um <code>AT+QIOPEN</code> de TCP puro ao mesmo alvo.</strong>
+                Se também falhar, o problema não está na camada SSL / FTP: é a pilha de dados inteira que está partida.
+                <br>
+                Recuperação: <strong>só o ritual de arranque completo resolve</strong>.
+                <code>QIDEACT</code> + <code>QIACT</code> não salva nada.
+            </div>
+
+            <h3>Sondagem sem tráfego: <code>AT+Q...=?</code></h3>
+            <p>A forma de teste (<code>=?</code>) <strong>não toca na rede nem custa dinheiro</strong>,
+            e devolve as gamas de parâmetros que este firmware realmente suporta ——
+            mais fiável do que as notas de aplicação, que são partilhadas por uma série inteira de módulos.
+            Foi assim que este projeto apanhou a discrepância entre as gamas do scan Wi-Fi e o manual.</p>
+
+            <h3>Provar que «foi mesmo transmitido corretamente» exige reler a partir de terceiros</h3>
+            <p><code>+QFTPPUT: 0,20</code> é só o módulo a declarar que enviou 20 bytes.
+            O teste real foi ir buscar o ficheiro com outro cliente FTP a partir do computador e compará-lo byte a byte ——
+            só assim se excluem ao mesmo tempo as hipóteses «o módulo contou mal» e «o servidor guardou mal».</p>
+
+            <h3>Tráfego</h3>
+            <p>O <code>AT+QGDCNT?</code> devolve dois totais de bytes: «enviados,recebidos».
+            ⚠ <strong>Este contador não é guardado em NV e vai a zero sempre que o módulo reinicia</strong>;
+            e o <code>AT+QAUGDCNT</code> não é um contador acumulado, é a definição do «intervalo de gravação automática» (0 = desativado).
+            Para acumular ao longo de várias fases é preciso <strong>registar cada fase na altura</strong>; depois não há como recuperar.</p>
+            <p>Números de referência: o handshake TLS é muito mais caro do que a intuição sugere,
+            porque <strong>cada handshake descarrega a cadeia de certificados completa, e os handshakes falhados pagam-se na mesma</strong>.
+            Nos testes, 11 handshakes consumiram 15,3 KB de TX e 59,6 KB de RX.</p>
+        </section>
+
+        <section id="faq">
+            <h2><span class="icon">❓</span> Perguntas frequentes</h2>
+
+            <h3>P: Cliquei em Ligar, mas não aparece nenhuma porta na lista</h3>
+            <p>Verifique três coisas: (1) se abriu a página com <code>file://</code> —— a Web Serial é bloqueada;
+            (2) se o controlador do USB-UART está instalado; (3) se o navegador é Chrome / Edge / Opera.</p>
+
+            <h3>P: Os comandos saem, mas o módulo não responde de todo</h3>
+            <p>Em nove de cada dez casos é <strong>não ter corrido o ritual de arranque</strong>. No instante em que a porta série é aberta, o RTS volta a ser colocado em alto,
+            e nesta placa o RTS é um interruptor de alimentação de lógica negativa —— ligar equivale a cortar a corrente.
+            Vá ao separador Hardware, faça uma vez Power / Reset e espere pelo <code>RDY</code>.</p>
+            <p>A seguir vem o <strong>fim de linha posto em LF</strong>. O EG800K só aceita CR.</p>
+
+            <h3>P: Todos os comandos respondem OK, mas não chega nenhum URC</h3>
+            <p>Envie <code>AT+QURCCFG="urcport"</code>. O valor de fábrica é <code>usbat</code>,
+            portanto os URC vão todos parar à porta USB. Mude para <code>uart1</code>; isto escreve na NVRAM e basta configurar uma vez.</p>
+
+            <h3>P: O terminal bloqueou, escrevo o que escrever não acontece nada</h3>
+            <p>Está quase de certeza em <strong>modo de dados</strong> —— algum comando de duas fases ficou com o comprimento errado
+            e o módulo continua à espera que complete os bytes.
+            Saia enviando <strong>ESC (0x1B)</strong> com o botão de bytes em bruto do separador Hardware.
+            No modo de dados do FTP, envie antes <code>+++</code> (1 segundo de silêncio antes e depois, sem CR).</p>
+
+            <h3>P: Recebo sempre <code>+CME ERROR: 603</code></h3>
+            <p>Se acabou de enviar <code>AT+QFTPCLOSE</code>, é <strong>o fecho que ainda não terminou</strong>.
+            Espere que apareça <code>+QFTPCLOSE: 0,0</code> e só depois continue.</p>
+
+            <h3>P: Todas as ligações falham, mas o <code>AT+QIACT?</code> mostra que ainda há IP</h3>
+            <p>A pilha de dados do módulo degradou-se. Confirme apontando um <code>AT+QIOPEN</code> de TCP puro a um alvo que se sabe estar acessível ——
+            se também falhar, <strong>repita o ritual de arranque completo</strong>.
+            <code>QIDEACT</code> + <code>QIACT</code> não salva nada.</p>
+
+            <h3>P: Enviei dados para um servidor de eco mas não recebo eco nenhum</h3>
+            <p>Veja se o payload termina em <code>\n</code>. Muitos serviços de eco funcionam <strong>linha a linha</strong>
+            e sem mudança de linha não devolvem nada. Basta escrever os dois caracteres <code>\n</code> no campo:
+            a ferramenta descodifica-os para uma mudança de linha real antes de enviar, e o comprimento também fica certo.</p>
+
+            <h3>P: O GNSS nunca consegue obter posição</h3>
+            <p>Comece por ver se há satélites com <code>AT+QGPSGNMEA="GSV"</code>.
+            Dentro de casa normalmente não se apanha nem um, e nesse caso não é problema de configuração: é <strong>não haver vista para o céu</strong>.</p>
+
+            <h3>P: Como se muda a língua ou o tema?</h3>
+            <p>No canto superior direito. São 18 línguas e dois temas, claro e escuro, e as escolhas ficam memorizadas.
+            <strong>As descrições dos comandos AT e as anotações também são traduzidas</strong>, não apenas a interface.</p>
+
+            <h3>P: Esta ferramenta gasta o meu tráfego às escondidas?</h3>
+            <p>Não. É um único ficheiro HTML puramente de front-end, sem back-end.
+            Só geram tráfego móvel <strong>os comandos de dados que você próprio premir</strong>,
+            e isso está bem explicado na descrição desses botões. Os comandos de consulta e os de teste <code>=?</code> não tocam de todo na rede.</p>
+        </section>
+
+        <footer class="footer">
+            <p>NuModem EG800 —— desenvolvido por <a href="https://github.com/Nuxtack">Nuxtack</a></p>
+            <p>Todas as descrições de comportamento deste manual vêm de testes reais feitos em agosto de 2026 sobre um EG800K físico
+            (firmware <code>EG800KCNGCR07A06M04</code>).</p>
+        </footer>
+    </main>
+
+    <a href="#" class="back-to-top" aria-label="Voltar ao topo">↑</a>

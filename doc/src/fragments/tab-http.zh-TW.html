@@ -1,0 +1,152 @@
+<h3 id="tab-http">HTTP —— 網頁請求</h3>
+            <p><strong>工作原理：</strong>模組的 HTTP 是<strong>三段式</strong>的：
+            先設 URL（這一步本身又是兩段式）、再發請求（GET／POST）、最後把回應讀回來。
+            每一段的結果都不在 <code>OK</code> 裡，而是之後才到的 URC ——
+            所以 <code>AT+QURCCFG="urcport"</code> 必須是 <code>"uart1"</code>（Hardware 頁可改），
+            否則結果一個都看不到。數據皆為 2026-08 實機實測。</p>
+
+            <h4>開始之前：先有資料通道</h4>
+            <p>前提是 PDP 已啟用並拿到 IP（TCP/IP 頁的 <code>AT+QIACT=1</code>）。
+            本頁 <strong>Connect 群組</strong>只放唯讀檢查：
+            <code>AT+CPIN?</code>／<code>AT+CGATT?</code>／<code>AT+CGREG?</code>／
+            <code>AT+QIACT?</code>、<code>AT+QIDNSCFG=1</code>（DNS 0.0.0.0＝沒配到）、
+            <code>AT+QIGETERROR</code>（⚠ 只對最後一條 TCP/IP 指令有效，
+            失敗後要<strong>立刻</strong>按）。</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> 會騙人。</strong>實測遇過 PDP 中途漂移：
+                所有請求全部失敗、<strong>固定 30 秒逾時</strong>回錯誤 716，
+                <code>AT+QIACT?</code> 卻照樣回 IP。用 <code>AT+CGACT?</code> 交叉比對，
+                不一致就是漂移了。修法：<code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;漂移的 cid&gt;</code> → <code>AT+QIACT=1</code>，
+                ping 過再繼續。
+            </div>
+
+            <h4>第一次 GET：四個步驟</h4>
+            <ol>
+                <li><strong>前置設定</strong>（Config 群組，零流量）：<code>contextid</code>
+                    參數卡設 1（綁定要走的 PDP context）；<code>rspout/auto</code>、
+                    <code>requestheader</code>、<code>responseheader</code> 三個開關保持 0
+                    （理由見後）；<code>AT+QHTTPCFG?</code> 一次讀回全部設定核對、
+                    <code>AT+QHTTPCFG=?</code> 列出可設定項。</li>
+                <li><strong>設 URL（兩段式）</strong>：<code>AT+QHTTPURL</code> 卡片只有一顆
+                    「送出（兩段式）」鈕 —— 你填 URL，長度由程式自動算。流程：先送
+                    <code>AT+QHTTPURL=&lt;長度&gt;,80</code>，等 <code>CONNECT</code>
+                    進入資料模式，再把 URL 位元組原樣送出、<strong>不加任何行尾</strong>
+                    （CR/LF 會被算進長度）。
+                    <code>http://www.example.com/</code> 長度恰是 23。送完按
+                    <code>AT+QHTTPURL?</code> 讀回，逐字相同＝行尾沒混進去。</li>
+                <li><strong>發請求</strong>：<code>AT+QHTTPGET=80</code>（等回應秒數）。
+                    <code>OK</code> 只代表「收下指令」，真正結果是稍後的 URC
+                    <code>+QHTTPGET: 0,200</code>，判讀見下段。</li>
+                <li><strong>讀回應</strong>：<code>AT+QHTTPREAD=80</code>。
+                    <code>CONNECT</code> 之後全是原始位元組（實測 example.com 為
+                    559 bytes），接著 <code>OK</code> ——
+                    但<strong>最後獨立一行的 <code>+QHTTPREAD: 0</code> 才是結束標記</strong>。</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="HTTP 頁簽">
+                <figcaption>HTTP 頁：Config／Connect／Transfer／Close 四個群組。</figcaption>
+            </figure>
+
+            <h4>判讀 +QHTTPGET：第一欄不是 HTTP 狀態碼</h4>
+            <p>GET／POST／POSTFILE 的結果 URC 都是
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code> 三欄：
+            <code>err</code> <strong>0 ＝ 指令執行成功</strong>、非 0 是模組層錯誤（716、711…）；
+            <code>httprspcode</code> 是 HTTP 狀態碼，<strong>只在 err=0 時才回報</strong>
+            （手冊明載；工具內建 200／403／404／409／411／500 對照註解）；
+            <code>content_length</code> 選填 —— 伺服器回應標頭有 CONTENT-LENGTH 才有，
+            一般 GET 常常只有兩欄。所以實測的 <code>+QHTTPGET: 0,404,0</code>
+            <strong>不是失敗</strong>：指令成功了，是伺服器說找不到。</p>
+
+            <h4>讀回應：AT+QHTTPREAD 的陷阱</h4>
+            <p>參數是「兩包資料間的最大間隔秒數」，不是總時長。
+            <strong>本機韌體只吃一個參數</strong>：應用文件的
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> 分段讀法實測回裸
+            <code>ERROR</code>（<code>=?</code> 探測證實），按鈕已移除 ——
+            分段取回改用 <code>GETEX</code>。</p>
+            <div class="warning">
+                <strong>互鎖陷阱：<code>rspout/auto</code> 一設 1，READ 類一律失敗</strong>
+                （手冊明載）。它讓模組自動吐回應，代價是 READ 類全滅，
+                所以這顆按鈕有確認對話框。READ 突然全掛，先查 <code>AT+QHTTPCFG?</code>。
+            </div>
+
+            <h4>分段取回：AT+QHTTPGETEX 逐 byte 讀</h4>
+            <p><code>AT+QHTTPGETEX=&lt;秒&gt;,&lt;起始位移&gt;,&lt;長度&gt;</code>
+            走 HTTP Range 只抓指定片段、省流量。實測（端點內容固定為
+            <code>abcdefghijklmnop</code>）：位移 0 取 8 回 <code>+QHTTPGET: 0,206,8</code>、
+            讀出 <code>abcdefgh</code>；位移 8 再取 8 讀出 <code>ijklmnop</code>。
+            判讀：<strong>狀態碼必須是 206</strong>；回 <strong>200 且每次內容一樣</strong>
+            ＝伺服器不支援 Range，不是模組壞掉。
+            ⚠ 只在 <code>requestheader=0</code> 時可執行。</p>
+
+            <h4>POST：兩段式與 Content-Type</h4>
+            <p><code>AT+QHTTPPOST</code> 卡片也是兩段式：你填 body、長度自動算，先送
+            <code>AT+QHTTPPOST=&lt;長度&gt;,&lt;輸入秒&gt;,&lt;回應秒&gt;</code>，
+            等 <code>CONNECT</code> 再送 body。三件事：</p>
+            <ul>
+                <li><strong><code>CONNECT</code> 最長要等 125 秒</strong>（手冊明載）——
+                    等提示符的逾時要設足 125 秒，別沿用 MQTT 的 5 秒。</li>
+                <li>body 上限 1 MB（<code>=?</code> 實測範圍 1–1024000）。</li>
+                <li>Content-Type 先用 <code>contenttype</code> 參數卡設好
+                    （型別碼 0 ＝ form-urlencoded）。</li>
+            </ul>
+            <p>實測：POST <code>Message=HelloQuectel</code>（20 bytes）回
+            <code>+QHTTPPOST: 0,200,440</code>；READ 回的 JSON 可驗證鍵值送達、
+            長度算對、Content-Type 生效，User-Agent 是模組自報的
+            <code>QUECTEL_MODULE</code>。</p>
+
+            <h4>自訂標頭與回應標頭</h4>
+            <ul>
+                <li><code>reqheader/add</code>：加單條自訂請求標頭（手冊未附實例）；
+                    查詢鈕可查目前加了幾條；<code>reqheader/remove</code> 移除。</li>
+                <li><code>requestheader</code> 設 1 ＝ 整份請求標頭自己組，連 GET 都變兩段式，
+                    且 <code>GETEX</code> 不能用。平常維持 0。</li>
+                <li><code>responseheader</code> 設 1 後 READ 連 HTTP 回應標頭一併吐出
+                    （實測連自訂的 X-Test 都帶得回來）。測完改回 0。</li>
+                <li><code>closed/ind</code>：開啟「session 被關閉」的 URC 回報。</li>
+            </ul>
+
+            <h4>檔案版：POSTFILE 與 READFILE（UFS）</h4>
+            <p><code>AT+QHTTPPOSTFILE="檔名",&lt;秒&gt;</code> 以模組檔案系統（UFS）的檔案
+            當 body 送 POST；<code>AT+QHTTPREADFILE="檔名",&lt;秒&gt;</code> 把回應存成
+            UFS 檔。⚠ 本工具目前<strong>無法先上傳檔案到 UFS、也讀不回 UFS
+            檔內容</strong>，這兩條供搭配韌體端流程使用。</p>
+
+            <h4>HTTPS：免驗證路徑</h4>
+            <p>HTTPS ＝ HTTP ＋ SSL context。Connect 群組備好最短路徑，五顆照序按：</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP 指定用 SSL context 1
+AT+QSSLCFG="sslversion",1,4        ← TLS 版本交給伺服器協商
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← 加密套件全開
+AT+QSSLCFG="seclevel",1,0          ← 不驗憑證（見下）
+AT+QSSLCFG="sni",1,1               ← 開 SNI（出廠是 0！）</pre>
+            <p>之後 URL 換 <code>https://</code> 開頭照常 GET／READ ——
+            實測讀回 HTML 與明文版逐字相同。
+            <strong><code>seclevel=0</code>（不驗憑證）是本工具唯一走得完的路徑</strong>
+            —— 要驗憑證得先把 CA 憑證寫進 UFS；SSL 細節（<code>AT+QSSLCFG=?</code>
+            列全部子項、<code>negotiatetime</code> 調握手等待秒數）見〈SSL —— TLS 通道〉一節。
+            <strong>SNI 出廠是 0</strong>：不開，共用 IP 的 HTTPS 站拿到不匹配的憑證、
+            一驗就敗。<strong>憑證鏈是流量大頭</strong>：一輪 HTTPS GET 約 8–15 KB，
+            明文才約 1 KB。</p>
+
+            <h4>轉址與收尾</h4>
+            <p><strong>轉址（手冊沒寫，實測釐清）</strong>：模組會自動跟隨 302，但
+            <strong>只吃絕對路徑的 Location</strong> —— 相對路徑直接回錯誤 711、
+            1 毫秒立即失敗。<strong>收尾</strong>：
+            <code>AT+QHTTPSTOP</code>（Close 群組）取消進行中的請求並斷開 session；
+            狀態怪怪的、或出現錯誤 704（資料模式被佔）時先按這顆收乾淨。</p>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td>看不到任何結果 URC</td><td><code>urcport</code> 不是 <code>uart1</code>，
+                    去 Hardware 頁改</td></tr>
+                <tr><td>所有 URL 都 716、固定 30 秒逾時</td>
+                    <td>PDP 漂移，見上方警告</td></tr>
+                <tr><td>單一 URL 回 716</td><td>實測 DNS 失敗也是 716（不是舊文件猜的
+                    714）；接著 READ 回 705 是正常連鎖</td></tr>
+                <tr><td><code>READ</code>／<code>GETEX</code> 突然失敗</td>
+                    <td><code>rspout/auto</code> 與 <code>requestheader</code>
+                        都要是 0（見上文）</td></tr>
+                <tr><td><code>AT</code> 都沒回應</td>
+                    <td>模組掛住（實測遇過，手冊沒描述）—— 重跑開機儀式</td></tr>
+            </table>

@@ -1,0 +1,153 @@
+<h3 id="tab-hardware">Hardware —— khởi động và cổng serial</h3>
+            <p><strong>Nguyên lý hoạt động:</strong> trang này là nền móng của toàn bộ công cụ:
+            Control là hai nút của nghi thức khởi động (Power / Reset), Module là nhận diện sản phẩm,
+            Serial là thiết lập UART, Power là chế độ tiết kiệm điện, URC quản cổng xuất của các thông báo chủ động từ module,
+            ngoài ra còn một hàng <strong>nút byte thô</strong> (Ctrl+Z / ESC / +++) làm cửa thoát hiểm cho data mode.
+            Mọi tab khác đều đứng trên hai tiền đề: <strong>module đã khởi động đúng nghi thức</strong>,
+            <strong>URC đi đường uart1</strong> —— cả hai việc này đều hoàn tất tại trang này.
+            Hành vi và con số trong mục này đều là đo thực tế trên EG800K vật lý vào tháng 8 năm 2026.</p>
+
+            <h4>Vì sao phải có nghi thức khởi động: RTS = nguồn điện, DTR = Reset</h4>
+            <p>Board điều khiển đi kèm công cụ này đem hai tín hiệu bắt tay RS-232 dùng vào việc khác, đây là chìa khóa để hiểu cả trang:</p>
+            <table>
+                <tr><th>Tín hiệu</th><th>Thực tế nối vào</th><th>Logic</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Công tắc nguồn của module</td>
+                    <td><strong>Logic âm</strong>: RTS OFF = cấp điện, RTS ON = ngắt điện</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Chân Reset của module</td>
+                    <td>DTR ON = Reset kéo lên cao (có thể chạy), DTR OFF = Reset kéo xuống thấp</td></tr>
+            </table>
+            <p>Đặc tính mạch điện (đã xác nhận bằng đo thực tế): lần kết nối đầu tiên, RTS phải
+            <strong>ON trước rồi mới OFF</strong> thì nguồn mới thực sự được bật —— đặt thẳng OFF không bảo đảm có điện;
+            DTR cũng phải đi qua <strong>ON→OFF→ON</strong> thì Reset mới thực sự được kéo lên cao.
+            Ngắt điện (RTS ON) là cắt cứng, module <strong>không gửi bất kỳ lời chào tạm biệt nào</strong>.</p>
+            <div class="warning">
+                <strong>Tải lại trang = ngắt điện.</strong> Khi trình duyệt mở lại cổng serial, RTS sẽ bị kéo lên lại,
+                module mất điện ngay —— sau khi tự động kết nối lại xong, <strong>bắt buộc phải chạy lại nghi thức khởi động</strong>.
+                Đo thực tế từng dính: bỏ qua nghi thức mà gửi thẳng 17 lệnh, tất cả một đi không trở lại (chỉ có dòng TX, RX bằng không).
+                Bất kỳ tình huống "vừa nãy còn ngon lành, giờ im bặt toàn bộ" nào, hãy nghĩ đến chuyện này trước tiên.
+            </div>
+
+            <h4>Nút Power và Reset: bấm thế nào, sẽ thấy gì</h4>
+            <p>Hai nút này chính là hiện thân của hai tín hiệu trong bảng trên, <strong>liên động hai chiều</strong>
+            với đèn chỉ báo RTS / DTR trên thanh tín hiệu (khi chưa kết nối thì bị làm mờ, không bấm được).
+            Web Serial không đọc lại được trạng thái thực của tín hiệu đầu ra,
+            thanh tín hiệu hiển thị giá trị mà công cụ này cho rằng mình đã gửi.</p>
+            <ol>
+                <li><strong>Power</strong> (kiểu chuyển trạng thái): sáng xanh lục = nguồn ON (= RTS OFF).
+                    Nghi thức khởi động cần RTS đi qua ON→OFF: nếu nút đang sáng, hãy bấm tắt rồi bấm bật.</li>
+                <li><strong>Reset</strong> (momentary): bấm xuống = DTR OFF, thả ra = DTR ON,
+                    một lần bấm-thả là một lần Reset (trình tự chuẩn dừng 0.3 giây ở giữa).</li>
+                <li><strong>Chờ RDY</strong>: trong vài giây, terminal sẽ hiện lời chào khởi động của module <code>RDY</code>.</li>
+                <li><strong>Kiểm chứng bằng ATI</strong>: phải trả về <code>Quectel</code> / <code>EG800K</code> /
+                    <code>Revision: …</code> / <code>OK</code>. Trả ra được = UART lẫn module đều sống.</li>
+            </ol>
+            <div class="tip">
+                Sau khi khởi động, nên xác nhận echo (ATE) đang bật trước (xuất xưởng mặc định bật), rồi gõ <code>AT+CMEE=2</code> ——
+                không bật thì chỉ thấy mỗi chữ <code>ERROR</code> khô khốc, bật rồi mới có
+                dòng chữ đọc được kiểu <code>+CME ERROR: …</code>. Cả hai đều là session-only, module mỗi lần khởi động lại đều phải gõ lại.
+            </div>
+
+            <h4>Module: năm nút nhận diện</h4>
+            <table>
+                <tr><th>Nút</th><th>Lệnh</th><th>Sẽ thấy gì</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>Hãng / model / phiên bản firmware ba trong một —— lệnh đầu tiên sau khi khởi động chính là nó</td></tr>
+                <tr><td>Vendor / Model / FW Ver</td>
+                    <td><code>AT+GMI</code> / <code>AT+GMM</code> / <code>AT+GMR</code></td>
+                    <td>Tách ba dòng của ATI ra tra riêng từng cái (lần lượt tương đương CGMI / CGMM / CGMR).
+                        Phiên bản firmware máy này đo thực tế là <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>IMEI của module (15 chữ số). Không tốn lưu lượng, gửi lúc nào cũng được</td></tr>
+            </table>
+
+            <h4>Serial: AT&amp;V đọc tham số, IPR đổi baud rate</h4>
+            <p><strong>AT Params (<code>AT&amp;V</code>)</strong>: liệt kê giá trị hiện tại của mọi tham số AT một chữ cái.
+            Những lệnh một chữ cái như <code>ATE</code> / <code>ATQ</code> / <code>ATV</code> <strong>không có dạng truy vấn riêng,
+            chỉ lệnh này mới đọc ra được</strong>. Máy này đo thực tế <code>E:1 Q:0 V:1 S3:13 S4:10</code> ——
+            echo bật, mã kết quả ở dạng chữ, kết thúc dòng = CR (ASCII 13), chính là tiền đề để công cụ này phân tích phản hồi.</p>
+            <p><strong>Baud? (<code>AT+IPR?</code>)</strong>: tra baud rate hiện tại của UART, xuất xưởng 115200.<br>
+            <strong>Baud List (<code>AT+IPR=?</code>)</strong>: trả về hai danh sách ——
+            danh sách trước là các baud rate dò tự động được, danh sách sau là chỉ dùng ở chế độ cố định. Sau khi chạy nút này,
+            menu thả xuống của Set Baud sẽ đổi thành danh sách máy này thực tế báo về. Đo thực tế danh sách thứ hai của máy này liệt kê tới tận
+            <strong>1000000 bps —— bảng ở §3.4 của sổ tay không có giá trị này</strong>.</p>
+            <p><strong>Set Baud (<code>AT+IPR={rate};&amp;W</code>, thẻ tham số)</strong>:
+            bấm vào sẽ bật hộp xác nhận trước —— đây là nút dễ tự khóa mình ngoài cửa nhất cả trang.</p>
+            <div class="warning">
+                <strong>Bẫy ba tầng khi đổi baud rate (đo thực tế xác nhận đủ cả ba):</strong><br>
+                ① <code>OK</code> vừa trả về là <strong>có hiệu lực ngay lập tức</strong>,
+                từ khoảnh khắc kế tiếp công cụ này và module ông nói gà bà nói vịt;<br>
+                ② <code>AT&amp;F</code> (khôi phục xuất xưởng) <strong>không</strong> đổi baud rate về lại —— đừng trông cậy nó cứu bạn;<br>
+                ③ Không thêm <code>&amp;W</code> thì không lưu —— mà kết nối lại = ngắt điện, module sẽ tỉnh dậy ở baud rate cũ,
+                còn thiết lập cổng của bạn lại đứng ở baud rate mới, <strong>mất liên lạc kép</strong>.
+                Vì vậy công cụ này ép dùng cách viết gộp <code>;&amp;W</code>.<br>
+                Bốn bước khôi phục (hộp xác nhận cũng sẽ nhắc): ngắt kết nối → đổi baud rate ở khu kết nối → nối lại → chạy lại nghi thức khởi động.
+            </div>
+
+            <h4>Power: QSCLK tiết kiệm điện</h4>
+            <p><strong>Sleep? (<code>AT+QSCLK?</code>)</strong>: tra xem module có được phép đi ngủ hay không.
+            Máy này đo thực tế xuất xưởng là <code>0</code> = tắt, module luôn thức.
+            Trang này chỉ cung cấp nút truy vấn: module đã ngủ sẽ <strong>ngừng phản hồi AT</strong>, cách đánh thức trong sổ tay là kéo DTR xuống thấp ——
+            nhưng DTR trên board này đã bị nối đi làm chân Reset (xem đầu mục này). Nếu bạn tự bật chế độ ngủ ở dòng lệnh rồi gọi không dậy,
+            chạy lại nghi thức khởi động (ngắt điện bật lại) là thoát; chi tiết xem application note chính thức về chế độ tiết kiệm điện.</p>
+
+            <h4>URC: không nhận được thông báo thì ghé đây đầu tiên</h4>
+            <p><strong>URC (Unsolicited Result Code, mã kết quả không do yêu cầu)</strong> là thông báo module
+            "tự nhả ra mà chẳng ai hỏi", không phải phản hồi của bất kỳ lệnh nào —— <code>RDY</code> lúc khởi động, dữ liệu TCP đến, tin nhắn MQTT,
+            kết quả quét Wi-Fi, thông báo nạp firmware GNSS đều thuộc loại này. Cổng xuất của nó
+            <strong>xuất xưởng mặc định là cổng USB (usbat)</strong> —— công cụ này đi đường UART nên không nhận được cái nào,
+            triệu chứng cực kỳ điển hình: <strong>lệnh nào cũng trả OK, riêng thông báo thì chờ mãi không thấy</strong>.</p>
+            <table>
+                <tr><th>Nút</th><th>Lệnh</th><th>Công dụng</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>Tra xem URC hiện đang gửi đi đâu —— khi không nhận được URC, <strong>lệnh đầu tiên hãy tra nó</strong>;
+                        phải trả về <code>"uart1"</code> mới nhận được</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>Máy này hỗ trợ những cổng xuất nào. Đo thực tế trả về <code>("usbat","usbmodem","uart1")</code>,
+                        <strong>không có "all" mà sổ tay nhắc tới</strong> (sổ tay có chú thích một số model không hỗ trợ)</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>Chuyển sang UART chính. Ghi vào NVRAM, giữ nguyên qua các lần khởi động lại, <strong>đổi một lần là xong</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>Công tắc tổng của URC, nguyên nhân lớn còn lại của chuyện "không nhận được URC".
+                        Đo thực tế máy này xuất xưởng đã là 1 (bật), vấn đề hầu như đều nằm ở cổng xuất</td></tr>
+            </table>
+
+            <h4>Nút byte thô: cửa thoát hiểm của data mode</h4>
+            <p>Không ít lệnh là <strong>hai giai đoạn</strong>: gửi lệnh trước, chờ module trả dấu nhắc <code>&gt;</code>,
+            rồi mới gửi phần nội dung. Đã vào <strong>data mode</strong> kiểu này thì mỗi ký tự bạn gõ đều bị module nuốt vào làm dữ liệu ——
+            kể cả lệnh AT bạn định gõ. Khi tính sai độ dài, đổi ý giữa chừng, lệnh bị kẹt, phím thường không cứu nổi,
+            phải nhờ hàng nút gửi từng byte thô này:</p>
+            <table>
+                <tr><th>Nút</th><th>Gửi ra</th><th>Khi nào dùng</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td><strong>Ký tự kết thúc</strong> của data mode: thực sự gửi phần nội dung đã gom đi</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td><strong>Hủy</strong> data mode, vứt bỏ nội dung đã gom.
+                        Phím thoát thân số một khi lệnh hai giai đoạn bị kẹt, cổng AT không phản hồi nữa (sổ tay §2.3.8)</td></tr>
+                <tr><td>+++</td><td>Ba dấu + (byte thô)</td>
+                    <td>Thoát khỏi <strong>data mode trong suốt</strong> (như truyền COM: của FTP) về lại chế độ AT.
+                        Luật rất cứng: <strong>trước sau đều im lặng 1 giây, tuyệt đối không kèm CR/LF</strong> ——
+                        đo thực tế thêm CR là mất tác dụng, phải gửi bằng nút này, không gõ ở dòng lệnh được</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Đo thực tế lật ngược sổ tay: +++ là "chấm dứt", không phải "tạm dừng".</strong>
+                Application note FTPS v1.5 trang 13 nói sau +++ có thể dùng <code>ATO</code> quay lại data mode truyền tiếp,
+                trên máy thật <code>ATO</code> chỉ trả <code>NO CARRIER</code>, phiên truyền đã bị chấm dứt rồi.
+                Hãy coi +++ như phanh khẩn cấp, đừng mong phanh xong còn chạy tiếp được.
+            </div>
+
+            <h4>Khắc phục sự cố</h4>
+            <table>
+                <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+                <tr><td>Không lệnh nào có phản hồi</td>
+                    <td>Lần lượt kiểm ba nghi phạm: ① chưa chạy nghi thức khởi động (đã tải lại trang thì chắc chắn là nó);
+                        ② kết thúc dòng đặt thành LF —— module <strong>chỉ nhận CR</strong>, LF hoàn toàn không phản hồi;
+                        ③ baud rate lệch nhau (xem bốn bước khôi phục)</td></tr>
+                <tr><td>Bấm Reset rồi mà chờ mãi không thấy RDY</td>
+                    <td>Xem nút Power có sáng không trước đã —— module không có điện thì bấm Reset bao nhiêu lần cũng vô ích;
+                        lần kết nối đầu tiên nguồn phải đi qua ON→OFF</td></tr>
+                <tr><td>Lệnh nào cũng trả OK, riêng URC thì không tới</td>
+                    <td>Tám phần là urcport vẫn ở usbat xuất xưởng: bấm URC Port? để tra, URC → UART để đổi;
+                        vẫn không được thì kiểm công tắc tổng URC Switch</td></tr>
+                <tr><td>Cổng AT bỗng dưng "nuốt lệnh", gõ gì cũng không phản hồi</td>
+                    <td>Kẹt trong data mode, chữ gõ vào bị thu làm dữ liệu hết —— bấm ESC để thoát thân</td></tr>
+            </table>

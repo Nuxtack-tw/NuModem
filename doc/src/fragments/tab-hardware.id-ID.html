@@ -1,0 +1,161 @@
+<h3 id="tab-hardware">Hardware — Boot dan Port Serial</h3>
+            <p><strong>Cara kerja:</strong> halaman ini adalah fondasi seluruh alat:
+            Control berisi dua tombol ritual boot (Power / Reset), Module untuk identifikasi produk,
+            Serial untuk setelan UART, Power untuk mode hemat daya, URC mengatur port keluaran pesan
+            yang dikirim modul atas inisiatifnya sendiri,
+            plus satu deret <strong>tombol byte mentah</strong> (Ctrl+Z / ESC / +++) sebagai pintu darurat mode data.
+            Semua tab lain berdiri di atas dua prasyarat: <strong>modul sudah di-boot sesuai ritual</strong> dan
+            <strong>URC keluar lewat uart1</strong> — keduanya diselesaikan di halaman ini.
+            Perilaku dan angka pada bagian ini semuanya hasil pengujian nyata terhadap EG800K fisik pada Agustus 2026.</p>
+
+            <h4>Mengapa perlu ritual boot: RTS = daya, DTR = Reset</h4>
+            <p>Papan kendali yang menyertai alat ini mengalihfungsikan dua sinyal handshake RS-232; ini kunci untuk memahami seluruh halaman:</p>
+            <table>
+                <tr><th>Sinyal</th><th>Terhubung ke</th><th>Logika</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Sakelar daya modul</td>
+                    <td><strong>Logika negatif</strong>: RTS OFF = daya menyala, RTS ON = daya putus</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Pin Reset modul</td>
+                    <td>DTR ON = Reset ditarik tinggi (bisa boot), DTR OFF = Reset ditarik rendah</td></tr>
+            </table>
+            <p>Karakteristik rangkaian (terkonfirmasi lewat pengujian): pada koneksi pertama, RTS harus
+            <strong>ON dulu baru OFF</strong> agar daya benar-benar menyala — langsung menyetel OFF tidak menjamin daya masuk;
+            DTR juga harus melewati <strong>ON→OFF→ON</strong> agar Reset benar-benar tertarik tinggi.
+            Pemutusan daya (RTS ON) adalah pemutusan keras; modul <strong>tidak mengirim pesan perpisahan apa pun</strong>.</p>
+            <div class="warning">
+                <strong>Me-refresh halaman = daya putus.</strong> Saat browser membuka ulang port serial, RTS ditarik naik lagi
+                dan modul langsung kehilangan daya — setelah penyambungan ulang otomatis selesai,
+                <strong>ritual boot wajib dijalankan ulang</strong>.
+                Pernah dialami dalam pengujian: ritual dilewati lalu 17 perintah dikirim, semuanya pergi tanpa kembali (hanya baris TX, nol RX).
+                Setiap kali "tadi masih normal, sekarang tak ada respons sama sekali", pikirkan hal ini lebih dulu.
+            </div>
+
+            <h4>Tombol Power dan Reset: cara menekannya, apa yang akan terlihat</h4>
+            <p>Kedua tombol ini adalah penjelmaan dua sinyal pada tabel di atas, dan <strong>tersinkron dua arah</strong>
+            dengan indikator RTS / DTR di baris sinyal (saat belum tersambung tombol redup dan tak bisa ditekan).
+            Web Serial tidak bisa membaca status nyata sinyal keluaran;
+            yang ditampilkan baris sinyal adalah nilai yang diyakini alat ini berdasarkan apa yang telah dikirimnya.</p>
+            <ol>
+                <li><strong>Power</strong> (tipe sakelar): hijau menyala = daya ON (= RTS OFF).
+                    Ritual boot mengharuskan RTS melewati ON→OFF: bila tombol sudah menyala, klik mati dulu baru klik nyala.</li>
+                <li><strong>Reset</strong> (momentary): ditekan = DTR OFF, dilepas = DTR ON;
+                    sekali tekan-lepas adalah satu kali Reset (urutan waktu standar berhenti 0.3 detik di tengah).</li>
+                <li><strong>Tunggu RDY</strong>: dalam beberapa detik terminal akan menampilkan pengumuman boot modul <code>RDY</code>.</li>
+                <li><strong>Verifikasi dengan ATI</strong>: seharusnya membalas <code>Quectel</code> / <code>EG800K</code> /
+                    <code>Revision: …</code> / <code>OK</code>. Bila balasannya keluar = UART dan modul sama-sama hidup.</li>
+            </ol>
+            <div class="tip">
+                Setelah boot, disarankan memastikan dulu echo (ATE) menyala (default pabrik menyala), lalu kirim <code>AT+CMEE=2</code> —
+                tanpa itu Anda hanya melihat <code>ERROR</code> yang kering; dengan itu barulah muncul teks terbaca berupa
+                <code>+CME ERROR: …</code>. Keduanya hanya berlaku per sesi; setiap kali modul dinyalakan ulang, keduanya harus dikirim lagi.
+            </div>
+
+            <h4>Module: lima tombol identifikasi</h4>
+            <table>
+                <tr><th>Tombol</th><th>Perintah</th><th>Apa yang akan terlihat</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>Merek / model / versi firmware tiga-dalam-satu — inilah perintah pertama yang dikirim setelah boot</td></tr>
+                <tr><td>Vendor / Model / FW Ver</td>
+                    <td><code>AT+GMI</code> / <code>AT+GMM</code> / <code>AT+GMR</code></td>
+                    <td>Memecah tiga baris ATI menjadi query terpisah (masing-masing setara CGMI / CGMM / CGMR).
+                        Versi firmware perangkat uji terbaca <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>IMEI modul (15 digit). Nol kuota, bisa dikirim kapan saja</td></tr>
+            </table>
+
+            <h4>Serial: AT&amp;V membaca parameter, IPR mengubah baud rate</h4>
+            <p><strong>AT Params (<code>AT&amp;V</code>)</strong>: menampilkan nilai terkini semua parameter AT satu huruf.
+            Perintah satu huruf seperti <code>ATE</code> / <code>ATQ</code> / <code>ATV</code> <strong>tidak punya bentuk query masing-masing;
+            hanya perintah inilah yang bisa membacanya</strong>. Hasil uji perangkat ini: <code>E:1 Q:0 V:1 S3:13 S4:10</code> —
+            echo menyala, kode hasil dalam mode teks, akhir baris = CR (ASCII 13), persis prasyarat alat ini dalam mem-parsing balasan.</p>
+            <p><strong>Baud? (<code>AT+IPR?</code>)</strong>: menanyakan baud rate UART saat ini, default pabrik 115200.<br>
+            <strong>Baud List (<code>AT+IPR=?</code>)</strong>: membalas dua daftar —
+            yang pertama baud rate yang bisa dideteksi otomatis, yang kedua yang hanya tersedia pada mode tetap. Setelah tombol ini dijalankan,
+            menu tarik-turun Set Baud akan diganti dengan daftar yang benar-benar dilaporkan perangkat. Hasil uji: daftar kedua
+            perangkat ini mencantumkan sampai
+            <strong>1000000 bps — nilai ini tidak ada di tabel §3.4 manual</strong>.</p>
+            <p><strong>Set Baud (<code>AT+IPR={rate};&amp;W</code>, kartu parameter)</strong>:
+            menekannya memunculkan kotak konfirmasi dulu — inilah tombol yang paling mudah mengunci Anda di luar pintu di seluruh halaman ini.</p>
+            <div class="warning">
+                <strong>Tiga jebakan mengubah baud rate (semuanya terkonfirmasi lewat pengujian):</strong><br>
+                ① Begitu <code>OK</code> terbalas, perubahan <strong>langsung berlaku</strong>;
+                sejak detik berikutnya alat ini dan modul bicara dalam bahasa berbeda;<br>
+                ② <code>AT&amp;F</code> (reset pabrik) <strong>tidak</strong> mengembalikan baud rate — jangan berharap ia menyelamatkan Anda;<br>
+                ③ Tanpa <code>&amp;W</code> nilainya tak disimpan — sementara menyambung ulang = daya putus: modul bangun di baud rate lama
+                sedangkan setelan port Anda tertinggal di baud rate baru, <strong>putus komunikasi ganda</strong>.
+                Karena itu alat ini memaksa penulisan gabungan <code>;&amp;W</code>.<br>
+                Empat langkah pemulihan (kotak konfirmasi juga mengingatkannya): putus koneksi → ubah baud rate di area koneksi → sambung ulang → jalankan ulang ritual boot.
+            </div>
+
+            <h4>Power: QSCLK hemat daya</h4>
+            <p><strong>Sleep? (<code>AT+QSCLK?</code>)</strong>: menanyakan apakah modul diizinkan masuk tidur.
+            Hasil uji: default pabrik perangkat ini <code>0</code> = nonaktif, modul selalu terjaga.
+            Halaman ini hanya menyediakan tombol query: modul yang tertidur akan <strong>berhenti merespons AT</strong>;
+            cara membangunkan versi manual adalah menarik DTR rendah —
+            tetapi DTR papan ini sudah dialihkan menjadi pin Reset (lihat awal bagian ini). Bila Anda mengaktifkan tidur sendiri
+            lewat baris perintah lalu modul tak bisa dibangunkan,
+            jalankan ulang ritual boot (putus daya lalu nyalakan lagi) untuk lolos; detailnya lihat application note resmi mode hemat daya.</p>
+
+            <h4>URC: bila pesan tak kunjung datang, ke sinilah tempat pertama</h4>
+            <p><strong>URC (Unsolicited Result Code, kode hasil tak diminta)</strong> adalah pesan yang
+            "dimuntahkan modul atas inisiatifnya sendiri tanpa diminta",
+            bukan balasan atas perintah mana pun — <code>RDY</code> saat boot, kedatangan data TCP, pesan MQTT,
+            hasil pemindaian Wi-Fi, notifikasi pemuatan firmware GNSS semuanya URC. Port keluarannya
+            <strong>secara default pabrik adalah port USB (usbat)</strong> — alat ini yang berjalan lewat UART takkan menerima satu pun,
+            dengan gejala yang sangat khas: <strong>semua perintah membalas OK, tetapi pesan tak pernah datang</strong>.</p>
+            <table>
+                <tr><th>Tombol</th><th>Perintah</th><th>Kegunaan</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>Menanyakan ke mana URC sekarang dikirim — saat URC tak diterima, <strong>inilah yang pertama harus dicek</strong>;
+                        balasannya harus <code>"uart1"</code> barulah URC bisa diterima</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>Port keluaran apa saja yang didukung perangkat ini. Hasil uji membalas <code>("usbat","usbmodem","uart1")</code>,
+                        <strong>tanpa "all" yang disebut manual</strong> (manual mencatat sebagian model memang tak mendukungnya)</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>Beralih ke UART utama. Ditulis ke NVRAM, bertahan melintasi boot ulang, <strong>cukup diubah sekali</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>Sakelar induk URC, penyebab besar lain dari "URC tak diterima".
+                        Hasil uji: default pabrik perangkat ini sudah 1 (menyala); masalahnya hampir selalu ada di port keluaran</td></tr>
+            </table>
+
+            <h4>Tombol byte mentah: pintu darurat mode data</h4>
+            <p>Cukup banyak perintah bersifat <strong>dua tahap</strong>: kirim perintahnya dulu, tunggu modul membalas prompt <code>&gt;</code>,
+            baru kirim isinya. Setelah masuk <strong>mode data</strong> semacam ini, modul menelan setiap karakter yang Anda ketik sebagai data —
+            termasuk AT command yang ingin Anda kirim. Saat panjang salah dihitung, berubah pikiran di tengah jalan,
+            atau perintah tersangkut, tombol biasa tak bisa menolong;
+            andalkan deretan tombol pengirim byte mentah tunggal ini:</p>
+            <table>
+                <tr><th>Tombol</th><th>Yang dikirim</th><th>Kapan dipakai</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td><strong>Penanda akhir</strong> mode data: benar-benar mengirimkan isi yang sudah terkumpul</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td><strong>Membatalkan</strong> mode data dan membuang isi yang sudah terkumpul.
+                        Kunci pelarian pilihan utama saat perintah dua tahap tersangkut dan port AT berhenti merespons (manual §2.3.8)</td></tr>
+                <tr><td>+++</td><td>Tiga tanda + (byte mentah)</td>
+                    <td>Melarikan diri dari <strong>mode data transparan</strong> (seperti transfer COM: pada FTP) kembali ke mode AT.
+                        Aturannya keras: <strong>hening 1 detik sebelum dan sesudah, sama sekali tak boleh membawa CR/LF</strong> —
+                        hasil uji: begitu ditambah CR, ia tak berlaku; wajib dikirim lewat tombol ini, tak bisa diketik di baris perintah</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Pengujian membantah manual: +++ adalah "menghentikan", bukan "menjeda".</strong>
+                Application note FTPS v1.5 halaman 13 menyebut setelah +++ Anda bisa memakai <code>ATO</code>
+                untuk kembali ke mode data dan melanjutkan transfer;
+                pada perangkat nyata <code>ATO</code> hanya membalas <code>NO CARRIER</code> — transfernya sudah dihentikan.
+                Perlakukan +++ sebagai rem darurat; jangan berharap masih bisa jalan terus setelah mengerem.
+            </div>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td>Tak ada respons untuk perintah apa pun</td>
+                    <td>Periksa tiga tersangka berurutan: ① ritual boot belum dijalankan (kalau halaman baru di-refresh, pasti ini);
+                        ② akhir baris disetel ke LF — modul <strong>hanya mengenal CR</strong>, dengan LF sama sekali tak ada respons;
+                        ③ baud rate tak cocok (lihat empat langkah pemulihan)</td></tr>
+                <tr><td>Reset sudah ditekan tetapi RDY tak kunjung muncul</td>
+                    <td>Lihat dulu apakah tombol Power menyala — modul tanpa daya, sebanyak apa pun Reset ditekan tetap percuma;
+                        pada koneksi pertama daya harus melewati ON→OFF</td></tr>
+                <tr><td>Semua perintah membalas OK, tetapi URC tak pernah datang</td>
+                    <td>Kemungkinan besar urcport masih di usbat bawaan pabrik: tekan URC Port? untuk memeriksa, lalu URC → UART untuk mengubah;
+                        bila masih gagal, periksa sakelar induk URC Switch</td></tr>
+                <tr><td>Port AT tiba-tiba "menelan perintah", diketik apa pun tak ada respons</td>
+                    <td>Tersangkut di mode data; semua yang Anda ketik ditelan sebagai data — tekan ESC untuk meloloskan diri</td></tr>
+            </table>

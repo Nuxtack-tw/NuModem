@@ -1,0 +1,152 @@
+<h3 id="tab-http">HTTP — Web requests</h3>
+            <p><strong>Working principle:</strong> the module's HTTP is <strong>three-phase</strong>:
+            first set the URL (a step that is itself two-stage), then issue the request (GET / POST), and finally read the response back.
+            No phase's result lives in the <code>OK</code>; each arrives later as a URC —
+            so <code>AT+QURCCFG="urcport"</code> must be <code>"uart1"</code> (changeable on the Hardware page),
+            or you will see none of the results. All numbers were measured on the real device in August 2026.</p>
+
+            <h4>Before you start: have a data channel</h4>
+            <p>The prerequisite is an active PDP with an IP (the TCP/IP page's <code>AT+QIACT=1</code>).
+            This page's <strong>Connect group</strong> holds read-only checks only:
+            <code>AT+CPIN?</code> / <code>AT+CGATT?</code> / <code>AT+CGREG?</code> /
+            <code>AT+QIACT?</code>, <code>AT+QIDNSCFG=1</code> (DNS 0.0.0.0 = never assigned),
+            <code>AT+QIGETERROR</code> (⚠ valid only for the last TCP/IP command —
+            click it <strong>immediately</strong> after a failure).</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> lies.</strong> Measured: the PDP drifted mid-run —
+                every request failed with error 716 at a <strong>fixed 30-second timeout</strong>,
+                yet <code>AT+QIACT?</code> kept returning an IP. Cross-check with <code>AT+CGACT?</code>;
+                a mismatch means it drifted. The fix: <code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;drifted cid&gt;</code> → <code>AT+QIACT=1</code>,
+                then ping before continuing.
+            </div>
+
+            <h4>Your first GET: four steps</h4>
+            <ol>
+                <li><strong>Preliminary settings</strong> (Config group, zero data cost): set the <code>contextid</code>
+                    parameter card to 1 (binding the PDP context to use); keep the three switches <code>rspout/auto</code>,
+                    <code>requestheader</code> and <code>responseheader</code> at 0
+                    (reasons below); <code>AT+QHTTPCFG?</code> reads back all settings at once for checking,
+                    <code>AT+QHTTPCFG=?</code> lists what can be set.</li>
+                <li><strong>Set the URL (two-stage)</strong>: the <code>AT+QHTTPURL</code> card has a single
+                    "Send (two-stage)" button — you fill in the URL, the length is computed automatically. Flow: first send
+                    <code>AT+QHTTPURL=&lt;length&gt;,80</code>, wait for <code>CONNECT</code>
+                    to enter data mode, then send the URL bytes verbatim <strong>with no line ending of any kind</strong>
+                    (a CR/LF would be counted into the length).
+                    <code>http://www.example.com/</code> is exactly 23 long. Afterwards click
+                    <code>AT+QHTTPURL?</code> to read it back; character-for-character identical = no line ending crept in.</li>
+                <li><strong>Issue the request</strong>: <code>AT+QHTTPGET=80</code> (seconds to wait for the response).
+                    <code>OK</code> only means "command accepted"; the real result is the later URC
+                    <code>+QHTTPGET: 0,200</code> — how to read it is the next section.</li>
+                <li><strong>Read the response</strong>: <code>AT+QHTTPREAD=80</code>.
+                    Everything after <code>CONNECT</code> is raw bytes (measured: example.com is
+                    559 bytes), followed by <code>OK</code> —
+                    but <strong>the standalone final line <code>+QHTTPREAD: 0</code> is the true end marker</strong>.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="HTTP tab">
+                <figcaption>The HTTP page: the four groups Config / Connect / Transfer / Close.</figcaption>
+            </figure>
+
+            <h4>Reading +QHTTPGET: the first field is not the HTTP status code</h4>
+            <p>The result URCs of GET / POST / POSTFILE are all three fields,
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code>:
+            <code>err</code> <strong>0 = the command executed successfully</strong>; nonzero is a module-layer error (716, 711…);
+            <code>httprspcode</code> is the HTTP status code, <strong>reported only when err=0</strong>
+            (stated in the manual; the tool has built-in annotations for 200 / 403 / 404 / 409 / 411 / 500);
+            <code>content_length</code> is optional — present only when the server's response header carries CONTENT-LENGTH,
+            so ordinary GETs often show just two fields. Hence the measured <code>+QHTTPGET: 0,404,0</code>
+            is <strong>not a failure</strong>: the command succeeded — it is the server saying not found.</p>
+
+            <h4>Reading the response: the AT+QHTTPREAD traps</h4>
+            <p>The parameter is "the maximum gap in seconds between two data packets", not a total duration.
+            <strong>This unit's firmware takes exactly one parameter</strong>: the application note's
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> chunked form actually returns a bare
+            <code>ERROR</code> (proven by probing with <code>=?</code>), so that button was removed —
+            for chunked retrieval use <code>GETEX</code> instead.</p>
+            <div class="warning">
+                <strong>The interlock trap: set <code>rspout/auto</code> to 1 and every READ-type command fails</strong>
+                (stated in the manual). It makes the module dump responses automatically at the cost of killing all READs,
+                which is why this button has a confirmation dialog. If READ suddenly dies across the board, check <code>AT+QHTTPCFG?</code> first.
+            </div>
+
+            <h4>Chunked retrieval: AT+QHTTPGETEX reads byte by byte</h4>
+            <p><code>AT+QHTTPGETEX=&lt;sec&gt;,&lt;start offset&gt;,&lt;length&gt;</code>
+            uses HTTP Range to grab only the specified slice and save data. Measured (against an endpoint fixed at
+            <code>abcdefghijklmnop</code>): offset 0 take 8 returns <code>+QHTTPGET: 0,206,8</code>
+            and reads out <code>abcdefgh</code>; offset 8 take 8 reads out <code>ijklmnop</code>.
+            How to judge: <strong>the status code must be 206</strong>; a <strong>200 with identical content every time</strong>
+            = the server does not support Range — the module is not broken.
+            ⚠ Runs only while <code>requestheader=0</code>.</p>
+
+            <h4>POST: two-stage, and Content-Type</h4>
+            <p>The <code>AT+QHTTPPOST</code> card is two-stage as well: you fill in the body, the length is computed automatically; first send
+            <code>AT+QHTTPPOST=&lt;length&gt;,&lt;input sec&gt;,&lt;response sec&gt;</code>,
+            wait for <code>CONNECT</code>, then send the body. Three things:</p>
+            <ul>
+                <li><strong><code>CONNECT</code> can take up to 125 seconds</strong> (stated in the manual) —
+                    size the prompt timeout to the full 125 seconds; do not inherit MQTT's 5.</li>
+                <li>The body limit is 1 MB (measured range via <code>=?</code>: 1–1024000).</li>
+                <li>Set the Content-Type first with the <code>contenttype</code> parameter card
+                    (type code 0 = form-urlencoded).</li>
+            </ul>
+            <p>Measured: POSTing <code>Message=HelloQuectel</code> (20 bytes) returned
+            <code>+QHTTPPOST: 0,200,440</code>; the JSON that READ returned verifies the key-value arrived,
+            the length was computed right, the Content-Type took effect, and the User-Agent the module self-reports is
+            <code>QUECTEL_MODULE</code>.</p>
+
+            <h4>Custom headers and response headers</h4>
+            <ul>
+                <li><code>reqheader/add</code>: adds a single custom request header (the manual gives no example);
+                    the query button shows how many were added; <code>reqheader/remove</code> removes.</li>
+                <li><code>requestheader</code> set to 1 = you compose the entire request header yourself; even GET becomes two-stage,
+                    and <code>GETEX</code> becomes unusable. Keep it 0 normally.</li>
+                <li>With <code>responseheader</code> set to 1, READ also dumps the HTTP response headers
+                    (measured: even a custom X-Test comes back). Set it back to 0 after testing.</li>
+                <li><code>closed/ind</code>: enables the "session closed" URC report.</li>
+            </ul>
+
+            <h4>The file variants: POSTFILE and READFILE (UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="filename",&lt;sec&gt;</code> sends a POST using a file on the module's file system (UFS)
+            as the body; <code>AT+QHTTPREADFILE="filename",&lt;sec&gt;</code> saves the response as a
+            UFS file. ⚠ This tool currently <strong>can neither upload files to UFS beforehand nor read UFS
+            file contents back</strong>; these two commands are for pairing with firmware-side workflows.</p>
+
+            <h4>HTTPS: the no-verification path</h4>
+            <p>HTTPS = HTTP + an SSL context. The Connect group has the shortest path prepared; click the five in order:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP shall use SSL context 1
+AT+QSSLCFG="sslversion",1,4        ← leave the TLS version to server negotiation
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← all cipher suites enabled
+AT+QSSLCFG="seclevel",1,0          ← no certificate verification (see below)
+AT+QSSLCFG="sni",1,1               ← enable SNI (factory is 0!)</pre>
+            <p>Then switch the URL to an <code>https://</code> prefix and GET / READ as usual —
+            measured, the HTML read back is character-for-character identical to the plaintext version.
+            <strong><code>seclevel=0</code> (no certificate verification) is the only path this tool can walk to the end</strong>
+            — verifying certificates requires writing the CA certificate into UFS first; for SSL details (<code>AT+QSSLCFG=?</code>
+            lists every sub-item, <code>negotiatetime</code> adjusts the handshake wait) see the "SSL — TLS channels" section.
+            <strong>SNI ships as 0</strong>: leave it off and HTTPS sites on shared IPs hand you a mismatched certificate
+            that fails verification instantly. <strong>The certificate chain is the data hog</strong>: one HTTPS GET round is about 8–15 KB,
+            plaintext only about 1 KB.</p>
+
+            <h4>Redirects and wrapping up</h4>
+            <p><strong>Redirects (absent from the manual, clarified by testing)</strong>: the module follows 302 automatically, but
+            <strong>only accepts an absolute-path Location</strong> — a relative path returns error 711 outright,
+            failing instantly within 1 millisecond. <strong>Wrapping up</strong>:
+            <code>AT+QHTTPSTOP</code> (Close group) cancels the request in progress and tears down the session;
+            when the state looks odd, or error 704 appears (data mode occupied), click it first to clean up.</p>
+
+            <h4>Troubleshooting</h4>
+            <table>
+                <tr><th>Symptom</th><th>Cause and fix</th></tr>
+                <tr><td>No result URCs visible at all</td><td><code>urcport</code> is not <code>uart1</code> —
+                    change it on the Hardware page</td></tr>
+                <tr><td>Every URL gets 716 at a fixed 30-second timeout</td>
+                    <td>PDP drift — see the warning above</td></tr>
+                <tr><td>A single URL returns 716</td><td>Measured: DNS failure is also 716 (not the 714
+                    older documents guessed); the READ returning 705 right after is the normal chain reaction</td></tr>
+                <tr><td><code>READ</code> / <code>GETEX</code> suddenly fail</td>
+                    <td><code>rspout/auto</code> and <code>requestheader</code>
+                        must both be 0 (see above)</td></tr>
+                <tr><td>Even <code>AT</code> gets no response</td>
+                    <td>The module hung (met in testing; the manual never describes it) — rerun the power-up ritual</td></tr>
+            </table>

@@ -1,0 +1,138 @@
+<h3 id="tab-ftp">FTP —— truyền tệp</h3>
+            <p><strong>Nguyên lý hoạt động:</strong> FTP có <strong>hai kênh</strong>: kênh điều khiển chạy lệnh,
+            kênh dữ liệu chạy nội dung tệp. Đăng nhập, đổi tên, xóa, tra kích thước chỉ đi kênh điều khiển;
+            LIST, tải lên, tải xuống phải <strong>mở thêm một kết nối dữ liệu riêng</strong> ——
+            quá nửa số hiện tượng kỳ quái trong mục này (615, 603 bắn liên hồi) đều từ đó mà ra.
+            Nguyên tắc chung Quectel xuyên suốt cả mục: <strong><code>OK</code> chỉ có nghĩa là "lệnh đã được nhận"</strong>,
+            kết quả thật đến sau bằng URC. Các phản hồi và con số trong mục này đều là giá trị đo thực tế trên EG800K vật lý tháng 8 năm 2026.</p>
+
+            <h4>Trước khi bắt đầu: hai tiền đề</h4>
+            <ul>
+                <li><strong>PDP phải kích hoạt trước</strong>: nút đầu tiên của trang này <code>AT+QIACT?</code> chính là làm phép kiểm này ——
+                    trả ra được <code>+QIACT: 1,1,…,"IP"</code> mới đi tiếp được, chỉ trả OK thì sang trang TCP/IP bấm
+                    Act PDP trước (PDP chưa kích hoạt thì QFTPOPEN chắc chắn thất bại).</li>
+                <li><strong>URC phải đi đường UART</strong>: lệnh FTP hầu như toàn kiểu "OK trước, kết quả đến sau bằng URC",
+                    <code>AT+QURCCFG="urcport"</code> mà không phải <code>"uart1"</code> thì
+                    ở đây chỉ thấy một đống OK (cách đặt xem trang Hardware).</li>
+            </ul>
+
+            <h4>Đường đăng nhập: thiết lập → mở → chờ URC</h4>
+            <ol>
+                <li><strong>Ràng buộc PDP context</strong>: <code>AT+QFTPCFG="contextid",1</code>
+                    (xuất xưởng đã là 1, nút truy vấn đọc lại xác nhận được).</li>
+                <li><strong>Đặt tài khoản mật khẩu</strong>: <code>AT+QFTPCFG="account","tài khoản","mật khẩu"</code>,
+                    <strong>phải đặt xong trước QFTPOPEN</strong>.</li>
+                <li><strong>Chế độ và kiểu</strong>: <code>transmode</code> đặt 1
+                    (passive; đứng sau NAT nhất loạt dùng nó, FTPS bắt buộc);
+                    <code>filetype</code> tệp văn bản thuần dùng 1, còn lại dùng 0.</li>
+                <li><strong>Đăng nhập</strong>: <code>AT+QFTPOPEN="máy chủ",21</code> trả OK ngay lập tức (chỉ là đã nhận),
+                    chờ <code>+QFTPOPEN: 0,0</code> mới là đăng nhập thành công (tối đa 125 giây).
+                    Bấm tiếp <code>AT+QFTPSTAT</code> phải trả 1 (rảnh; 2 = đang truyền, 3 = đang đóng).</li>
+            </ol>
+            <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK                ← Chỉ có nghĩa là lệnh đã được nhận
++QFTPOPEN: 0,0    ← Dòng này mới là đăng nhập thành công</pre>
+            <p>Các mục thiết lập còn lại: <code>AT+QFTPCFG=?</code> một phím liệt kê đủ 10 mục đặt được kèm phạm vi (không tốn lưu lượng).
+            <code>rsptimeout</code> (20–180, mặc định 90 giây) là thời gian phản hồi tối đa của đa số lệnh,
+            cũng là cách quãng tối đa giữa hai gói dữ liệu trong data mode; <code>ssltype</code> / <code>sslctxid</code> dành cho
+            FTPS (FTP thuần giữ 0, tham số SSL đặt ở trang SSL);
+            <code>data_address</code> / <code>cache</code> / <code>restenable</code>
+            là tinh chỉnh cho môi trường đặc thù, công dụng xem giải thích trên từng nút và sổ tay.</p>
+            <div class="tip">
+                <strong>Che mật khẩu (đo thực tế, khác với sổ tay):</strong> truy vấn <code>AT+QFTPCFG="account"</code>
+                khi đọc lại thì mật khẩu bị che thành <code>*</code> (sổ tay nói in nguyên xi). Nhưng tài khoản vẫn là chữ rõ,
+                <strong>mật khẩu ở dòng đặt giá trị cũng là chữ rõ</strong>, chụp màn hình quay phim phải để ý dòng đặt giá trị.
+            </div>
+            <div class="warning">
+                <strong>🔴 <code>AT+QFTPCLOSE</code> là bất đồng bộ —— <code>OK</code> không có nghĩa là đã đóng xong.</strong>
+                Phải chờ <code>+QFTPCLOSE: 0,0</code> mới tính là đăng xuất hoàn tất; trong lúc đó <code>AT+QFTPSTAT</code>
+                trả 3 (đang đóng), gõ bất kỳ lệnh FTP nào <strong>đều trả <code>+CME ERROR: 603</code></strong> (máy chủ bận).
+                <br><br>
+                Triệu chứng cực kỳ dễ đánh lừa: một tràng 603 nhìn như module hỏng hoặc bị máy chủ phong tỏa,
+                thực ra chỉ là chưa đóng xong (đo thực tế hôm đó đã vì thế mà đi vòng một vòng lớn). Trần chờ = rsptimeout.
+                Ngoài ra nó chỉ đăng xuất FTP; muốn reset mạng triệt để, sang trang TCP/IP bấm Deact PDP.
+            </div>
+
+            <h4>Quản lý thư mục và tệp: dùng máy chủ như trình quản lý tệp</h4>
+            <p>Trọn bộ thao tác tệp phía máy chủ (LIST / NLST / MLSD phải mở kết nối dữ liệu, còn lại chỉ đi kênh điều khiển).
+            Phản hồi thành công luôn là <code>+QFTPXXX: 0,…</code> —— con số đầu tiên 0 chính là thành công:</p>
+            <table>
+                <tr><th>Lệnh</th><th>Làm gì</th><th>Phản hồi thành công (đo thực tế)</th></tr>
+                <tr><td><code>AT+QFTPPWD</code></td><td>Tra thư mục làm việc hiện tại</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+                <tr><td><code>AT+QFTPCWD</code></td><td>Chuyển thư mục làm việc, các thao tác sau lấy đây làm gốc</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPLIST</code></td><td>Danh sách đầy đủ nhả thẳng ra terminal (hai nút: thư mục hiện tại / thư mục chỉ định)</td><td>Sau nội dung là <code>+QFTPLIST: 0,1175</code> (số đuôi = số byte)</td></tr>
+                <tr><td><code>AT+QFTPNLST</code> / <code>AT+QFTPMLSD</code></td><td>Chỉ liệt kê tên tệp (tiết kiệm lưu lượng) / định dạng chuẩn MLSD (dễ phân tích)</td><td>Giống LIST</td></tr>
+                <tr><td><code>AT+QFTPSIZE</code></td><td>Tra kích thước tệp, không tải nội dung</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+                <tr><td><code>AT+QFTPMDTM</code></td><td>Tra thời điểm sửa tệp, không tải nội dung</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+                <tr><td><code>AT+QFTPMKDIR</code> / <code>AT+QFTPRMDIR</code></td><td>Tạo / xóa thư mục</td><td><code>…: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPRENAME</code></td><td>Đổi tên tệp hoặc thư mục</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPDEL</code></td><td>Xóa tệp</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+            </table>
+            <p>Chiêu thức (đo thực tế cả chuỗi đều qua): <strong>lấy SIZE làm phép kiểm tồn tại</strong> ——
+            đổi tên xong tra tên cũ trả <code>+QFTPSIZE: 627,550</code>, tên mới trả <code>0,20</code>;
+            xóa xong tra lại lại là <code>627,550</code>, không tải nửa byte nào mà kiểm chứng được từng bước.
+            <code>627,550</code> là <strong>mã lỗi hai tầng</strong>: 627 = tầng module "FTP không thực hiện động tác được yêu cầu",
+            550 = tầng giao thức FTP máy chủ đáp "tệp hoặc thư mục không tồn tại", chú giải của công cụ này sẽ dịch tách tầng.</p>
+
+            <h4>Tải xuống: nội dung in thẳng ra terminal (COM:)</h4>
+            <p><code>AT+QFTPGET="tên tệp","COM:"</code> —— sau <code>CONNECT</code> nội dung tệp nhả thẳng ra terminal,
+            kết thúc bằng <code>+QFTPGET: 0,&lt;số byte&gt;</code> (đo thực tế readme.txt trả 0,379).
+            Nút <strong>tải xuống theo khối</strong> còn lại kèm thêm tham số điểm bắt đầu và độ dài, là cách tải được khuyên dùng nhất:
+            dùng SIZE tra kích thước trước, rồi lấy theo khối, tránh nguyên tệp làm nổ lưu lượng.
+            <code>AT+QFTPLEN</code> tra lần PUT / GET / LIST / NLST vừa rồi thực truyền bao nhiêu byte.</p>
+
+            <h4>Tải lên: hai giai đoạn, gửi đủ độ dài đã khai là tự kết thúc</h4>
+            <p><code>AT+QFTPPUT="tên tệp","COM:",0,&lt;độ dài&gt;,1</code> là lệnh hai giai đoạn:
+            chờ <code>CONNECT</code> (vào data mode) rồi gửi ra số byte <strong>vừa đúng</strong> bằng độ dài đã khai,
+            module đếm đủ là tự thoát data mode, không cần gửi Ctrl+Z. Công cụ này tự tính độ dài, dán nội dung vào thẻ tham số là được.</p>
+            <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT                        ← Vào data mode
+NuModem-P6-FTP-test\n          ← Gửi đúng 20 bytes
+OK
++QFTPPUT: 0,20                 ← Máy chủ nhận được 20 bytes</pre>
+            <p>20 bytes này lúc đo thực tế đã cố ý dùng Python ftplib phía máy tính kéo về so từng byte —— trùng khớp hoàn toàn.
+            <strong>Hình thức trung chuyển qua UFS</strong>: sổ tay còn hỗ trợ viết tên tệp thành <code>"UFS:xxx"</code>,
+            trung chuyển qua vùng lưu trữ cài sẵn của module, chi tiết xem application note FTPS; muốn đưa tệp từ máy tính vào UFS trước,
+            dùng nút Upload của cụm "tệp UFS" trang SSL (<code>AT+QFUPL</code>, đi đường UART không tốn lưu lượng,
+            tự đối chiếu checksum).</p>
+            <div class="warning">
+                <strong>⚠ <code>+++</code> với FTP là "chấm dứt" chứ không phải "tạm dừng".</strong>
+                Sổ tay (FTPS AN v1.5 p13) viết thoát xong có thể dùng <code>ATO</code> quay lại data mode truyền tiếp,
+                <strong>đo thực tế không đứng vững</strong> (thử hai lần kết quả như nhau): thoát xong <code>AT+QFTPSTAT</code>
+                trả 1 (rảnh) chứ không phải 2 (đang truyền), <code>ATO</code> trả <code>NO CARRIER</code> ——
+                phiên truyền đã bị chấm dứt trọn gói, không có kết nối nào để khôi phục. Vậy nên <code>+++</code> chỉ dùng được để thoát thân khỏi
+                data mode mất kiểm soát, không đem đi tạm dừng tải tệp lớn được.
+                <br><br>
+                Cách gõ đúng: <strong>trước sau đều im lặng 1 giây, gửi bằng byte thô, không thêm CR</strong> (thêm là mất tác dụng) ——
+                nút <code>+++</code> của trang này đã gửi đúng luật đó; nút <code>ATO</code> giữ lại theo ngữ nghĩa sổ tay.
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="Tab FTP">
+                <figcaption>Trang FTP: thiết lập đăng nhập, quản lý thư mục và tệp, tải lên tải xuống.</figcaption>
+            </figure>
+
+            <h4>Khắc phục sự cố</h4>
+            <table>
+                <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+                <tr><td><code>+CME ERROR: 603</code> bắn liên hồi</td>
+                    <td>① Sau QFTPCLOSE còn đang đóng (QFTPSTAT trả 3) —— chờ <code>+QFTPCLOSE: 0,0</code>;
+                        ② trước đó từng xảy ra 615 —— <strong>sau 615 mọi lệnh FTP nhất loạt 603</strong>, cho tới khi đóng lại tử tế</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>Mở kết nối dữ liệu thất bại: <strong>kênh điều khiển bình thường, kênh dữ liệu chết sạch</strong>
+                        (SIZE có phản hồi, PUT / GET / LIST đổ hết). Phần nhiều là vấn đề phía máy chủ ——
+                        dlptest thử từ hai đường mạng khác nhau đều thất bại, rebex toàn trình không thất bại lần nào;
+                        đọc thì dùng rebex, ghi mới dùng dlptest và làm xong trong một hơi</td></tr>
+                <tr><td><code>627,550</code></td>
+                    <td>Tệp hoặc thư mục không tồn tại —— tên tệp hoặc đường dẫn gõ sai, QFTPPWD / QFTPLIST xác nhận mình đang ở đâu trước</td></tr>
+                <tr><td>Khởi động lại xong, PUT đầu tiên đã 615</td>
+                    <td>Stack dữ liệu thoái hóa: QFTPCLOSE lẫn khởi động lại PDP đều không cứu nổi,
+                        <strong>chỉ có nghi thức khởi động trọn vẹn mới phục hồi</strong>. Phép phân định: dùng
+                        <code>AT+QIOPEN</code> trang TCP/IP đánh vào cùng một đích —— cũng thất bại = cả stack hỏng rồi, đừng tra thiết lập FTP nữa</td></tr>
+                <tr><td>Lệnh trả OK xong chẳng có gì xảy ra</td>
+                    <td>URC kết quả chạy sang cổng USB rồi —— tra <code>AT+QURCCFG="urcport"</code>
+                        có phải uart1 không</td></tr>
+                <tr><td><code>AT+QFTPOPEN</code> thất bại thẳng cẳng</td>
+                    <td>PDP chưa kích hoạt —— bấm <code>AT+QIACT?</code> của trang này trước, không có IP thì sang trang TCP/IP Act PDP</td></tr>
+            </table>

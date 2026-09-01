@@ -1,0 +1,148 @@
+<h3 id="tab-mqtt">MQTT —— tin nhắn IoT</h3>
+            <p><strong>Nguyên lý hoạt động:</strong> MQTT là giao thức kiểu "broker (máy chủ trung gian tin nhắn)":
+            các thiết bị không nối thẳng với nhau, mà ai nấy nối lên broker, publish hoặc subscribe tin nhắn theo "chủ đề (topic)".
+            Trên EG800K nó có hai tầng: trước tiên <code>AT+QMTOPEN</code> mở "kết nối mạng" (TCP nối tới broker),
+            rồi <code>AT+QMTCONN</code> làm "đăng nhập MQTT", hai tầng đều thông mới subscribe và publish được.
+            Nhớ trước điều này: <strong>kết quả của các lệnh MQTT toàn bộ theo kiểu "OK trước, URC sau"</strong> (giống FTP) ——
+            <code>OK</code> chỉ có nghĩa là lệnh đã được nhận, thành bại nhìn URC kết quả phía sau.</p>
+            <p>Trang này cố định dùng client 0; firmware còn hỗ trợ nhiều client (0–5), SSL và xác thực nền tảng đám mây
+            (<code>=?</code> đã xác nhận bằng đo thực tế), cách dùng nâng cao xem application note MQTT.</p>
+
+            <h4>Trước khi bắt đầu: hai tiền đề</h4>
+            <ol>
+                <li><strong>URC phải đi đường UART</strong>: <code>AT+QURCCFG="urcport"</code> phải trả về
+                    <code>"uart1"</code>. Giá trị xuất xưởng là <code>"usbat"</code>, mà kết quả MQTT toàn là URC ——
+                    không đổi thì <strong>lệnh nào cũng chỉ trả OK, không có hồi sau</strong>
+                    (trang Basic có nút; ghi NVRAM, đổi một lần là xong).</li>
+                <li><strong>PDP phải kích hoạt trước</strong>: sang trang TCP/IP bấm <code>AT+QIACT=1</code> trước
+                    (tối đa 150 giây); chưa mở thì <code>+QMTOPEN</code> trả <strong>3 = kích hoạt PDP thất bại</strong>.
+                    Toàn trình phát sinh lưu lượng dữ liệu, ước chừng khoảng 5 KB.</li>
+            </ol>
+
+            <h4>Thử ở đâu: bốn broker công khai miễn phí</h4>
+            <p>Thẻ tham số của <code>AT+QMTOPEN</code> cài sẵn menu thả xuống chọn broker (vẫn cho gõ tự do),
+            cả bốn nhà đều cho phép ẩn danh, không cần đăng ký. Số liệu đo thực tế tháng 8 năm 2026 (phía PC bắn dồn 100 tin, phía module ping):</p>
+            <table>
+                <tr><th>Broker</th><th>Bắn dồn 100 tin</th><th>Ping từ module</th><th>Ghi chú</th></tr>
+                <tr><td><strong>mqttgo.io</strong> (mặc định)</td><td><strong>100/100</strong></td>
+                    <td><strong>190–210 ms</strong></td><td>HiNet Đài Loan; 1883 rõ chữ / 8883 TLS</td></tr>
+                <tr><td>broker.hivemq.com</td><td>100/100</td><td>Chặn ICMP</td>
+                    <td><code>AT+QPING</code> trả 559 đừng hoảng —— đo thực tế TCP 1883 của cả bốn nhà thông hết,
+                        độ với tới cứ thử thẳng bằng <code>AT+QMTOPEN</code></td></tr>
+                <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+                    <td>Trang chủ tự nhận đừng dùng vào việc quan trọng; ô nhiễm chủ đề nặng nhất</td></tr>
+                <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>Chặn ICMP</td>
+                    <td><strong>Có giới hạn tốc độ publish</strong>; có Dashboard trên web</td></tr>
+            </table>
+            <p>Cả bốn nhà đều <strong>công khai hoàn toàn</strong>: ai cũng subscribe được chủ đề của bạn,
+            tin nhắn của người khác cũng có thể lẫn vào —— đây chính là vấn đề mà hậu tố ngẫu nhiên sinh ra để giải quyết.</p>
+
+            <h4>Hậu tố ngẫu nhiên của client ID và chủ đề: mỗi lần tải lại trang là đổi một bộ</h4>
+            <p>client ID và chủ đề mặc định không viết chết: lúc trang được tải sẽ tự sinh hậu tố 6 ký tự thập lục phân,
+            ghép thành <code>numodem-&lt;hậu tố&gt;</code> và <code>test/numodem-&lt;hậu tố&gt;</code>,
+            ba nút Subscribe / Publish / Unsub dùng chung một bộ (không thì loopback không khớp nhau). Có hai lý do:</p>
+            <ul>
+                <li><strong>Trùng tên là bị đá văng</strong>: MQTT 3.1.1 §3.1.4 quy định broker phải đá kẻ nối trước
+                    xuống —— hai người cùng dùng một ID cố định là đá nhau qua lại, triệu chứng nhìn như "module tự dưng rớt mạng".</li>
+                <li><strong>Chủ đề cố định sẽ nhận tin nhắn của người khác</strong>: bạn tưởng nhận được là của mình phát, thực ra không phải ——
+                    chuyện này còn tệ hơn không nhận được, vì nó cho một kết quả đạt giả.</li>
+            </ul>
+            <div class="warning">
+                <strong>⚠ Mỗi lần tải lại trang, hậu tố đổi một bộ ——
+                subscribe và publish phải hoàn tất trong cùng một vòng đời trang.</strong>
+                Huống hồ công cụ này RTS = nguồn điện, tải lại trang = module mất điện, kết nối MQTT bay sạch cả cụm,
+                phải làm lại từ nghi thức khởi động và <code>AT+QMTOPEN</code>.
+            </div>
+
+            <h4>Đường đi đầy đủ: kết nối → subscribe → publish → nhận lại tin của chính mình</h4>
+            <p>Phép kiểm chứng thuyết phục nhất là <strong>loopback tự thân</strong>: subscribe xong publish vào cùng một chủ đề,
+            tự nhận lại tin nhắn của chính mình, một lượt kiểm trọn chuỗi thu phát. Mỗi bước chờ URC kết quả rồi mới đi tiếp:</p>
+            <ol>
+                <li><strong>Đặt phiên bản giao thức</strong>: bấm Ver 3.1.1 (<code>AT+QMTCFG="version",0,4</code>;
+                    3 = 3.1, 4 = 3.1.1). Bấm Version? tra giá trị hiện tại (không kèm giá trị = truy vấn).
+                    Thẻ tham số Keepalive chỉnh được khoảng giữ sống, không chỉnh cũng thử được.</li>
+                <li><strong>Mở mạng</strong>: bấm Open Net (<code>AT+QMTOPEN=0,"broker",1883</code>).
+                    Trả <code>OK</code> trước, thành bại nhìn URC <code>+QMTOPEN: 0,&lt;result&gt;</code>
+                    (0 = thành công), chờ tối đa 120 giây. Bấm Open? tra các kết nối đã mở
+                    (không có kết nối thì trả <code>OK</code> rỗng, đo thực tế là bình thường).</li>
+                <li><strong>Đăng nhập MQTT</strong>: bấm Connect (<code>AT+QMTCONN=0,"numodem-&lt;hậu tố&gt;"</code>).
+                    URC thành công cố định là <code>+QMTCONN: 0,0,0</code>. Broker công khai miễn tài khoản mật khẩu;
+                    khi cần thì tự thêm <code>,"user","pass"</code> vào sau tham số.
+                    Bấm Conn? tra trạng thái (1 = khởi tạo, 2 = đang nối, 3 = đã nối, 4 = đang ngắt).</li>
+                <li><strong>Subscribe</strong>: bấm Subscribe (<code>AT+QMTSUB=0,1,"test/numodem-&lt;hậu tố&gt;",0</code>,
+                    msgid cố định 1). URC thành công dạng <code>+QMTSUB: 0,1,0,0</code>.
+                    Từ đó tin nhắn của chủ đề này đều đi vào bằng URC <code>+QMTRECV</code>.</li>
+                <li><strong>Publish</strong>: bấm Publish (<code>AT+QMTPUBEX</code>, hai giai đoạn, xem đoạn dưới).
+                    URC thành công là <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code>.</li>
+                <li><strong>Nhận lại</strong>: đích publish chính là chủ đề đang subscribe, ngay sau đó sẽ thấy
+                    <code>+QMTRECV</code> mang theo chủ đề và phần nội dung tin vừa gửi —— loopback thành công.
+                    Payload nhiều byte như chữ Hán cũng không bị cắt cụt, không vỡ mã.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="Tab MQTT">
+                <figcaption>Trang MQTT: menu thả xuống chọn broker, kết nối, subscribe và publish; giá trị mặc định đã kèm hậu tố ngẫu nhiên.</figcaption>
+            </figure>
+
+            <h4>QMTPUBEX hai giai đoạn: đếm đủ độ dài là tự gửi, không cần Ctrl+Z</h4>
+            <p>Tham số cuối của <code>AT+QMTPUBEX</code> là <strong>độ dài (số byte), không phải nội dung tin nhắn</strong>
+            (application note MQTT §3.3.8 chốt hạ —— cách gửi một dòng nhét thẳng tin nhắn chắc chắn trả ERROR).
+            Quy trình đúng là hai giai đoạn: gửi lệnh → module trả dấu nhắc <code>&gt;</code> → gửi vừa đúng N byte,
+            module <strong>đếm đủ độ dài là tự động gửi đi, không cần Ctrl+Z</strong>
+            (khác với data mode của <code>AT+QISEND</code> trang TCP).
+            Bấm Publish là tự động hết: chỉ cần điền nội dung tin vào thẻ tham số,
+            độ dài tự tính theo số byte UTF-8 (chữ Hán mỗi chữ 3 byte, đo thực tế <code>測試</code> → 6).</p>
+            <ul>
+                <li>Các lệnh kiểu payload <strong>không cung cấp "điền vào dòng lệnh"</strong> —— gửi từ dòng lệnh luôn kèm ký tự cuối dòng,
+                    cái CR đó bị tính vào độ dài làm lệch vị trí, hãy gửi bằng nút.</li>
+                <li>Firmware còn có <code>AT+QMTPUB</code> (biến thể data mode, phải Ctrl+Z chốt đuôi) ——
+                    công cụ này nhất loạt dùng <code>QMTPUBEX</code>, không cần học cả hai bộ.</li>
+            </ul>
+
+            <h4>Đọc mã kết quả: miền giá trị của mỗi lệnh mỗi khác</h4>
+            <div class="warning">
+                <strong>Đừng đem bảng mã kết quả của lệnh A áp lên lệnh B.</strong>
+                Số 3 của <code>+QMTOPEN</code> là "kích hoạt PDP thất bại",
+                còn <code>+QMTPUBEX</code> căn bản không có giá trị 3.
+                <br><br>
+                Dễ đọc nhầm nhất là <code>+QMTCONN: 0,1</code> ——
+                nó <strong>có thể là phản hồi truy vấn "trạng thái 1 = đang khởi tạo", cũng có thể là kết quả ghi "gói tin đang truyền lại"</strong>.
+                Nhìn một dòng đơn lẻ không phân biệt nổi, nên công cụ này bày cả hai cách đọc cạnh nhau, không đoán bừa.
+            </div>
+            <p>Bạn không phải học thuộc bảng: toàn bộ URC kết quả từ <code>+QMTOPEN</code> đến <code>+QMTRECV</code> / <code>+QMTSTAT</code>,
+            khu terminal đều chú giải từng cột bằng lời dễ hiểu theo bảy bảng đối chiếu của application note MQTT v1.5.</p>
+
+            <h4>Ngắt kết nối và thu dọn</h4>
+            <ul>
+                <li><strong>Chỉ muốn ngừng nhận tin, giữ lại kết nối</strong>: bấm Unsub
+                    (<code>AT+QMTUNS=0,2,"chủ đề"</code>, msgid cố định 2).</li>
+                <li><strong>Ngắt kết nối tử tế</strong>: bấm Disconnect (<code>AT+QMTDISC=0</code>,
+                    gửi MQTT DISCONNECT), trả <code>+QMTDISC: 0,0</code>.
+                    <strong>Sau đó không cần bấm Close Net nữa</strong> —— <code>AT+QMTCLOSE=0</code>
+                    là để đóng cưỡng bức khi "QMTDISC thất bại, tầng mạng bị kẹt".</li>
+            </ul>
+            <p>Ngắt kết nối không do bạn bấm (bị đá, keepalive hết giờ, rớt mạng) sẽ được báo bằng URC ngắt bất thường <code>+QMTSTAT</code>
+            (ví dụ: <code>+QMTSTAT: 0,5</code>, khu terminal sẽ chú giải nguyên nhân),
+            lúc đó phải làm lại từ <code>AT+QMTOPEN</code>.</p>
+
+            <h4>Khắc phục sự cố</h4>
+            <table>
+                <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+                <tr><td>Lệnh nào cũng trả OK, rồi không có hồi sau</td>
+                    <td>URC bị gửi sang cổng USB —— <code>urcport</code> xuất xưởng là <code>usbat</code>,
+                        chuyển thành <code>uart1</code> (xem tiền đề 1)</td></tr>
+                <tr><td><code>+QMTOPEN: 0,3</code></td>
+                    <td>Kích hoạt PDP thất bại —— <code>AT+QIACT=1</code> trước (trang TCP/IP) rồi làm lại</td></tr>
+                <tr><td>Subscribe rồi mà không nhận được tin do chính mình phát</td>
+                    <td>Giữa chừng đã tải lại trang —— hậu tố đổi bộ, module cũng mất điện khởi động lại.
+                        Chạy lại trọn một lượt đường đi trong cùng một vòng đời trang</td></tr>
+                <tr><td>Nhận được tin không phải mình phát</td>
+                    <td>Ô nhiễm chủ đề trên broker công khai (mosquitto nặng nhất). Chủ đề mặc định đã kèm hậu tố ngẫu nhiên;
+                        chủ đề tự đặt thì lấy tên độc nhất</td></tr>
+                <tr><td>Publish số lượng lớn bị rơi mất một phần tin</td>
+                    <td>emqx có giới hạn tốc độ publish (đo thực tế bắn dồn 100 chỉ tới 40) ——
+                        đổi sang mqttgo.io hoặc hivemq (100/100 không bóp luồng)</td></tr>
+                <tr><td>Chờ rất lâu không có URC kết quả</td>
+                    <td>Họ lệnh này vốn dĩ chậm: <code>QMTOPEN</code> tối đa 120 giây,
+                        <code>QMTCONN</code> / <code>QMTSUB</code> / <code>QMTPUBEX</code> tối đa 600 giây
+                        (PUBEX = gói hết giờ 60 giây x thử lại 10), phần giải thích trên nút đã ghi rõ, không phải treo máy</td></tr>
+            </table>

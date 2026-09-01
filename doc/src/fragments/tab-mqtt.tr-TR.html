@@ -1,0 +1,148 @@
+<h3 id="tab-mqtt">MQTT —— IoT mesajlaşması</h3>
+            <p><strong>Çalışma prensibi:</strong> MQTT, "broker (mesaj aracı sunucusu)" temelli bir protokoldür:
+            cihazlar birbirine doğrudan bağlanmaz; her biri broker'a bağlanır ve "konulara (topic)" mesaj yayınlar ya da abone olur.
+            EG800K'de iki katmanlıdır: önce <code>AT+QMTOPEN</code> ile "ağ bağlantısı" açılır (broker'a TCP),
+            sonra <code>AT+QMTCONN</code> ile "MQTT oturumu" açılır; abone olmak ve yayınlamak için iki katman da geçmiş olmalıdır.
+            Önce şunu ezberleyin: <strong>MQTT komutlarının sonuçları hep "önce OK, sonra URC" düzenindedir</strong> (FTP ile aynı) ——
+            <code>OK</code> yalnızca komutun alındığını gösterir; başarı ya da başarısızlık sonraki sonuç URC'sinden okunur.</p>
+            <p>Bu sayfa sabit olarak client 0 kullanır; firmware ayrıca çoklu client (0–5), SSL ve bulut platformu kimlik doğrulamasını destekler
+            (<code>=?</code> ile ölçümde doğrulandı); ileri kullanım için MQTT uygulama notuna bakın.</p>
+
+            <h4>Başlamadan önce: iki ön koşul</h4>
+            <ol>
+                <li><strong>URC UART'tan gelmeli</strong>: <code>AT+QURCCFG="urcport"</code> yanıtı
+                    <code>"uart1"</code> olmalıdır. Fabrika değeri <code>"usbat"</code>'tır; MQTT'nin sonuçlarının hepsi URC'dir ——
+                    değiştirilmezse <strong>her komut yalnızca OK döner, devamı gelmez</strong>
+                    (Basic sayfasında düğmesi var; NVRAM'e yazılır, bir kez değiştirmek yeter).</li>
+                <li><strong>PDP önce etkinleştirilmeli</strong>: önce TCP/IP sayfasında <code>AT+QIACT=1</code>'e basın
+                    (en fazla 150 saniye); açık değilse <code>+QMTOPEN</code> <strong>3 = PDP etkinleştirme başarısız</strong> döndürür.
+                    Süreç boyunca veri trafiği üretilir; tahmini yaklaşık 5 KB.</li>
+            </ol>
+
+            <h4>Nasıl test edilir: dört ücretsiz açık broker</h4>
+            <p><code>AT+QMTOPEN</code>'ın parametre kartında yerleşik bir broker açılır listesi vardır (elle yazmak da serbesttir);
+            dördü de anonime izin verir, kayıt gerekmez. Veriler Ağustos 2026 ölçümüdür (PC'den 100 mesajlık salvo, modülden ping):</p>
+            <table>
+                <tr><th>Broker</th><th>100 mesajlık salvo</th><th>Modülden ping</th><th>Not</th></tr>
+                <tr><td><strong>mqttgo.io</strong> (varsayılan)</td><td><strong>100/100</strong></td>
+                    <td><strong>190–210 ms</strong></td><td>Tayvan HiNet; 1883 düz metin / 8883 TLS</td></tr>
+                <tr><td>broker.hivemq.com</td><td>100/100</td><td>ICMP engelli</td>
+                    <td><code>AT+QPING</code> 559 dönerse telaşlanmayın —— ölçümde dördünün de TCP 1883'ü açıktı;
+                        erişilebilirliği doğrudan <code>AT+QMTOPEN</code> ile test edin</td></tr>
+                <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+                    <td>Kendi sitesi "önemli işler için kullanmayın" der; konu kirliliği en ağır olanı</td></tr>
+                <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>ICMP engelli</td>
+                    <td><strong>Yayın hız sınırı var</strong>; web Dashboard'u var</td></tr>
+            </table>
+            <p>Bu dördü de <strong>tümüyle açıktır</strong>: herkes sizin konunuza abone olabilir,
+            başkalarının mesajları da araya karışabilir —— rastgele son ekin çözdüğü sorun tam olarak budur.</p>
+
+            <h4>client ID ve konudaki rastgele son ek: her sayfa yenilemesinde değişir</h4>
+            <p>client ID ile varsayılan konu sabit yazılmamıştır: sayfa yüklenirken 6 onaltılık karakterlik bir son ek üretilir ve
+            <code>numodem-&lt;sonek&gt;</code> ile <code>test/numodem-&lt;sonek&gt;</code> oluşturulur;
+            Subscribe / Publish / Unsub üç düğmesi aynı takımı paylaşır (yoksa geri döngü tutmaz). İki gerekçesi var:</p>
+            <ul>
+                <li><strong>Ad çakışması hattan attırır</strong>: MQTT 3.1.1 §3.1.4, broker'ın önce bağlanmış olanı
+                    düşürmesini emreder —— iki kişi aynı sabit ID'yi kullanınca birbirlerini düşürürler; belirti "modül nedensiz kopuyor" gibi görünür.</li>
+                <li><strong>Sabit konu başkalarının mesajını getirir</strong>: kendi gönderdiğinizi aldığınızı sanırsınız ama değildir ——
+                    bu, hiç alamamaktan daha kötüdür; sahte bir "geçti" verir.</li>
+            </ul>
+            <div class="warning">
+                <strong>⚠ Sayfa her yenilendiğinde son ek değişir ——
+                abonelik ve yayın aynı sayfa yaşam döngüsü içinde bitirilmelidir.</strong>
+                Kaldı ki bu araçta RTS = güç; sayfayı yeniden yüklemek = modülün gücünü kesmek demektir; MQTT bağlantısı komple gider,
+                açılış prosedüründen ve <code>AT+QMTOPEN</code>'dan yeniden başlamak gerekir.
+            </div>
+
+            <h4>Tam akış: bağlan → abone ol → yayınla → kendi mesajını geri al</h4>
+            <p>En inandırıcı doğrulama <strong>geri döngüdür</strong>: abone olduktan sonra aynı konuya yayınlayıp
+            kendi mesajınızı geri almak, tüm alışveriş zincirini tek seferde sınar. Her adımda sonuç URC'sini bekleyip öyle ilerleyin:</p>
+            <ol>
+                <li><strong>Protokol sürümünü ayarlayın</strong>: Ver 3.1.1'e basın (<code>AT+QMTCFG="version",0,4</code>;
+                    3 = 3.1, 4 = 3.1.1). Version? güncel değeri sorgular (değersiz = sorgu).
+                    Keepalive parametre kartı canlı tutma aralığını ayarlar; ayarlamadan da test edilebilir.</li>
+                <li><strong>Ağı açın</strong>: Open Net'e basın (<code>AT+QMTOPEN=0,"broker",1883</code>).
+                    Önce <code>OK</code> döner; sonuç URC'den okunur: <code>+QMTOPEN: 0,&lt;result&gt;</code>
+                    (0 = başarı), en fazla 120 saniye bekleyin. Open? açık bağlantıları sorgular
+                    (bağlantı yokken boş <code>OK</code> döner; ölçümde normal).</li>
+                <li><strong>MQTT oturumu</strong>: Connect'e basın (<code>AT+QMTCONN=0,"numodem-&lt;sonek&gt;"</code>).
+                    Başarı URC'si her zaman <code>+QMTCONN: 0,0,0</code>'dır. Açık broker'lar kimlik istemez;
+                    kimlik gerektiğinde parametrelerin sonuna kendiniz <code>,"user","pass"</code> ekleyin.
+                    Conn? durumu sorgular (1 = başlangıç, 2 = bağlanıyor, 3 = bağlı, 4 = kopuyor).</li>
+                <li><strong>Abone olun</strong>: Subscribe'a basın (<code>AT+QMTSUB=0,1,"test/numodem-&lt;sonek&gt;",0</code>,
+                    msgid sabit 1). Başarı URC'si <code>+QMTSUB: 0,1,0,0</code> biçimindedir.
+                    Artık bu konunun mesajları <code>+QMTRECV</code> URC'si olarak gelir.</li>
+                <li><strong>Yayınlayın</strong>: Publish'e basın (<code>AT+QMTPUBEX</code>, iki aşamalı, bir sonraki paragrafa bakın).
+                    Başarı URC'si <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code>'dır.</li>
+                <li><strong>Geri alın</strong>: yayın hedefi zaten abone olunan konudur; hemen ardından
+                    <code>+QMTRECV</code> konuyla birlikte az önceki mesaj gövdesini getirir —— geri döngü başarılı.
+                    Latin dışı payload da kesilmez, bozulmaz.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="MQTT sekmesi">
+                <figcaption>MQTT sayfası: broker açılır listesi, bağlantı, abonelik ve yayın; varsayılan değerler rastgele son ekle gelir.</figcaption>
+            </figure>
+
+            <h4>QMTPUBEX iki aşamalı: uzunluk dolunca kendiliğinden gönderir, Ctrl+Z gerekmez</h4>
+            <p><code>AT+QMTPUBEX</code>'in son parametresi <strong>uzunluktur (bayt sayısı), mesaj içeriği değildir</strong>
+            (MQTT uygulama notu §3.3.8 dosyayı kapatır —— mesajı tek satıra gömme denemesi her zaman ERROR döndürür).
+            Doğru akış iki aşamalıdır: komutu gönder → modül <code>&gt;</code> istemini döndürür → tam N bayt gönder;
+            modül <strong>uzunluk dolunca kendiliğinden gönderir, Ctrl+Z gerekmez</strong>
+            (TCP sayfasındaki <code>AT+QISEND</code>'in veri modundan farklıdır).
+            Publish düğmesi tümüyle otomatiktir: parametre kartına mesaj içeriğini yazmanız yeter;
+            uzunluk UTF-8 bayt sayısından kendiliğinden hesaplanır (Latin dışı bir karakter 3 bayt olabilir; ölçümde iki karakterlik bir örnek → 6).</p>
+            <ul>
+                <li>Payload'lu komutlarda <strong>"komut satırına aktar" sunulmaz</strong> —— komut satırı gönderirken hep satır sonu ekler;
+                    o CR uzunluğa dahil olur ve hizayı bozar; düğmeyle gönderin.</li>
+                <li>Firmware'de ayrıca <code>AT+QMTPUB</code> vardır (veri modu türevi, Ctrl+Z ile biter) ——
+                    bu araç her zaman <code>QMTPUBEX</code> kullanır; iki takımı birden öğrenmeniz gerekmez.</li>
+            </ul>
+
+            <h4>Sonuç kodlarını yorumlamak: her komutun değer alanı farklıdır</h4>
+            <div class="warning">
+                <strong>A komutunun sonuç kodu tablosunu B komutuna uygulamayın.</strong>
+                <code>+QMTOPEN</code>'ın 3'ü "PDP etkinleştirme başarısız" demektir;
+                <code>+QMTPUBEX</code>'te 3 diye bir değer hiç yoktur.
+                <br><br>
+                En kolay yanlış okunan <code>+QMTCONN: 0,1</code>'dir ——
+                <strong>sorgu yanıtındaki "durum 1 = başlatılıyor" da olabilir, yazma sonucundaki "paket yeniden iletiliyor" da</strong>.
+                Tek satırdan ayırt edilemez; bu yüzden bu araç iki okumayı yan yana gösterir, körlemesine tahmin etmez.
+            </div>
+            <p>Tabloyu ezberlemeniz gerekmez: <code>+QMTOPEN</code>'dan <code>+QMTRECV</code> / <code>+QMTSTAT</code>'a kadar
+            tüm sonuç URC'lerine terminal alanı, MQTT uygulama notu v1.5'in yedi karşılaştırma tablosuna göre alan alan sade açıklama düşer.</p>
+
+            <h4>Çevrimdışına geçiş ve kapanış</h4>
+            <ul>
+                <li><strong>Yalnızca mesaj alımını durdurmak, bağlantıyı korumak</strong>: Unsub'a basın
+                    (<code>AT+QMTUNS=0,2,"konu"</code>, msgid sabit 2).</li>
+                <li><strong>Düzgün çevrimdışı olmak</strong>: Disconnect'e basın (<code>AT+QMTDISC=0</code>,
+                    MQTT DISCONNECT gönderir); <code>+QMTDISC: 0,0</code> döner.
+                    <strong>Sonrasında Close Net'e basmak gerekmez</strong> —— <code>AT+QMTCLOSE=0</code>,
+                    "QMTDISC başarısız oldu, ağ katmanı takıldı" durumunda zorla kapatmak içindir.</li>
+            </ul>
+            <p>Sizin basmadığınız kopmalar (atılma, keepalive zaman aşımı, ağ kesintisi) <code>+QMTSTAT</code>
+            anormal kopma URC'siyle bildirilir (örn. <code>+QMTSTAT: 0,5</code>; terminal alanı nedenini açıklar);
+            bu durumda <code>AT+QMTOPEN</code>'dan yeniden başlamak gerekir.</p>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td>Her komut OK dönüyor, sonra hiçbir şey gelmiyor</td>
+                    <td>URC'ler USB portuna gidiyor —— <code>urcport</code> fabrikada <code>usbat</code>'tır,
+                        <code>uart1</code>'e geçirin (bkz. ön koşul 1)</td></tr>
+                <tr><td><code>+QMTOPEN: 0,3</code></td>
+                    <td>PDP etkinleştirme başarısız —— önce <code>AT+QIACT=1</code> (TCP/IP sayfası), sonra yeniden deneyin</td></tr>
+                <tr><td>Abone oldum ama kendi yayınladığım mesaj gelmiyor</td>
+                    <td>Arada sayfa yenilenmiş —— son ek değişti, modül de güç kesilip yeniden açıldı.
+                        Aynı sayfa yaşam döngüsü içinde akışı baştan çalıştırın</td></tr>
+                <tr><td>Kendi göndermediğim mesajlar geliyor</td>
+                    <td>Açık broker'da konu kirliliği (en ağırı mosquitto). Varsayılan konu zaten rastgele son ekli;
+                        özel konu seçerken benzersiz ad kullanın</td></tr>
+                <tr><td>Yoğun yayında mesajların bir kısmı düşüyor</td>
+                    <td>emqx'te yayın hız sınırı var (ölçümde 100'lük salvodan yalnızca 40'ı geçti) ——
+                        mqttgo.io ya da hivemq'ya geçin (100/100, sınırsız)</td></tr>
+                <tr><td>Çok bekliyorum, sonuç URC'si gelmiyor</td>
+                    <td>Bu aile zaten yavaştır: <code>QMTOPEN</code> en fazla 120 saniye,
+                        <code>QMTCONN</code> / <code>QMTSUB</code> / <code>QMTPUBEX</code> en fazla 600 saniye
+                        (PUBEX = paket zaman aşımı 60 saniye × 10 deneme); düğme açıklamalarında yazılıdır, donma değildir</td></tr>
+            </table>

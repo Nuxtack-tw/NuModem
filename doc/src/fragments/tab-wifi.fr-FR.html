@@ -1,0 +1,148 @@
+<h3 id="tab-wifi">WiFiScan — scan Wi-Fi et positionnement par réseau</h3>
+            <p><strong>Principe de fonctionnement :</strong> l'EG800K est un module LTE, <strong>sans aucune capacité d'accès Internet par Wi-Fi</strong>,
+            mais il embarque un récepteur Wi-Fi « qui scanne sans se connecter » : il reçoit passivement les trames
+            beacon diffusées par les points d'accès 2.4GHz alentour et rapporte pour chacun l'adresse MAC (BSSID), le RSSI (force du signal) et le canal.
+            Le scan est de la pure réception RF, <strong>zéro trafic de données</strong> ; il ne produit pas de coordonnées par lui-même —
+            il faut envoyer la liste MAC + RSSI à une base de données de points d'accès dans le cloud pour obtenir latitude et longitude ;
+            c'est le positionnement par réseau, <strong>utilisable en intérieur, sans satellite</strong>.
+            Tous les chiffres et comportements de cette section sont des valeurs mesurées en août 2026 sur un EG800K réel.</p>
+
+            <h4>Les deux groupes de boutons de cette page</h4>
+            <p>En haut, <strong>Wi-Fi Scan</strong>, quatre boutons (scan pur) ; en bas,
+            <strong>QuecLocator (QLBS)</strong>, treize boutons (lisez le paragraphe de vérité plus bas avant d'appuyer) :</p>
+            <table>
+                <tr><th>Bouton</th><th>Commande</th><th>Rôle et points mesurés</th></tr>
+                <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>Interroge les plages de paramètres. Réponse réelle de cet exemplaire :
+                        <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+                <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+                    <td>Lit les paramètres actuels. Sortie d'usine sur cet exemplaire : <code>12000,1,5,5,0</code> =
+                        limite 12 secondes, 1 tour, plafond de 5 points d'accès, timeout RRC 5 secondes, priorité 0</td></tr>
+                <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+                    <td>Un scan avec les paramètres actuels. Les résultats arrivent <strong>de façon asynchrone</strong> après le <code>OK</code>,
+                        attente jusqu'à 13 secondes</td></tr>
+                <tr><td>Scan (custom)</td><td>Carte de paramètres</td>
+                    <td>Scan après réglage personnalisé : limite (ms) / tours / plafond de points d'accès / timeout RRC / priorité</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="Onglet WiFiScan et groupe QuecLocator">
+                <figcaption>Page WiFiScan : les quatre boutons de scan et le groupe QuecLocator (QLBS).</figcaption>
+            </figure>
+
+            <h4>Premier scan : comment appuyer, ce que vous verrez</h4>
+            <ol>
+                <li><strong>Exécuter le rituel de démarrage</strong> (voir la section « Rituel de démarrage »).</li>
+                <li><strong>Vérifier que les URC passent par l'UART</strong> : <code>AT+QURCCFG="urcport"</code> doit répondre
+                    <code>"uart1"</code>. La valeur d'usine est <code>"usbat"</code> —
+                    tous les résultats de scan partiraient vers le port USB, et ici vous ne verriez qu'un <code>OK</code>,
+                    sans même un TIMEOUT (réglage écrit en NVRAM, une seule fois suffit).</li>
+                <li><strong>Appuyer sur <code>Scan</code></strong> : le module répond d'abord <code>OK</code>,
+                    ce qui signifie « scan démarré », <strong>pas le résultat</strong>. En quelques secondes (au plus la limite de scan),
+                    les résultats arrivent ligne par ligne, chacune avec son annotation automatique (MAC / RSSI / canal).</li>
+            </ol>
+
+            <h4>Lire les résultats de scan</h4>
+            <p>Un rapport mesuré ressemble à ceci (2026-08-29, 7 points d'accès trouvés, RSSI de -37 à -89 dBm) :</p>
+            <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+            <p>L'ordre des champs est <code>(ecn, ssid, rssi, mac, channel)</code>.
+            <strong>Le firmware de cet exemplaire renvoie invariablement <code>-</code> pour ecn et ssid</strong> (mesuré le 2026-08-02) :
+            la liste ne dit pas « à qui appartient ce Wi-Fi » —
+            juste assez pour le positionnement, puisque les bases n'avalent de toute façon que MAC + RSSI.
+            Intuition RSSI : -30 à -50 très proche, -60 à -75 moyen, sous -80 très faible.</p>
+            <p>Si aucun point d'accès n'est trouvé dans la limite, la réponse est <code>+QWIFISCAN:TIMEOUT</code> —
+            <strong>fin normale, pas une erreur</strong> (pas d'espace après les deux-points ; l'analyseur de cet outil le gère).
+            Pour en capter davantage : montez le plafond de points d'accès au-dessus du 5 d'usine via la carte de paramètres (maximum 10 sur cet exemplaire)
+            et passez à 2-3 tours (mesuré : les résultats sont dédoublonnés entre tours).</p>
+            <div class="warning">
+                <strong>Tous les points d'accès captés ne servent pas au positionnement.</strong> Mesuré le 2026-08-29 : sur 7,
+                4 étaient des « adresses administrées localement » (commençant par <code>C2:</code> / <code>62:</code> / <code>9E:</code>,
+                bit 0x02 du premier octet à 1 — BSSID virtuels des clones multi-SSID) ;
+                <strong>les bases de positionnement ignorent en général purement et simplement ces adresses</strong> : il ne restait que 3 adresses globales exploitables.
+            </div>
+            <div class="warning">
+                <strong>Les plages de paramètres de la note d'application V1.2 sont fausses pour cet exemplaire.</strong>
+                Le document élargit les tours à 1-6 et le plafond de points d'accès à 4-30, mais le firmware de cet exemplaire annonce toujours
+                <strong>tours 1-3, plafond 4-10</strong> (mesuré le 2026-08-06).
+                Fiez-vous à la réponse réelle de <code>Support?</code>, ne recopiez pas les chiffres du document.
+            </div>
+
+            <h4>Le groupe de boutons QuecLocator (QLBS) : la vérité avant d'appuyer</h4>
+            <p>QuecLocator est le service de positionnement cloud de Quectel : <code>AT+QLBS</code> (bouton <code>Locate</code>),
+            une seule commande, et le firmware collecte lui-même les données, interroge le serveur et renvoie les coordonnées. Trois réalités :</p>
+            <ol>
+                <li><strong>Il faut un token, et c'est un service payant.</strong> La documentation officielle écrit noir sur blanc qu'il faut contacter
+                    le support technique Quectel pour en obtenir un (pas d'inscription en libre-service). Le token de cet exemplaire est vide en sortie d'usine.</li>
+                <li><strong>Aucun des 16 documents officiels EG800K ne mentionne QuecLocator.</strong>
+                    La note d'application disponible vise EC200U / EG915U (syntaxe et codes d'erreur conformes aux mesures),
+                    ce n'est pas la documentation officielle de ce module.</li>
+                <li><strong>Ce projet a tranché : non retenu</strong> (2026-08-29) : la logique de positionnement est verrouillée dans le firmware ;
+                    si le service ferme, toute la commande AT devient inerte et le fournisseur est irremplaçable
+                    (le forum Quectel confirme l'arrêt du support pour la série BG95).
+                    Les boutons sont conservés, uniquement pour « valider au passage si un token gratuit se présente ».</li>
+            </ol>
+            <div class="warning">
+                <strong><code>+QLBS: 702</code> signifie « timeout serveur », pas un problème de token.</strong>
+                Ce projet a pris le 702 pour un « pas de token » pendant trois semaines entières — la vérité : le PDP n'avait pas été activé,
+                le module ne pouvait pas joindre le serveur, et le timeout écoulé (60 secondes d'usine) renvoyait 702.
+                Expérience de contrôle du 2026-08-29 (token vide du début à la fin) :
+                PDP inactif → <code>702</code> ; PDP actif → <code>10002</code> (token inexistant) —
+                <strong>le serveur est joignable depuis Taïwan, il ne manque que le token</strong>.
+                Avant <code>AT+QLBS</code>, toujours <code>AT+QIACT=1</code> (génère du trafic).
+            </div>
+            <p>Les sept sous-réglages ont chacun leurs boutons de lecture / écriture ; <code>Cfg?</code> (<code>AT+QLBSCFG=?</code>)
+            liste toutes les plages d'un seul geste (zéro trafic). Valeurs d'usine de cet exemplaire et points mesurés :</p>
+            <table>
+                <tr><th>Sous-réglage (boutons)</th><th>Valeur d'usine</th><th>Points mesurés</th></tr>
+                <tr><td><code>token</code> (Set Token / Token?)</td><td>vide</td>
+                    <td>La relecture est toujours masquée en <code>*</code> ; le chemin d'écriture fonctionne (mesuré)</td></tr>
+                <tr><td><code>server</code> (Server? / Set Server)</td>
+                    <td><code>www.queclocator.com:80</code></td><td>Adresse du serveur de positionnement</td></tr>
+                <tr><td><code>timeout</code> (Timeout? / Set Timeout)</td><td>60 secondes</td>
+                    <td>C'est le timeout que le 702 attend, plage 10-120</td></tr>
+                <tr><td><code>asynch</code> (Async? / Set Async)</td><td>0</td>
+                    <td>Bascule synchrone / asynchrone</td></tr>
+                <tr><td><code>latorder</code> (LatOrder?)</td><td>0</td>
+                    <td>Ordre de sortie latitude/longitude. ⚠ Clé en minuscules à l'écriture, mais relue en camelCase <code>latOrder</code></td></tr>
+                <tr><td><code>withtime</code> (WithTime?)</td><td>0</td>
+                    <td>La réponse porte-t-elle l'heure ; clé relue <code>withTime</code></td></tr>
+                <tr><td><code>timeupdate</code> (TimeUpd?)</td><td>0</td>
+                    <td>Corriger ou non l'horloge du module avec le résultat ; clé relue <code>timeUpdate</code></td></tr>
+            </table>
+            <p>Si vous obtenez vraiment un token : <code>Set Token</code> pour le saisir → <code>Token?</code>
+            pour confirmer (affiché en <code>*</code>) → activer le PDP sur la page TCP/IP → <code>Locate</code>.</p>
+
+            <h4>Itinéraire de rechange : positionnement par réseau sans token (71 mètres mesurés)</h4>
+            <p>Le positionnement par réseau ne dépend pas de QuecLocator. L'itinéraire de rechange a été validé de bout en bout le 2026-08-29 :
+            le module ne fournit que la matière première (scan des points d'accès sur cette page, lecture de la cellule avec <code>AT+QENG="servingcell"</code>),
+            la sortie du terminal est enregistrée puis confiée à <code>tools/wifi_geolocate.py</code> qui interroge les bases publiques côté PC —
+            <strong>zéro trafic pour le module, aucun service Quectel</strong>.
+            Mesuré (comparé à la vérité GNSS du même jour) : la consultation cellulaire via Unwired Labs (inscription gratuite) donne <strong>une erreur de
+            71 mètres</strong> (conclusion qui clôt ce volet du positionnement), via beaconDB (sans clé) 632 mètres ;
+            la consultation Wi-Fi bute sur les fournisseurs — l'écosystème gratuit s'est effondré (beaconDB sans couverture locale,
+            l'offre gratuite d'Unwired Labs exclut le Wi-Fi, Google / HERE exigent une carte bancaire) : mis en attente.</p>
+            <div class="tip">
+                <strong>71 mètres, c'est un « succès de consultation », pas une « précision de mesure ».</strong>
+                Le positionnement cellulaire consulte les coordonnées déclarées de la station via le Cell ID : la même cellule renverra toujours le même point —
+                changez de station et l'erreur peut passer au kilomètre ; le ±1051 mètres annoncé par le service est l'estimation honnête.
+                De plus, Cell ID et TAC sont en <strong>hexadécimal</strong> :
+                convertissez en décimal avant consultation (l'outil le fait déjà).
+            </div>
+
+            <h4>Dépannage</h4>
+            <table>
+                <tr><th>Symptôme</th><th>Cause et solution</th></tr>
+                <tr><td><code>Scan</code> ne répond que <code>OK</code>, les résultats n'apparaissent jamais</td>
+                    <td>Les URC partent vers le port USB — interrogez <code>AT+QURCCFG="urcport"</code> ;
+                        si ce n'est pas <code>"uart1"</code>, corrigez (écrit en NVRAM)</td></tr>
+                <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+                    <td>Aucun point d'accès trouvé dans la limite : fin normale, pas une erreur. Changez d'endroit ou allongez la limite</td></tr>
+                <tr><td><code>+QLBS: 702</code></td>
+                    <td>Timeout serveur — presque toujours un <code>AT+QIACT=1</code> oublié, pas un problème de token</td></tr>
+                <tr><td><code>+QLBS: 10002</code></td>
+                    <td>Token inexistant — il faut le demander (payant) à Quectel ; ce projet a tranché de ne pas l'utiliser,
+                        passez par l'itinéraire de rechange ci-dessus</td></tr>
+                <tr><td>Envie d'utiliser <code>AT+QCELLLOC</code></td>
+                    <td>Cet exemplaire <strong>ne le supporte pas</strong> (répond ERROR) — c'est une commande de la série EC2x</td></tr>
+            </table>

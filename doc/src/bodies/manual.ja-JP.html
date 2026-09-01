@@ -1,0 +1,2007 @@
+
+    <header class="header">
+        <h1>📡 NuModem EG800 ユーザーマニュアル</h1>
+        <p class="subtitle">ブラウザで 4G modem を制御 —— AT コマンド、リアルタイム注釈、18 言語</p>
+        <span class="version">V26.0.76</span>
+    </header>
+
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="#intro">概要</a>
+            <a href="#requirements">動作要件</a>
+            <a href="#quickstart">クイックスタート</a>
+            <a href="#boot">起動シーケンス</a>
+            <a href="#terminal">ターミナル</a>
+            <a href="#signals">信号バー</a>
+            <a href="#panel">AT パネル</a>
+            <a href="#tabs">10 個のタブ</a>
+            <a href="#method">テスト手法</a>
+            <a href="#faq">FAQ</a>
+        </div>
+    </nav>
+
+    <main class="container">
+
+        <section id="intro">
+            <h2><span class="icon">🎯</span> 概要</h2>
+            <p>NuModem EG800 は<strong>単一 HTML ファイル</strong>で動く 4G modem コンソールです。ブラウザの
+            Web Serial API を使って Quectel <strong>EG800K</strong> シリーズのモジュールへ直接 AT コマンドを送ります。
+            インストールは一切不要、ドライバ以外のソフトも不要、バックエンドサーバーもありません。</p>
+
+            <p>一般的なシリアルポート・ターミナルと何が違うのか。違いは<strong>AT コマンドを理解している</strong>点です。
+            送信したコマンド 1 本ごと、モジュールが返す 1 行ごとに、その場で人間の言葉による説明が付きます ——
+            数字だけのエラーコードも含めてです。</p>
+
+            <div class="info-box">
+                <div class="info-box-title">このマニュアルが扱う範囲</div>
+                ページを開き、モジュールを接続し、起動シーケンスを実行するところから始まり、
+                10 個の機能タブに並ぶ AT コマンド群それぞれの
+                <strong>動作原理</strong>と<strong>テスト方法</strong>まで。すべての挙動の記述は
+                2026 年 8 月に実機 EG800K で実測した結果であり、マニュアルの丸写しではありません ——
+                <strong>マニュアルが間違っている箇所は本文ではっきりそう書きます</strong>。
+            </div>
+
+            <figure class="shot">
+                <img src="img/02-hardware-boot.png" alt="NuModem メイン画面：左が AT コマンドパネル、右が注釈付きターミナル">
+                <figcaption>メイン画面。左が AT コマンドパネル、右がターミナル ——
+                各行の後ろにある <code>//</code> がリアルタイム注釈です。</figcaption>
+            </figure>
+                    <h3>言語とテーマ</h3>
+            <figure class="shot">
+                <img src="img/08-language-menu.png" alt="右上の言語メニュー：18 言語">
+                <figcaption>右上の言語メニュー：18 言語。UI のテキストと AT コマンドの注釈が同時に切り替わります。</figcaption>
+            </figure>
+            <figure class="shot">
+                <img src="img/09-theme-light.png" alt="ライトテーマ">
+                <figcaption>ライトテーマ。右上のボタンで切り替え、設定はブラウザーに保存され次回も引き継がれます。</figcaption>
+            </figure>
+        </section>
+
+        <section id="requirements">
+            <h2><span class="icon">💻</span> 動作要件</h2>
+
+            <h3>ブラウザ</h3>
+            <p>NuModem は <strong>Web Serial API</strong> の上に構築されており、この API は
+            Chromium 系のブラウザにしかありません。</p>
+            <table>
+                <tr><th>ブラウザ</th><th>バージョン</th><th>状態</th></tr>
+                <tr><td>Google Chrome</td><td>89 以上</td><td>✅ 推奨</td></tr>
+                <tr><td>Microsoft Edge</td><td>89 以上</td><td>✅ 対応</td></tr>
+                <tr><td>Opera</td><td>75 以上</td><td>✅ 対応</td></tr>
+                <tr><td>Firefox</td><td>—</td><td>❌ Web Serial API なし</td></tr>
+                <tr><td>Safari</td><td>—</td><td>❌ Web Serial API なし</td></tr>
+            </table>
+
+            <div class="warning">
+                <strong><code>file://</code> で直接開いても動作します</strong> —— Chromium はローカル
+                ファイルを安全なオリジンとして扱うため、Web Serial はブロックされません。
+                ダウンロードして <code>NuModem_EG800.html</code> をダブルクリックすれば接続できます。
+                <code>https://</code> や <code>http://localhost</code> で配信しても同じです。
+                違いは <code>file://</code> では <code>fetch()</code> が CORS でブロックされる点だけですが、
+                翻訳ファイルは <code>&lt;script&gt;</code> タグで読み込むため 18 言語すべて影響を受けません。
+            </div>
+
+            <h3>ハードウェア</h3>
+            <table>
+                <tr><th>項目</th><th>説明</th></tr>
+                <tr><td>モジュール</td><td>Quectel EG800K シリーズ（本文の実測はすべてファームウェア
+                    <code>EG800KCNGCR07A06M04</code> 上で実施）</td></tr>
+                <tr><td>インターフェース</td><td>USB-UART ブリッジ。実測に使用したのは CH343（<code>1A86:55D3</code>）</td></tr>
+                <tr><td>ボーレート</td><td><strong>115200</strong></td></tr>
+                <tr><td>改行コード</td><td><strong>CR</strong>（LF を送るとモジュールは全く応答しない）</td></tr>
+                <tr><td>SIM カード</td><td>データ機能を使う場合のみ必要。実測では 1NCE の IoT SIM を使用、APN は自動割当</td></tr>
+            </table>
+            <p>制御基板は <strong>RTS でモジュール電源を制御</strong>、<strong>DTR で Reset ピンを制御</strong>できる必要があります。
+            そうでないと起動シーケンスが実行できません（<a href="#boot">起動シーケンス</a>を参照）。</p>
+        </section>
+
+        <section id="quickstart">
+            <h2><span class="icon">🚀</span> クイックスタート</h2>
+
+            <h3>ステップ 1 —— NuModem を開く</h3>
+            <p>Chrome または Edge で <code>NuModem_EG800.html</code> を開きます —— ダブルクリックで十分で、サーバーは不要です。</p>
+
+            <h3>ステップ 2 —— モジュールを接続する</h3>
+            <p>左上の<strong>接続</strong>を押します。ブラウザがポート選択ダイアログを出すので、USB-UART ブリッジを選びます。
+            右側の矢印でドロップダウンを展開すれば、以前に許可したポートを直接選べます。</p>
+            <div class="tip">
+                一度許可しておけば、次回以降はページを開いて「接続」を押すだけで直接つながり、再度尋ねられません。
+                シリアルデバイスが複数ある場合は、ドロップダウンから選ぶほうが速いです。
+            </div>
+
+            <h3>ステップ 3 —— ボーレートを確認する</h3>
+            <p>上部のボーレート選択は既定で <strong>115200</strong>。EG800K の出荷時設定もこの値なので、通常は変更不要です。</p>
+
+            <h3>ステップ 4 —— 起動シーケンスを実行する</h3>
+            <p><strong>このステップは飛ばせません。</strong>ブラウザがシリアルポートを開いた瞬間に RTS が再アサートされ、
+            この制御基板の RTS は負論理の電源スイッチです —— つまり
+            <strong>接続した瞬間にモジュールの電源が落ちます</strong>。
+            詳しい手順は次節を参照。</p>
+
+            <div class="warning">
+                起動シーケンスを飛ばした場合の典型的な症状は<strong>「送ったコマンドはターミナルに見えるのに、応答がまったく無い」</strong>です。
+                ボーレートの誤りでも配線の逆でもなく、モジュールに電源が入っていないだけです。
+            </div>
+        </section>
+
+        <section id="boot">
+            <h2><span class="icon">🔌</span> 起動シーケンス（最重要の節）</h2>
+
+            <p>EG800K は電源をつなげば起動するわけではありません。この制御基板は 2 本の RS-232 出力信号をモジュールの制御ピンに接続しています。</p>
+
+            <table>
+                <tr><th>信号</th><th>接続先</th><th>論理</th></tr>
+                <tr><td><strong>RTS</strong></td><td>モジュール電源スイッチ</td>
+                    <td><strong>負論理</strong>：RTS <strong>OFF ＝ 通電</strong>、RTS ON ＝ 電源断</td></tr>
+                <tr><td><strong>DTR</strong></td><td>モジュール Reset ピン</td>
+                    <td>DTR <strong>ON ＝ Reset ハイ</strong>（起動可能）、OFF ＝ Reset ロー</td></tr>
+            </table>
+
+            <h3>標準手順</h3>
+            <p><strong>Hardware</strong> タブに切り替えると、専用ボタンが 2 つあります。</p>
+            <ol>
+                <li><strong>Power</strong> —— RTS を ON → OFF と 1 往復させます。
+                    ボタンが緑に光れば電源が入っています（つまり RTS が OFF の状態）。
+                    <br>⚠ いきなり OFF に設定しても通電は保証されません。<strong>必ず先に ON、それから OFF</strong>。</li>
+                <li>1 秒待つ。</li>
+                <li><strong>Reset</strong> —— これは「押している間だけ効く」ボタンです。
+                    押すと DTR が OFF に落ち、離すと ON に戻ります。約 300 ミリ秒押し続けます。</li>
+                <li>ターミナルに <code>RDY</code> が出るのを待ちます。実測では数秒以内に出ます。</li>
+            </ol>
+
+            <p>信号バー上の <code>RTS</code> / <code>DTR</code> を直接クリックしても同じ効果ですが、
+            順序を自分で数える必要があります。</p>
+
+            <h3>起動成功をどう確認するか</h3>
+            <p>ターミナルには次の内容が順に出るはずです。</p>
+            <pre>RDY              ← モジュール起動完了
++CFUN: 1         ← RF オン
++CPIN: READY     ← SIM 準備完了
++QUSIM: 1
++QIND: SMS DONE  ← SMS 初期化完了
++QIND: PB DONE   ← 電話帳初期化完了</pre>
+            <p>続けて <code>ATI</code> を 1 本送って確認します。メーカー名・型番・ファームウェアバージョンの 3 行と <code>OK</code> が返るはずです。</p>
+
+            <div class="important">
+                <strong>⚠ ページを再読み込みするたびに起動シーケンスをやり直す必要があります。</strong>
+                ページのリロードはシリアルポートを開き直し、シリアルポートを開き直すと RTS が再アサートされます ——
+                つまりモジュールの電源をもう一度落としたのと同じです。これが本ツールで最も多い「モジュールが壊れた」という誤判定の原因です。
+            </div>
+
+            <h3>起動後に最初に送るべき 2 本</h3>
+            <table>
+                <tr><th>コマンド</th><th>理由</th></tr>
+                <tr><td><code>ATE1</code></td>
+                    <td>エコーを有効化。モジュールが受け取ったコマンドをそのまま送り返すので、
+                    ターミナル上で「自分が送った内容」と「モジュールが実際に受け取った内容」を突き合わせられ、打ち間違いが一目で分かります。</td></tr>
+                <tr><td><code>AT+CMEE=2</code></td>
+                    <td>エラーメッセージを文字列表記に変更。無効のままだとエラーは素っ気ない <code>ERROR</code> だけですが、
+                    有効にすると <code>+CME ERROR: SIM not inserted</code> のような読めるメッセージが得られます。</td></tr>
+            </table>
+            <p><strong>この 2 本はいずれも session-only</strong> で、モジュールを再起動したら再度送る必要があります。</p>
+
+            <div class="warning">
+                <strong>🔴 URC が一切受信できないときに最初に確認するのは <code>AT+QURCCFG="urcport"</code>。</strong>
+                モジュールは出荷時に URC（自発的な通知メッセージ）を <strong>USB AT ポート</strong>へ送る設定になっており、
+                UART を使う本ツールでは 1 本も受け取れません —— 症状は「コマンドは OK を返すのに、後続のメッセージが来ない」で、
+                GNSS 測位、TCP データ到着、MQTT メッセージ、Wi-Fi スキャン結果がすべて無音になります。
+                対処：<code>AT+QURCCFG="urcport","uart1"</code>。これは NVRAM に書かれ、再起動をまたいで有効です。
+            </div>
+        </section>
+
+        <section id="terminal">
+            <h2><span class="icon">📟</span> ターミナル</h2>
+
+            <p>右半分がターミナルです。一般的なシリアルターミナルとの最大の違いは<strong>すべての行に注釈が付く</strong>ことです。</p>
+
+            <h3>4 色</h3>
+            <table>
+                <tr><th>色</th><th>意味</th></tr>
+                <tr><td><strong>TX</strong></td><td>自分が送信したデータ</td></tr>
+                <tr><td><strong>RX</strong></td><td>モジュールから返ってきたデータ</td></tr>
+                <tr><td><strong>SYS</strong></td><td>ツール自体のシステムメッセージ（接続、信号変化、データモードの出入り）</td></tr>
+                <tr><td><strong>CMT</strong></td><td>注釈 —— つまり <code>//</code> で始まる説明</td></tr>
+            </table>
+            <p>4 色とも自分で変更できます。色のブロックをクリックするとカラーパレットが開きます。</p>
+
+            <h3>注釈エンジン</h3>
+            <p>これが NuModem の中核です。次の 2 つを行います。</p>
+            <ul>
+                <li><strong>送信したコマンドを解説する</strong> —— 例えば
+                    <code>AT+QSSLSEND=4,18</code> を送ると、横に「clientID 4 に対して固定長 18 bytes を送信：
+                    モジュールが <code>&gt;</code> プロンプトを返した後、『ちょうど』18 バイト送り切ってはじめて送出される。Ctrl+Z は不要」と表示されます。</li>
+                <li><strong>モジュールの応答を読み解く</strong> —— 特に数字だけのコード。
+                    例えば <code>+QFTPSIZE: 627,550</code> は 2 層に分解され、
+                    「エラー 627：FTP が要求された動作を実行しなかった／サーバー応答 550：動作未実行：ファイルまたはディレクトリが存在しない」となります。</li>
+            </ul>
+
+            <div class="tip">
+                注釈は<strong>実際に入力したパラメータ</strong>に追従します。同じボタンでも入力値が違えば
+                注釈内の数字も変わります —— 固定の説明文ではありません。
+            </div>
+
+            <h3>改行コード</h3>
+            <p>入力欄の右側で改行コードを選べます。<strong>EG800K は CR でなければなりません</strong>。
+            LF を選ぶとモジュールは一切応答しません。最も踏みやすい設定ミスです。</p>
+
+            <h3>その他</h3>
+            <ul>
+                <li>下部に累計の <strong>RX / TX バイト数</strong>と現在のポート名が表示されます。</li>
+                <li>右上のボタン列：注釈のオン／オフ、改行コード、タイムスタンプ、自動スクロール、クリア。</li>
+                <li>ターミナル領域には<strong>衛星状態</strong>と<strong>地図</strong>の 2 タブもあり、
+                    GNSS 測位に成功すると内容が入ります。</li>
+            </ul>
+        </section>
+
+        <section id="signals">
+            <h2><span class="icon">🚦</span> RS-232 信号バー</h2>
+
+            <p>接続するとタイトルバーの下に信号ランプの列が現れます。2 グループに分かれています。</p>
+
+            <h3>LOCAL (OUT) —— 自分側の出力、クリック可能</h3>
+            <table>
+                <tr><th>信号</th><th>この基板での用途</th></tr>
+                <tr><td><strong>BRK</strong></td><td>Break 信号</td></tr>
+                <tr><td><strong>RTS</strong></td><td><strong>モジュール電源</strong>（負論理、OFF ＝ 通電）</td></tr>
+                <tr><td><strong>DTR</strong></td><td><strong>モジュール Reset</strong>（ON ＝ Reset ハイ）</td></tr>
+            </table>
+
+            <h3>REMOTE (IN) —— モジュール側の出力、読み取り専用</h3>
+            <p><code>DCD</code> / <code>DSR</code> / <code>CTS</code> / <code>RI</code>、
+            加えて <code>ACT</code>（データ流通あり）と <code>ERR</code>（フレーミング／パリティエラー）の 2 つのインジケータ。</p>
+
+            <div class="warning">
+                <strong>Web Serial では自分が送出した信号の状態を読み戻せません。</strong>
+                そのため LOCAL の 3 つのランプが示すのは「本ツールが送ったと考えている値」であり、ハードウェアからの実読み値ではありません。
+                動作が本当に反映されたかを確認するには、ターミナルのシステムメッセージ（<code>RTS → ON</code> のような行）を見るほうが確実です。
+            </div>
+        </section>
+
+        <section id="panel">
+            <h2><span class="icon">🎛️</span> AT コマンドパネルの仕組み</h2>
+
+            <p>左半分は 10 個のタブと 200 個超のボタンです。個別のタブを見る前に、以下の共通メカニズムを理解しておくと、
+            どのタブでも役に立ちます。</p>
+
+            <h3>2 種類のボタン</h3>
+            <table>
+                <tr><th>スタイル</th><th>動作</th></tr>
+                <tr><td>通常ボタン</td><td>押すと<strong>そのまま送信</strong></td></tr>
+                <tr><td>破線枠</td><td>入力すべきパラメータあり。入力後「送信」もできるし、
+                    「コマンドラインに入力」で組み立て済みのコマンドを下の入力欄に流し込み、自分で修正することもできます</td></tr>
+            </table>
+
+
+            <figure class="shot narrow">
+                <img src="img/13-btn-kinds.png" alt="通常のボタンは押すとすぐ送信されます。破線のカードはパラメーターを入力してから「送信」するか、組み立てたコマンドを入力欄に流し込んで自分で編集できます。">
+                <figcaption>通常のボタンは押すと<strong>すぐ送信</strong>されます。破線のカードはパラメーターを入力してから「送信」するか、組み立てたコマンドを入力欄に流し込んで自分で編集できます。</figcaption>
+            </figure>
+            <h3>パラメータ欄</h3>
+            <p>各欄には固有の説明が付いており（マウスを乗せると出ます）、書かれている範囲は<strong>実機で実測した</strong>ものです。
+            マニュアルの丸写しではありません。例えば Wi-Fi スキャンの「ラウンド数」は 1-3 と書かれていますが、
+            これは <code>AT+QWIFISCAN=?</code> が実際にこの範囲を返すからです —— アプリケーションノートにある 1-6 は誤りです。</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/14-params.png" alt="パラメーター欄。各欄の説明はマウスを乗せると表示され、範囲は実機で測った値です —— 「ラウンド数」は 1-3、「BSSID 上限」は 4-10 と書かれており、これは AT+QWIFISCAN=? が実際に返す値で、アプリケーションノートの引き写しではありません。欄に入っている 1 と 10 は既定値にすぎません。">
+                <figcaption>パラメーター欄。各欄の説明はマウスを乗せると表示され、範囲は<strong>実機で測った値</strong>です —— 「ラウンド数」は 1-3、「BSSID 上限」は 4-10 と書かれており、これは <code>AT+QWIFISCAN=?</code> が実際に返す値で、アプリケーションノートの引き写しではありません。欄に入っている 1 と 10 は既定値にすぎません。</figcaption>
+            </figure>
+            <h3>2 段階のデータ送信</h3>
+            <p>1 行送って終わりではないコマンドがあります。その流れは次のとおりです。</p>
+            <pre>コマンド送信  →  モジュールが &gt; または CONNECT を返す  →  ちょうど N バイト送信  →  モジュールが結果を返す</pre>
+            <p>この種のボタンには独立した「データ内容」欄があり、<strong>長さは自動計算されてコマンドに埋め込まれます</strong>。
+            自分で数える必要はありません。この分類に入るのは
+            <code>AT+QISEND</code>、<code>AT+QSSLSEND</code>、<code>AT+QMTPUBEX</code>、
+            <code>AT+QHTTPURL</code>、<code>AT+QHTTPPOST</code>、<code>AT+QFTPPUT</code> です。</p>
+
+            <div class="warning">
+                <strong>長さを間違えたときの結末はひどいものです。</strong>モジュールは宣言されたバイト数が埋まるまでひたすら待ち続け、
+                その間 AT ポートは「データモード」です —— その後に打った内容はすべてデータとして飲み込まれます。
+                <br><br>
+                脱出方法：<strong>Hardware タブの生バイト送信ボタンで ESC（0x1B）を 1 つ送る</strong>。
+                接続を切る必要も、モジュールを再起動する必要もありません。
+            </div>
+
+
+            <figure class="shot narrow">
+                <img src="img/15-two-stage.png" alt="2 段階送信。AT+QISEND=0,6 の 6 はツールが自動計算します。入力するのはデータ内容の欄だけです。">
+                <figcaption>2 段階送信。<code>AT+QISEND=0,6</code> の <strong>6 はツールが自動計算</strong>します。入力するのはデータ内容の欄だけです。</figcaption>
+            </figure>
+            <h3>エスケープシーケンス</h3>
+            <p>データ内容欄は 1 行テキストボックスなので、改行や Tab のような制御文字は打てません。
+            そのためこれらの欄はエスケープシーケンスに対応しています。</p>
+            <table>
+                <tr><th>記法</th><th>送出されるバイト</th></tr>
+                <tr><td><code>\n</code></td><td>0x0A 改行</td></tr>
+                <tr><td><code>\r</code></td><td>0x0D 復帰</td></tr>
+                <tr><td><code>\t</code></td><td>0x09 Tab</td></tr>
+                <tr><td><code>\0</code></td><td>0x00 NUL</td></tr>
+                <tr><td><code>\xHH</code></td><td>任意のバイト、HH は 16 進数</td></tr>
+                <tr><td><code>\\</code></td><td>バックスラッシュそのもの</td></tr>
+            </table>
+            <p><strong>デコードは送信前に行われ、長さもデコード後のバイト数で計算されます。</strong>
+            例えば <code>hello\n</code> は欄の中では 7 文字ですが、送出されるのは 6 バイトであり、
+            コマンドに埋め込まれる長さは 6 になります。</p>
+
+            <div class="tip">
+                <strong>なぜこれが重要か：</strong>多くのテストサーバーは<strong>行単位</strong>でエコーします
+                （送ったものをそのまま返すが、改行を見てはじめて動く）。
+                payload の末尾に <code>\n</code> が無ければ、応答は永遠に返ってきません ——
+                しかも見た目は「接続が壊れた」ようにしか見えません。
+            </div>
+
+
+            <figure class="shot narrow">
+                <img src="img/16-escapes.png" alt="エスケープシーケンス。欄には 10 文字の A\tB\x21\n が入っていますが、デコードすると 5 バイトだけ —— コマンドも AT+QISEND=0,5 に変わります。">
+                <figcaption>エスケープシーケンス。欄には 10 文字の <code>A\tB\x21\n</code> が入っていますが、デコードすると <strong>5 バイト</strong>だけ —— コマンドも <code>AT+QISEND=0,5</code> に変わります。</figcaption>
+            </figure>
+            <h3>タイムアウト表示</h3>
+            <p>AT コマンドの中には長時間ブロックするものがあります。ボタン上の ⏱ 表示はマニュアルに書かれた最長待ち時間で、
+            例えば <code>AT+QIACT=1</code> は最長 150 秒、<code>AT+COPS=?</code> は最長 300 秒です。
+            <strong>応答が長く来ないときはまずこの表示を見てください</strong>。多くの場合、単に時間が来ていないだけです。</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/17-timeout.png" alt="⏱ の表示はマニュアルが定める最大待ち時間です。AT+COPS=? は最長 300 秒 —— 応答がないと感じたらまずここを見てください。たいていはまだ時間が来ていないだけです。">
+                <figcaption>⏱ の表示はマニュアルが定める最大待ち時間です。<code>AT+COPS=?</code> は最長 300 秒 —— 応答がないと感じたらまずここを見てください。たいていはまだ時間が来ていないだけです。</figcaption>
+            </figure>
+            <h3>確認ダイアログ</h3>
+            <p>AT ポートをデータモードに固着させるもの、または不可逆な動作（リモートファイル削除、モジュールのソフト再起動、ボーレート変更）
+            のときだけ確認ダイアログが出ます。<strong>単に「通信量を消費する」だけでは止めません</strong> ——
+            その類の注意はボタンの説明文に書いてあります。</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/18-confirm.png" alt="赤枠のものだけ確認ダイアログが出ます。リネーム（青枠）はそのまま送信、削除（赤枠）は一度確認されます。">
+                <figcaption><strong>赤枠のものだけ確認ダイアログが出ます。</strong>リネーム（青枠）はそのまま送信、削除（赤枠）は一度確認されます。</figcaption>
+            </figure>
+            <h3>ローカルスイッチ</h3>
+            <p>一部のボタンの下には小さなチェックボックスがあります。これは<strong>ツール側の挙動</strong>であって AT コマンドではありません。
+            例えば <code>AT+QICLOSE=0</code> の下にある「<code>+QIURC: "closed",0</code> を検出したら自動的に閉じる」です。
+            これらの選択はブラウザに保存され、次回開いたときも残ります。</p>
+        
+            <figure class="shot narrow">
+                <img src="img/19-auto-opt.png" alt="ボタンの下の小さなチェックボックスはツール側の動作で、AT コマンドではありません。設定はブラウザーに保存され、次回も残ります。">
+                <figcaption>ボタンの下の小さなチェックボックスは<strong>ツール側の動作</strong>で、AT コマンドではありません。設定はブラウザーに保存され、次回も残ります。</figcaption>
+            </figure>
+</section>
+
+        <section id="tabs">
+            <h2><span class="icon">🗂️</span> 10 個のタブ</h2>
+
+            <p>タブの並び順には意味があります。<strong>左から右へ、おおむね操作すべき順番になっています</strong>。
+            Hardware で起動 → Basic でモジュールが生きているか確認 → Network でネットにつながるか確認 →
+            残りの 5 つが各種データプロトコルです。</p>
+
+            <h3 id="tab-hardware">Hardware —— 起動とシリアルポート</h3>
+            <p><strong>動作原理：</strong>このページはツール全体の土台です：
+            Control は起動シーケンスの 2 ボタン（Power／Reset）、Module は製品識別、
+            Serial は UART 設定、Power は低消費電力、URC はモジュールの自発メッセージの出力ポートを管理し、
+            さらに<strong>生バイトボタン</strong>の一列（Ctrl+Z／ESC／+++）がデータモードの脱出口になります。
+            他のタブはすべて 2 つの前提の上に成り立っています：<strong>モジュールがシーケンスどおりに起動済みであること</strong>、
+            <strong>URC が uart1 を通っていること</strong> —— この 2 つはどちらも本ページで行います。
+            本節の挙動と数値はすべて 2026 年 8 月に実機 EG800K で実測したものです。</p>
+
+            <h4>なぜ起動シーケンスが必要か：RTS ＝ 電源、DTR ＝ Reset</h4>
+            <p>本ツールと組み合わせる制御ボードは RS-232 のハンドシェイク信号 2 本を別用途に転用しており、これがこのページ全体を理解する鍵です：</p>
+            <table>
+                <tr><th>信号</th><th>実際の接続先</th><th>論理</th></tr>
+                <tr><td><strong>RTS</strong></td><td>モジュールの電源スイッチ</td>
+                    <td><strong>負論理</strong>：RTS OFF＝通電、RTS ON＝電源断</td></tr>
+                <tr><td><strong>DTR</strong></td><td>モジュールの Reset ピン</td>
+                    <td>DTR ON＝Reset を High に（起動可能）、DTR OFF＝Reset を Low に</td></tr>
+            </table>
+            <p>回路特性（実測で確認）：初回接続時、RTS は<strong>いったん ON にしてから OFF</strong> にしないと
+            電源は本当には入りません —— 最初から OFF に設定するだけでは通電は保証されません。DTR も <strong>ON→OFF→ON</strong> を通過させてはじめて
+            Reset が本当に High になります。電源断（RTS ON）は強制切断で、モジュールは<strong>別れのメッセージを一切送りません</strong>。</p>
+            <div class="warning">
+                <strong>ページの再読み込み ＝ 電源断。</strong>ブラウザがシリアルポートを開き直すとき RTS が再びアサートされ、
+                モジュールは即座に電源を失います —— 自動再接続の完了後は<strong>必ず起動シーケンスをやり直してください</strong>。
+                実測で踏んだ例：シーケンスを飛ばして 17 本のコマンドを送ったところ、全部行きっぱなしで返事なし（TX 行のみ、RX ゼロ）。
+                「さっきまで動いていたのに今は全く反応しない」ときは、まずこれを疑ってください。
+            </div>
+
+            <h4>Power と Reset ボタン：押し方と、何が見えるか</h4>
+            <p>この 2 つのボタンは上表の 2 信号の化身で、信号バーの RTS／DTR 表示と<strong>双方向に連動</strong>します
+            （未接続時はグレーアウトして押せません）。Web Serial は出力信号の実際の状態を読み戻せないため、
+            信号バーに表示されるのは本ツールが送出した認識値です。</p>
+            <ol>
+                <li><strong>Power</strong>（トグル式）：緑点灯＝電源 ON（＝RTS OFF）。
+                    起動シーケンスでは RTS に ON→OFF を通過させます：ボタンがすでに点灯していれば、先にオフを押してからオンを押してください。</li>
+                <li><strong>Reset</strong>（momentary）：押下＝DTR OFF、離す＝DTR ON。
+                    1 回押して離せば 1 回の Reset です（標準タイミングでは間に 0.3 秒の停止）。</li>
+                <li><strong>RDY を待つ</strong>：数秒以内にターミナルへモジュールの起動宣言 <code>RDY</code> が現れます。</li>
+                <li><strong>ATI で検証</strong>：<code>Quectel</code>／<code>EG800K</code>／
+                    <code>Revision: …</code>／<code>OK</code> が返るはずです。返ってくれば UART もモジュールも生きています。</li>
+            </ol>
+            <div class="tip">
+                起動後はまずエコー（ATE）が有効であること（出荷時は有効）を確認し、続けて <code>AT+CMEE=2</code> を打つことを勧めます ——
+                無効のままでは素っ気ない <code>ERROR</code> しか見えず、有効にしてはじめて
+                <code>+CME ERROR: …</code> の読める文字が得られます。どちらも session-only で、モジュールを再起動するたびに打ち直しが必要です。
+            </div>
+
+            <h4>Module：5 つの識別ボタン</h4>
+            <table>
+                <tr><th>ボタン</th><th>コマンド</th><th>何が見えるか</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>メーカー／型番／ファームウェアバージョンの 3 点セット —— 起動後の 1 本目はこれ</td></tr>
+                <tr><td>Vendor／Model／FW Ver</td>
+                    <td><code>AT+GMI</code>／<code>AT+GMM</code>／<code>AT+GMR</code></td>
+                    <td>ATI の 3 行を個別に照会するもの（それぞれ CGMI／CGMM／CGMR と同等）。
+                        本機のファームウェアバージョンは実測 <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>モジュールの IMEI（15 桁の数字）。通信量ゼロ、いつでも送信可</td></tr>
+            </table>
+
+            <h4>Serial：AT&amp;V でパラメータ読み出し、IPR でボーレート変更</h4>
+            <p><strong>AT Params（<code>AT&amp;V</code>）</strong>：単一文字 AT パラメータの現在値を一覧します。
+            <code>ATE</code>／<code>ATQ</code>／<code>ATV</code> といった単一文字コマンドには<strong>個別の照会形式が無く、
+            これでしか読めません</strong>。本機の実測は <code>E:1 Q:0 V:1 S3:13 S4:10</code> ——
+            エコー有効、結果コードはテキストモード、行末＝CR（ASCII 13）で、まさに本ツールが応答を解析する前提です。</p>
+            <p><strong>Baud?（<code>AT+IPR?</code>）</strong>：UART の現在ボーレートを照会します。出荷時は 115200。<br>
+            <strong>Baud List（<code>AT+IPR=?</code>）</strong>：2 つのリストが返ります ——
+            前者は自動検出可能なボーレート、後者は固定モード専用のものです。これを実行した後、
+            Set Baud のドロップダウンは本機が実際に報告したリストに置き換わります。実測では本機の 2 番目のリストは
+            <strong>1000000 bps まで並びます —— マニュアル §3.4 の表にこの値はありません</strong>。</p>
+            <p><strong>Set Baud（<code>AT+IPR={rate};&amp;W</code>、パラメータカード）</strong>：
+            押すとまず確認ダイアログが出ます —— このページで最も自分を締め出しやすいボタンです。</p>
+            <div class="warning">
+                <strong>ボーレート変更の三重の罠（実測ですべて確認）：</strong><br>
+                ① <code>OK</code> が返った瞬間に<strong>即時発効</strong>し、
+                その直後から本ツールとモジュールは話が通じなくなります。<br>
+                ② <code>AT&amp;F</code>（工場リセット）はボーレートを<strong>戻しません</strong> —— 助けてくれると期待しないでください。<br>
+                ③ <code>&amp;W</code> を付けなければ保存されません —— しかも再接続＝電源断なので、モジュールは旧ボーレートで目覚め、
+                ポート設定は新ボーレートのまま、<strong>二重の音信不通</strong>になります。
+                だから本ツールは <code>;&amp;W</code> の合体表記を強制しています。<br>
+                復旧の 4 ステップ（確認ダイアログでも案内されます）：切断 → 接続エリアのボーレート変更 → 再接続 → 起動シーケンスをやり直し。
+            </div>
+
+            <h4>Power：QSCLK 低消費電力</h4>
+            <p><strong>Sleep?（<code>AT+QSCLK?</code>）</strong>：モジュールがスリープに入ることを許可されているかを照会します。
+            本機の実測では出荷時 <code>0</code>＝無効で、モジュールは常時起きています。
+            本ページには照会ボタンしか置いていません：眠ったモジュールは <strong>AT への応答を停止</strong>し、マニュアルの起こし方は DTR を Low に引くことですが ——
+            本ボードの DTR はすでに Reset ピンとして配線されています（本節冒頭を参照）。コマンドラインで自分でスリープを有効にして起こせなくなったら、
+            起動シーケンス（電源断→再投入）をやり直せば脱出できます。詳細は公式の低消費電力アプリケーションノートを参照してください。</p>
+
+            <h4>URC：メッセージが受信できないときは、まずここへ</h4>
+            <p><strong>URC（Unsolicited Result Code、非請求結果コード）</strong>は、モジュールが「頼まれてもいないのに自発的に吐き出す」
+            メッセージで、どのコマンドの応答でもありません —— 起動時の <code>RDY</code>、TCP データ到着、MQTT メッセージ、
+            Wi-Fi スキャン結果、GNSS ファームウェアロード通知がすべてこれです。その出力ポートは
+            <strong>出荷時既定で USB ポート（usbat）</strong>です —— UART を使う本ツールには 1 本も届かず、
+            症状は非常に典型的：<strong>コマンドはすべて OK が返るのに、メッセージだけが来ない</strong>。</p>
+            <table>
+                <tr><th>ボタン</th><th>コマンド</th><th>用途</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>URC が今どこへ送られているかを照会 —— URC が受信できないときは<strong>まずこれを照会</strong>。
+                        <code>"uart1"</code> が返らないと受信できません</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>本機が対応する出力ポート。実測では <code>("usbat","usbmodem","uart1")</code> が返り、
+                        <strong>マニュアルにあった "all" はありません</strong>（マニュアルには一部機種で非対応との注記があります）</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>メイン UART へ切り替え。NVRAM に書かれ再起動をまたいで保持されるので、<strong>変更は 1 回だけで済みます</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>URC の総合スイッチで、「URC が受信できない」もう 1 つの大きな原因。
+                        実測では本機は出荷時から 1（有効）で、問題はほぼ出力ポート側にあります</td></tr>
+            </table>
+
+            <h4>生バイトボタン：データモードの脱出口</h4>
+            <p>少なくないコマンドが<strong>2 段階</strong>です：先にコマンドを送り、モジュールが <code>&gt;</code> プロンプトを返すのを待ち、
+            それから本文を送ります。この<strong>データモード</strong>に入った後、モジュールはあなたが打つすべての文字をデータとして飲み込みます ——
+            打とうとした AT コマンドも含めて。長さを間違えた、途中でやめたくなった、コマンドが固まった、というときは通常のキーでは助からず、
+            単一の生バイトを送るこの一列のボタンに頼ります：</p>
+            <table>
+                <tr><th>ボタン</th><th>送出内容</th><th>いつ使うか</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td>データモードの<strong>終端文字</strong>：蓄積済みの内容を実際に送出します</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td>データモードを<strong>キャンセル</strong>し、蓄積済みの内容を破棄します。
+                        2 段階コマンドが固まった、AT ポートが応答しなくなった、というときの第一選択の脱出キー（マニュアル §2.3.8）</td></tr>
+                <tr><td>+++</td><td>+ 記号 3 個（生バイト）</td>
+                    <td><strong>透過データモード</strong>（FTP の COM: 転送など）から AT モードへ逃げ帰ります。
+                        ルールは厳格：<strong>前後にそれぞれ 1 秒の無音、CR/LF は絶対に付けない</strong> ——
+                        実測では CR を付けると効かないため、このボタンで送る必要があり、コマンドラインで打ってはいけません</td></tr>
+            </table>
+            <div class="warning">
+                <strong>実測がマニュアルを覆した例：+++ は「中断」であって「一時停止」ではありません。</strong>
+                FTPS アプリケーションノート v1.5 の 13 ページには +++ の後 <code>ATO</code> でデータモードに戻って転送を続けられるとありますが、
+                実機では <code>ATO</code> は <code>NO CARRIER</code> を返すだけで、転送はすでに中断されています。
+                +++ は緊急ブレーキとして使い、ブレーキの後も走り続けられるとは期待しないでください。
+            </div>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td>どのコマンドにも応答が無い</td>
+                    <td>3 つの容疑者を順に調べます：① 起動シーケンスを実行していない（ページを再読み込みしたなら必ずこれ）。
+                        ② 行末が LF に設定されている —— モジュールは <strong>CR しか認識せず</strong>、LF には全く応答しません。
+                        ③ ボーレート不一致（4 ステップ復旧を参照）</td></tr>
+                <tr><td>Reset を押したのに RDY が来ない</td>
+                    <td>まず Power ボタンが点灯しているかを見てください —— モジュールに電源が入っていなければ、Reset を何度押しても無駄です。
+                        初回接続時は電源に ON→OFF を通過させる必要があります</td></tr>
+                <tr><td>コマンドはすべて OK が返るのに、URC だけが来ない</td>
+                    <td>十中八九 urcport が出荷時の usbat のままです：URC Port? で照会し、URC → UART で変更。
+                        それでもだめなら URC Switch の総合スイッチを調べてください</td></tr>
+                <tr><td>AT ポートが突然「コマンドを飲み込み」、何を打っても応答が無い</td>
+                    <td>データモードに固着しており、打った文字は全部データとして回収されています —— ESC で脱出してください</td></tr>
+            </table>
+
+            <h3 id="tab-basic">Basic —— SIM、診断と基本状態</h3>
+            <p><strong>動作原理：</strong>このページは接続のたびの出発点です。起動シーケンスを終えてターミナルに
+            <code>RDY</code> が出たら、まずここへ来て 3 つのことを行います：エラーメッセージを読める形式に変える、
+            SIM の準備完了を確認する、このカードが誰なのかを確かめる。ページ全体は <code>AT&amp;F</code> と PIN／PUK 解除を除き、
+            すべて読み取り専用の照会です —— 押してもモジュールの状態は変わりません。
+            接続状態を動かすコマンドは Network、TCP/IP などの他のタブに集約されています。
+            本節のサンプルはすべて 2026 年 8 月に実機 EG800K
+            （ファームウェア EG800KCNGCR07A06M04）で実測した値です。</p>
+
+            <h4>起動の後：RDY は SIM の準備完了を意味しない</h4>
+            <p><code>RDY</code> はモジュールが起動完了時に自発的に送る URC です。
+            これは AT インターフェースが生きたことを示すだけで、<strong>SIM カードはその裏でまだゆっくり初期化中</strong>です。
+            実測：<code>RDY</code> が出た直後に SIM 関連コマンドを送ると
+            <code>+CME ERROR: 14</code>（SIM busy）や、時には <code>+CME ERROR: 13</code>（SIM failure）が返ります。
+            <strong>約 6 秒待って</strong>から送ればすべて正常です。</p>
+            <div class="warning">
+                <strong>自動化スクリプトを書くとき、RDY を「作業開始 OK」の合図にしないでください。</strong>
+                正しいやり方は二択：RDY の後に固定で約 6 秒のバッファを置くか、
+                <code>AT+QINISTAT</code> をポーリングして bit 1（CPIN 準備完了）が立ってから続行するかです。
+            </div>
+
+            <h4>エコー（ATE）：「モジュールのエコー」と「ターミナルのローカルエコー」は別物</h4>
+            <p>エコーは<strong>モジュール</strong>が、送られてきた文字をそのまま送り返すこと（<code>ATE1</code> 有効、
+            <code>ATE0</code> 無効）。ターミナルのローカルエコーは<strong>ツール側</strong>が、打った文字を
+            先に画面へ表示することです。2 つのスイッチは互いに独立しており、両方有効だとすべての文字が 2 回表示されます。</p>
+            <ul>
+                <li>本ページの<strong>エコー切替ボタン</strong>はワンキーでモジュールのエコーを切り替えます。
+                    起動時の既定は<strong>有効</strong>（実測の AT パラメータ <code>E:1</code> が裏付け）。</li>
+                <li>ボタンに表示される状態は当てずっぽうの記憶ではありません —— ツールは<strong>実際の応答に基づいて自動補正</strong>します
+                    （エコー行を受信すれば有効と判定）。コマンドラインで <code>ATE0</code>／<code>ATE1</code>／
+                    <code>AT&amp;F</code> を手打ちしてもボタンの状態は同期し、ずれません。</li>
+                <li>切替は session-only：モジュールを再起動すれば既定に戻ります。起動時の既定に書き込むには別途
+                    <code>AT&amp;W</code> が必要です（本ページにはこのボタンを作っていないので、必要ならコマンドラインで手打ちしてください）。</li>
+            </ul>
+
+            <h4>エラーメッセージを読める形にする（CMEE）</h4>
+            <table>
+                <tr><th>ボタン</th><th>効果</th></tr>
+                <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+                    <td>エラーコードをテキスト記述に変えます。実例：GNSS 未測位のとき、数値モードでは
+                        <code>+CME ERROR: 516</code>、テキストモードでは
+                        <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> が返ります —— 後者は表を引かなくても何が起きたか分かります。
+                        <strong>本ツールは起動シーケンス後すぐこれを押すことを強く勧めます</strong></td></tr>
+                <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+                    <td>エラーコードは数値のまま —— ツールが自動的に表を引いて番号を読める注釈へ変換します</td></tr>
+            </table>
+            <div class="tip">
+                どちらの設定も <strong>session-only</strong>：modem を再起動すれば消えます
+                （ページの再読み込み ＝ RTS 電源断 ＝ 再起動、これも該当）。さらに実測で判明：
+                <code>CMEE=2</code> を有効にしていても、一部のサブシステム（ファイルシステム FILE エラーなど）はテキストと数値が混在して出るため、
+                解析プログラムを書くときは両方の形式を受け付ける必要があります。
+            </div>
+
+            <h4>AT&amp;F：工場出荷時既定へ戻す —— 影響範囲</h4>
+            <p><strong>Factory Reset</strong> ボタンは AT 設定を工場出荷値にリセットします。
+            誰かに滅茶苦茶に設定されたモジュールを引き継ぐときの第一歩です。本ページで押すと先に確認が出る唯一のボタンです。
+            実測で確認済みの影響範囲：<strong>エコーは有効に戻ります</strong>
+            （エコー切替ボタンの状態も自動で追従）、<strong>ボーレートには影響しません</strong>。
+            その他の各設定が戻るかどうかは、マニュアルの <code>AT&amp;F</code> の項目を 1 つずつ確認してください。</p>
+
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Basic タブ">
+                <figcaption>Basic ページの 3 グループのボタン：Echo（エコーとエラー形式）、
+                SIM（照会と PIN／PUK 解除）、Status（時計、電圧、ネットワーク時刻）。</figcaption>
+            </figure>
+
+            <h4>SIM の 3 連照会：入っているか、パスワード待ちか、初期化はどこまでか</h4>
+            <table>
+                <tr><th>ボタン</th><th>問う内容</th><th>読み方</th></tr>
+                <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+                    <td>カードがちゃんと挿さっているか</td>
+                    <td>応答は 2 欄：第 1 欄は挿抜 URC のスイッチ、<strong>第 2 欄こそカード状態</strong>です。欄を見間違えないように。
+                        本機のこのボタンには誤報の前科があります。下の警告を参照</td></tr>
+                <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+                    <td>カードがパスワード待ちか</td>
+                    <td><code>+CPIN: READY</code> ＝「今は何のパスワードも待っていない」。
+                        ⚠ <strong>このカードに PIN が不要という意味ではありません</strong> —— PIN を設定したカードも解除後は READY を返します。
+                        カード無しは <code>+CME ERROR: 10</code></td></tr>
+                <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+                    <td>初期化の進み具合</td>
+                    <td>ビットマスク：1＝CPIN 準備完了、2＝SMS、4＝電話帳、7＝すべて完了。
+                        本機の実測では起動が安定した後に <strong>3</strong> を読み取り（電話帳ビットは立たず）——
+                        「作業を始められるか」の判定は bit 1 を見れば十分で、<strong>7 を待ち続けてはいけません</strong></td></tr>
+            </table>
+            <div class="warning">
+                <strong>Card In? は本機では嘘をつきます。</strong>実測では <code>AT+QSIMSTAT?</code> が
+                <code>0,0</code>（カード取り外し済み）を返すのに、同じ時点で CPIN READY、ネットワークにアタッチ済み、IP も取得済み ——
+                カードは全く問題ありません。制御ボードが SIM_DET 検出ピンを配線していない（あるいは <code>AT+QSIMDET</code> が未有効）ため、
+                読み値が常に「未挿入」になっていると推測されます。<strong>カードの有無の判定は <code>AT+CPIN?</code> か
+                <code>AT+QINISTAT</code> を基準にしてください。</strong>
+            </div>
+
+            <h4>このカードは誰か：IMSI と ICCID</h4>
+            <p><strong>IMSI</strong> ボタン（<code>AT+CIMI</code>）は生の数字列を返します。
+            これはこのカードのモバイル網上の加入者識別番号です。本機の実測は <code>901405117661468</code>：
+            先頭 3 桁（MCC）は <strong>901 ＝ 国際ローミングカードの番号帯</strong> ——
+            本機のカードは 1NCE の IoT カードで、これが <code>AT+CEREG?</code> がずっと
+            <code>0,5</code>（登録済み、<strong>ローミング</strong>）を返す理由でもあります：信号の異常ではなく、
+            この種のカードの常態です。データテストの前にローミングカードだと見抜き、通信料金に注意してください。</p>
+            <p><strong>ICCID</strong> ボタン（<code>AT+QCCID</code>）はカードのシリアル番号を照会します。
+            実測では <code>+QCCID: 89882280666176614687</code> が返りました。
+            ⚠ <strong>マニュアルに <code>AT+CCID</code> というコマンドはありません</strong> ——
+            他社モジュールの解説でよく見るあのコマンドはここでは通用せず、Quectel 専用の <code>AT+QCCID</code> を使います。</p>
+
+            <h4>PIN 解除：まず残り回数を照会してから動く</h4>
+            <ol>
+                <li><strong>まず PIN Left</strong>（<code>AT+QPINC?</code>）を押して残り試行回数を見ます ——
+                    マニュアルの範囲：PIN は残り 0–3 回、PUK は残り 0–10 回。
+                    動く前に自分に残り何発あるかを知っておきましょう。</li>
+                <li>カードが PIN 待ちのときは <strong>Enter PIN</strong> を押します：先に<strong>パラメータカード</strong>が展開され、
+                    PIN を記入してから送出します（コマンドのテンプレートは <code>AT+CPIN="{pin}"</code>、最長 5 秒待ち）。</li>
+                <li>PIN の回数を使い切り、カードが PUK を要求するようになったら <strong>Unlock PUK</strong>：
+                    マニュアルの規定では <strong>PUK は新しい PIN と一緒に送る必要があります</strong>
+                    （<code>AT+CPIN="{puk}","{newpin}"</code>）。同じくパラメータカードを使い、最長 5 秒待ちです。</li>
+            </ol>
+            <div class="warning">
+                間違えて送るたびに 1 回減ります。PUK が底をつきそうなときは<strong>手を止めて通信事業者へ</strong>。
+                当てずっぽうで回数を焼き尽くさないでください。
+            </div>
+
+            <h4>状態の 3 ボタン：時計、電圧、ネットワーク時刻</h4>
+            <table>
+                <tr><th>ボタン</th><th>見るもの</th><th>実測と読み方</th></tr>
+                <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+                    <td>モジュールの RTC 時計</td>
+                    <td><code>+CCLK: "26/08/01,00:55:32+32"</code>。
+                        タイムゾーン欄 <code>+32</code> の単位は「クォーター」（15 分）：32 × 15 分＝UTC+8。
+                        本機の実測では RTC はすでにネットワークで時刻合わせ済みで、時刻もタイムゾーンも正確でした</td></tr>
+                <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+                    <td>供給電圧</td>
+                    <td>一部のファームウェアは非対応で ERROR が返るのは正常。本機のファームウェアは対応しており、
+                        実測 <code>+CBC: 0,0,4264</code> —— 末尾の欄が電圧（mV）、つまり 4.264 V</td></tr>
+                <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+                    <td>ネットワーク同期から推算した現在のローカル時刻</td>
+                    <td>実測 <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>。
+                        Clock との違いは<strong>ソース</strong>：CCLK はモジュール自身の RTC を読むのに対し、
+                        QLTS はネットワーク時刻を直接取得します。年の形式も異なります（RTC は 2 桁、QLTS は 4 桁）。解析時に混同しないように</td></tr>
+            </table>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td>RDY 直後に SIM を照会するとエラー 14 か 13 が返る</td>
+                    <td>SIM がまだ初期化中です（14＝SIM busy。13＝SIM failure もこの段階で出たことがあります）。
+                        約 6 秒待って送れば正常になります。カードが壊れたと早合点しないでください</td></tr>
+                <tr><td>Card In? はカード取り外しと言うのに、他の機能はすべて正常</td>
+                    <td>SIM_DET 検出ピンの問題（本機での実測事例）で、カードの問題ではありません。
+                        代わりに <code>AT+CPIN?</code>／<code>AT+QINISTAT</code> を見てください</td></tr>
+                <tr><td>画面上のすべての文字が 2 回表示される</td>
+                    <td>モジュールのエコーとターミナルのローカルエコーが同時に有効です —— エコー切替ボタンを 1 回押せば解決</td></tr>
+                <tr><td>エラーが素っ気ない数字しか返さない</td>
+                    <td>まだ CMEE を有効にしていません。Verbose Err を押してください。これは session-only なので、
+                        起動シーケンスのたびに押し直しが必要です</td></tr>
+                <tr><td>コマンドを送っても全く応答が無い</td>
+                    <td>ポートを開き直すと RTS が再アサート＝電源断となり、モジュールは実は再起動しています。
+                        完全な起動シーケンスをやり直す必要があり、飛ばすと全く応答しません</td></tr>
+            </table>
+
+            <h3 id="tab-network">Network —— 登録、オペレータ、RF</h3>
+            <p><strong>動作原理：</strong>すべてのデータ機能が使えるための前提は、<strong>通信ネットワークへ登録済み</strong>であること、
+            そして <strong>PDP データチャネルが準備できている</strong>こと —— このページは入網のダッシュボードとスイッチであり、
+            「ネットにつながらない」の切り分けはすべてここから始まります。本節の数値はすべて 2026 年 8 月に実機 EG800K で実測したものです。</p>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Network タブ">
+                <figcaption>Network ページの 5 グループのボタン：登録照会、Signal URC、PDP、診断、RF 制御。</figcaption>
+            </figure>
+
+            <h4>始める前に：まず URC を UART へ切り替える</h4>
+            <p>EG800K は出荷時、自発報告メッセージ（URC）を <code>usbat</code>（USB AT ポート）へ送ります。
+            本ツールは UART を使うため —— <strong>URC は 1 本も受信できません</strong>：信号報告、
+            TCP／MQTT／Wi-Fi スキャン結果がすべて無音になり、症状は<strong>「コマンドはすべて OK が返るのに、メッセージだけが無い」</strong>です。</p>
+            <div class="warning">
+                <strong>「URC が全部消えた」の筆頭原因がこれです。</strong>
+                Hardware タブで <code>AT+QURCCFG="urcport"</code> を照会し、
+                <code>"uart1"</code> でなければ切替ボタンで変更してください —— 設定は NVRAM に書かれ、1 回の変更で再起動をまたいで有効です。
+            </div>
+
+            <h4>第一歩：登録状態を確認する</h4>
+            <p>起動シーケンスで <code>RDY</code> を見たら、まず <code>AT+CEREG?</code> を押します（4G モジュールではこれが最も確か）。
+            3 つの登録ボタンは 3 つのドメインに対応します：<code>CEREG</code>＝LTE/EPS、<code>CREG</code>＝回線交換ドメイン、
+            <code>CGREG</code>＝パケット交換ドメイン。2 番目の数字（stat）の読み方は共通です：</p>
+            <table>
+                <tr><th>stat</th><th>意味</th><th>どうするか</th></tr>
+                <tr><td>0</td><td>まだ登録されていない</td><td>起動直後によくあります。数秒待って再照会</td></tr>
+                <tr><td>1</td><td>登録済み（ホーム網）</td><td>正常。先へ進む</td></tr>
+                <tr><td>2</td><td>検索中</td><td>待つ</td></tr>
+                <tr><td>3</td><td>ネットワークに拒否された</td><td>SIM／料金プランを確認し、CEER で原因を見る</td></tr>
+                <tr><td>5</td><td>登録済み（ローミング）</td><td><strong>本機の常態</strong>。下記参照</td></tr>
+            </table>
+            <div class="tip">
+                <strong>stat=5 は故障ではありません。</strong>実測では 3 つの登録照会がすべて <code>0,5</code> を返しました：
+                SIM は 1NCE の IoT カード（MCC 901 の国際ローミングカード）で、どの国にいても「ローミング」扱いです。
+                5 を見たら 1 と同じに扱ってください。
+            </div>
+            <p>登録は成功したのにネットに出られないときは、続けて <code>AT+CGATT?</code> でパケットドメインへのアタッチを照会します。
+            必要なら <code>AT+CGATT=1</code> で手動アタッチし、失敗したら <code>AT+CEER</code>
+            で原因を調べます（TCP/IP ページの <code>QIGETERROR</code> とは別レイヤ）。
+            CGATT は最長 <strong>140 秒</strong>ブロックするので、連打しないでください。</p>
+
+            <h4>今どのオペレータのどのバンドにいるか</h4>
+            <p><code>AT+COPS?</code> は現在登録中のオペレータを照会します（末尾の 7＝LTE）。
+            <strong>罠：オペレータ名が空文字列のことがあります</strong> —— 実測では <code>+COPS: 0,0,"",7</code> が返りましたが、
+            故障ではありません。オペレータを見たいときは代わりに <code>AT+QNWINFO</code>（方式／オペレータ／バンド／チャネル）を押します：</p>
+            <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+            <p>46692＝中華電信（台湾）、Band 8。圏外のときは <code>NO SERVICE</code> が返ります。
+            本ローミングカードは自分で網を選びます：日付の異なる実測で中華電信 Band 8 と Far EasTone（466-01）Band 3 に載ったことがあり、
+            オペレータやバンドが変わっても正常です。<code>AT+COPS=?</code> は周辺の全オペレータをスキャンします：
+            <strong>最長 300 秒ブロックし、既存の業務を中断します</strong>。必要と確信してから押してください。</p>
+
+            <h4>信号強度と品質：CSQ は粗い値にすぎない</h4>
+            <p><code>AT+CSQ</code> は rssi と ber を返します：rssi 0–31 は -113～-51 dBm に対応し、
+            99＝検出不能（起動直後によくあります。数秒待つ）。実測では rssi 18–24（-77～-65 dBm、良好）。
+            <strong>ber は常に 99 で参考になりません</strong>。LTE の本当の品質 3 要素
+            <strong>RSRP（強度）／RSRQ（品質）／SINR（信号対雑音比、低い＝干渉されている）</strong>
+            は Signal URC グループでしか得られません（<code>AT+QINDCFG="sqi"</code> を値なしで＝スイッチの照会）：</p>
+            <table>
+                <tr><th>ボタン</th><th>コマンド</th><th>働き</th></tr>
+                <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+                    <td>RSRP／RSRQ／SINR の報告を有効化 —— <strong>アンテナと設置位置のテストに必須</strong>。
+                        信号が「変化した」ときだけプッシュされるので、動きが無ければアンテナを包むか抜き挿しします。設定は再起動をまたぎません</td></tr>
+                <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+                    <td>信号が変わるたびに報告。CSQ 連打の代わりに</td></tr>
+                <tr><td>URC Off／On</td><td><code>AT+QINDCFG="all",0／1</code></td>
+                    <td>画面が流されるときのワンキー消音 —— 後で戻すのを忘れずに</td></tr>
+            </table>
+
+            <h4>PDP チャネル：3GPP レイヤ vs TCP/IP ページ</h4>
+            <p>PDP context＝通信ネットワークが割り当てる「データチャネル」で、これがあってはじめて IP があります。このグループは 3GPP 標準レイヤの読み取り専用照会です：
+            <code>AT+CGDCONT?</code> は context と APN を、<code>AT+CGACT?</code> は有効化状態を一覧し
+            （最長 150 秒ブロック。⚠ 書き込み形式はパラメータの順序が逆）、<code>AT+CGPADDR</code>
+            は取得した IP を一覧します。TCP/IP ページの <code>QIACT?</code>／<code>QICSGP</code> は
+            <strong>Quectel 自社スタックで、同じレイヤではありません</strong> —— 並べて比較すると故障側を切り分けられます：
+            こちらに IP があってあちらに無い＝ネットワークは与えたのにスタックが起動していない。本機は起動と同時に自動で PDP を有効化し IP を取得します。</p>
+            <p><code>AT+QGDCNT?</code> は累計通信量を照会します（最初の数字が<strong>送信</strong>、2 番目が受信）。
+            ローミングカードの通信量テストには必須です。⚠ <strong>実測がボタンのヒント「再起動をまたいで累計」を覆しました</strong>：
+            カウンタは既定では NV に保存されず、電源断（ページの再読み込みを含む）で即ゼロに戻ります —— その場で記録するか、
+            <code>AT+QGDCNT=1</code> で NV に保存してください。</p>
+
+            <h4>障害切り分けの実戦：このカードは単一 PDP しか許可しない</h4>
+            <p>TCP/IP ページで <code>AT+QIACT=1</code> を押したのに ERROR（<code>572,operation not
+            allowed</code>）？ 本カードの決まった筋書き：起動後、3GPP レイヤがすでに<strong>PDP を 1 本自動有効化</strong>していますが、
+            <strong>context 番号は浮動します</strong>（実測で 1 と 9 を確認）。2 本目を開こうとすると
+            <code>+CME ERROR: 100</code> ⇒ ネットワークは単一 PDP しか許可していません。しかも <code>QIACT</code> の
+            contextID 範囲は 1–8 しかなく、PDP が 9 に開かれていると Quectel スタックからはまったく触れません。
+            対処は 2 ステップ（起動のたびに 1 回）：</p>
+            <pre>AT+CGACT?             ← どの cid かを見る（番号は浮動するので省略不可）
+AT+CGACT=0,&lt;その cid&gt;   ← 3GPP レイヤに枠を譲らせる
+AT+QIACT=1            ← TCP/IP ページ。+QIACT: 1,1,1,"10.187.7.8" が返れば成功</pre>
+            <p><code>QICSGP</code> の APN 設定は本カードでは省略できます —— 実測ではモジュールがネットワークの割り当てた APN
+            （<code>iot.1nce.net</code>）を自動同期しました。ユーザー名とパスワードが必要な企業向け APN カードに替えたときだけ必要です。</p>
+            <div class="warning">
+                <strong>テストの途中で突然すべてタイムアウトし始めた？ まず PDP の漂流を疑ってください。</strong>
+                実測では HTTP が連続全敗（エラー 716、固定 30 秒タイムアウト）のときも <code>AT+QIACT?</code>
+                は平然と IP を返しました —— このとき、これは嘘をつくので、<code>AT+CGACT?</code> と突き合わせてください
+                （実測：1,0 と 9,1＝9 へ漂流）。
+                対処：<code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;漂流先の cid&gt;</code> →
+                <code>AT+QIACT=1</code>、その後 ping で検証。
+            </div>
+
+            <h4>CFUN 機能レベルと RF 制御</h4>
+            <p>RF Control のグループはすべてモジュールの状態を変えるもので、全部が押す前に再確認する赤枠ボタンです。
+            まず <code>AT+CFUN?</code> で現在のレベルを見てから動いてください：</p>
+            <table>
+                <tr><th>コマンド</th><th>レベル</th><th>意味</th></tr>
+                <tr><td><code>AT+CFUN=1</code></td><td>全機能</td>
+                    <td>RF 全開。<strong>復旧は必ずこれを押す</strong></td></tr>
+                <tr><td><code>AT+CFUN=4</code></td><td>機内モード</td>
+                    <td>送受信全停止、SIM は生きたまま —— 「再入網」テストの起点</td></tr>
+                <tr><td><code>AT+CFUN=0</code></td><td>最小</td>
+                    <td>SIM も無効化。マニュアルには Minimum functionality としか書かれておらず、詳細はありません</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>ソフト再起動</td>
+                    <td>モジュール全体を再起動。⚠ AT ポートが短時間無効になり、あらためて <code>RDY</code> を待つ必要があります</td></tr>
+            </table>
+            <p>CFUN は最長 15 秒ブロックします。<strong>SIM に PIN ロックがある場合、CFUN=1 に戻した後 PIN を入力し直さないと
+            登録されません。</strong><code>AT+CGATT=0</code>（PS Detach）はパケットドメインから離脱します ——
+            <strong>すべての TCP／MQTT 接続を叩き落とします</strong>。「再アタッチ」のテストのときだけ使ってください。</p>
+
+            <h4>上級：QENG で基地局情報を読む（コマンドライン入力）</h4>
+            <p>このページにボタンはありません —— コマンドラインで <code>AT+QENG="servingcell"</code>
+            と入力すると在圏基地局のパラメータが読めます。実測の主要フィールド：</p>
+            <table>
+                <tr><th>フィールド</th><th>実測値</th><th>読み方</th></tr>
+                <tr><td>MCC／MNC</td><td>466／01</td><td>台湾／Far EasTone</td></tr>
+                <tr><td>Cell ID／TAC</td><td><code>ABCDE02</code>／<code>1234</code>（hex）</td>
+                    <td>10 進で 180149762／4660。eNodeB＝ECI≫8＝703710、セクタ＝2</td></tr>
+                <tr><td>PCID／EARFCN</td><td>144／1550</td>
+                    <td>物理セル ID（<strong>全域一意ではない</strong>）／Band 3</td></tr>
+                <tr><td>RSRP／RSRQ／RSSI／SINR</td><td>-113／-18／-92／-1</td>
+                    <td>RSRP が -100 未満は悪い部類。SINR -1 dB＝品質不良</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Cell ID と TAC は 16 進です。データベースを引く前に必ず 10 進へ変換してください。</strong>
+                OpenCelliD などのデータベースは一律 10 進を受け取り、<code>ABCDE02</code> をそのまま投げても該当なしになるだけです。
+                なお <code>AT+QENG="neighbourcell"</code> は PCID しか返さず、
+                <strong>全域 Cell ID はありません</strong>（LTE 標準の制限）。
+            </div>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td>コマンドはすべて OK が返るのに、自発メッセージが全く現れない</td>
+                    <td>urcport が usbat（出荷値）のまま —— Hardware タブで uart1 へ切り替え</td></tr>
+                <tr><td><code>QIACT=1</code> が ERROR（572）を返す</td>
+                    <td>単一 PDP の枠が先に取られています —— 上記の 2 ステップ切り分けを実行</td></tr>
+                <tr><td>連続リクエストがすべて固定 30 秒でタイムアウト</td>
+                    <td>PDP の漂流 —— <code>AT+CGACT?</code> と突き合わせ、<code>QIACT?</code> だけを信じない</td></tr>
+            </table>
+
+            <h3 id="tab-gnss">GNSS —— 衛星測位</h3>
+            <p><strong>動作原理：</strong>GNSS は<strong>モバイル網から独立した</strong>機能です ——
+            SIM がネットにつながっている必要も PDP も無く、通信量も消費しません（AGNSS を除く、後述）。
+            有効にするとモジュールが自分で衛星信号を受信し、<code>AT+QGPSLOC</code> をポーリングして測位結果を取得します。
+            本節の秒数と挙動はすべて 2026 年 8 月に実機 EG800K で実測した値です。</p>
+
+            <h4>始める前に：すべてはアンテナで決まる</h4>
+            <p>測位失敗の最大の原因はコマンドの誤りではなく、<strong>アンテナが信号を受信できていない</strong>ことです。
+            実測での比較：屋内・アンテナが貧弱な状態では、モジュールは 38 個の衛星の位置を列挙できるのに<strong>1 個も聞こえません</strong>
+            （SNR がすべて 00）。<strong>アクティブ型（active）GNSS アンテナ</strong>に替えて窓際に置いたところ、
+            コールドスタートから 95 秒以内に測位に成功しました。</p>
+            <div class="warning">
+                <strong>屋内では GNSS のテストはできず、いくら待っても無駄です。</strong>空が見えない場所では
+                <code>$GNGGA</code> が「使用衛星 00 個、測位品質 0」を返し、
+                <code>AT+QGPSLOC</code> は永遠にエラー 516 を返します。
+                アンテナを窓際か屋外に移してから始めてください —— これは忍耐の問題ではなく、物理の問題です。
+            </div>
+
+            <h4>初回測位：5 つのステップ</h4>
+            <ol>
+                <li><strong>起動シーケンスを実行する</strong>（「起動シーケンス」の節を参照）。
+                    ⚠ ページを再読み込みするたびに電源断と同じ状態になり、GNSS の有効化状態も受信途中のエフェメリスもすべてゼロに戻るため、
+                    このステップからやり直しです。</li>
+                <li><strong>URC が UART に向いていることを確認する</strong>：<code>AT+QURCCFG="urcport"</code> が
+                    <code>"uart1"</code> を返すこと。出荷時の値は <code>"usbat"</code> で、変えないと多くの結果メッセージが
+                    USB ポートへ送られ、ここでは何も見えません（設定は NVRAM に書かれるので、変更は 1 回だけで済みます）。</li>
+                <li><strong>GNSS を有効化する</strong>：<code>AT+QGPS=1</code> を押します。
+                    数秒以内に <code>+QGPS: "firmware",0,0</code>（GNSS ファームウェアのロード成功）が見えます。
+                    すでに有効な状態でもう一度押すと <code>+CME ERROR: 504</code> が返りますが、無害です。</li>
+                <li><strong>受信状況を見る</strong>：<code>AT+QGPSGNMEA="GSV"</code> で可視衛星を読み出します。
+                    ターミナル領域が自動的に<strong>衛星状態</strong>タブを開き、信号の棒グラフと天空図を描画します ——
+                    読み方は次の段を参照。</li>
+                <li><strong>測位をポーリングする</strong>：5–10 秒ごとに <code>AT+QGPSLOC=2</code> を押します。
+                    <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code>（エラー 516）が返るのは「まだ測位できていない」という意味で、
+                    <strong>そのまま待てば良い</strong>のです。成功すると座標が返り、
+                    ターミナル領域が自動的に<strong>地図</strong>タブを開いて位置を描き込みます。</li>
+            </ol>
+            <figure class="shot narrow">
+                <img src="img/07-gnss.png" alt="GNSS タブ">
+                <figcaption>GNSS タブ：オン／オフ、NMEA 読み出し、測位照会、AGNSS 高速化。</figcaption>
+            </figure>
+
+            <h4>衛星状態タブの読み方：「見える」は「聞こえる」を意味しない</h4>
+            <p>GSV では衛星 1 個につき 4 つの数字が出ます：番号、仰角、方位角、<strong>SNR（信号対雑音比、dB-Hz）</strong>。
+            前の 3 つは「空のどこにいるはずか」を示すだけで、<strong>本当に信号を受信できている証拠は SNR だけ</strong>です。</p>
+            <table>
+                <tr><th>SNR</th><th>意味</th></tr>
+                <tr><td>（空欄）または 00</td><td>まったく受信できていない —— 位置が分かるだけで、聞こえてはいない</td></tr>
+                <tr><td>14–28</td><td>境界線：エフェメリスの復調でエラーとやり直しが頻発し、測位は遅く不安定</td></tr>
+                <tr><td>30 以上</td><td>安定して復調できる水準。<strong>多くの衛星がここに達すれば測位は速い</strong></td></tr>
+                <tr><td>40 以上</td><td>開けた空＋良いアンテナの水準</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/20-sat-view.png" alt="衛星状態タブ：SNR の棒グラフと天空図">
+                <figcaption>測位成功時の衛星状態タブ：31/41 個に信号あり。4 つのコンステレーション（GPS／QZSS／GLONASS／BDS）
+                の SNR 棒グラフと天空図。棒の多くが 20 を超え、一部は 40 に達している —— これが「聞こえている」状態です。</figcaption>
+            </figure>
+
+            <h4>なぜ待つのか：コールドスタートの物理的制約と実測時間</h4>
+            <p>測位には各衛星の精密な軌道情報（エフェメリス）が必要で、エフェメリスは衛星が
+            <strong>50 bps</strong> で放送する信号の中に埋め込まれています —— 1 個につき約 18–30 秒間連続で正しく復調する必要があり、
+            1 ビットでも誤ればやり直し、しかも最低 4 個そろえなければなりません。これが「コールドスタート」の遅さの理由です。
+            本機での実測（同一地点、アクティブ型アンテナ、測定分解能 ±5 秒）：</p>
+            <table>
+                <tr><th>条件</th><th>初回測位時間（実測）</th></tr>
+                <tr><td>コールドスタート（支援なし）</td><td><strong>95 秒</strong></td></tr>
+                <tr><td>コールドスタート＋AGNSS</td><td><strong>52 秒</strong>（別途、約 20 秒で粗い位置が先に 1 件返る）</td></tr>
+                <tr><td>AGNSS＋直近のエフェメリスが残存（日常の繰り返し使用）</td><td><strong>25 秒</strong></td></tr>
+            </table>
+            <div class="tip">
+                <strong>テスト中はページを再読み込みしないでください。</strong>本ツールのハードウェア設計では RTS ＝ 電源なので、
+                ページのリロード ＝ 電源断 ＝ エフェメリス全損となり、すべてコールドスタートからやり直しです。
+                一時停止したいときは <code>AT+QGPSEND</code> を押し、電源は切らないでください。
+            </div>
+
+            <h4>AGNSS 高速化：完全な手順</h4>
+            <p><strong>原理：</strong>AGNSS はエフェメリスの入手をネットワークからのダウンロード（毎回約 32–34 KB）に置き換え、
+            50 bps の低速復調を省略します。<strong>衛星信号を無から生み出すことはできません</strong> ——
+            屋内では相変わらず測位できず、節約できるのは「エフェメリスを待つ」時間だけです。</p>
+            <p>見落としやすい前提が 2 つあり、どちらか 1 つでも欠けると AGNSS は<strong>エラーも出さずに黙って一切動作しません</strong>：</p>
+            <table>
+                <tr><th>前提</th><th>コマンド</th><th>落とし穴</th></tr>
+                <tr><td>AGNSS が有効</td><td><code>AT+QAGPS=1</code></td>
+                    <td>⚠ <strong>再起動して初めて有効になります</strong>（NVRAM に書かれるので設定は 1 回だけ）</td></tr>
+                <tr><td>PDP がアクティブ</td><td><code>AT+QIACT=1</code></td>
+                    <td>⚠ 起動のたびに打ち直しが必要です。<strong><code>AT+CGATT?</code> が 1 を返しても当てになりません</strong> ——
+                        アタッチはネットワーク層の登録にすぎず、<code>AT+QIACT?</code> が
+                        <code>+QIACT: 1,1,…,"IP"</code> を返して初めてデータチャネルが存在します</td></tr>
+            </table>
+            <p>完全な順序（起動のたびに）：</p>
+            <pre>AT+QIACT=1          ← データチャネルを開く（最長 150 秒待つ。通信量が発生）
+AT+QIACT?           ← +QIACT: 1,1,…,"IP" が見えること
+AT+QGPS=1           ← GNSS を有効化。AGNSS はこのとき支援データを自動ダウンロード
+AT+QGPSLOC=2        ← 5–10 秒ごとにポーリング</pre>
+            <p><strong>AGNSS が本当に動いているかをどう確認するか。</strong>本機のファームウェアは
+            <code>+QGPS: "agps"</code> のような通知を<strong>出しません</strong>（実測で確認済み）。状況証拠を見るしかなく、次の 3 つのどれか 1 つで十分です：</p>
+            <ol>
+                <li><code>AT+QGDCNT?</code> を <code>AT+QGPS=1</code> の前後で 2 回照会し、
+                    受信方向が約 30 KB 増えている ＝ 支援データがダウンロードされた証拠</li>
+                <li>GSV が数秒のうちに<strong>大量の衛星の位置</strong>を列挙する（SNR はまだ 00 かもしれません）——
+                    位置はダウンロードされたもので、自力の復調でこの速さはあり得ません</li>
+                <li><code>$GNGGA</code> の時刻フィールドに値が入っている（時刻も支援データの一部です）</li>
+            </ol>
+            <div class="warning">
+                <strong>偽測位の罠：衛星 0 個の座標は測位ではありません。</strong>
+                AGNSS 起動から約 20 秒後、<code>AT+QGPSLOC</code> が座標を 1 件返すことがありますが、
+                よく見ると <code>HDOP 0.00 / alt 0.0 / nsat 00</code> ——
+                それは支援データに含まれる<strong>参照位置の注入</strong>であって測定結果ではなく、誤差が非常に大きい可能性があります。
+                <br><br>
+                <strong>本物の測位の判定基準：使用衛星数 &gt; 0、測位モード ≥ 2、HDOP &gt; 0。</strong>
+                自動化や製品ロジックを書くときは、「座標が返ってきたか」だけを見てはいけません。
+            </div>
+
+            <h4>apflash：電源断からの再起動でも速くなる（条件付き）</h4>
+            <p><code>AT+QGPSCFG="apflash"</code> は出荷時から 1 です：測位に成功するたびにエフェメリスを
+            flash に保存し、次回起動時に自動で取り込みます —— 1 時間以内の電源断・再起動ならコールドスタートが高速なホットスタートに変わり、
+            <strong>通信量ゼロ</strong>です。制限は 2 つ：エフェメリスは約 1 時間で期限切れになること。
+            そして<strong>先に 1 回は測位に成功していること</strong> —— そうでなければ flash に取り込める中身が無く、
+            一度も測位に成功したことのないモジュールには apflash は役立ちません。</p>
+
+            <h4>測位成功の後：地図タブ</h4>
+            <p><code>AT+QGPSLOC</code> が成功するたびに、位置が地図タブへ描き込まれます：
+            青いマーカーが最新位置、シアンの線が移動の軌跡で、各軌跡点にマウスを載せると現地時間と高度が表示されます。
+            サマリーバーには座標／高度／HDOP／衛星数が表示され、時刻は経度から現地タイムゾーンへ自動換算されます。</p>
+            <figure class="shot">
+                <img src="img/21-map-track.png" alt="地図タブ：測位の軌跡">
+                <figcaption>測位成功後の地図タブ：マーカー ＝ 最新位置、シアンの線 ＝ 軌跡。
+                上部のサマリーバーに座標、高度、HDOP、使用衛星数、現地時間が並びます。</figcaption>
+            </figure>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td><code>+CME ERROR: 505</code></td>
+                    <td>GNSS がまだ有効になっていません —— まず <code>AT+QGPS=1</code>。
+                        再起動（ページのリロードを含む）のたびに有効化し直す必要があります</td></tr>
+                <tr><td><code>+CME ERROR: 504</code></td><td>GNSS はすでに有効で、二重に有効化しただけです。無害です</td></tr>
+                <tr><td>エラー 516（NOT_FIXED_NOW）</td>
+                    <td>まだ測位できていません。GSV に信号があれば（SNR ≥ 30）そのまま待つ。
+                        全部 00 ならアンテナ／環境の問題で、いくら待っても無駄です</td></tr>
+                <tr><td>連続 NMEA ストリームが取得できない</td>
+                    <td>出荷時の <code>outport</code> は <code>usbnmea</code> で、連続ストリームは USB ポートへ流れます。
+                        AT ポートでは <code>AT+QGPSGNMEA</code> で 1 文ずつ取れば十分です（先に
+                        <code>nmeasrc,1</code> が必要。本タブにボタンを用意済み）</td></tr>
+                <tr><td><code>AT+QGPSDEL</code> でコールドスタートを強制したい</td>
+                    <td>⚠ 使わないでください —— 本機のファームウェアは <code>=?</code> に <code>(0-2)</code> を返すのに、
+                        3 つのパラメータを<strong>すべて拒否</strong>します（INVALID_PARA）。公式文書にも記載がありません。
+                        コールドスタートしたいときは <code>apflash,0</code> ＋ 電源断・再起動（テスト後は 1 に戻すのを忘れずに）</td></tr>
+                <tr><td>設定を変えたのに反映されない</td>
+                    <td><code>QAGPS</code> は再起動して初めて有効になります。<code>gnssconfig</code>（コンステレーション構成）
+                        も同様です。変更後は起動シーケンスを 1 回実行してください</td></tr>
+            </table>
+
+            <h3 id="tab-tcpip">TCP/IP —— データ通信の根</h3>
+            <p><strong>動作原理：</strong>このページはすべてのデータプロトコルの土台です。<strong>PDP context
+            （通信ネットワークが割り当てるデータチャネル）の有効化と無効化はこのページでのみ行います</strong>。SSL／HTTP／MQTT／FTP
+            の各ページには読み取り専用の照会しか置いていません —— 同じコマンドが 2 か所で踏み合うのを避けるためです。
+            本節の罠と秒数はすべて 2026 年 8 月に実機で実測したものです。</p>
+            <figure class="shot">
+                <img src="img/03-tcpip.png" alt="TCP/IP タブ">
+                <figcaption>TCP/IP ページ：PDP、socket の送受信と診断ツール。</figcaption>
+            </figure>
+
+            <h4>第一歩：PDP を有効化する（QICSGP／QIACT／QIDEACT）</h4>
+            <p><strong>Act PDP</strong>（<code>AT+QIACT=1</code>）を押します：最長 150 秒ブロックし、
+            その間は他のコマンドを打たないでください。ここから通信量が発生し始めます（ローミングでは費用に注意）。成功したら<strong>必ず
+            Query IP</strong>（<code>AT+QIACT?</code>）を押し、<code>+QIACT: 1,1,1,"IP アドレス"</code> が返ることを確認します
+            —— 有効化前は OK しか返りません。終えるときは <strong>Deact PDP</strong>（<code>AT+QIDEACT=1</code>、
+            最長 40 秒）を押します。配下のすべての接続が強制的に閉じられます。<strong>Set APN</strong>
+            （<code>AT+QICSGP</code>）は普段は押す必要がありません —— モジュールはネットワークの割り当てた APN を自動同期します
+            （実測では 1NCE カードは起動時の読み出しですでに <code>iot.1nce.net</code>）。ユーザー名とパスワードが要る企業向け APN のときだけ必要です。</p>
+            <div class="warning">
+                <strong>Act PDP が ERROR、Last Error が 572？ このカードは PDP を 1 本しか許可しません。</strong>
+                起動時にネットワークがすでに 1 本自動有効化しており、<strong>番号は浮動します</strong>（実測で 9 と 1 を確認）。
+                <code>AT+QIACT</code> は 1–8 にしか触れません。対処：Network ページで <code>AT+CGACT?</code>
+                で番号を照会 → <code>AT+CGACT=0,&lt;番号&gt;</code> で枠を譲らせる → もう一度 Act PDP。
+                <br><br>
+                <strong>テストの途中で全滅？ <code>AT+QIACT?</code> は嘘をつきます</strong> —— PDP が漂流していても
+                平然と IP を返すので、<code>AT+CGACT?</code> と突き合わせないと見抜けません。復旧：
+                Deact PDP → <code>AT+CGACT=0,&lt;漂流先の番号&gt;</code> → Act PDP → Ping で検証。
+            </div>
+
+            <h4>接続を開く：OK は「コマンドを受け付けた」の意味でしかない</h4>
+            <p><strong>Open TCP</strong> を押し、パラメータカードにホストとポートを記入します
+            （<code>AT+QIOPEN=1,0,"TCP","ホスト",ポート,0,0</code>。context 1、connectID 0、
+            buffer モードは固定済み）。<strong>OK はコマンドを受け付けたという意味でしかなく</strong>、成否は URC
+            <code>+QIOPEN: 0,&lt;err&gt;</code> で見ます：0＝成功、最長 150 秒。
+            <strong>563＝connectID がまだ開いたまま</strong>なので、先に Close Sock を押します。
+            <strong>All Socks</strong>（<code>AT+QISTATE</code>）はすべての socket を一覧し、
+            state 2＝接続済みです。</p>
+
+            <h4>データ送信：3 つの方式</h4>
+            <table>
+                <tr><th>ボタン</th><th>説明</th></tr>
+                <tr><td><strong>Send Text</strong><br><code>AT+QISEND=0,&lt;len&gt;</code></td>
+                    <td>固定長の 2 段階：<code>&gt;</code> を待って本文を送り、長さは自動計算、
+                        <strong>Ctrl+Z 不要</strong>。プレーンテキストの第一選択。上限 1460 bytes、
+                        <code>\n \r \t \xHH</code> のエスケープに対応</td></tr>
+                <tr><td><strong>Send Var の 3 ボタン</strong><br><code>AT+QISEND=0</code></td>
+                    <td>可変長式：データモードに入って受け付け続け、Ctrl+Z（0x1A）を見てはじめて送出 ——
+                        分割して書けます。次の段落を参照</td></tr>
+                <tr><td><strong>Send Hex</strong><br><code>AT+QISENDEX=0,"hex"</code></td>
+                    <td>単一行式で、データモードに入りません。任意のバイト（0x00 を含む）を送れます。
+                        hex の上限 512 文字＝実質 256 bytes</td></tr>
+            </table>
+            <p><strong>送出（続けて書く）</strong>は最初の 1 回でデータモードに入り、以後は押すたびに 1 区切り追加します
+            （すでにデータモード中はコマンドを再送しません。再送するとデータになってしまいます）。<strong>送出後に自動終了</strong>は
+            追加してから Ctrl+Z を補うもので、1 区切りだけ送るときが最速。<strong>終了（Ctrl+Z）</strong>は蓄積した内容を
+            一気に送出します。データモード中はターミナルに表示が出ます。やめるときは
+            <strong>ESC Cancel</strong>（0x1B、2 段階コマンドが固まったときの脱出キー）。
+            ⚠ データに 0x1A を含めてはいけません（早すぎる終了と見なされます）。制御文字は Send Hex を使ってください。</p>
+            <div class="tip">
+                <strong>SEND OK は相手が受け取ったという意味ではなく</strong>、データをモジュールに渡しただけです。
+                <strong>Check ACK</strong>（<code>AT+QISEND=0,0</code>）で送信済み／ACK 済みを照会し、
+                <strong>acked を見てはじめて確定</strong>です。
+            </div>
+
+            <h4>データ受信：勝手には現れず、Read Data を押す</h4>
+            <p>buffer モードで受信したデータは、ターミナルに自動では<strong>現れません</strong>：モジュールは
+            <code>+QIURC: "recv",0</code> という通知を出すだけなので、<strong>Read Data</strong>
+            （<code>AT+QIRD=0,1500</code>）で取り出し、しかも<strong><code>+QIRD: 0</code> が返るまで
+            繰り返し読みます</strong> —— 読み切らないと次の通知は二度と来ません。
+            <strong>Unread Len</strong>（<code>AT+QIRD=0,0</code>）は総受信／既読／未読を照会します。
+            送受信を終えたら <strong>Close Sock</strong>（<code>AT+QICLOSE=0</code>、最長 10 秒）。
+            ⚠ <strong>recv 通知が全く来ない？</strong> Hardware ページで
+            <code>AT+QURCCFG="urcport"</code> が <code>uart1</code> かどうかを確認してください ——
+            出荷値は USB ポートで、URC は全部そちらへ流れています。</p>
+
+            <h4>組み込みの相手 tcpbin.com の 2 つの癖</h4>
+            <p>Open TCP の既定の相手は無料 echo サーバー <code>tcpbin.com:4242</code> です。
+            実測で分かった癖が 2 つ：</p>
+            <ul>
+                <li><strong>行単位で echo し、末尾に改行（0A）が必要</strong>：0A 無しで Hello を送ると 6 秒待っても
+                    無応答、0A を補うと 0.1 秒で即受信。Send Text は末尾に <code>\n</code> を、
+                    Send Hex は末尾に <code>0A</code> を付けます。</li>
+                <li><strong>15 秒の遊休タイムアウト</strong>：遊休のままだと切断され
+                    <code>+QIURC: "closed",0</code> を受け取ります。これは QIRD とは無関係です（QIRD はローカルバッファを読むだけで、
+                    ネットワークには触れません）。接続を保つには 10 秒以内ごとに 1 回データを送ります。closed を受けた後 socket は closing で止まり、
+                    <strong>先に Close Sock を押さないと</strong>再利用できず、QIOPEN が 563 を返します。</li>
+            </ul>
+
+            <h4>診断の 3 点セット：Ping／DNS Lookup／NTP Sync</h4>
+            <table>
+                <tr><th>ボタン（いずれも先に Act PDP が必要）</th><th>挙動と実測</th></tr>
+                <tr><td><strong>Ping</strong><br><code>AT+QPING</code></td>
+                    <td>timeout 4 秒 ×4 は固定済み。実測では 8.8.8.8 は全通、RTT 160–270 ms。
+                        ⚠ 多くのサーバーは ICMP を遮断するので、<strong>ping が通らなくても TCP がつながらないとは限りません</strong>。
+                        接続性は直接 Open TCP で</td></tr>
+                <tr><td><strong>DNS Lookup</strong><br><code>AT+QIDNSGIP</code></td>
+                    <td>結果は URC <code>+QIURC: "dnsgip"</code> で報告されます（最長 60 秒）。
+                        実測では 2 回に分かれ、複数の IP を含みました</td></tr>
+                <tr><td><strong>NTP Sync</strong><br><code>AT+QNTP</code></td>
+                    <td>最長 125 秒、ポート 123 は固定済み。結果は URC <code>+QNTP</code> で見ます。
+                        ⚠ <strong>時刻は UTC なのにローカルタイムゾーン記号が付きます</strong>（+32 クォーター＝GMT+8、実測でちょうど
+                        8 時間ずれ）。ローカル時刻を見るなら <code>AT+CCLK?</code></td></tr>
+            </table>
+
+            <h4>エラーが出たら：まず Last Error、次に 30 秒鑑別</h4>
+            <p>コマンドが ERROR を返したら<strong>すぐに</strong> <strong>Last Error</strong>
+            （<code>AT+QIGETERROR</code>）を押します —— 最後の 1 件しか保持されず、次のエラーに上書きされると調べられません。
+            これは Quectel スタック層を照会します。ネットワーク層は Network ページの <code>AT+CEER</code> で。</p>
+            <div class="warning">
+                <strong>🔴 データスタックの退化 —— 最も時間を食う落とし穴。</strong>症状：すべての接続が一律に
+                失敗するのに、自己診断は全部問題なしと言う（QIACT? に IP あり、QIGETERROR は 0）。実測では SSL の開閉を連続
+                約 20 回行った後に発生し、純粋な TCP の QIOPEN まで 552 を返しました。QIDEACT＋QIACT では救えず、
+                <strong>起動シーケンスのやり直しだけが復旧手段です</strong>。<br><br>
+                <strong>30 秒鑑別法</strong>：Open TCP で同じ相手を叩く —— これも失敗＝スタック全体が
+                壊れているので起動シーケンスをやり直す。成功＝問題は上位プロトコルにあるので、調査を続ける。
+            </div>
+
+            <h4>Keepalive：通信事業者の NAT には効くが、tcpbin には効かない</h4>
+            <p><strong>QICFG=?</strong> はサブ項目と範囲を一覧、<strong>Keepalive?</strong> は現在値を照会、
+            <strong>Keepalive On／Off</strong> はスイッチ —— この 4 つのコマンド<strong>自体</strong>は通信量ゼロです。
+            有効化後は socket が遊休のままである限り、探査パケットがモバイル通信量に計上されます。
+            <strong>tcpbin の 15 秒タイムアウトは防げません</strong>：実測では有効にしても 15.1 秒で切られました ——
+            keepalive は TCP 層の空探査でアプリケーションからは見えず、しかも interval の最小は 25 秒で、
+            そもそも 15 より大きいのです。アプリケーション層のタイムアウトをしのぐには実データを送るしかありません（例：10 秒ごとに Send Hex で
+            <code>0A</code> を送る）。本当の用途は<strong>通信事業者の NAT
+            の保活</strong>です（IoT カードの NAT は数分の遊休で回収されます）。</p>
+            <p>通信量の勘定（<strong>推算であり実測ではありません</strong>）：1 回の探査往復は約 80 bytes。
+            既定の idle＝30 秒で遊休が続くと → 毎時約 9.4 KB、1 日約 225 KB、
+            <strong>1 か月約 6.8 MB</strong>。idle＝600 秒なら → 1 日約 11 KB。
+            1NCE のような総量前払いカードでは idle を大きくしてください。socket を開いていなければ通信量は全く消費しません。</p>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td><code>+QIOPEN: 0,563</code></td>
+                    <td>connectID が開いたまま —— 先に Close Sock</td></tr>
+                <tr><td><code>+QIURC: "recv"</code> が受信できない</td>
+                    <td>① urcport が uart1 ではない（Hardware ページ）
+                        ② <code>+QIRD: 0</code> まで読んでおらず、通知が抑制されている</td></tr>
+                <tr><td>突然 <code>+QIURC: "closed",0</code> が出る</td>
+                    <td>tcpbin の 15 秒遊休タイムアウト。Close Sock の後に開き直せます</td></tr>
+                <tr><td>2 段階コマンドが固まり、AT ポートが応答しない</td>
+                    <td>ESC Cancel で脱出。それでもだめなら Hardware ページの Reset</td></tr>
+                <tr><td>接続が全滅なのに自己診断は全部緑</td>
+                    <td>データスタックの退化 —— 鑑別の後、起動シーケンスをやり直す</td></tr>
+                <tr><td>Act PDP が ERROR を返す、またはテスト途中で全滅</td>
+                    <td>単一 PDP の枠が先取りされている／PDP の漂流 —— 〈第一歩〉の 2 つの切り分け枠を参照</td></tr>
+            </table>
+
+            <h3 id="tab-mqtt">MQTT —— IoT メッセージング</h3>
+            <p><strong>動作原理：</strong>MQTT は「broker（メッセージ仲介サーバー）」型のプロトコルです：
+            デバイス同士は直接つながらず、それぞれ broker に接続し、「トピック（topic）」に対してメッセージを発行または購読します。
+            EG800K 上では 2 層構造です：まず <code>AT+QMTOPEN</code> で「ネットワーク接続」を開き（TCP で broker へ接続）、
+            次に <code>AT+QMTCONN</code> で「MQTT ログイン」を行い、両方の層が通ってはじめて購読と発行ができます。
+            先に覚えておくこと：<strong>MQTT コマンドの結果はすべて「まず OK、次に URC」のパターン</strong>です（FTP と同じ）——
+            <code>OK</code> はコマンドを受け付けたという意味でしかなく、成否はその後の結果 URC で見ます。</p>
+            <p>本ページは client 0 に固定しています。ファームウェアは他にマルチ client（0–5）、SSL、クラウドプラットフォーム認証にも対応しており
+            （<code>=?</code> の実測で確認）、上級の使い方は MQTT アプリケーションノートを参照してください。</p>
+
+            <h4>始める前に：2 つの前提</h4>
+            <ol>
+                <li><strong>URC が UART を通っていること</strong>：<code>AT+QURCCFG="urcport"</code> が
+                    <code>"uart1"</code> を返す必要があります。出荷値は <code>"usbat"</code> で、MQTT の結果はすべて URC ——
+                    変えないと<strong>どのコマンドも OK が返るだけで後が続きません</strong>
+                    （Basic ページにボタンがあります。NVRAM に書かれるので変更は 1 回だけ）。</li>
+                <li><strong>PDP を先に有効化すること</strong>：先に TCP/IP ページで <code>AT+QIACT=1</code>
+                    を押します（最長 150 秒）。有効化していないと <code>+QMTOPEN</code> が <strong>3＝PDP 有効化失敗</strong>を返します。
+                    全行程でデータ通信量が発生し、見積もりは約 5 KB です。</li>
+            </ol>
+
+            <h4>どう試すか：4 つの無料公開 broker</h4>
+            <p><code>AT+QMTOPEN</code> のパラメータカードには broker のドロップダウンが組み込まれています（自由入力も可）。
+            4 つとも匿名を許可し、登録は不要です。データは 2026 年 8 月の実測（PC 側から 100 件の連射、モジュール側から ping）：</p>
+            <table>
+                <tr><th>Broker</th><th>連射 100 件</th><th>モジュール側 ping</th><th>備考</th></tr>
+                <tr><td><strong>mqttgo.io</strong>（既定）</td><td><strong>100/100</strong></td>
+                    <td><strong>190–210 ms</strong></td><td>台湾 HiNet。1883 平文／8883 TLS</td></tr>
+                <tr><td>broker.hivemq.com</td><td>100/100</td><td>ICMP 遮断</td>
+                    <td><code>AT+QPING</code> が 559 を返しても慌てない —— 実測では 4 つとも TCP 1883 は全通で、
+                        到達性は直接 <code>AT+QMTOPEN</code> で試せます</td></tr>
+                <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+                    <td>公式サイト自ら重要用途に使うなと明言。トピック汚染は最も深刻</td></tr>
+                <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>ICMP 遮断</td>
+                    <td><strong>発行レート制限あり</strong>。Web の Dashboard あり</td></tr>
+            </table>
+            <p>この 4 つはすべて<strong>完全公開</strong>です：誰でもあなたのトピックを購読でき、
+            他人のメッセージが紛れ込むこともあります —— これこそランダムサフィックスが解決する問題です。</p>
+
+            <h4>client ID とトピックのランダムサフィックス：再読み込みのたびに変わる</h4>
+            <p>client ID と既定トピックは固定値ではありません：ページ読み込み時に 16 進 6 文字のサフィックスを自動生成し、
+            <code>numodem-&lt;サフィックス&gt;</code> と <code>test/numodem-&lt;サフィックス&gt;</code> を組み立てます。
+            Subscribe／Publish／Unsub の 3 ボタンは同じ 1 組を共用します（そうしないとループバックが噛み合いません）。理由は 2 つ：</p>
+            <ul>
+                <li><strong>名前が衝突すると蹴落とされる</strong>：MQTT 3.1.1 §3.1.4 は、先に接続していた側を broker が
+                    切断するよう規定しています —— 2 人が同じ固定 ID を使うと蹴り合いになり、症状は「モジュールが訳もなく切断される」ように見えます。</li>
+                <li><strong>固定トピックは他人のメッセージを受信する</strong>：自分が発行したものだと思って受け取ったのに、実は違う ——
+                    これは受信できないより悪質です。偽の合格を出してしまうからです。</li>
+            </ul>
+            <div class="warning">
+                <strong>⚠ ページを再読み込みするたびにサフィックスは別の組になります ——
+                購読と発行は同じページのライフサイクル内で完了させなければなりません。</strong>
+                しかも本ツールは RTS＝電源なので、ページの再読み込み＝モジュールの電源断で、MQTT 接続はまるごと消えます。
+                起動シーケンスと <code>AT+QMTOPEN</code> からやり直しです。
+            </div>
+
+            <h4>完全な動線：接続 → 購読 → 発行 → 自分のメッセージを受け取る</h4>
+            <p>最も説得力のある検証は<strong>ループバック</strong>です：購読した後、同じトピックに発行して
+            自分のメッセージを自分で受け取れば、送受信の全リンクを一度で検証できます。各ステップは結果 URC を待ってから次へ：</p>
+            <ol>
+                <li><strong>プロトコルバージョンを設定</strong>：Ver 3.1.1 を押します（<code>AT+QMTCFG="version",0,4</code>。
+                    3＝3.1、4＝3.1.1）。Version? で現在値を照会できます（値なし＝照会）。
+                    Keepalive のパラメータカードで保活間隔を調整できますが、調整しなくてもテストできます。</li>
+                <li><strong>ネットワークを開く</strong>：Open Net を押します（<code>AT+QMTOPEN=0,"broker",1883</code>）。
+                    まず <code>OK</code> が返り、成否は URC <code>+QMTOPEN: 0,&lt;result&gt;</code>
+                    （0＝成功）で見ます。最長 120 秒待ちます。Open? で開いている接続を照会できます
+                    （接続が無いときは空の <code>OK</code> が返り、実測で正常）。</li>
+                <li><strong>MQTT ログイン</strong>：Connect を押します（<code>AT+QMTCONN=0,"numodem-&lt;サフィックス&gt;"</code>）。
+                    成功の URC は必ず <code>+QMTCONN: 0,0,0</code> です。公開 broker はユーザー名とパスワード不要。
+                    必要な場合はパラメータの後ろに自分で <code>,"user","pass"</code> を足します。
+                    Conn? で状態を照会します（1＝初期、2＝接続中、3＝接続済み、4＝切断中）。</li>
+                <li><strong>購読</strong>：Subscribe を押します（<code>AT+QMTSUB=0,1,"test/numodem-&lt;サフィックス&gt;",0</code>、
+                    msgid は 1 に固定）。成功の URC は <code>+QMTSUB: 0,1,0,0</code> のような形です。
+                    以後、このトピックのメッセージは <code>+QMTRECV</code> URC で入ってきます。</li>
+                <li><strong>発行</strong>：Publish を押します（<code>AT+QMTPUBEX</code>、2 段階。次の段落を参照）。
+                    成功の URC は <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code> です。</li>
+                <li><strong>受け取る</strong>：発行先は購読中のトピックそのものなので、直後に
+                    <code>+QMTRECV</code> がトピックとさっきのメッセージ本文を伴って現れます —— ループバック成功。
+                    マルチバイト（漢字）の payload も切り捨てや文字化けはありません。</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="MQTT タブ">
+                <figcaption>MQTT ページ：broker のドロップダウン、接続、購読と発行。既定値にはランダムサフィックスが付いています。</figcaption>
+            </figure>
+
+            <h4>QMTPUBEX の 2 段階：長さを数え切ると自動送出、Ctrl+Z 不要</h4>
+            <p><code>AT+QMTPUBEX</code> の末尾パラメータは<strong>長さ（バイト数）であって、メッセージ内容ではありません</strong>
+            （MQTT アプリケーションノート §3.3.8 で決着 —— メッセージを詰め込む単一行の送り方は必ず ERROR になります）。
+            正しい流れは 2 段階です：コマンドを送る → モジュールがプロンプト <code>&gt;</code> を返す → ちょうど N バイトを送る。
+            モジュールは<strong>長さを数え切ると自動的に送出し、Ctrl+Z は不要です</strong>
+            （TCP ページの <code>AT+QISEND</code> のデータモードとは異なります）。
+            Publish を押せば全自動：パラメータカードにメッセージ内容を記入するだけで、
+            長さは UTF-8 のバイト数から自動計算されます（漢字 1 文字は 3 バイト。実測では「測試」→ 6）。</p>
+            <ul>
+                <li>payload 型コマンドには<strong>「コマンドラインに入力」を提供していません</strong> —— コマンドラインからの送出は必ず行末が付き、
+                    その CR が長さに数えられてずれるため、ボタンで送ってください。</li>
+                <li>ファームウェアには他に <code>AT+QMTPUB</code>（データモード変種、Ctrl+Z で締める）もありますが ——
+                    本ツールは一律 <code>QMTPUBEX</code> を使います。2 通り覚える必要はありません。</li>
+            </ul>
+
+            <h4>結果コードの読み方：コマンドごとに値域が違う</h4>
+            <div class="warning">
+                <strong>A コマンドの結果コード表を B コマンドに当てはめないでください。</strong>
+                <code>+QMTOPEN</code> の 3 は「PDP 有効化失敗」ですが、
+                <code>+QMTPUBEX</code> にはそもそも 3 という値がありません。
+                <br><br>
+                最も読み違えやすいのは <code>+QMTCONN: 0,1</code> ——
+                これは<strong>照会応答の「状態 1＝初期化中」かもしれないし、書き込み結果の「パケット再送中」かもしれません</strong>。
+                1 行だけでは区別できないので、本ツールは両方の読み方を並記し、当て推量はしません。
+            </div>
+            <p>表を暗記する必要はありません：<code>+QMTOPEN</code> から <code>+QMTRECV</code>／<code>+QMTSTAT</code>
+            までの全結果 URC に、ターミナル領域が MQTT アプリケーションノート v1.5 の 7 枚の対照表に基づいて欄ごとに平易な注釈を付けます。</p>
+
+            <h4>切断と後始末</h4>
+            <ul>
+                <li><strong>受信だけ止めて接続は残したい</strong>：Unsub を押します
+                    （<code>AT+QMTUNS=0,2,"トピック"</code>、msgid は 2 に固定）。</li>
+                <li><strong>正常切断</strong>：Disconnect を押します（<code>AT+QMTDISC=0</code>、
+                    MQTT DISCONNECT を送出）。<code>+QMTDISC: 0,0</code> が返ります。
+                    <strong>その後 Close Net を押す必要はありません</strong> —— <code>AT+QMTCLOSE=0</code>
+                    は「QMTDISC が失敗し、ネットワーク層が固まった」ときの強制クローズ用です。</li>
+            </ul>
+            <p>自分で押していない切断（蹴られた、keepalive タイムアウト、ネットワーク断）は <code>+QMTSTAT</code>
+            の異常切断 URC で報告されます（例：<code>+QMTSTAT: 0,5</code>。ターミナル領域が原因を注釈します）。
+            このときは <code>AT+QMTOPEN</code> からやり直しです。</p>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td>どのコマンドも OK が返るだけで、後が続かない</td>
+                    <td>URC が USB ポートへ送られています —— <code>urcport</code> の出荷値は <code>usbat</code>。
+                        <code>uart1</code> へ切り替え（前提 1 を参照）</td></tr>
+                <tr><td><code>+QMTOPEN: 0,3</code></td>
+                    <td>PDP 有効化失敗 —— 先に <code>AT+QIACT=1</code>（TCP/IP ページ）を実行してからやり直し</td></tr>
+                <tr><td>購読したのに自分の発行したメッセージが受信できない</td>
+                    <td>途中でページを再読み込みしています —— サフィックスが別の組になり、モジュールも電源断で再起動しています。
+                        同じページのライフサイクル内で動線を一巡やり直してください</td></tr>
+                <tr><td>自分が発行していないメッセージを受信した</td>
+                    <td>公開 broker のトピック汚染（mosquitto が最も深刻）。既定トピックにはランダムサフィックスが付いています。
+                        自分でトピックを決めるなら独特な名前にしてください</td></tr>
+                <tr><td>大量発行でメッセージの一部が消えた</td>
+                    <td>emqx には発行レート制限があります（実測では連射 100 のうち 40 のみ到達）——
+                        mqttgo.io か hivemq（100/100、制限なし）に替えてください</td></tr>
+                <tr><td>いくら待っても結果 URC が来ない</td>
+                    <td>このファミリーはもともと遅いのです：<code>QMTOPEN</code> は最長 120 秒、
+                        <code>QMTCONN</code>／<code>QMTSUB</code>／<code>QMTPUBEX</code> は最長 600 秒
+                        （PUBEX＝パケットタイムアウト 60 秒 × 再試行 10）。ボタンの説明に明記済みで、フリーズではありません</td></tr>
+            </table>
+
+            <h3 id="tab-wifi">WiFiScan —— Wi-Fi スキャンとネットワーク測位</h3>
+            <p><strong>動作原理：</strong>EG800K は LTE モジュールで、<strong>Wi-Fi でネットに出る能力はありません</strong>が、
+            「スキャンするだけで接続しない」Wi-Fi 受信機を内蔵しています：周辺の 2.4GHz アクセスポイントが放送する
+            beacon フレームを受動的に受信し、各アクセスポイントの MAC アドレス（BSSID）、RSSI（信号強度）、チャネルを報告します。
+            スキャンは純粋な RF 受信で、<strong>データ通信量ゼロ</strong>です。それ自体は座標を生みません ——
+            MAC＋RSSI のリストをクラウドのアクセスポイント位置データベースへ送って照会し、はじめて緯度経度に換えられます。
+            これが<strong>屋内でも使え、衛星に頼らない</strong>ネットワーク測位です。
+            本節のすべての数値と挙動は 2026 年 8 月に実機 EG800K で実測した値です。</p>
+
+            <h4>このページの 2 グループのボタン</h4>
+            <p>上半分は <strong>Wi-Fi Scan</strong> の 4 ボタン（純粋なスキャン）、下半分は
+            <strong>QuecLocator (QLBS)</strong> の 13 ボタン（後の「真相」の段落を読んでから押してください）：</p>
+            <table>
+                <tr><th>ボタン</th><th>コマンド</th><th>働きと実測の要点</th></tr>
+                <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>パラメータ範囲を照会。本機の実際の応答は
+                        <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+                <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+                    <td>現在のパラメータを読み出し。本機の出荷値は <code>12000,1,5,5,0</code>＝
+                        時間制限 12 秒、1 巡、アクセスポイント上限 5、RRC タイムアウト 5 秒、優先度 0</td></tr>
+                <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+                    <td>現在のパラメータで 1 回スキャン。結果は <code>OK</code> の後に<strong>非同期</strong>で報告され、
+                        最長 13 秒待ちます</td></tr>
+                <tr><td>Scan (custom)</td><td>パラメータカード</td>
+                    <td>時間制限（ミリ秒）／巡回数／アクセスポイント上限／RRC タイムアウト／優先度を指定してスキャン</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="WiFiScan タブと QuecLocator グループ">
+                <figcaption>WiFiScan ページ：スキャンの 4 ボタンと QuecLocator（QLBS）グループ。</figcaption>
+            </figure>
+
+            <h4>初回スキャン：押し方と、何が見えるか</h4>
+            <ol>
+                <li><strong>起動シーケンスを実行する</strong>（〈起動シーケンス〉の節を参照）。</li>
+                <li><strong>URC が UART を通っていることを確認する</strong>：<code>AT+QURCCFG="urcport"</code> が
+                    <code>"uart1"</code> を返すこと。出荷値は <code>"usbat"</code> ——
+                    スキャン結果は全部 USB ポートへ送られ、ここでは <code>OK</code> しか見えず、
+                    TIMEOUT さえ待てません（設定は NVRAM に書かれるので変更は 1 回だけ）。</li>
+                <li><strong><code>Scan</code> を押す</strong>：モジュールはまず <code>OK</code> を返します。
+                    これは「スキャン開始」であって、<strong>結果ではありません</strong>。数秒以内（最長でスキャン時間制限まで）に
+                    結果が 1 行ずつ報告され、各行に自動注釈（MAC／RSSI／チャネル）が付きます。</li>
+            </ol>
+
+            <h4>スキャン結果の読み方</h4>
+            <p>実測の報告はこのような形です（2026-08-29、7 個のアクセスポイントを検出、RSSI -37 ~ -89 dBm）：</p>
+            <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+            <p>フィールドの順序は <code>(ecn, ssid, rssi, mac, channel)</code> です。
+            <strong>本機のファームウェアは ecn と ssid を常に <code>-</code> で返します</strong>（2026-08-02 実測）。
+            リストからは「どこの家の Wi-Fi か」は分かりません ——
+            測位にはちょうど十分で、データベースが受け取るのはもともと MAC＋RSSI です。
+            RSSI の直感：-30 ~ -50 はとても近い、-60 ~ -75 は普通、-80 以下はとても弱い。</p>
+            <p>時間制限内に 1 個も検出できないと <code>+QWIFISCAN:TIMEOUT</code> が返ります ——
+            <strong>正常終了であり、エラーではありません</strong>（コロンの後に空白が無い点は本ツールの解析で処理済み）。
+            もっと多く検出したいとき：パラメータカードでアクセスポイント上限を出荷値の 5 から引き上げ（本機の上限は 10）、
+            巡回数を 2-3 にします（実測では巡回をまたぐ結果は重複排除されます）。</p>
+            <div class="warning">
+                <strong>検出したアクセスポイントのすべてが測位に使えるわけではありません。</strong>2026-08-29 の実測では 7 個のうち
+                4 個が「ローカル管理アドレス」でした（<code>C2:</code>／<code>62:</code>／<code>9E:</code>
+                で始まり、第 1 バイトの 0x02 ビットが 1 —— マルチ SSID の分身である仮想 BSSID）。
+                <strong>測位データベースは通常この種のアドレスをそのまま無視する</strong>ため、実際に使える素材は全域アドレスの 3 個だけでした。
+            </div>
+            <div class="warning">
+                <strong>アプリケーションノート V1.2 のパラメータ範囲は本機には誤りです。</strong>
+                文書は巡回数を 1-6、アクセスポイント上限を 4-30 まで緩めていますが、本機ファームウェアが実際に返す範囲は今も
+                <strong>巡回数 1-3、アクセスポイント上限 4-10</strong> です（2026-08-06 実測）。
+                <code>Support?</code> の実際の応答を基準にし、文書の数字を写さないでください。
+            </div>
+
+            <h4>QuecLocator（QLBS）ボタン群：押す前にまず真相を</h4>
+            <p>QuecLocator は Quectel のクラウド測位サービスです：<code>AT+QLBS</code>（<code>Locate</code>
+            ボタン）の 1 本で、ファームウェアが自分で素材を集め、サーバーへ送って照会し、座標を返します。3 つの現実：</p>
+            <ol>
+                <li><strong>token が必要で、しかも有料サービスです。</strong>公式文書には Quectel
+                    テクニカルサポートへ連絡して申請するよう明記されています（セルフ登録なし）。本機の token は出荷時空です。</li>
+                <li><strong>EG800K の公式文書 16 部のどれも QuecLocator に触れていません。</strong>
+                    手元のアプリケーションノートは EC200U／EG915U 用です（構文とエラーコードは実測で一致）。
+                    本機の公式文書ではありません。</li>
+                <li><strong>本プロジェクトは不採用と裁定済み</strong>（2026-08-29）：測位ロジックはファームウェアに閉じ込められており、
+                    サービスが店じまいすれば AT コマンドごと即無効になり、ベンダーを差し替えられません
+                    （Quectel フォーラムで BG95 系列のサポート終了が実証済み）。
+                    ボタンは「無料 token が手に入ればついでに検証する」ためだけに残してあります。</li>
+            </ol>
+            <div class="warning">
+                <strong><code>+QLBS: 702</code> は「サーバータイムアウト」であって、token の問題ではありません。</strong>
+                本プロジェクトは 702 を「token が無い」とまるまる 3 週間誤判定していました —— 真相は、そのとき
+                PDP を先に有効化するのを忘れており、モジュールはそもそもサーバーへつながれず、タイムアウト（出荷時 60 秒）を待ち切って 702 を返していたのです。
+                2026-08-29 の対照実験（token は終始空）：
+                PDP 未有効化で <code>702</code>、有効化後は <code>10002</code>（token が存在しない）——
+                <strong>サーバーへは台湾からつながります。欠けているのは token だけです</strong>。
+                <code>AT+QLBS</code> の前には必ず <code>AT+QIACT=1</code> を（通信量が発生します）。
+            </div>
+            <p>7 つの設定サブ項目の照会／設定にはすべてボタンがあり、<code>Cfg?</code>（<code>AT+QLBSCFG=?</code>）
+            はワンキーで全範囲を一覧します（通信量ゼロ）。本機の出荷値と実測の要点：</p>
+            <table>
+                <tr><th>サブ項目（ボタン）</th><th>出荷値</th><th>実測の要点</th></tr>
+                <tr><td><code>token</code>（Set Token／Token?）</td><td>空</td>
+                    <td>読み出しは常に <code>*</code> でマスクされます。設定経路は実測で通っています</td></tr>
+                <tr><td><code>server</code>（Server?／Set Server）</td>
+                    <td><code>www.queclocator.com:80</code></td><td>測位サーバーのアドレス</td></tr>
+                <tr><td><code>timeout</code>（Timeout?／Set Timeout）</td><td>60 秒</td>
+                    <td>702 が待つあのタイムアウトそのもの。範囲 10-120</td></tr>
+                <tr><td><code>asynch</code>（Async?／Set Async）</td><td>0</td>
+                    <td>同期／非同期の切替</td></tr>
+                <tr><td><code>latorder</code>（LatOrder?）</td><td>0</td>
+                    <td>緯度経度の出力順。⚠ 設定は小文字キーなのに、読み出しはキャメルケースの <code>latOrder</code></td></tr>
+                <tr><td><code>withtime</code>（WithTime?）</td><td>0</td>
+                    <td>応答に時刻を付けるか。読み出しキー名は <code>withTime</code></td></tr>
+                <tr><td><code>timeupdate</code>（TimeUpd?）</td><td>0</td>
+                    <td>測位結果でモジュールの時計を校正するか。読み出しキー名は <code>timeUpdate</code></td></tr>
+            </table>
+            <p>本当に token を入手したら：<code>Set Token</code> に記入 → <code>Token?</code>
+            で確認（<code>*</code> と表示）→ TCP/IP ページで PDP を有効化 → <code>Locate</code>。</p>
+
+            <h4>代替ルート：token 不要のネットワーク測位（実測 71 メートル）</h4>
+            <p>ネットワーク測位は QuecLocator に頼らなくてもできます。代替ルートは 2026-08-29 にエンドツーエンドで開通済み：
+            モジュールは素材を出すだけ（本ページでアクセスポイントをスキャン、<code>AT+QENG="servingcell"</code> で基地局を読む）、
+            ターミナル出力を保存して <code>tools/wifi_geolocate.py</code> に渡し、PC 側で公開データベースを照会します ——
+            <strong>モジュールは通信量ゼロ、Quectel のサービス不要</strong>。
+            実測（同日の GNSS 真値と比較）：基地局の照会は Unwired Labs（無料登録）で<strong>誤差
+            71 メートル</strong>（測位ルートの締めくくりの結論）、beaconDB（キー不要）で 632 メートル。
+            Wi-Fi の照会はベンダーで足止め —— 無料エコシステムは崩壊済みです（beaconDB は当地域のカバー無し、
+            Unwired Labs の無料プランは Wi-Fi を含まず、Google／HERE はカード登録必須）。保留としました。</p>
+            <div class="tip">
+                <strong>71 メートルは「照会のヒット」であって「測定精度」ではありません。</strong>
+                基地局測位は Cell ID でその基地局の登録座標を引くもので、同じ cell なら永遠に同じ点が返ります ——
+                基地局が替われば誤差はキロメートル級になり得ます。サービス自身が報告する ±1051 メートルこそ誠実な見積もりです。
+                また Cell ID と TAC は<strong>16 進</strong>なので、
+                照会前に 10 進へ変換する必要があります（ツールに処理を内蔵済み）。
+            </div>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td><code>Scan</code> を押しても <code>OK</code> だけで、結果が永遠に現れない</td>
+                    <td>URC が USB ポートへ送られています —— <code>AT+QURCCFG="urcport"</code> で照会し、
+                        <code>"uart1"</code> でなければ変更（NVRAM に書かれます）</td></tr>
+                <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+                    <td>時間制限内にアクセスポイントを検出できず。正常終了でありエラーではありません。場所を変えるか時間制限を延ばす</td></tr>
+                <tr><td><code>+QLBS: 702</code></td>
+                    <td>サーバータイムアウト —— ほぼすべて <code>AT+QIACT=1</code> のし忘れで、token の問題ではありません</td></tr>
+                <tr><td><code>+QLBS: 10002</code></td>
+                    <td>token が存在しない —— Quectel へ有料で申請する必要があります。本プロジェクトは不採用と裁定済みで、
+                        上記の代替ルートを使います</td></tr>
+                <tr><td><code>AT+QCELLLOC</code> を使いたい</td>
+                    <td>本機は<strong>非対応</strong>（ERROR が返ります）—— あれは EC2x 系列のコマンドです</td></tr>
+            </table>
+
+            <h3 id="tab-ssl">SSL —— TLS チャネル</h3>
+            <p><strong>動作原理：</strong>SSL ページは暗号化接続の<strong>共用の底層</strong>です ——
+            ここで設定した SSL context とアップロードした証明書は、SSL raw socket、MQTT over SSL、
+            HTTPS の三者から共用されます。本節の秒数と挙動はすべて 2026 年 8 月に実機 EG800K で実測した値です。</p>
+
+            <h4>初めての TLS 接続：5 つのステップ</h4>
+            <ol>
+                <li><strong>起動シーケンスを実行し</strong>（〈起動シーケンス〉の節を参照）、続けて
+                    <code>AT+QIACT?</code> でデータチャネルを確認します ——
+                    <code>+QIACT: 1,1,…,"IP"</code> が返ること。返らなければ先に <code>AT+QIACT=1</code>。</li>
+                <li><strong>context を設定する</strong>：<code>sslversion</code> は 4（全バージョン、
+                    互換性最良）、<code>ciphersuite</code> は 0XFFFF（全スイート）、
+                    <code>seclevel</code> はまず 0 —— まずチャネルが通ることを確認し、検証は後に回します。</li>
+                <li><strong>接続を開く</strong>：<code>AT+QSSLOPEN</code>（末尾コード 0）を押し、パラメータカードに
+                    ホストとポートを記入します。⚠ <code>OK</code> は「コマンドを受け付けた」の意味でしかなく、成否は URC を待ちます：
+                    <code>+QSSLOPEN: 4,0</code> ではじめて成功です（実測ハンドシェイク 2.0 秒）。</li>
+                <li><strong>データを送る</strong>：<code>AT+QSSLSEND</code>（2 段階）を押します ——
+                    <code>&gt;</code> が出たら本文を送り、<strong>宣言した長さを数え切ると自動送出、
+                    Ctrl+Z 不要</strong>（1 パケット上限 1460 bytes）。相手の返答は
+                    <code>+QSSLURC: "recv",4</code> で現れます。</li>
+                <li><strong>読み出しとクローズ</strong>：<code>AT+QSSLRECV</code>（1 回の上限 1500）で
+                    <code>+QSSLRECV: 0</code> まで読めば読み切った印で、エラーではありません。
+                    <code>AT+QSSLCLOSE=4</code> でクローズ（既定は最長 10 秒待ち。
+                    もう 1 つのボタンでは秒数を指定でき、0＝即時）。</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2.0 秒、0＝成功
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← 15 bytes を数え切ると自動送出
+SEND OK
++QSSLURC: "recv",4        ← 0.4 秒
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>接続中は <code>AT+QSSLSTATE</code> ですべての接続を見られます（<code>=4</code>
+            で単一 clientID を照会、状態 2＝接続済み）。<strong>ローカルポートは常に 0 が返る</strong>点に注意 ——
+            モジュールの挙動であり、エラーではありません。</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="SSL タブ">
+                <figcaption>SSL ページ：context 設定、UFS への証明書アップロード、接続、送受信、クローズ。</figcaption>
+            </figure>
+
+            <h4>3 つのアクセスモード（<code>AT+QSSLOPEN</code> の末尾コード）</h4>
+            <table>
+                <tr><th>末尾コード</th><th>挙動</th></tr>
+                <tr><td>0 バッファ</td><td>データ受信時は <code>+QSSLURC: "recv",&lt;id&gt;</code> を出すだけで、
+                    自分で <code>AT+QSSLRECV</code> を打って読みます</td></tr>
+                <tr><td>1 直接プッシュ</td><td>URC に長さが付き、<strong>データは次の行に直接吐かれます</strong>。
+                    ⚠ このモードで <code>AT+QSSLRECV</code> が ERROR を返すのは正常です</td></tr>
+                <tr><td>2 透過転送</td><td>AT ポート全体がデータチャネルになります（本ページのボタンは 0 と 1 のみ用意）</td></tr>
+            </table>
+
+            <h4>context 設定を 1 つずつ</h4>
+            <p>ファームウェアがどのサブ項目に対応しているか不確かなら、まず <code>AT+QSSLCFG=?</code> を押します ——
+            実測では 17 のサブ項目が返り、アプリケーションノートの一覧より多いのです。よく使うサブ項目には設定と照会の 2 ボタンがあり、
+            実測では書き込み後の読み出しは完全に一致しました。</p>
+            <table>
+                <tr><th>サブ項目</th><th>出荷値</th><th>働きと実測の要点</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>プロトコルバージョン。4＝全対応</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>暗号スイート。0XFFFF＝全対応</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0＝検証しない、1＝サーバーを検証
+                    （先に CA 証明書のアップロードが必要）、2＝相互認証（さらにクライアント証明書＋秘密鍵が必要）</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>CA 証明書のパス。形式は
+                    <code>"UFS:ファイル名"</code> で、ファイルが UFS にあることが前提（次節参照）</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>バーチャルホスト／CDN への接続では必須 —— 同一 IP に複数ドメインが載っていると、SNI を送らない限り
+                    一致しない証明書が返り、検証は必ず 566 で失敗します</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>出荷状態では seclevel 1 を有効にしても証明書の有効期限をチェックしません</strong>。
+                    チェックするなら 0 に設定し、モジュールの時計も合っている必要があります</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>TLS ハンドシェイクの最長待ち秒数（10–300）</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 3 つの出荷時既定値を合わせると＝証明書を全く検証しない</strong>
+                （seclevel 0、sni 0、ignorelocaltime 1）。本当に検証するなら 3 つとも正しく設定する必要があります。
+                しかもこの 3 設定と <code>cacert</code> は<strong>再起動をまたいで保存されません</strong>
+                （実測で確認）。起動のたびに出荷値へ戻ります。UFS 内の証明書ファイルは電源断でも消えません。
+            </div>
+
+            <h4>UFS ファイル群：証明書はどうやってモジュールに入るか</h4>
+            <p>UFS はモジュール内蔵のフラッシュストレージで、実測の総容量は <strong>280 KB</strong>、1 ファイルが
+            4 KB ブロックを 1 つ占めます。証明書は先にここへアップロードしないと、<code>cacert</code> が指すファイルがありません。
+            <strong>アップロードは UART 経由でデータ通信量ゼロ</strong>、バイナリファイルも送り込めます。
+            <strong>Upload カード</strong>：ファイルを選ぶとファイル名とサイズが自動記入され、送出後、ツールはモジュールが
+            <code>CONNECT</code> を返すのを待ってから生バイトを送ります（待てなければ送りません）。完了時には
+            <strong>注釈エンジンが自動照合</strong>します。モジュールの報告するサイズと checksum を比べ：
+            ✅＝完全で誤りなし、❌＝壊れて届いたので、先に削除して再アップロードします。</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← 続けて 1939 bytes を送出
++QFUPL: 1939,4f64         ← 実受信サイズ,checksum。注釈が自動照合 ✅</pre>
+            <table>
+                <tr><th>ボタン</th><th>用途</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>UFS の全ファイルとサイズを一覧 ——
+                    アップロード後の検証に（通信量ゼロ）</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>残り／総容量 bytes を照会（通信量ゼロ）</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>指定ファイルを削除（<code>*</code>＝全部）。
+                    同名ファイルを先に消さないと、再アップロードは拒否されます</td></tr>
+            </table>
+            <div class="tip">
+                <strong>マニュアルが明言しない実測挙動 2 つ：</strong>（1）FILE エラーコードの形式が不統一 ——
+                同名の再アップロードはテキストの <code>file already exist</code>、タイムアウトは数値の <code>421</code> が返ります。
+                本ツールはどちらも解読できます。（2）サイズ欄を実際より大きく書くと、モジュールはタイムアウト後
+                <strong>実受信分をそのまま保存します</strong> —— checksum 照合が捕まえてくれます。
+            </div>
+
+            <h4>証明書検証の実戦：ペアテスト法</h4>
+            <p>流れ：ルート証明書をアップロード → <code>cacert</code> をそれに向ける → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → 相手の 443 へ接続。<strong>アップロードするのは証明書チェーン最上位のルート証明書です</strong>
+            （badssl.com のチェーンは 4 層で、最上位の ISRG Root X1 をアップロード）。
+            <strong>「悪い証明書がつながらない」だけのテストでは不十分</strong> —— 「全部つながらない」でも合格してしまいます。
+            ペアでテストします：良い証明書はつながり、悪い証明書はつながらない。
+            <strong>両方向が成立してはじめて確定です</strong>。実測 2×5 の対照：</p>
+            <table>
+                <tr><th>ホスト</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com（正の対照）</td><td>つながる</td>
+                    <td><strong>つながる</strong> <code>4,0</code></td></tr>
+                <tr><td>expired（期限切れ）</td><td>つながる</td><td>拒否 566</td></tr>
+                <tr><td>self-signed（自己署名）</td><td>つながる</td><td>拒否 566</td></tr>
+                <tr><td>wrong.host（ホスト名不一致）</td><td>つながる</td><td>拒否 566</td></tr>
+                <tr><td>untrusted-root（ルート非信頼）</td><td>つながる</td><td>拒否 566</td></tr>
+            </table>
+            <p>制限：<strong>4 種類の証明書エラーがすべて 566 を返し、モジュールはどれなのかを区別しません</strong>。
+            <code>AT+QIGETERROR</code> も助けになりません —— あれは TCP/IP 層の担当で、
+            このときは <code>0,operate successfully</code> しか返しません。</p>
+            <div class="tip">
+                負のテスト項目では expired を避けてください —— 出荷時の <code>ignorelocaltime</code> は 1 なので、期限切れ自体は
+                拒否されません（上表で拒否されたのは、同時にアップロードしたルートの配下に無いからです）。単独で試すなら wrong.host を。
+                また<strong>通信量に注意</strong>：ハンドシェイクのたびに完全な証明書チェーンをダウンロードし、失敗しても支払いは発生します。
+                実測ではハンドシェイク 30 回で約 150–200 KB でした。
+            </div>
+
+            <h4>🔴 罠：連続で約 20 回開閉すると、データスタック全体が退化する</h4>
+            <div class="warning">
+                <strong>症状：すべての <code>AT+QSSLOPEN</code> が一律 552 を返し</strong>、seclevel 0
+                でもつながらないのに、自己診断はどれも問題なしと言う。<strong>30 秒鑑別</strong>：純粋な TCP の
+                <code>AT+QIOPEN</code> で同じ相手を叩く —— これも失敗すればデータスタックが壊れているので、
+                SSL 設定をこれ以上調べないこと。PDP の再起動では救えず、<strong>完全な起動シーケンスだけが復旧手段です</strong>。
+                退化はテストデータを汚染し、「証明書検証に拒否された」と誤判定しやすいので ——
+                ペアテストの前に再起動してきれいにしてください。
+            </div>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>証明書検証の失敗。順に調べます：<code>sni</code> を有効にしたか（最頻）、
+                        <code>cacert</code> のルートは正しいか、証明書自体が壊れていないか。
+                        3 つの設定は再起動でゼロに戻ります</td></tr>
+                <tr><td><code>OK</code> の後が続かない</td>
+                    <td><code>OK</code> は受け付けの意味でしかなく、結果は URC で来ます。最長で
+                        150 秒＋<code>negotiatetime</code> まで待ちます</td></tr>
+                <tr><td>AT ポートが固まり、どのコマンドにも応じない</td>
+                    <td><code>AT+QSSLSEND</code> の長さを間違え、データモードに固着してコマンドを飲み込んでいます ——
+                        Hardware ページの生バイトボタンで ESC（0x1B）を送って脱出</td></tr>
+            </table>
+
+            <h3 id="tab-http">HTTP —— Web リクエスト</h3>
+            <p><strong>動作原理：</strong>モジュールの HTTP は<strong>3 段階</strong>です：
+            まず URL を設定し（このステップ自体がまた 2 段階）、次にリクエストを発行し（GET／POST）、最後にレスポンスを読み戻します。
+            各段階の結果は <code>OK</code> の中にはなく、その後に届く URC にあります ——
+            したがって <code>AT+QURCCFG="urcport"</code> は <code>"uart1"</code> でなければならず（Hardware ページで変更可）、
+            そうでないと結果は 1 つも見えません。データはすべて 2026-08 の実機実測です。</p>
+
+            <h4>始める前に：まずデータチャネルを</h4>
+            <p>前提は PDP が有効化され IP を取得済みであること（TCP/IP ページの <code>AT+QIACT=1</code>）。
+            本ページの <strong>Connect グループ</strong>には読み取り専用チェックしか置いていません：
+            <code>AT+CPIN?</code>／<code>AT+CGATT?</code>／<code>AT+CGREG?</code>／
+            <code>AT+QIACT?</code>、<code>AT+QIDNSCFG=1</code>（DNS 0.0.0.0＝未割当）、
+            <code>AT+QIGETERROR</code>（⚠ 最後の 1 本の TCP/IP コマンドにしか有効でないため、
+            失敗したら<strong>すぐに</strong>押すこと）。</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> は嘘をつきます。</strong>実測で PDP の途中漂流に遭遇しました：
+                すべてのリクエストが失敗、<strong>固定 30 秒タイムアウト</strong>でエラー 716 なのに、
+                <code>AT+QIACT?</code> は平然と IP を返します。<code>AT+CGACT?</code> と突き合わせ、
+                不一致なら漂流です。直し方：<code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;漂流した cid&gt;</code> → <code>AT+QIACT=1</code>、
+                ping を通してから続行。
+            </div>
+
+            <h4>初めての GET：4 つのステップ</h4>
+            <ol>
+                <li><strong>前準備の設定</strong>（Config グループ、通信量ゼロ）：<code>contextid</code>
+                    のパラメータカードで 1 を設定（使う PDP context に紐付け）。<code>rspout/auto</code>、
+                    <code>requestheader</code>、<code>responseheader</code> の 3 スイッチは 0 のまま
+                    （理由は後述）。<code>AT+QHTTPCFG?</code> で全設定を一度に読み戻して照合し、
+                    <code>AT+QHTTPCFG=?</code> で設定可能項目を一覧します。</li>
+                <li><strong>URL を設定（2 段階）</strong>：<code>AT+QHTTPURL</code> のカードには
+                    「送出（2 段階）」ボタンが 1 つだけあります —— URL を記入すれば長さはプログラムが自動計算。流れ：まず
+                    <code>AT+QHTTPURL=&lt;長さ&gt;,80</code> を送り、<code>CONNECT</code> を待って
+                    データモードに入り、URL のバイト列をそのまま送出します。<strong>行末は一切付けません</strong>
+                    （CR/LF は長さに数えられてしまいます）。
+                    <code>http://www.example.com/</code> の長さはちょうど 23 です。送り終えたら
+                    <code>AT+QHTTPURL?</code> で読み戻し、一字一句同じなら＝行末が紛れ込んでいません。</li>
+                <li><strong>リクエストを発行</strong>：<code>AT+QHTTPGET=80</code>（レスポンス待ち秒数）。
+                    <code>OK</code> は「コマンドを受け付けた」の意味でしかなく、本当の結果は少し後の URC
+                    <code>+QHTTPGET: 0,200</code> です。読み方は次の段落を参照。</li>
+                <li><strong>レスポンスを読む</strong>：<code>AT+QHTTPREAD=80</code>。
+                    <code>CONNECT</code> の後はすべて生バイトで（実測では example.com は
+                    559 bytes）、続けて <code>OK</code> ——
+                    ただし<strong>最後に独立した 1 行の <code>+QHTTPREAD: 0</code> こそ終了マーカーです</strong>。</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="HTTP タブ">
+                <figcaption>HTTP ページ：Config／Connect／Transfer／Close の 4 グループ。</figcaption>
+            </figure>
+
+            <h4>+QHTTPGET の読み方：第 1 欄は HTTP ステータスコードではない</h4>
+            <p>GET／POST／POSTFILE の結果 URC はいずれも
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code> の 3 欄です：
+            <code>err</code> は <strong>0 ＝ コマンド実行成功</strong>、非 0 はモジュール層のエラー（716、711…）。
+            <code>httprspcode</code> は HTTP ステータスコードで、<strong>err=0 のときだけ報告されます</strong>
+            （マニュアル明記。ツールには 200／403／404／409／411／500 の対照注釈を内蔵）。
+            <code>content_length</code> は任意 —— サーバーのレスポンスヘッダに CONTENT-LENGTH があるときだけ現れ、
+            普通の GET はしばしば 2 欄だけです。したがって実測の <code>+QHTTPGET: 0,404,0</code> は
+            <strong>失敗ではありません</strong>：コマンドは成功し、サーバーが見つからないと言っているのです。</p>
+
+            <h4>レスポンスを読む：AT+QHTTPREAD の罠</h4>
+            <p>パラメータは「2 つのパケット間の最大間隔秒数」であって、総時間ではありません。
+            <strong>本機のファームウェアはパラメータを 1 つしか受け付けません</strong>：アプリケーションノートの
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> という分割読みは実測で裸の
+            <code>ERROR</code> が返り（<code>=?</code> の探索で実証）、ボタンは撤去済みです ——
+            分割取得は <code>GETEX</code> を使います。</p>
+            <div class="warning">
+                <strong>相互ロックの罠：<code>rspout/auto</code> を 1 にすると、READ 系は一律失敗します</strong>
+                （マニュアル明記）。モジュールが自動でレスポンスを吐く代わりに READ 系が全滅するため、
+                このボタンには確認ダイアログが付いています。READ が突然全滅したら、まず <code>AT+QHTTPCFG?</code> を確認。
+            </div>
+
+            <h4>分割取得：AT+QHTTPGETEX でバイト単位に読む</h4>
+            <p><code>AT+QHTTPGETEX=&lt;秒&gt;,&lt;開始オフセット&gt;,&lt;長さ&gt;</code>
+            は HTTP Range で指定した断片だけを取り、通信量を節約します。実測（エンドポイントの内容は
+            <code>abcdefghijklmnop</code> に固定）：オフセット 0 から 8 取ると <code>+QHTTPGET: 0,206,8</code>、
+            読み出しは <code>abcdefgh</code>。オフセット 8 からさらに 8 取ると <code>ijklmnop</code>。
+            読み方：<strong>ステータスコードは 206 でなければなりません</strong>。<strong>200 が返り毎回内容が同じ</strong>
+            ＝サーバーが Range 非対応なだけで、モジュールの故障ではありません。
+            ⚠ <code>requestheader=0</code> のときだけ実行できます。</p>
+
+            <h4>POST：2 段階と Content-Type</h4>
+            <p><code>AT+QHTTPPOST</code> のカードも 2 段階です：body を記入すれば長さは自動計算。まず
+            <code>AT+QHTTPPOST=&lt;長さ&gt;,&lt;入力秒&gt;,&lt;応答秒&gt;</code> を送り、
+            <code>CONNECT</code> を待って body を送ります。3 つのこと：</p>
+            <ul>
+                <li><strong><code>CONNECT</code> は最長 125 秒待つ必要があります</strong>（マニュアル明記）——
+                    プロンプト待ちのタイムアウトは 125 秒に設定し、MQTT の 5 秒を流用しないこと。</li>
+                <li>body の上限は 1 MB（<code>=?</code> の実測範囲 1–1024000）。</li>
+                <li>Content-Type は先に <code>contenttype</code> のパラメータカードで設定
+                    （型コード 0 ＝ form-urlencoded）。</li>
+            </ul>
+            <p>実測：POST <code>Message=HelloQuectel</code>（20 bytes）は
+            <code>+QHTTPPOST: 0,200,440</code> を返しました。READ が返す JSON でキーと値の到達、
+            長さの計算、Content-Type の効きを検証でき、User-Agent はモジュールの自己申告の
+            <code>QUECTEL_MODULE</code> でした。</p>
+
+            <h4>カスタムヘッダとレスポンスヘッダ</h4>
+            <ul>
+                <li><code>reqheader/add</code>：カスタムリクエストヘッダを 1 本追加（マニュアルに実例なし）。
+                    照会ボタンで現在何本追加済みかを確認でき、<code>reqheader/remove</code> で除去します。</li>
+                <li><code>requestheader</code> を 1 に＝リクエストヘッダ全体を自分で組むことになり、GET まで 2 段階になり、
+                    しかも <code>GETEX</code> が使えません。普段は 0 のまま。</li>
+                <li><code>responseheader</code> を 1 にすると READ が HTTP レスポンスヘッダも一緒に吐きます
+                    （実測ではカスタムの X-Test まで持ち帰れました）。試し終えたら 0 に戻すこと。</li>
+                <li><code>closed/ind</code>：「session が閉じられた」の URC 報告を有効化。</li>
+            </ul>
+
+            <h4>ファイル版：POSTFILE と READFILE（UFS）</h4>
+            <p><code>AT+QHTTPPOSTFILE="ファイル名",&lt;秒&gt;</code> はモジュールのファイルシステム（UFS）のファイルを
+            body として POST を送り、<code>AT+QHTTPREADFILE="ファイル名",&lt;秒&gt;</code> はレスポンスを
+            UFS ファイルとして保存します。⚠ 本ツールは現在<strong>UFS へのファイル事前アップロードも、UFS
+            ファイル内容の読み戻しもできません</strong>。この 2 本はファームウェア側のフローと組み合わせて使うためのものです。</p>
+
+            <h4>HTTPS：検証なしの経路</h4>
+            <p>HTTPS ＝ HTTP ＋ SSL context。Connect グループに最短経路を用意してあります。5 つを順に押します：</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP に SSL context 1 を指定
+AT+QSSLCFG="sslversion",1,4        ← TLS バージョンはサーバーとの交渉に委ねる
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← 暗号スイート全開
+AT+QSSLCFG="seclevel",1,0          ← 証明書を検証しない（下記参照）
+AT+QSSLCFG="sni",1,1               ← SNI を有効化（出荷時は 0！）</pre>
+            <p>その後 URL を <code>https://</code> 始まりに替えれば通常どおり GET／READ ——
+            実測では読み戻した HTML は平文版と一字一句同じでした。
+            <strong><code>seclevel=0</code>（証明書を検証しない）が本ツールで完走できる唯一の経路です</strong>
+            —— 証明書を検証するには先に CA 証明書を UFS へ書き込む必要があります。SSL の詳細（<code>AT+QSSLCFG=?</code>
+            で全サブ項目を一覧、<code>negotiatetime</code> でハンドシェイク待ち秒数を調整）は〈SSL —— TLS チャネル〉の節を参照。
+            <strong>SNI は出荷時 0</strong>：有効にしないと、IP を共用する HTTPS サイトは一致しない証明書を受け取り、
+            検証すれば必ず失敗します。<strong>証明書チェーンが通信量の大半です</strong>：HTTPS GET 一巡で約 8–15 KB、
+            平文なら約 1 KB です。</p>
+
+            <h4>リダイレクトと後始末</h4>
+            <p><strong>リダイレクト（マニュアル未記載、実測で解明）</strong>：モジュールは 302 を自動で追いますが、
+            <strong>絶対パスの Location しか受け付けません</strong> —— 相対パスは即エラー 711、
+            1 ミリ秒で即失敗します。<strong>後始末</strong>：
+            <code>AT+QHTTPSTOP</code>（Close グループ）は進行中のリクエストを取り消して session を切断します。
+            状態がおかしいとき、またはエラー 704（データモードが占有中）が出たときは、まずこれを押してきれいにします。</p>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td>結果 URC が何も見えない</td><td><code>urcport</code> が <code>uart1</code> ではありません。
+                    Hardware ページで変更を</td></tr>
+                <tr><td>すべての URL が 716、固定 30 秒タイムアウト</td>
+                    <td>PDP の漂流。上の警告を参照</td></tr>
+                <tr><td>特定の URL だけ 716 が返る</td><td>実測では DNS 失敗も 716 でした（古い文書が推測した
+                    714 ではなく）。続く READ の 705 は正常な連鎖です</td></tr>
+                <tr><td><code>READ</code>／<code>GETEX</code> が突然失敗する</td>
+                    <td><code>rspout/auto</code> と <code>requestheader</code>
+                        はどちらも 0 であること（上記参照）</td></tr>
+                <tr><td><code>AT</code> にすら応答しない</td>
+                    <td>モジュールのハング（実測で遭遇。マニュアルに記述なし）—— 起動シーケンスをやり直す</td></tr>
+            </table>
+
+            <h3 id="tab-ftp">FTP —— ファイル転送</h3>
+            <p><strong>動作原理：</strong>FTP には<strong>2 本のチャネル</strong>があります：制御チャネルはコマンドを、
+            データチャネルはファイル内容を運びます。ログイン、リネーム、削除、サイズ照会は制御チャネルだけで済みますが、
+            LIST、アップロード、ダウンロードは<strong>別にデータ接続を 1 本開く</strong>必要があります ——
+            本節の怪現象の大半（615、603 の連発）はここから来ます。
+            節全体を貫く Quectel の通則：<strong><code>OK</code> は「コマンドを受け付けた」の意味でしかなく</strong>、
+            本当の結果は後から URC で届きます。本節の応答と数値はすべて 2026 年 8 月に実機 EG800K で実測した値です。</p>
+
+            <h4>始める前に：2 つの前提</h4>
+            <ul>
+                <li><strong>PDP を先に有効化すること</strong>：本ページ最初の <code>AT+QIACT?</code> がまさにこのチェックです ——
+                    <code>+QIACT: 1,1,…,"IP"</code> が返ってはじめて先へ進めます。OK しか返らなければ、先に TCP/IP ページで
+                    Act PDP を押してください（PDP 未有効のままでは QFTPOPEN は必ず失敗します）。</li>
+                <li><strong>URC が UART を通っていること</strong>：FTP コマンドはほぼすべて「まず OK、結果は URC で届く」型です。
+                    <code>AT+QURCCFG="urcport"</code> が <code>"uart1"</code> でなければ、
+                    ここには OK の山しか見えません（設定は Hardware ページを参照）。</li>
+            </ul>
+
+            <h4>ログインの動線：設定 → オープン → URC を待つ</h4>
+            <ol>
+                <li><strong>PDP context に紐付け</strong>：<code>AT+QFTPCFG="contextid",1</code>
+                    （出荷時から 1。照会ボタンで読み戻して確認できます）。</li>
+                <li><strong>アカウントを設定</strong>：<code>AT+QFTPCFG="account","ユーザー名","パスワード"</code>。
+                    <strong>必ず QFTPOPEN より前に</strong>設定しておきます。</li>
+                <li><strong>モードと型</strong>：<code>transmode</code> は 1
+                    （パッシブ。NAT の内側では常にこれ、FTPS では必須）。
+                    <code>filetype</code> はプレーンテキストなら 1、それ以外は 0。</li>
+                <li><strong>ログイン</strong>：<code>AT+QFTPOPEN="ホスト",21</code> は即 OK を返しますが（受け付けただけ）、
+                    <code>+QFTPOPEN: 0,0</code> を待ってはじめてログイン成功です（最長 125 秒）。
+                    続けて <code>AT+QFTPSTAT</code> を押すと 1 が返るはずです（アイドル。2＝転送中、3＝クローズ中）。</li>
+            </ol>
+            <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK                ← コマンドを受け付けただけ
++QFTPOPEN: 0,0    ← この行こそログイン成功</pre>
+            <p>残りの設定項目：<code>AT+QFTPCFG=?</code> はワンキーで全 10 の設定可能項目と範囲を一覧します（通信量ゼロ）。
+            <code>rsptimeout</code>（20–180、既定 90 秒）は多くのコマンドの最大応答時間であり、
+            データモード中の 2 パケット間の最大間隔でもあります。<code>ssltype</code>／<code>sslctxid</code> は
+            FTPS 用（純粋な FTP では 0 のまま。SSL パラメータは SSL ページで設定）。
+            <code>data_address</code>／<code>cache</code>／<code>restenable</code>
+            は特殊環境向けの微調整で、用途は各ボタンの説明とマニュアルを参照してください。</p>
+            <div class="tip">
+                <strong>パスワードのマスク（実測、マニュアルと不一致）：</strong><code>AT+QFTPCFG="account"</code>
+                の照会での読み戻しではパスワードが <code>*</code> にマスクされます（マニュアルはそのまま印字と記載）。ただしユーザー名は平文のままで、
+                <strong>設定した行のパスワードも平文です</strong>。スクリーンショットや録画で気を付けるべきは設定行の方です。
+            </div>
+            <div class="warning">
+                <strong>🔴 <code>AT+QFTPCLOSE</code> は非同期です —— <code>OK</code> は閉じ終えた意味ではありません。</strong>
+                <code>+QFTPCLOSE: 0,0</code> を待ってはじめてログアウト完了です。その間 <code>AT+QFTPSTAT</code>
+                は 3（クローズ中）を返し、どの FTP コマンドを打っても<strong>一律 <code>+CME ERROR: 603</code></strong>（サーバービジー）です。
+                <br><br>
+                症状は極めて紛らわしいものです：603 の連発はモジュールの故障やサーバーからの遮断に見えますが、
+                実はまだ閉じ終えていないだけです（実測当日、これで大回りしました）。待ちの上限＝rsptimeout。
+                またこれは FTP からログアウトするだけです。ネットワークを徹底的にリセットするには、TCP/IP ページで Deact PDP を押します。
+            </div>
+
+            <h4>ディレクトリとファイル管理：サーバーをファイルマネージャとして使う</h4>
+            <p>サーバー側ファイル操作の一式です（LIST／NLST／MLSD はデータ接続を開き、それ以外は制御チャネルのみ）。
+            成功応答は一律 <code>+QFTPXXX: 0,…</code> —— 最初の数字が 0 なら成功です：</p>
+            <table>
+                <tr><th>コマンド</th><th>何をするか</th><th>成功応答（実測）</th></tr>
+                <tr><td><code>AT+QFTPPWD</code></td><td>現在の作業ディレクトリを照会</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+                <tr><td><code>AT+QFTPCWD</code></td><td>作業ディレクトリを切り替え。以後の操作はこれが基準</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPLIST</code></td><td>完全な一覧をターミナルに直接吐く（2 ボタン：現在のディレクトリ／指定ディレクトリ）</td><td>内容の後に <code>+QFTPLIST: 0,1175</code>（末尾の数＝バイト数）</td></tr>
+                <tr><td><code>AT+QFTPNLST</code>／<code>AT+QFTPMLSD</code></td><td>ファイル名のみ列挙（通信量節約）／MLSD 標準形式（解析しやすい）</td><td>LIST と同じ</td></tr>
+                <tr><td><code>AT+QFTPSIZE</code></td><td>ファイルサイズを照会、内容はダウンロードしない</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+                <tr><td><code>AT+QFTPMDTM</code></td><td>ファイル更新時刻を照会、内容はダウンロードしない</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+                <tr><td><code>AT+QFTPMKDIR</code>／<code>AT+QFTPRMDIR</code></td><td>フォルダの作成／削除</td><td><code>…: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPRENAME</code></td><td>ファイルまたはフォルダのリネーム</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPDEL</code></td><td>ファイルの削除</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+            </table>
+            <p>技（実測で一連すべて合格）：<strong>SIZE を存在チェックとして使う</strong> ——
+            リネーム後に旧名を照会すると <code>+QFTPSIZE: 627,550</code>、新名は <code>0,20</code>。
+            削除後にもう一度照会するとまた <code>627,550</code>。1 byte もダウンロードせずに各ステップを検証できました。
+            <code>627,550</code> は<strong>2 層のエラーコード</strong>です：627＝モジュール層「FTP は要求された動作を実行しなかった」、
+            550＝FTP プロトコル層のサーバー回答「ファイルまたはディレクトリが存在しない」。本ツールの注釈は層ごとに翻訳します。</p>
+
+            <h4>ダウンロード：内容をターミナルに直接印字（COM:）</h4>
+            <p><code>AT+QFTPGET="ファイル名","COM:"</code> —— <code>CONNECT</code> の後、ファイル内容がターミナルに直接吐かれ、
+            末尾に <code>+QFTPGET: 0,&lt;バイト数&gt;</code>（実測では readme.txt が 0,379 を返しました）。
+            もう 1 つの<strong>分割ダウンロード</strong>ボタンは開始位置と長さのパラメータが付き、最も推奨するダウンロード方法です：
+            先に SIZE でサイズを照会し、分割で取れば、ファイル丸ごとで通信量が爆発するのを避けられます。
+            <code>AT+QFTPLEN</code> は直前の PUT／GET／LIST／NLST が実際に何 byte 転送したかを照会します。</p>
+
+            <h4>アップロード：2 段階、宣言した長さを送り切ると自動終了</h4>
+            <p><code>AT+QFTPPUT="ファイル名","COM:",0,&lt;長さ&gt;,1</code> は 2 段階コマンドです：
+            <code>CONNECT</code>（データモード入り）を待って、宣言した長さ<strong>ちょうど</strong>のバイト数を送出すると、
+            モジュールは数え切った時点で自動的にデータモードを抜けます。Ctrl+Z を送る必要はありません。本ツールは長さを自動計算するので、
+            パラメータカードに内容を貼るだけです。</p>
+            <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT                        ← データモードに入る
+NuModem-P6-FTP-test\n          ← ちょうど 20 bytes を送出
+OK
++QFTPPUT: 0,20                 ← サーバーが 20 bytes を受信</pre>
+            <p>この 20 bytes は実測時、わざわざホスト側から Python の ftplib で取り戻してバイト単位で比較しました —— 完全一致。
+            <strong>UFS 中継形式</strong>：マニュアルはファイル名を <code>"UFS:xxx"</code> と書き、
+            モジュール内蔵ストレージで中継する形式にも対応しています。詳細は FTPS アプリケーションノートを参照。先に PC のファイルを UFS へ入れるには、
+            SSL ページ「UFS ファイル」グループの Upload ボタン（<code>AT+QFUPL</code>、UART 経由で通信量ゼロ、
+            checksum を自動照合）を使います。</p>
+            <div class="warning">
+                <strong>⚠ <code>+++</code> は FTP にとって「中断」であって「一時停止」ではありません。</strong>
+                マニュアル（FTPS AN v1.5 p13）はエスケープ後 <code>ATO</code> でデータモードに戻って転送を続けられると書いていますが、
+                <strong>実測では成立しません</strong>（2 回試して結果は一致）：エスケープ後 <code>AT+QFTPSTAT</code>
+                は 2（転送中）ではなく 1（アイドル）を返し、<code>ATO</code> は <code>NO CARRIER</code> を返します ——
+                転送はまるごと中断済みで、復帰できる接続はありません。したがって <code>+++</code> は制御不能になった
+                データモードから脱出するためだけに使い、大きいファイルのダウンロードの一時停止には使えません。
+                <br><br>
+                正しい打ち方：<strong>前後にそれぞれ 1 秒の無音、生バイトで送り、CR を付けない</strong>（付けると効きません）——
+                本ページの <code>+++</code> ボタンはこの規則どおりに送ります。<code>ATO</code> ボタンはマニュアルの語義どおり残してあります。
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="FTP タブ">
+                <figcaption>FTP ページ：ログイン設定、ディレクトリとファイル管理、アップロードとダウンロード。</figcaption>
+            </figure>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td><code>+CME ERROR: 603</code> の連発</td>
+                    <td>① QFTPCLOSE 後まだクローズ中（QFTPSTAT が 3 を返す）—— <code>+QFTPCLOSE: 0,0</code> を待つ。
+                        ② 以前に 615 が発生した —— <strong>615 の後はすべての FTP コマンドが一律 603</strong>、正しく閉じるまで続きます</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>データ接続のオープン失敗：<strong>制御チャネルは正常、データチャネルは全滅</strong>
+                        （SIZE は応答するのに、PUT／GET／LIST は全部倒れる）。大半はサーバー側の問題です ——
+                        dlptest は 2 つの異なるネットワーク経路から試してどちらも失敗、rebex は終始失敗ゼロ。
+                        読み取りは rebex を、書き込みのときだけ dlptest を使い、一気に済ませてください</td></tr>
+                <tr><td><code>627,550</code></td>
+                    <td>ファイルまたはディレクトリが存在しない —— ファイル名かパスの打ち間違い。まず QFTPPWD／QFTPLIST で自分の居場所を確認</td></tr>
+                <tr><td>再起動後、最初の PUT がいきなり 615</td>
+                    <td>データスタックの退化：QFTPCLOSE でも PDP 再起動でも救えず、
+                        <strong>完全な起動シーケンスだけが復旧手段です</strong>。鑑別法：TCP/IP ページの
+                        <code>AT+QIOPEN</code> で同じ相手を叩く —— これも失敗＝スタック全体が壊れているので、FTP 設定をこれ以上調べない</td></tr>
+                <tr><td>コマンドが OK を返した後、何も起きない</td>
+                    <td>結果 URC が USB ポートへ行っています —— <code>AT+QURCCFG="urcport"</code>
+                        が uart1 かどうかを確認</td></tr>
+                <tr><td><code>AT+QFTPOPEN</code> が即失敗する</td>
+                    <td>PDP が有効化されていません —— まず本ページの <code>AT+QIACT?</code> を押し、IP が無ければ TCP/IP ページで Act PDP</td></tr>
+            </table>
+
+            </section>
+
+        <section id="method">
+            <h2><span class="icon">🧪</span> テスト手法</h2>
+
+            <p>この節に書くのは「どうテストすれば誤った結論を出さずに済むか」です。すべて実際に踏んで学んだことです。</p>
+
+            <h3>OK はほとんどの場合、完了を意味しない</h3>
+            <p>Quectel 系のモジュールには共通のパターンがあります。<strong>まず <code>OK</code> を返してコマンドを受理したことを示し、
+            本当の結果は URC で来る</strong>のです。これに該当するのは
+            <code>QIOPEN</code>、<code>QSSLOPEN</code>、<code>QMTOPEN</code>、
+            <code>QFTPOPEN</code>、<strong>そして最も見落とされやすい <code>QFTPCLOSE</code></strong>。
+            <code>OK</code> を完了とみなして即座に次の動作へ進むことが、本プロジェクトで最も多くの遠回りを生んだ原因です。</p>
+
+            <h3>対照群が無いなら結論を出すな</h3>
+            <p>2 つの実例：</p>
+            <ul>
+                <li><strong>証明書検証</strong>：「不正な証明書につながらない」ことだけを見ると、「全部つながらない」状態でも合格してしまいます。
+                    正しい証明書にはつながることを同時に証明する必要があります。</li>
+                <li><strong>AGNSS 高速化</strong>：7-2「コールドスタート TTFF」はそもそも 7-4 の対照群です。
+                    屋内で衛星信号が無ければ両方とも測位できず、測っても「両方失敗」という結果しか得られません。</li>
+            </ul>
+
+            <h3>各ラウンドの最後にヘルスチェックを 1 回走らせる</h3>
+            <p>モジュールは劣化します。接続の開閉を連続で 20 回ほど繰り返すと、
+            「制御チャネルは生きているのにデータチャネルが全滅」という状態に入ります ——
+            しかも <code>QSSLSTATE</code> は空、<code>QIACT?</code> には IP があり、
+            <code>QIGETERROR</code> は 0 を返し、<strong>見た目は完全に正常です</strong>。</p>
+            <p>この状態はテストデータを汚染します。実測中にも実際に起きました：劣化期間中、特定のホストが「検証オフ」の設定でも接続できず、
+            危うく証明書検証の結果だと判定するところでした。<strong>各ラウンドの終了前に、接続できると分かっているターゲットで 1 回検証する</strong>。
+            そうしてはじめてデータが信用できます。</p>
+            <div class="tip">
+                <strong>判別方法：素の TCP の <code>AT+QIOPEN</code> で同じターゲットを叩く。</strong>
+                それも失敗するなら、SSL / FTP 層の問題ではなく、データスタック全体が壊れています。
+                <br>
+                復旧方法：<strong>完全な起動シーケンスだけが有効</strong>です。
+                <code>QIDEACT</code> + <code>QIACT</code> では戻せません。
+            </div>
+
+            <h3>通信量ゼロの探索：<code>AT+Q...=?</code></h3>
+            <p>テスト形式（<code>=?</code>）は<strong>ネットに触れず、費用もかかりません</strong>。
+            しかも返ってくるのはこのファームウェアが本当にサポートするパラメータ範囲です ——
+            アプリケーションノートよりも信用できます。文書はシリーズ全体で共用されているからです。
+            本プロジェクトはこの手を使って、Wi-Fi スキャンのパラメータ範囲がマニュアルと食い違っていることを突き止めました。</p>
+
+            <h3>「本当に正しく送れた」の検証は第三者側から読み戻す</h3>
+            <p><code>+QFTPPUT: 0,20</code> はモジュールが 20 bytes 送ったと自己申告しているだけです。
+            実測では PC 側から別の FTP クライアントでファイルを取り戻し、1 バイトずつ比較しました ——
+            こうしてはじめて「モジュールの計算違い」と「サーバーの保存不良」の両方を同時に排除できます。</p>
+
+            <h3>通信量</h3>
+            <p><code>AT+QGDCNT?</code> は「送信,受信」の 2 つのバイト数を返します。
+            ⚠ <strong>このカウンタは NV に保存されず、モジュールを再起動するたびにゼロに戻ります</strong>。
+            <code>AT+QAUGDCNT</code> は累計カウンタではなく、「自動保存間隔」の設定です（0 ＝ 無効）。
+            フェーズをまたいで累計したいなら<strong>各区間でその場で記録</strong>する必要があり、後から補完はできません。</p>
+            <p>参考値：TLS ハンドシェイクは直感よりはるかに高くつきます。
+            <strong>ハンドシェイクのたびに証明書チェーン全体をダウンロードし、失敗したハンドシェイクにも同じだけ課金されます</strong>。
+            実測ではハンドシェイク 11 回で TX 15.3 KB / RX 59.6 KB を消費しました。</p>
+        </section>
+
+        <section id="faq">
+            <h2><span class="icon">❓</span> よくある質問</h2>
+
+            <h3>Q：接続を押したのに、一覧にポートが 1 つも出ない</h3>
+            <p>3 点を確認してください。（1）<code>file://</code> で開いていないか —— Web Serial はブロックされます。
+            （2）USB-UART のドライバはインストール済みか。（3）ブラウザは Chrome / Edge / Opera か。</p>
+
+            <h3>Q：コマンドは送れるのに、モジュールが全く応答しない</h3>
+            <p>9 割は<strong>起動シーケンスを実行していない</strong>ケースです。シリアルポートに接続した瞬間に RTS が再アサートされ、
+            この基板では RTS が負論理の電源スイッチなので —— 接続＝電源断になります。
+            Hardware タブに切り替えて Power / Reset を 1 回実行し、<code>RDY</code> を待ってください。</p>
+            <p>次に多いのは<strong>改行コードを LF にしている</strong>ケース。EG800K は CR しか受け付けません。</p>
+
+            <h3>Q：コマンドは OK を返すのに、URC が全く受信できない</h3>
+            <p><code>AT+QURCCFG="urcport"</code> を送ってください。出荷時の値は <code>usbat</code> で、
+            URC はすべて USB ポートへ送られています。<code>uart1</code> に変更してください。これは NVRAM に書かれるので 1 回設定すれば済みます。</p>
+
+            <h3>Q：ターミナルが固まって、何を打っても反応しない</h3>
+            <p>おそらく<strong>データモード</strong>の中にいます —— どこかの 2 段階コマンドで長さを間違えて、
+            モジュールがバイト数を埋めるのをまだ待っています。
+            Hardware タブの生バイト送信ボタンで <strong>ESC（0x1B）</strong>を送って脱出してください。
+            FTP のデータモードの場合は <code>+++</code>（前後に 1 秒無送信、CR は付けない）を送ります。</p>
+
+            <h3>Q：<code>+CME ERROR: 603</code> がずっと返ってくる</h3>
+            <p>直前に <code>AT+QFTPCLOSE</code> を送ったのなら、それは<strong>クローズがまだ完了していない</strong>だけです。
+            <code>+QFTPCLOSE: 0,0</code> が出てから続けてください。</p>
+
+            <h3>Q：接続が全部失敗するのに、<code>AT+QIACT?</code> にはまだ IP が出る</h3>
+            <p>モジュールのデータスタックが劣化しています。素の TCP の <code>AT+QIOPEN</code> で接続できると分かっているターゲットを叩いて確認し ——
+            それも失敗するなら<strong>完全な起動シーケンスをやり直してください</strong>。
+            <code>QIDEACT</code> + <code>QIACT</code> では戻せません。</p>
+
+            <h3>Q：echo サーバーにデータを送ったのにエコーが返ってこない</h3>
+            <p>payload の末尾に <code>\n</code> があるか確認してください。多くの echo サービスは<strong>行単位</strong>なので、
+            改行が無ければ返送しません。欄に <code>\n</code> の 2 文字をそのまま打てば良く、
+            ツールが送信前に本物の改行にデコードし、長さも正しく計算します。</p>
+
+            <h3>Q：GNSS がいつまでも測位できない</h3>
+            <p>まず <code>AT+QGPSGNMEA="GSV"</code> で衛星が見えているか確認してください。
+            屋内では通常 1 個も受信できず、それは設定の問題ではなく<strong>空が見えていない</strong>ということです。</p>
+
+            <h3>Q：言語やテーマはどう切り替えるのか</h3>
+            <p>右上です。言語は 18 種、テーマはライト／ダークの 2 種で、いずれも選択が記憶されます。
+            <strong>AT コマンドの説明と注釈も一緒に翻訳されます</strong>。UI だけではありません。</p>
+
+            <h3>Q：このツールは勝手に自分の通信量を使わないか</h3>
+            <p>使いません。純粋なフロントエンドの単一 HTML ファイルで、バックエンドはありません。
+            モバイル通信量が発生するのは<strong>自分で押したデータ系コマンドだけ</strong>で、
+            それらのボタンの説明にはすべて明記してあります。クエリ系と <code>=?</code> のテスト形式コマンドは一切ネットに触れません。</p>
+        </section>
+
+        <footer class="footer">
+            <p>NuModem EG800 —— <a href="https://github.com/Nuxtack">Nuxtack</a> 開発</p>
+            <p>本マニュアルの挙動の記述はすべて、2026 年 8 月に実機 EG800K
+            （ファームウェア <code>EG800KCNGCR07A06M04</code>）で実測した結果に基づきます。</p>
+        </footer>
+    </main>
+
+    <a href="#" class="back-to-top" aria-label="トップへ戻る">↑</a>

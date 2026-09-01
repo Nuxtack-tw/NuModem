@@ -1,0 +1,17 @@
+{
+ "⚠ 本機出廠為空，沒有它 AT+QLBS 會回 10002（token 不存在）。⚠ 若回 702 那是伺服器逾時、不是 token 問題 —— 先確認 AT+QIACT? 有 PDP。設定後讀回會被模組遮成 *，跟 FTP 密碼一樣": "⚠ Kosong dari pabrik pada unit ini; tanpa token AT+QLBS akan menjawab 10002 (token tidak ada). ⚠ Kalau yang keluar 702, itu berarti server melewati batas waktu tanpa menjawab, bukan masalah token — pastikan dulu AT+QIACT? menunjukkan ada PDP. Setelah disetel, saat dibaca kembali modul menyamarkannya dengan *, persis seperti kata sandi FTP",
+ "設定 QuecLocator token。⚠ 這串要向 Quectel 申請，本機出廠是空的 —— 沒有它 AT+QLBS 會回 10002（token 不存在）。⚠ 若回的是 702 那是「伺服器逾時」不是 token 問題 —— 先查 AT+QIACT? 有沒有 PDP。讀回時會被模組遮成 *": "Menetapkan token QuecLocator. ⚠ String ini harus diminta ke Quectel; unit ini datang tanpa token — tanpa itu AT+QLBS akan menjawab 10002 (token tidak ada). ⚠ Kalau yang keluar justru 702, itu «server melewati batas waktu», bukan masalah token — periksa dulu apakah AT+QIACT? menunjukkan ada PDP. Saat dibaca kembali, modul menyamarkannya dengan *",
+ "網路定位失敗 —— 錯誤 {0}：伺服器逾時未回應": "Penentuan posisi lewat jaringan gagal — galat {0}: server melewati batas waktu tanpa menjawab",
+ "定位失敗": "Penentuan posisi gagal",
+ "IMEI 不合法": "IMEI tidak sah",
+ "token 不存在": "token tidak ada",
+ "同一 token 的裝置數超過上限": "Jumlah perangkat pada token yang sama melampaui batas",
+ "同一裝置單日定位次數超過上限": "Jumlah penentuan posisi per hari pada perangkat yang sama melampaui batas",
+ "同一 token 的總定位次數超過上限": "Total penentuan posisi pada token yang sama melampaui batas",
+ "token 已過期": "token sudah kedaluwarsa",
+ "伺服器不接受此 IMEI": "Server tidak menerima IMEI ini",
+ "同一 token 單日定位次數超過上限": "Jumlah penentuan posisi per hari pada token yang sama melampaui batas",
+ "（QuecLocator 走 HTTP，此碼可能是 HTTP 層錯誤；官方 10000-10008 表未收錄）": " (QuecLocator berjalan di atas HTTP, jadi kode ini mungkin galat di lapis HTTP; tidak tercantum dalam tabel resmi 10000-10008)",
+ "（不是 token 問題！先確認 AT+QIACT? 回得出 IP —— 沒有 PDP 就連不到 QuecLocator 伺服器。逾時秒數見 AT+QLBSCFG=\"timeout\"）": " (Bukan masalah token! Pastikan dulu AT+QIACT? mengembalikan IP — tanpa PDP modul tidak bisa mencapai server QuecLocator. Untuk jumlah detik batas waktunya lihat AT+QLBSCFG=\"timeout\")",
+ "（模組讀回時會遮成 *；沒設 token 時 AT+QLBS 回 10002）": " (modul menyamarkannya dengan * saat dibaca; kalau token belum disetel AT+QLBS menjawab 10002)"
+}

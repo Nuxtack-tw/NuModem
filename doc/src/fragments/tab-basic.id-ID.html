@@ -1,0 +1,162 @@
+<h3 id="tab-basic">Basic — SIM, Diagnostik, dan Status Dasar</h3>
+            <p><strong>Cara kerja:</strong> halaman ini adalah titik awal setiap kali tersambung. Setelah ritual boot selesai
+            dan terminal menampilkan <code>RDY</code>, datanglah ke sini dulu untuk tiga hal: mengganti pesan error ke format
+            yang bisa dibaca, memastikan SIM siap, dan mengenali kartu ini milik siapa. Selain <code>AT&amp;F</code> dan
+            pembukaan kunci PIN / PUK, seluruh halaman berisi query baca-saja — menekannya tidak mengubah status modul;
+            perintah yang menyentuh status koneksi terkumpul di tab lain seperti Network dan TCP/IP.
+            Semua sampel pada bagian ini adalah nilai hasil pengujian nyata pada Agustus 2026 terhadap EG800K fisik
+            (firmware EG800KCNGCR07A06M04).</p>
+
+            <h4>Setelah boot: RDY bukan berarti SIM siap</h4>
+            <p><code>RDY</code> adalah URC yang dikirim modul atas inisiatifnya sendiri saat boot selesai.
+            Ia hanya menandakan antarmuka AT sudah hidup; <strong>kartu SIM masih pelan-pelan menginisialisasi diri di belakang</strong>.
+            Hasil uji: mengirim perintah terkait SIM begitu <code>RDY</code> muncul akan dibalas
+            <code>+CME ERROR: 14</code> (SIM busy), bahkan <code>+CME ERROR: 13</code> (SIM failure);
+            <strong>tunggu sekitar 6 detik</strong> lalu kirim lagi, semuanya normal.</p>
+            <div class="warning">
+                <strong>Saat menulis skrip otomasi, jangan jadikan RDY sinyal "boleh mulai bekerja".</strong>
+                Cara yang benar, pilih salah satu: sisakan jeda tetap sekitar 6 detik setelah RDY;
+                atau lakukan polling <code>AT+QINISTAT</code> dan lanjutkan setelah bit 1 (CPIN siap) menyala.
+            </div>
+
+            <h4>Echo (ATE): "gema modul" dan "echo lokal terminal" adalah dua hal berbeda</h4>
+            <p>Echo adalah <strong>modul</strong> mengirim balik apa adanya karakter yang Anda kirim (<code>ATE1</code> nyala,
+            <code>ATE0</code> mati); sedangkan echo lokal terminal adalah <strong>sisi alat ini</strong> yang mencetak dulu
+            ketikan Anda ke layar. Kedua sakelar ini saling independen: bila keduanya menyala, setiap karakter tampil dua kali.</p>
+            <ul>
+                <li><strong>Tombol pengalih echo</strong> di halaman ini mengalihkan echo modul dengan satu klik.
+                    Default saat boot adalah <strong>nyala</strong> (dibuktikan parameter AT hasil uji <code>E:1</code>).</li>
+                <li>Status yang tampil di tombol bukan diingat begitu saja — alat ini <strong>mengoreksi otomatis
+                    berdasarkan balasan nyata</strong> (menerima baris echo = dianggap nyala); bila Anda mengetik sendiri
+                    <code>ATE0</code> / <code>ATE1</code> /
+                    <code>AT&amp;F</code> di baris perintah, status tombol ikut tersinkron, tidak akan lepas.</li>
+                <li>Pengalihan hanya berlaku per sesi: modul dinyalakan ulang, ia kembali ke default. Untuk menuliskannya
+                    sebagai default boot, kirim <code>AT&amp;W</code> tersendiri (tombolnya tidak dibuat di halaman ini;
+                    bila perlu, ketik sendiri di baris perintah).</li>
+            </ul>
+
+            <h4>Mengubah pesan error jadi terbaca (CMEE)</h4>
+            <table>
+                <tr><th>Tombol</th><th>Efek</th></tr>
+                <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+                    <td>Kode error berganti menjadi deskripsi teks. Contoh nyata: saat GNSS belum fix, mode angka membalas
+                        <code>+CME ERROR: 516</code>, mode teks membalas
+                        <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> — yang kedua langsung menjelaskan apa yang terjadi tanpa membuka tabel.
+                        <strong>Alat ini sangat menyarankan menekannya segera setelah ritual boot</strong></td></tr>
+                <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+                    <td>Kode error berupa angka — alat ini otomatis membuka tabel dan menerjemahkan nomornya menjadi anotasi</td></tr>
+            </table>
+            <div class="tip">
+                Kedua setelan bersifat <strong>per sesi saja</strong>: modem dinyalakan ulang, hilang
+                (memuat ulang halaman = RTS memutus daya = nyala ulang, juga terhitung). Selain itu pengujian menemukan:
+                meski <code>CMEE=2</code> sudah menyala, sebagian kecil subsistem (seperti error FILE sistem berkas)
+                tetap mencampur bentuk teks dan angka; saat menulis parser, kedua bentuk harus diterima.
+            </div>
+
+            <h4>AT&amp;F: kembali ke default pabrik — cakupan pengaruhnya</h4>
+            <p>Tombol <strong>Factory Reset</strong> mengembalikan setelan AT ke nilai pabrik,
+            langkah pertama saat mengambil alih modul yang setelannya sudah diacak orang. Ini satu-satunya tombol di halaman ini
+            yang memunculkan konfirmasi dulu sebelum jalan.
+            Cakupan pengaruh yang sudah dikonfirmasi lewat pengujian: <strong>mengembalikan echo ke posisi nyala</strong>
+            (status tombol pengalih echo ikut menyesuaikan otomatis), <strong>tidak memengaruhi baud rate</strong>;
+            apakah setelan lain ikut dipulihkan, periksa satu per satu pada entri <code>AT&amp;F</code> di manual.</p>
+
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Tab Basic">
+                <figcaption>Tiga kelompok tombol halaman Basic: Echo (echo dan format error),
+                SIM (query dan pembukaan kunci PIN / PUK), Status (jam, tegangan, waktu jaringan).</figcaption>
+            </figure>
+
+            <h4>Tiga query SIM: ada atau tidak, menunggu sandi atau tidak, inisialisasi sampai mana</h4>
+            <table>
+                <tr><th>Tombol</th><th>Pertanyaan yang diajukan</th><th>Cara membaca</th></tr>
+                <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+                    <td>Apakah kartu terpasang dengan benar</td>
+                    <td>Balasannya dua kolom: kolom pertama sakelar URC cabut-pasang, <strong>kolom kedualah status kartunya</strong> — jangan salah kolom.
+                        Tombol ini di perangkat uji punya riwayat lapor palsu, lihat peringatan di bawah</td></tr>
+                <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+                    <td>Apakah kartu sedang menunggu sandi</td>
+                    <td><code>+CPIN: READY</code> = "saat ini tidak sedang menunggu sandi apa pun".
+                        ⚠ <strong>Bukan berarti kartu ini tak butuh PIN</strong> — kartu ber-PIN pun membalas READY setelah dibuka kuncinya.
+                        Tanpa kartu, balasannya <code>+CME ERROR: 10</code></td></tr>
+                <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+                    <td>Progres inisialisasi</td>
+                    <td>Bitmask: 1 = CPIN siap, 2 = SMS, 4 = buku telepon, 7 = semuanya selesai.
+                        Hasil uji perangkat ini setelah boot stabil terbaca <strong>3</strong> (bit buku telepon tidak diset) —
+                        untuk menilai "boleh mulai bekerja", cukup lihat bit 1, <strong>jangan menunggu mati-matian sampai 7</strong></td></tr>
+            </table>
+            <div class="warning">
+                <strong>Card In? di perangkat ini berbohong.</strong> Hasil uji: <code>AT+QSIMSTAT?</code> membalas
+                <code>0,0</code> (kartu sudah dicabut), padahal pada saat yang sama CPIN READY, jaringan sudah attach, IP sudah didapat —
+                kartunya jelas baik-baik saja. Dugaan: papan kendali tidak menyambungkan pin deteksi SIM_DET
+                (atau <code>AT+QSIMDET</code> tidak diaktifkan), sehingga nilainya selalu "tidak terpasang".
+                <strong>Untuk menilai kartu ada atau tidak, jadikan <code>AT+CPIN?</code> atau
+                <code>AT+QINISTAT</code> patokan.</strong>
+            </div>
+
+            <h4>Kartu ini milik siapa: IMSI dan ICCID</h4>
+            <p>Tombol <strong>IMSI</strong> (<code>AT+CIMI</code>) membalas sederet angka telanjang,
+            yaitu identitas pelanggan kartu ini di jaringan seluler. Hasil uji perangkat ini <code>901405117661468</code>:
+            tiga digit awal (MCC) adalah <strong>901 = blok nomor kartu roaming internasional</strong> —
+            kartu perangkat ini adalah kartu IoT 1NCE, dan itu pula yang menjelaskan mengapa <code>AT+CEREG?</code>
+            terus membalas <code>0,5</code> (terdaftar, <strong>roaming</strong>): bukan sinyal bermasalah,
+            melainkan kondisi normal kartu jenis ini. Sebelum menjalankan uji data, kenali dulu kartu roaming dan perhatikan tarif kuotanya.</p>
+            <p>Tombol <strong>ICCID</strong> (<code>AT+QCCID</code>) menanyakan nomor seri kartu,
+            hasil uji membalas <code>+QCCID: 89882280666176614687</code>.
+            ⚠ <strong>Manual tidak memiliki perintah <code>AT+CCID</code></strong> —
+            perintah yang lazim ada di tutorial modul merek lain itu tidak berlaku di sini; gunakan
+            <code>AT+QCCID</code> khas Quectel.</p>
+
+            <h4>Membuka kunci PIN: cek dulu sisa kesempatan, baru bertindak</h4>
+            <ol>
+                <li><strong>Tekan dulu PIN Left</strong> (<code>AT+QPINC?</code>) untuk melihat sisa jumlah percobaan —
+                    rentang menurut manual: PIN sisa 0–3 kali, PUK sisa 0–10 kali.
+                    Ketahui dulu berapa peluru tersisa sebelum bertindak.</li>
+                <li>Saat kartu menunggu PIN, tekan <strong>Enter PIN</strong>: sebuah <strong>kartu parameter</strong>
+                    terbuka dulu untuk Anda isi PIN lalu kirim (templat perintah <code>AT+CPIN="{pin}"</code>, menunggu maksimum 5 detik).</li>
+                <li>Bila kesempatan PIN habis dan kartu beralih meminta PUK, tekan <strong>Unlock PUK</strong>:
+                    manual mewajibkan <strong>PUK dikirim bersama PIN baru</strong>
+                    (<code>AT+CPIN="{puk}","{newpin}"</code>), sama-sama lewat kartu parameter, menunggu maksimum 5 detik.</li>
+            </ol>
+            <div class="warning">
+                Setiap kali salah kirim, kesempatan berkurang satu; saat PUK mendekati habis, <strong>berhenti dan hubungi operator</strong> —
+                jangan membakar habis kesempatan dengan menebak-nebak.
+            </div>
+
+            <h4>Tiga tombol status: jam, tegangan, waktu jaringan</h4>
+            <table>
+                <tr><th>Tombol</th><th>Yang dilihat</th><th>Hasil uji dan cara membaca</th></tr>
+                <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+                    <td>Jam RTC modul</td>
+                    <td><code>+CCLK: "26/08/01,00:55:32+32"</code>.
+                        Satuan kolom zona waktu <code>+32</code> adalah "kuarter" (15 menit): 32 × 15 menit = UTC+8.
+                        Hasil uji: RTC perangkat ini sudah disinkronkan waktu oleh jaringan, waktu maupun zona waktunya benar</td></tr>
+                <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+                    <td>Tegangan catu daya</td>
+                    <td>Sebagian firmware tidak mendukungnya dan membalas ERROR, itu normal; firmware perangkat ini mendukung,
+                        hasil uji <code>+CBC: 0,0,4264</code> — kolom terakhir adalah tegangan (mV), yaitu 4.264 V</td></tr>
+                <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+                    <td>Waktu lokal saat ini hasil perhitungan sinkronisasi jaringan</td>
+                    <td>Hasil uji <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>.
+                        Bedanya dengan Clock ada di <strong>sumber</strong>: CCLK membaca RTC milik modul sendiri,
+                        QLTS langsung mengambil waktu jaringan; format tahunnya pun berbeda (RTC dua digit, QLTS empat digit) — jangan tertukar saat mem-parsing</td></tr>
+            </table>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td>Query SIM tepat setelah RDY muncul, membalas error 14 atau 13</td>
+                    <td>SIM masih menginisialisasi (14 = SIM busy; 13 = SIM failure juga pernah muncul pada tahap ini).
+                        Tunggu sekitar 6 detik lalu kirim lagi, akan normal — jangan buru-buru memvonis kartunya rusak</td></tr>
+                <tr><td>Card In? bilang kartu dicabut, tetapi fungsi lain semuanya normal</td>
+                    <td>Masalah pin deteksi SIM_DET (kasus nyata pada perangkat uji), bukan masalah kartunya.
+                        Lihat saja <code>AT+CPIN?</code> / <code>AT+QINISTAT</code></td></tr>
+                <tr><td>Setiap karakter di layar tampil dua kali</td>
+                    <td>Echo modul dan echo lokal terminal menyala bersamaan — cukup tekan tombol pengalih echo sekali</td></tr>
+                <tr><td>Error hanya membalas angka yang dingin</td>
+                    <td>CMEE belum dinyalakan. Tekan Verbose Err; ia hanya berlaku per sesi,
+                        setiap kali selesai ritual boot harus ditekan lagi</td></tr>
+                <tr><td>Perintah terkirim tetapi sama sekali tak ada balasan</td>
+                    <td>Membuka ulang port akan meng-assert ulang RTS = daya putus; modul sebenarnya sudah boot ulang.
+                        Ritual boot lengkap wajib dijalankan ulang; bila dilewati, semuanya tanpa balasan</td></tr>
+            </table>

@@ -1,0 +1,157 @@
+<h3 id="tab-basic">Basic —— SIM, tanılama ve temel durum</h3>
+            <p><strong>Çalışma prensibi:</strong> Bu sayfa her bağlantıdan sonraki başlangıç noktasıdır. Açılış prosedürü bitip terminalde
+            <code>RDY</code> göründükten sonra önce buraya gelip üç iş yapılır: hata mesajlarını anlaşılır biçime çevirmek,
+            SIM'in hazır olduğunu doğrulamak, kartın kim olduğunu tanımak. <code>AT&amp;F</code> ile PIN / PUK açma dışında sayfanın tamamı
+            salt okunur sorgudur —— basmak modülün durumunu değiştirmez;
+            bağlantı durumunu etkileyen komutlar Network, TCP/IP gibi öteki sekmelerde toplanmıştır.
+            Bu bölümdeki örnekler, Ağustos 2026'da gerçek bir EG800K
+            (firmware EG800KCNGCR07A06M04) üzerinde ölçülmüş değerlerdir.</p>
+
+            <h4>Açılıştan sonra: RDY, SIM hazır demek değildir</h4>
+            <p><code>RDY</code>, modül açılışını bitirdiğinde kendiliğinden gönderdiği URC'dir.
+            Yalnızca AT arayüzünün canlandığını gösterir; <strong>SIM kart arkada hâlâ ağır ağır ilklenmektedir</strong>.
+            Ölçüm: <code>RDY</code> görünür görünmez SIM komutu gönderilirse
+            <code>+CME ERROR: 14</code> (SIM busy), hatta <code>+CME ERROR: 13</code> (SIM failure) döner;
+            <strong>yaklaşık 6 saniye</strong> beklendikten sonra gönderilirse her şey normaldir.</p>
+            <div class="warning">
+                <strong>Otomasyon betiği yazarken RDY'yi "işe başlanabilir" sinyali olarak kullanmayın.</strong>
+                Doğru yol ikisinden biri: RDY'den sonra sabit yaklaşık 6 saniyelik tampon bırakın;
+                ya da <code>AT+QINISTAT</code> yoklayıp bit 1 (CPIN hazır) yanana kadar bekleyin.
+            </div>
+
+            <h4>Eko (ATE): "modül ekosu" ile "terminal yerel ekosu" ayrı şeylerdir</h4>
+            <p>Eko, <strong>modülün</strong> gönderdiğiniz karakterleri aynen geri basmasıdır (<code>ATE1</code> açar,
+            <code>ATE0</code> kapatır); terminalin yerel ekosu ise <strong>araç tarafının</strong> yazdıklarınızı
+            önceden ekrana basmasıdır. İki anahtar birbirinden bağımsızdır: ikisi de açıksa her karakter iki kez görünür.</p>
+            <ul>
+                <li>Bu sayfadaki <strong>eko geçiş düğmesi</strong> modül ekosunu tek tuşla değiştirir.
+                    Açılış varsayılanı <strong>açıktır</strong> (ölçülen AT parametresi <code>E:1</code> bunu doğrular).</li>
+                <li>Düğmede görünen durum havadan yazılmış değildir —— araç <strong>gerçek yanıtlara göre kendini düzeltir</strong>
+                    (eko satırı alınırsa açık sayılır); komut satırından elle <code>ATE0</code> / <code>ATE1</code> /
+                    <code>AT&amp;F</code> yazsanız da düğmenin durumu eşitlenir, kopmaz.</li>
+                <li>Geçiş yalnızca oturumluktur: modül yeniden açılınca varsayılana döner. Açılış varsayılanına yazmak için ayrıca
+                    <code>AT&amp;W</code> gerekir (bu sayfada bunun düğmesi yapılmadı; gerekirse komut satırından elle yazın).</li>
+            </ul>
+
+            <h4>Hata mesajlarını anlaşılır yapmak (CMEE)</h4>
+            <table>
+                <tr><th>Düğme</th><th>Etkisi</th></tr>
+                <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+                    <td>Hata kodları metin açıklamasına döner. Örnek: GNSS henüz konum bulmamışken sayısal mod
+                        <code>+CME ERROR: 516</code> döndürür, metin modu
+                        <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> —— ikincisi tabloya bakmadan ne olduğunu söyler.
+                        <strong>Bu araç, açılış prosedüründen hemen sonra bu düğmeye basmanızı şiddetle önerir</strong></td></tr>
+                <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+                    <td>Hata kodları sayı olarak döner —— araç tabloya kendisi bakar ve numarayı açıklamaya çevirir</td></tr>
+            </table>
+            <div class="tip">
+                İki ayar da <strong>yalnızca oturumluktur</strong>: modem yeniden açılınca gider
+                (sayfayı yeniden yüklemek = RTS ile güç kesmek = yeniden açılış; o da sayılır). Ayrıca ölçümde görüldü:
+                <code>CMEE=2</code> açık olsa bile az sayıda alt sistem (örn. dosya sistemi FILE hataları) metin ve sayıyı karışık döndürür;
+                çözümleyici yazarken iki biçimi de kabul edin.
+            </div>
+
+            <h4>AT&amp;F: fabrika varsayılanına dönüş —— etki alanı</h4>
+            <p><strong>Factory Reset</strong> düğmesi AT ayarlarını fabrika değerlerine sıfırlar;
+            gelişigüzel ayarlanmış bir modülü devralırken ilk adım budur. Sayfada basınca önce onay isteyen tek düğme budur.
+            Ölçümle doğrulanmış etki alanı: <strong>ekoyu yeniden açık yapar</strong>
+            (eko geçiş düğmesinin durumu kendiliğinden ayak uydurur), <strong>baud hızını etkilemez</strong>;
+            öteki ayarların geri alınıp alınmadığını kılavuzun <code>AT&amp;F</code> maddesinden tek tek doğrulayın.</p>
+
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Basic sekmesi">
+                <figcaption>Basic sayfasının üç düğme grubu: Echo (eko ve hata biçimi),
+                SIM (sorgu ile PIN / PUK açma), Status (saat, gerilim, ağ saati).</figcaption>
+            </figure>
+
+            <h4>SIM üçlü sorgusu: takılı mı, parola bekliyor mu, ilkleme nerede</h4>
+            <table>
+                <tr><th>Düğme</th><th>Sorduğu soru</th><th>Yorumlama</th></tr>
+                <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+                    <td>Kart düzgün takılı mı</td>
+                    <td>Yanıt iki sütundur: ilk sütun tak-çıkar URC anahtarıdır, <strong>kart durumu ikinci sütundur</strong>; sütunu karıştırmayın.
+                        Bu cihazda bu düğmenin yanlış alarm sicili var, aşağıdaki uyarıya bakın</td></tr>
+                <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+                    <td>Kart parola bekliyor mu</td>
+                    <td><code>+CPIN: READY</code> = "şu anda hiçbir parola beklenmiyor".
+                        ⚠ <strong>Bu kartın PIN istemediği anlamına gelmez</strong> —— PIN'li kart da açıldıktan sonra READY döner.
+                        Kart yokken <code>+CME ERROR: 10</code> döner</td></tr>
+                <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+                    <td>İlkleme ilerlemesi</td>
+                    <td>Bit maskesi: 1 = CPIN hazır, 2 = SMS, 4 = telefon defteri, 7 = hepsi tamam.
+                        Bu cihazda açılış oturduktan sonra ölçülen değer <strong>3</strong> (telefon defteri biti yok) ——
+                        "işe başlanabilir mi" kararı için bit 1 yeter, <strong>7'yi ölesiye beklemeyin</strong></td></tr>
+            </table>
+            <div class="warning">
+                <strong>Card In? bu cihazda yalan söylüyor.</strong> Ölçümde <code>AT+QSIMSTAT?</code>
+                <code>0,0</code> (kart çıkarılmış) döndürdü; oysa aynı anda CPIN READY, ağa bağlı, IP alınmış ——
+                kart gayet sağlamdı. Tahmin: kontrol kartında SIM_DET algılama bacağı bağlanmamış (ya da <code>AT+QSIMDET</code> etkin değil),
+                okunan değer hep "takılı değil". <strong>Kartın takılı olup olmadığına <code>AT+CPIN?</code> ya da
+                <code>AT+QINISTAT</code> ile karar verin.</strong>
+            </div>
+
+            <h4>Bu kart kim: IMSI ve ICCID</h4>
+            <p><strong>IMSI</strong> düğmesi (<code>AT+CIMI</code>) çıplak bir sayı dizisi döndürür;
+            kartın mobil şebekedeki abone kimliğidir. Bu cihazda ölçülen: <code>901405117661468</code>.
+            İlk üç hane (MCC) <strong>901 = uluslararası dolaşım kart aralığı</strong> ——
+            bu cihazdaki kart bir 1NCE IoT kartıdır; <code>AT+CEREG?</code> sorgusunun neden hep
+            <code>0,5</code> (kayıtlı, <strong>dolaşımda</strong>) döndürdüğünü de bu açıklar: sinyal anormalliği değil,
+            bu tür kartların olağan hâlidir. Veri testine başlamadan dolaşım kartını tanıyın, trafik ücretine dikkat edin.</p>
+            <p><strong>ICCID</strong> düğmesi (<code>AT+QCCID</code>) kart seri numarasını sorgular;
+            ölçümde <code>+QCCID: 89882280666176614687</code> döndü.
+            ⚠ <strong>Kılavuzda <code>AT+CCID</code> diye bir komut yoktur</strong> ——
+            başka modüllerin eğitimlerinde sık görülen o komut burada çalışmaz; Quectel'e özgü <code>AT+QCCID</code> kullanılır.</p>
+
+            <h4>PIN açma: önce kalan hakkı sorgulayın, sonra el atın</h4>
+            <ol>
+                <li><strong>Önce PIN Left'e basın</strong> (<code>AT+QPINC?</code>) ve kalan deneme sayısına bakın ——
+                    kılavuzdaki aralık: PIN için 0–3, PUK için 0–10 hak.
+                    El atmadan önce kaç fişeğiniz kaldığını bilin.</li>
+                <li>Kart PIN beklerken <strong>Enter PIN</strong>'e basın: önce bir <strong>parametre kartı</strong> açılır,
+                    PIN'i yazıp gönderirsiniz (komut şablonu <code>AT+CPIN="{pin}"</code>, en fazla 5 saniye bekler).</li>
+                <li>PIN hakkı tükenip kart PUK istemeye başlayınca <strong>Unlock PUK</strong>'a basın:
+                    kılavuz gereği <strong>PUK yeni PIN ile birlikte gönderilmelidir</strong>
+                    (<code>AT+CPIN="{puk}","{newpin}"</code>); yine parametre kartından, en fazla 5 saniye bekler.</li>
+            </ol>
+            <div class="warning">
+                Her yanlış gönderim bir hak eksiltir; PUK dibe vurunca <strong>durun ve operatörü arayın</strong>,
+                hakları tahminle yakmayın.
+            </div>
+
+            <h4>Durum üçlüsü: saat, gerilim, ağ saati</h4>
+            <table>
+                <tr><th>Düğme</th><th>Neye bakar</th><th>Ölçüm ve yorumlama</th></tr>
+                <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+                    <td>Modülün RTC saati</td>
+                    <td><code>+CCLK: "26/08/01,00:55:32+32"</code>.
+                        Saat dilimi alanı <code>+32</code>'nin birimi "çeyrek"tir (15 dakika): 32 × 15 dk = UTC+8.
+                        Bu cihazda RTC'nin ağ tarafından ayarlandığı ölçüldü; saat de dilim de doğru</td></tr>
+                <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+                    <td>Besleme gerilimi</td>
+                    <td>Bazı firmware'ler desteklemez, ERROR dönmesi normaldir; bu cihazın firmware'i destekliyor,
+                        ölçüm <code>+CBC: 0,0,4264</code> —— son alan gerilimdir (mV), yani 4.264 V</td></tr>
+                <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+                    <td>Ağ eşzamanından türetilen güncel yerel saat</td>
+                    <td>Ölçüm: <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>.
+                        Clock'tan farkı <strong>kaynaktır</strong>: CCLK modülün kendi RTC'sini okur,
+                        QLTS doğrudan ağ saatini alır; yıl biçimi de farklıdır (RTC iki hane, QLTS dört hane), çözümlerken karıştırmayın</td></tr>
+            </table>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td>RDY görünür görünmez SIM sorguladım, hata 14 ya da 13 döndü</td>
+                    <td>SIM hâlâ ilkleniyor (14 = SIM busy; 13 = SIM failure da bu evrede görüldü).
+                        Yaklaşık 6 saniye bekleyip yeniden gönderin; kartın bozuk olduğuna aceleyle hükmetmeyin</td></tr>
+                <tr><td>Card In? kartın çıkarıldığını söylüyor ama her şey çalışıyor</td>
+                    <td>SIM_DET algılama bacağı sorunu (bu cihazda ölçülen vaka), kartın suçu yok.
+                        <code>AT+CPIN?</code> / <code>AT+QINISTAT</code> sorgularına bakın</td></tr>
+                <tr><td>Ekranda her karakter iki kez görünüyor</td>
+                    <td>Modül ekosu ile terminal yerel ekosu aynı anda açık —— eko geçiş düğmesine bir kez basmak yeter</td></tr>
+                <tr><td>Hatalar yalnızca soğuk sayılar olarak dönüyor</td>
+                    <td>CMEE henüz açılmamış. Verbose Err'e basın; yalnızca oturumluktur,
+                        her açılış prosedüründen sonra yeniden basılmalıdır</td></tr>
+                <tr><td>Komut gönderiliyor ama hiçbir yanıt yok</td>
+                    <td>Portu yeniden açmak RTS'i tekrar assert eder = güç kesilir; modül aslında yeniden açılmıştır.
+                        Tam açılış prosedürü yeniden çalıştırılmalıdır; atlanırsa hiçbir şey yanıt vermez</td></tr>
+            </table>

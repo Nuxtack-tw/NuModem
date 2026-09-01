@@ -1,0 +1,148 @@
+<h3 id="tab-wifi">WiFiScan —— Wi-Fi 掃描與網路定位</h3>
+            <p><strong>工作原理：</strong>EG800K 是 LTE 模組，<strong>沒有 Wi-Fi 上網能力</strong>，
+            但內建一個「只掃不連」的 Wi-Fi 接收器：被動接收周邊 2.4GHz 熱點廣播的
+            beacon 訊框，回報每個熱點的 MAC 位址（BSSID）、RSSI（訊號強度）與頻道。
+            掃描是純 RF 接收，<strong>零數據流量</strong>；本身不會產生座標 ——
+            要把 MAC＋RSSI 清單送去雲端熱點位置資料庫查詢才換得出經緯度；
+            這就是<strong>室內也能用、不靠衛星</strong>的網路定位。
+            本節所有數字與行為都是 2026 年 8 月對實體 EG800K 的實測值。</p>
+
+            <h4>本頁的兩群按鈕</h4>
+            <p>上半 <strong>Wi-Fi Scan</strong> 四顆（純掃描），下半
+            <strong>QuecLocator (QLBS)</strong> 十三顆（先讀後面的真相段落再按）：</p>
+            <table>
+                <tr><th>按鈕</th><th>指令</th><th>作用與實測重點</th></tr>
+                <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>查參數範圍。本機實回
+                        <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+                <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+                    <td>讀目前參數。本機出廠 <code>12000,1,5,5,0</code>＝
+                        時限 12 秒、1 輪、熱點上限 5、RRC 逾時 5 秒、優先權 0</td></tr>
+                <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+                    <td>用目前參數掃一次。結果在 <code>OK</code> 之後<strong>非同步</strong>回報，
+                        最長等 13 秒</td></tr>
+                <tr><td>Scan (custom)</td><td>參數卡</td>
+                    <td>自訂時限（毫秒）／輪數／熱點上限／RRC 逾時／優先權後掃描</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="WiFiScan 頁簽與 QuecLocator 群">
+                <figcaption>WiFiScan 頁：掃描四鈕與 QuecLocator（QLBS）群。</figcaption>
+            </figure>
+
+            <h4>第一次掃描：怎麼按、會看到什麼</h4>
+            <ol>
+                <li><strong>跑開機儀式</strong>（見〈開機儀式〉一節）。</li>
+                <li><strong>確認 URC 走 UART</strong>：<code>AT+QURCCFG="urcport"</code> 要回
+                    <code>"uart1"</code>。出廠值是 <code>"usbat"</code> ——
+                    掃描結果全部被送去 USB 埠，這裡只看得到 <code>OK</code>、
+                    連 TIMEOUT 都等不到（設定寫 NVRAM，改一次就好）。</li>
+                <li><strong>按 <code>Scan</code></strong>：模組先回 <code>OK</code>，
+                    這代表「掃描開始」，<strong>不是結果</strong>。幾秒內（最長到掃描時限）
+                    結果一條一條回報，每行附自動註解（MAC／RSSI／頻道）。</li>
+            </ol>
+
+            <h4>判讀掃描結果</h4>
+            <p>實測回報長這樣（2026-08-29，掃到 7 個熱點，RSSI -37 ~ -89 dBm）：</p>
+            <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+            <p>欄位順序是 <code>(ecn, ssid, rssi, mac, channel)</code>。
+            <strong>本機韌體的 ecn 與 ssid 固定回 <code>-</code></strong>（2026-08-02 實測），
+            清單看不到「這是誰家的 Wi-Fi」——
+            對定位剛好夠用，資料庫吃的本來就是 MAC＋RSSI。
+            RSSI 直覺：-30 ~ -50 很近、-60 ~ -75 一般、-80 以下很弱。</p>
+            <p>時限內一個熱點都沒掃到時回 <code>+QWIFISCAN:TIMEOUT</code> ——
+            <strong>正常結束，不是錯誤</strong>（冒號後沒空白，本工具解析已處理）。
+            想多掃幾顆：用參數卡把熱點上限從出廠的 5 調高（本機極限 10）、
+            輪數調到 2-3（實測跨輪結果會去重）。</p>
+            <div class="warning">
+                <strong>掃到的熱點不是每顆都能拿去定位。</strong>2026-08-29 實測 7 顆裡有
+                4 顆是「本地管理位址」（<code>C2:</code>／<code>62:</code>／<code>9E:</code>
+                開頭，第一位元組的 0x02 位元為 1 —— 多 SSID 分身的虛擬 BSSID），
+                <strong>定位資料庫通常直接忽略這種位址</strong>，實際可用素材只剩 3 顆全域位址。
+            </div>
+            <div class="warning">
+                <strong>應用文件 V1.2 的參數範圍對本機是錯的。</strong>
+                文件把輪數放寬到 1-6、熱點上限放寬到 4-30，但本機韌體實回的範圍仍是
+                <strong>輪數 1-3、熱點上限 4-10</strong>（2026-08-06 實測）。
+                以 <code>Support?</code> 實回為準，別照抄文件數字。
+            </div>
+
+            <h4>QuecLocator（QLBS）按鈕群：按之前先看真相</h4>
+            <p>QuecLocator 是 Quectel 的雲端定位服務：<code>AT+QLBS</code>（<code>Locate</code>
+            按鈕）一條指令，韌體自己蒐集素材、送去伺服器查庫、回傳座標。三個現實：</p>
+            <ol>
+                <li><strong>要 token，而且是收費服務。</strong>官方文件明寫須聯絡 Quectel
+                    技術支援申請（無自助註冊）。本機 token 出廠為空。</li>
+                <li><strong>16 份 EG800K 官方文件沒有一份提到 QuecLocator。</strong>
+                    手上的應用文件是 EC200U／EG915U 用的（語法與錯誤碼實測相符），
+                    不是本機的官方文件。</li>
+                <li><strong>本專案已裁定不採用</strong>（2026-08-29）：定位邏輯鎖在韌體裡，
+                    服務一旦收攤，整條 AT 指令直接失效、供應商無法抽換
+                    （Quectel 論壇已證實 BG95 系列停止支援）。
+                    按鈕保留，只為「若拿得到免費 token 順手驗證」。</li>
+            </ol>
+            <div class="warning">
+                <strong><code>+QLBS: 702</code> 是「伺服器逾時」，不是 token 問題。</strong>
+                本專案曾把 702 誤判成「沒 token」整整三週 —— 真相是當時忘了先啟用
+                PDP，模組根本連不上伺服器，等滿逾時（出廠 60 秒）就回 702。
+                2026-08-29 對照實驗（token 全程為空）：
+                PDP 未啟用回 <code>702</code>；啟用後回 <code>10002</code>（token 不存在）——
+                <strong>伺服器從臺灣是連得通的，缺的只有 token</strong>。
+                下 <code>AT+QLBS</code> 前一定要先 <code>AT+QIACT=1</code>（會產生流量）。
+            </div>
+            <p>七個設定子項的查／設都有按鈕，<code>Cfg?</code>（<code>AT+QLBSCFG=?</code>）
+            一鍵列出全部範圍（零流量）。本機出廠值與實測重點：</p>
+            <table>
+                <tr><th>子項（按鈕）</th><th>出廠值</th><th>實測重點</th></tr>
+                <tr><td><code>token</code>（Set Token／Token?）</td><td>空</td>
+                    <td>讀回一律被遮成 <code>*</code>；設定路徑實測是通的</td></tr>
+                <tr><td><code>server</code>（Server?／Set Server）</td>
+                    <td><code>www.queclocator.com:80</code></td><td>定位伺服器位址</td></tr>
+                <tr><td><code>timeout</code>（Timeout?／Set Timeout）</td><td>60 秒</td>
+                    <td>就是 702 等的那個逾時，範圍 10-120</td></tr>
+                <tr><td><code>asynch</code>（Async?／Set Async）</td><td>0</td>
+                    <td>同步／非同步切換</td></tr>
+                <tr><td><code>latorder</code>（LatOrder?）</td><td>0</td>
+                    <td>緯經度輸出順序。⚠ 設定用小寫鍵，讀回卻是駝峰 <code>latOrder</code></td></tr>
+                <tr><td><code>withtime</code>（WithTime?）</td><td>0</td>
+                    <td>回應是否附時間；讀回鍵名 <code>withTime</code></td></tr>
+                <tr><td><code>timeupdate</code>（TimeUpd?）</td><td>0</td>
+                    <td>是否用定位結果校正模組時鐘；讀回鍵名 <code>timeUpdate</code></td></tr>
+            </table>
+            <p>真的拿到 token：<code>Set Token</code> 填入 → <code>Token?</code>
+            確認（顯示 <code>*</code>）→ TCP/IP 頁啟用 PDP → <code>Locate</code>。</p>
+
+            <h4>替代路線：免 token 的網路定位（實測 71 公尺）</h4>
+            <p>網路定位不必靠 QuecLocator。替代路線 2026-08-29 已端到端打通：
+            模組只出素材（本頁掃熱點、<code>AT+QENG="servingcell"</code> 讀基地台），
+            終端機輸出存檔後交給 <code>tools/wifi_geolocate.py</code> 在 PC 端查公開資料庫 ——
+            <strong>模組零流量、免 Quectel 服務</strong>。
+            實測（與同日 GNSS 真值比對）：基地台查表用 Unwired Labs（免費註冊）<strong>誤差
+            71 公尺</strong>（定位這條線的收尾結論）、用 beaconDB（免金鑰）632 公尺；
+            Wi-Fi 查表則卡在供應商 —— 免費生態已崩（beaconDB 本區無涵蓋、
+            Unwired Labs 免費方案不含 Wi-Fi、Google／HERE 要綁卡），擱置。</p>
+            <div class="tip">
+                <strong>71 公尺是「查表命中」，不是「量測精度」。</strong>
+                基地台定位是用 Cell ID 查那座基地台的登記座標，同一個 cell 永遠回同一個點 ——
+                換一座基地台誤差可能就是公里級；服務自己回報的 ±1051 公尺才是誠實估計。
+                另外 Cell ID 與 TAC 是<strong>十六進位</strong>，
+                查表前必須轉十進位（工具已內建處理）。
+            </div>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td>按 <code>Scan</code> 只回 <code>OK</code>，結果永遠不出現</td>
+                    <td>URC 被送去 USB 埠 —— <code>AT+QURCCFG="urcport"</code> 查，
+                        不是 <code>"uart1"</code> 就改（寫 NVRAM）</td></tr>
+                <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+                    <td>時限內沒掃到熱點，正常結束不是錯誤。換位置或調長時限</td></tr>
+                <tr><td><code>+QLBS: 702</code></td>
+                    <td>伺服器逾時 —— 幾乎都是忘了 <code>AT+QIACT=1</code>，不是 token 問題</td></tr>
+                <tr><td><code>+QLBS: 10002</code></td>
+                    <td>token 不存在 —— 要向 Quectel 付費申請；本專案已裁定不採用，
+                        改走上面的替代路線</td></tr>
+                <tr><td>想用 <code>AT+QCELLLOC</code></td>
+                    <td>本機<strong>不支援</strong>（回 ERROR）—— 那是 EC2x 系列的指令</td></tr>
+            </table>

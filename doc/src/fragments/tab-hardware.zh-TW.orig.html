@@ -1,0 +1,19 @@
+<h3 id="tab-hardware">Hardware —— 開機與序列埠</h3>
+            <p><strong>工作原理：</strong>這一頁分成三組。Control 是開機儀式的兩顆按鈕（見<a href="#boot">前面</a>）；
+            Module 是產品識別；Serial 是 UART 本身的設定。</p>
+            <table>
+                <tr><th>指令</th><th>用途</th><th>怎麼測</th></tr>
+                <tr><td><code>ATI</code></td><td>廠牌 / 型號 / 韌體版本三合一</td>
+                    <td>開機後第一條就下它。回得出來代表 UART 與模組都活著</td></tr>
+                <tr><td><code>AT+GSN</code></td><td>模組 IMEI（15 位數字）</td><td>零流量，隨時可下</td></tr>
+                <tr><td><code>AT&amp;V</code></td><td>列出所有單字母 AT 參數目前值</td>
+                    <td><code>ATE</code> / <code>ATQ</code> / <code>ATV</code> 沒有各自的查詢式，
+                        <strong>只有這條讀得到</strong></td></tr>
+                <tr><td><code>AT+IPR?</code></td><td>查 UART 鮑率</td>
+                    <td>出廠 115200。⚠ <code>AT&amp;F</code> 不會重置這個值</td></tr>
+                <tr><td><code>AT+IPR=115200;&amp;W</code></td><td>設鮑率並存檔</td>
+                    <td>⚠ 送出後<strong>本工具會立刻與模組失聯</strong>（手冊：OK 後立即生效）。
+                        復原要斷線→改上方鮑率→重連→重跑開機儀式</td></tr>
+                <tr><td><code>AT+QURCCFG="urcport"</code></td><td>查 URC 送到哪個埠</td>
+                    <td><strong>收不到 URC 時第一個查這條</strong>。要 <code>uart1</code> 才收得到</td></tr>
+            </table>

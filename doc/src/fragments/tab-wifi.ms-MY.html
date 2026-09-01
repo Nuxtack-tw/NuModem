@@ -1,0 +1,148 @@
+<h3 id="tab-wifi">WiFiScan — imbasan Wi-Fi dan penentuan kedudukan rangkaian</h3>
+            <p><strong>Prinsip kerja:</strong> EG800K ialah modul LTE dan <strong>tiada keupayaan untuk melayari Internet melalui Wi-Fi</strong>,
+            tetapi ia mempunyai penerima Wi-Fi terbina dalam yang "hanya mengimbas, tidak menyambung": ia menerima secara pasif
+            bingkai beacon yang disiarkan hotspot 2.4GHz di sekeliling, lalu melaporkan alamat MAC (BSSID), RSSI (kekuatan isyarat) dan saluran setiap hotspot.
+            Imbasan ialah penerimaan RF tulen, <strong>sifar trafik data</strong>; ia sendiri tidak menghasilkan koordinat —
+            senarai MAC + RSSI mesti dihantar ke pangkalan data lokasi hotspot di awan untuk ditanya barulah bertukar menjadi latitud dan longitud;
+            inilah penentuan kedudukan rangkaian yang <strong>boleh digunakan di dalam bangunan, tanpa bergantung pada satelit</strong>.
+            Semua nombor dan kelakuan dalam bahagian ini ialah nilai ujian sebenar terhadap EG800K fizikal pada Ogos 2026.</p>
+
+            <h4>Dua kumpulan butang pada halaman ini</h4>
+            <p>Bahagian atas <strong>Wi-Fi Scan</strong> empat butang (imbasan tulen), bahagian bawah
+            <strong>QuecLocator (QLBS)</strong> tiga belas butang (baca bahagian kebenaran di belakang dahulu sebelum menekan):</p>
+            <table>
+                <tr><th>Butang</th><th>Arahan</th><th>Fungsi dan intipati ujian sebenar</th></tr>
+                <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>Menyemak julat parameter. Unit ini sebenarnya memulangkan
+                        <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+                <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+                    <td>Membaca parameter semasa. Nilai kilang unit ini <code>12000,1,5,5,0</code> =
+                        had masa 12 saat, 1 pusingan, had hotspot 5, tamat masa RRC 5 saat, keutamaan 0</td></tr>
+                <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+                    <td>Mengimbas sekali dengan parameter semasa. Keputusan dilaporkan secara <strong>tak segerak</strong> selepas <code>OK</code>,
+                        menunggu sehingga 13 saat</td></tr>
+                <tr><td>Scan (custom)</td><td>Kad parameter</td>
+                    <td>Mengimbas selepas menetapkan sendiri had masa (milisaat) / bilangan pusingan / had hotspot / tamat masa RRC / keutamaan</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="Tab WiFiScan dan kumpulan QuecLocator">
+                <figcaption>Halaman WiFiScan: empat butang imbasan dan kumpulan QuecLocator (QLBS).</figcaption>
+            </figure>
+
+            <h4>Imbasan pertama: cara menekan dan apa yang akan dilihat</h4>
+            <ol>
+                <li><strong>Jalankan ritual but</strong> (lihat bahagian "Ritual but").</li>
+                <li><strong>Sahkan URC melalui UART</strong>: <code>AT+QURCCFG="urcport"</code> mesti memulangkan
+                    <code>"uart1"</code>. Nilai kilang ialah <code>"usbat"</code> —
+                    semua keputusan imbasan dihantar ke port USB, di sini hanya kelihatan <code>OK</code>,
+                    malah TIMEOUT pun tidak akan tiba (tetapan ditulis ke NVRAM, cukup diubah sekali).</li>
+                <li><strong>Tekan <code>Scan</code></strong>: modul mula-mula memulangkan <code>OK</code>,
+                    yang bermaksud "imbasan bermula", <strong>bukan keputusan</strong>. Dalam beberapa saat (sehingga had masa imbasan)
+                    keputusan dilaporkan satu demi satu, setiap baris disertai anotasi automatik (MAC / RSSI / saluran).</li>
+            </ol>
+
+            <h4>Mentafsir keputusan imbasan</h4>
+            <p>Laporan ujian sebenar kelihatan begini (2026-08-29, 7 hotspot diimbas, RSSI -37 hingga -89 dBm):</p>
+            <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+            <p>Susunan medan ialah <code>(ecn, ssid, rssi, mac, channel)</code>.
+            <strong>ecn dan ssid pada perisian tegar unit ini sentiasa memulangkan <code>-</code></strong> (ujian sebenar 2026-08-02),
+            jadi senarai itu tidak menunjukkan "Wi-Fi milik siapa ini" —
+            memadai untuk penentuan kedudukan, kerana pangkalan data memang hanya memakan MAC + RSSI.
+            Gerak hati RSSI: -30 hingga -50 sangat dekat, -60 hingga -75 sederhana, di bawah -80 sangat lemah.</p>
+            <p>Apabila satu hotspot pun tidak diimbas dalam had masa, ia memulangkan <code>+QWIFISCAN:TIMEOUT</code> —
+            <strong>tamat secara normal, bukan ralat</strong> (tiada ruang selepas titik bertindih; penghuraian alat ini sudah menanganinya).
+            Mahu mengimbas lebih banyak: gunakan kad parameter untuk menaikkan had hotspot daripada nilai kilang 5 (had unit ini 10),
+            dan tetapkan bilangan pusingan kepada 2-3 (ujian sebenar: keputusan merentas pusingan dinyahduplikasi).</p>
+            <div class="warning">
+                <strong>Bukan setiap hotspot yang diimbas boleh digunakan untuk penentuan kedudukan.</strong> Ujian sebenar 2026-08-29: daripada 7 hotspot,
+                4 ialah "alamat ditadbir secara setempat" (bermula dengan <code>C2:</code> / <code>62:</code> / <code>9E:</code>,
+                bit 0x02 pada bait pertama bernilai 1 — BSSID maya bagi penjelmaan berbilang SSID),
+                dan <strong>pangkalan data penentuan kedudukan biasanya terus mengabaikan alamat sebegini</strong>, jadi bahan yang benar-benar boleh digunakan tinggal 3 alamat sejagat.
+            </div>
+            <div class="warning">
+                <strong>Julat parameter dalam dokumen aplikasi V1.2 adalah salah bagi unit ini.</strong>
+                Dokumen itu melonggarkan bilangan pusingan kepada 1-6 dan had hotspot kepada 4-30, tetapi julat yang sebenarnya dipulangkan perisian tegar unit ini masih
+                <strong>bilangan pusingan 1-3, had hotspot 4-10</strong> (ujian sebenar 2026-08-06).
+                Ambil pulangan sebenar <code>Support?</code> sebagai rujukan; jangan salin bulat-bulat nombor dokumen.
+            </div>
+
+            <h4>Kumpulan butang QuecLocator (QLBS): lihat kebenarannya sebelum menekan</h4>
+            <p>QuecLocator ialah perkhidmatan penentuan kedudukan awan Quectel: satu arahan <code>AT+QLBS</code> (butang <code>Locate</code>),
+            lalu perisian tegar sendiri mengumpul bahan, menghantarnya ke pelayan untuk carian pangkalan data, dan memulangkan koordinat. Tiga kenyataan:</p>
+            <ol>
+                <li><strong>Ia memerlukan token, dan ia perkhidmatan berbayar.</strong> Dokumen rasmi menulis dengan jelas bahawa anda mesti menghubungi
+                    sokongan teknikal Quectel untuk memohon (tiada pendaftaran layan diri). Token unit ini kosong dari kilang.</li>
+                <li><strong>Tiada satu pun daripada 16 dokumen rasmi EG800K menyebut QuecLocator.</strong>
+                    Dokumen aplikasi yang ada di tangan adalah untuk EC200U / EG915U (sintaks dan kod ralatnya sepadan dengan ujian sebenar),
+                    bukan dokumen rasmi unit ini.</li>
+                <li><strong>Projek ini telah memutuskan untuk tidak menggunakannya</strong> (2026-08-29): logik penentuan kedudukan terkunci di dalam perisian tegar,
+                    dan sebaik perkhidmatan itu ditutup, keseluruhan arahan AT itu terus tidak berfungsi tanpa boleh menukar pembekal
+                    (forum Quectel telah mengesahkan siri BG95 berhenti disokong).
+                    Butangnya dikekalkan semata-mata untuk "mengesahkan sekali lalu jika token percuma dapat diperoleh".</li>
+            </ol>
+            <div class="warning">
+                <strong><code>+QLBS: 702</code> bermaksud "tamat masa pelayan", bukan masalah token.</strong>
+                Projek ini pernah tersalah nilai 702 sebagai "tiada token" selama tiga minggu penuh — kebenarannya ketika itu PDP terlupa diaktifkan dahulu,
+                modul langsung tidak dapat mencapai pelayan, dan selepas tamat masa habis (nilai kilang 60 saat) ia memulangkan 702.
+                Eksperimen kawalan 2026-08-29 (token kosong sepanjang masa):
+                tanpa PDP diaktifkan ia memulangkan <code>702</code>; selepas diaktifkan ia memulangkan <code>10002</code> (token tidak wujud) —
+                <strong>pelayan itu memang boleh dicapai dari Taiwan; yang kurang hanyalah token</strong>.
+                Sebelum menghantar <code>AT+QLBS</code> anda mesti melakukan <code>AT+QIACT=1</code> dahulu (ia menjana trafik).
+            </div>
+            <p>Ketujuh-tujuh sub-item tetapan mempunyai butang baca dan tulis, dan <code>Cfg?</code> (<code>AT+QLBSCFG=?</code>)
+            menyenaraikan semua julat dengan satu tekanan (sifar trafik). Nilai kilang unit ini dan intipati ujian sebenar:</p>
+            <table>
+                <tr><th>Sub-item (butang)</th><th>Nilai kilang</th><th>Intipati ujian sebenar</th></tr>
+                <tr><td><code>token</code> (Set Token / Token?)</td><td>Kosong</td>
+                    <td>Bacaan balik sentiasa ditutup sebagai <code>*</code>; laluan penetapannya terbukti berfungsi dalam ujian sebenar</td></tr>
+                <tr><td><code>server</code> (Server? / Set Server)</td>
+                    <td><code>www.queclocator.com:80</code></td><td>Alamat pelayan penentuan kedudukan</td></tr>
+                <tr><td><code>timeout</code> (Timeout? / Set Timeout)</td><td>60 saat</td>
+                    <td>Inilah tamat masa yang ditunggu oleh 702; julat 10-120</td></tr>
+                <tr><td><code>asynch</code> (Async? / Set Async)</td><td>0</td>
+                    <td>Penukaran segerak / tak segerak</td></tr>
+                <tr><td><code>latorder</code> (LatOrder?)</td><td>0</td>
+                    <td>Susunan output latitud dan longitud. ⚠ Penetapan menggunakan kunci huruf kecil, tetapi bacaan balik ialah camelCase <code>latOrder</code></td></tr>
+                <tr><td><code>withtime</code> (WithTime?)</td><td>0</td>
+                    <td>Sama ada respons disertai masa; nama kunci bacaan balik <code>withTime</code></td></tr>
+                <tr><td><code>timeupdate</code> (TimeUpd?)</td><td>0</td>
+                    <td>Sama ada keputusan penentuan kedudukan digunakan untuk menyelaraskan jam modul; nama kunci bacaan balik <code>timeUpdate</code></td></tr>
+            </table>
+            <p>Jika anda benar-benar memperoleh token: isikan pada <code>Set Token</code> → sahkan dengan <code>Token?</code>
+            (memaparkan <code>*</code>) → aktifkan PDP pada halaman TCP/IP → <code>Locate</code>.</p>
+
+            <h4>Laluan alternatif: penentuan kedudukan rangkaian tanpa token (ujian sebenar 71 meter)</h4>
+            <p>Penentuan kedudukan rangkaian tidak semestinya bergantung pada QuecLocator. Laluan alternatif telah disambungkan hujung-ke-hujung pada 2026-08-29:
+            modul hanya menghasilkan bahan (mengimbas hotspot pada halaman ini, membaca stesen pangkalan dengan <code>AT+QENG="servingcell"</code>),
+            dan selepas output terminal disimpan, ia diserahkan kepada <code>tools/wifi_geolocate.py</code> untuk menyiasat pangkalan data awam di PC —
+            <strong>modul sifar trafik, tanpa perkhidmatan Quectel</strong>.
+            Ujian sebenar (dibandingkan dengan nilai sebenar GNSS pada hari yang sama): carian stesen pangkalan menggunakan Unwired Labs (pendaftaran percuma) memberi
+            <strong>ralat 71 meter</strong> (kesimpulan penamat bagi barisan penentuan kedudukan ini), manakala beaconDB (tanpa kunci) memberi 632 meter;
+            carian Wi-Fi pula tersekat pada pembekal — ekosistem percuma telah runtuh (beaconDB tiada liputan di kawasan ini,
+            pelan percuma Unwired Labs tidak merangkumi Wi-Fi, Google / HERE memerlukan kad kredit), jadi ia ditangguhkan.</p>
+            <div class="tip">
+                <strong>71 meter ialah "padanan carian jadual", bukan "ketepatan pengukuran".</strong>
+                Penentuan kedudukan stesen pangkalan menggunakan Cell ID untuk mencari koordinat berdaftar stesen itu, jadi cell yang sama sentiasa memulangkan titik yang sama —
+                bertukar kepada stesen pangkalan lain, ralatnya boleh mencecah tahap kilometer; anggaran ±1051 meter yang dilaporkan perkhidmatan itu sendiri barulah anggaran yang jujur.
+                Selain itu Cell ID dan TAC adalah <strong>heksadesimal</strong>,
+                dan mesti ditukar kepada perpuluhan sebelum carian (alat ini sudah menanganinya secara terbina dalam).
+            </div>
+
+            <h4>Penyelesaian masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Punca dan penyelesaian</th></tr>
+                <tr><td>Menekan <code>Scan</code> hanya memulangkan <code>OK</code>, keputusan tidak pernah muncul</td>
+                    <td>URC dihantar ke port USB — semak dengan <code>AT+QURCCFG="urcport"</code>,
+                        jika bukan <code>"uart1"</code> maka ubahlah (ditulis ke NVRAM)</td></tr>
+                <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+                    <td>Tiada hotspot diimbas dalam had masa; tamat secara normal, bukan ralat. Tukar tempat atau panjangkan had masa</td></tr>
+                <tr><td><code>+QLBS: 702</code></td>
+                    <td>Tamat masa pelayan — hampir selalunya kerana terlupa <code>AT+QIACT=1</code>, bukan masalah token</td></tr>
+                <tr><td><code>+QLBS: 10002</code></td>
+                    <td>Token tidak wujud — perlu memohon secara berbayar kepada Quectel; projek ini telah memutuskan untuk tidak menggunakannya,
+                        beralih kepada laluan alternatif di atas</td></tr>
+                <tr><td>Mahu menggunakan <code>AT+QCELLLOC</code></td>
+                    <td>Unit ini <strong>tidak menyokongnya</strong> (memulangkan ERROR) — itu arahan siri EC2x</td></tr>
+            </table>

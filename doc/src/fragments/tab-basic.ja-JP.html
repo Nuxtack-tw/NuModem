@@ -1,0 +1,157 @@
+<h3 id="tab-basic">Basic —— SIM、診断と基本状態</h3>
+            <p><strong>動作原理：</strong>このページは接続のたびの出発点です。起動シーケンスを終えてターミナルに
+            <code>RDY</code> が出たら、まずここへ来て 3 つのことを行います：エラーメッセージを読める形式に変える、
+            SIM の準備完了を確認する、このカードが誰なのかを確かめる。ページ全体は <code>AT&amp;F</code> と PIN／PUK 解除を除き、
+            すべて読み取り専用の照会です —— 押してもモジュールの状態は変わりません。
+            接続状態を動かすコマンドは Network、TCP/IP などの他のタブに集約されています。
+            本節のサンプルはすべて 2026 年 8 月に実機 EG800K
+            （ファームウェア EG800KCNGCR07A06M04）で実測した値です。</p>
+
+            <h4>起動の後：RDY は SIM の準備完了を意味しない</h4>
+            <p><code>RDY</code> はモジュールが起動完了時に自発的に送る URC です。
+            これは AT インターフェースが生きたことを示すだけで、<strong>SIM カードはその裏でまだゆっくり初期化中</strong>です。
+            実測：<code>RDY</code> が出た直後に SIM 関連コマンドを送ると
+            <code>+CME ERROR: 14</code>（SIM busy）や、時には <code>+CME ERROR: 13</code>（SIM failure）が返ります。
+            <strong>約 6 秒待って</strong>から送ればすべて正常です。</p>
+            <div class="warning">
+                <strong>自動化スクリプトを書くとき、RDY を「作業開始 OK」の合図にしないでください。</strong>
+                正しいやり方は二択：RDY の後に固定で約 6 秒のバッファを置くか、
+                <code>AT+QINISTAT</code> をポーリングして bit 1（CPIN 準備完了）が立ってから続行するかです。
+            </div>
+
+            <h4>エコー（ATE）：「モジュールのエコー」と「ターミナルのローカルエコー」は別物</h4>
+            <p>エコーは<strong>モジュール</strong>が、送られてきた文字をそのまま送り返すこと（<code>ATE1</code> 有効、
+            <code>ATE0</code> 無効）。ターミナルのローカルエコーは<strong>ツール側</strong>が、打った文字を
+            先に画面へ表示することです。2 つのスイッチは互いに独立しており、両方有効だとすべての文字が 2 回表示されます。</p>
+            <ul>
+                <li>本ページの<strong>エコー切替ボタン</strong>はワンキーでモジュールのエコーを切り替えます。
+                    起動時の既定は<strong>有効</strong>（実測の AT パラメータ <code>E:1</code> が裏付け）。</li>
+                <li>ボタンに表示される状態は当てずっぽうの記憶ではありません —— ツールは<strong>実際の応答に基づいて自動補正</strong>します
+                    （エコー行を受信すれば有効と判定）。コマンドラインで <code>ATE0</code>／<code>ATE1</code>／
+                    <code>AT&amp;F</code> を手打ちしてもボタンの状態は同期し、ずれません。</li>
+                <li>切替は session-only：モジュールを再起動すれば既定に戻ります。起動時の既定に書き込むには別途
+                    <code>AT&amp;W</code> が必要です（本ページにはこのボタンを作っていないので、必要ならコマンドラインで手打ちしてください）。</li>
+            </ul>
+
+            <h4>エラーメッセージを読める形にする（CMEE）</h4>
+            <table>
+                <tr><th>ボタン</th><th>効果</th></tr>
+                <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+                    <td>エラーコードをテキスト記述に変えます。実例：GNSS 未測位のとき、数値モードでは
+                        <code>+CME ERROR: 516</code>、テキストモードでは
+                        <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> が返ります —— 後者は表を引かなくても何が起きたか分かります。
+                        <strong>本ツールは起動シーケンス後すぐこれを押すことを強く勧めます</strong></td></tr>
+                <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+                    <td>エラーコードは数値のまま —— ツールが自動的に表を引いて番号を読める注釈へ変換します</td></tr>
+            </table>
+            <div class="tip">
+                どちらの設定も <strong>session-only</strong>：modem を再起動すれば消えます
+                （ページの再読み込み ＝ RTS 電源断 ＝ 再起動、これも該当）。さらに実測で判明：
+                <code>CMEE=2</code> を有効にしていても、一部のサブシステム（ファイルシステム FILE エラーなど）はテキストと数値が混在して出るため、
+                解析プログラムを書くときは両方の形式を受け付ける必要があります。
+            </div>
+
+            <h4>AT&amp;F：工場出荷時既定へ戻す —— 影響範囲</h4>
+            <p><strong>Factory Reset</strong> ボタンは AT 設定を工場出荷値にリセットします。
+            誰かに滅茶苦茶に設定されたモジュールを引き継ぐときの第一歩です。本ページで押すと先に確認が出る唯一のボタンです。
+            実測で確認済みの影響範囲：<strong>エコーは有効に戻ります</strong>
+            （エコー切替ボタンの状態も自動で追従）、<strong>ボーレートには影響しません</strong>。
+            その他の各設定が戻るかどうかは、マニュアルの <code>AT&amp;F</code> の項目を 1 つずつ確認してください。</p>
+
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Basic タブ">
+                <figcaption>Basic ページの 3 グループのボタン：Echo（エコーとエラー形式）、
+                SIM（照会と PIN／PUK 解除）、Status（時計、電圧、ネットワーク時刻）。</figcaption>
+            </figure>
+
+            <h4>SIM の 3 連照会：入っているか、パスワード待ちか、初期化はどこまでか</h4>
+            <table>
+                <tr><th>ボタン</th><th>問う内容</th><th>読み方</th></tr>
+                <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+                    <td>カードがちゃんと挿さっているか</td>
+                    <td>応答は 2 欄：第 1 欄は挿抜 URC のスイッチ、<strong>第 2 欄こそカード状態</strong>です。欄を見間違えないように。
+                        本機のこのボタンには誤報の前科があります。下の警告を参照</td></tr>
+                <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+                    <td>カードがパスワード待ちか</td>
+                    <td><code>+CPIN: READY</code> ＝「今は何のパスワードも待っていない」。
+                        ⚠ <strong>このカードに PIN が不要という意味ではありません</strong> —— PIN を設定したカードも解除後は READY を返します。
+                        カード無しは <code>+CME ERROR: 10</code></td></tr>
+                <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+                    <td>初期化の進み具合</td>
+                    <td>ビットマスク：1＝CPIN 準備完了、2＝SMS、4＝電話帳、7＝すべて完了。
+                        本機の実測では起動が安定した後に <strong>3</strong> を読み取り（電話帳ビットは立たず）——
+                        「作業を始められるか」の判定は bit 1 を見れば十分で、<strong>7 を待ち続けてはいけません</strong></td></tr>
+            </table>
+            <div class="warning">
+                <strong>Card In? は本機では嘘をつきます。</strong>実測では <code>AT+QSIMSTAT?</code> が
+                <code>0,0</code>（カード取り外し済み）を返すのに、同じ時点で CPIN READY、ネットワークにアタッチ済み、IP も取得済み ——
+                カードは全く問題ありません。制御ボードが SIM_DET 検出ピンを配線していない（あるいは <code>AT+QSIMDET</code> が未有効）ため、
+                読み値が常に「未挿入」になっていると推測されます。<strong>カードの有無の判定は <code>AT+CPIN?</code> か
+                <code>AT+QINISTAT</code> を基準にしてください。</strong>
+            </div>
+
+            <h4>このカードは誰か：IMSI と ICCID</h4>
+            <p><strong>IMSI</strong> ボタン（<code>AT+CIMI</code>）は生の数字列を返します。
+            これはこのカードのモバイル網上の加入者識別番号です。本機の実測は <code>901405117661468</code>：
+            先頭 3 桁（MCC）は <strong>901 ＝ 国際ローミングカードの番号帯</strong> ——
+            本機のカードは 1NCE の IoT カードで、これが <code>AT+CEREG?</code> がずっと
+            <code>0,5</code>（登録済み、<strong>ローミング</strong>）を返す理由でもあります：信号の異常ではなく、
+            この種のカードの常態です。データテストの前にローミングカードだと見抜き、通信料金に注意してください。</p>
+            <p><strong>ICCID</strong> ボタン（<code>AT+QCCID</code>）はカードのシリアル番号を照会します。
+            実測では <code>+QCCID: 89882280666176614687</code> が返りました。
+            ⚠ <strong>マニュアルに <code>AT+CCID</code> というコマンドはありません</strong> ——
+            他社モジュールの解説でよく見るあのコマンドはここでは通用せず、Quectel 専用の <code>AT+QCCID</code> を使います。</p>
+
+            <h4>PIN 解除：まず残り回数を照会してから動く</h4>
+            <ol>
+                <li><strong>まず PIN Left</strong>（<code>AT+QPINC?</code>）を押して残り試行回数を見ます ——
+                    マニュアルの範囲：PIN は残り 0–3 回、PUK は残り 0–10 回。
+                    動く前に自分に残り何発あるかを知っておきましょう。</li>
+                <li>カードが PIN 待ちのときは <strong>Enter PIN</strong> を押します：先に<strong>パラメータカード</strong>が展開され、
+                    PIN を記入してから送出します（コマンドのテンプレートは <code>AT+CPIN="{pin}"</code>、最長 5 秒待ち）。</li>
+                <li>PIN の回数を使い切り、カードが PUK を要求するようになったら <strong>Unlock PUK</strong>：
+                    マニュアルの規定では <strong>PUK は新しい PIN と一緒に送る必要があります</strong>
+                    （<code>AT+CPIN="{puk}","{newpin}"</code>）。同じくパラメータカードを使い、最長 5 秒待ちです。</li>
+            </ol>
+            <div class="warning">
+                間違えて送るたびに 1 回減ります。PUK が底をつきそうなときは<strong>手を止めて通信事業者へ</strong>。
+                当てずっぽうで回数を焼き尽くさないでください。
+            </div>
+
+            <h4>状態の 3 ボタン：時計、電圧、ネットワーク時刻</h4>
+            <table>
+                <tr><th>ボタン</th><th>見るもの</th><th>実測と読み方</th></tr>
+                <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+                    <td>モジュールの RTC 時計</td>
+                    <td><code>+CCLK: "26/08/01,00:55:32+32"</code>。
+                        タイムゾーン欄 <code>+32</code> の単位は「クォーター」（15 分）：32 × 15 分＝UTC+8。
+                        本機の実測では RTC はすでにネットワークで時刻合わせ済みで、時刻もタイムゾーンも正確でした</td></tr>
+                <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+                    <td>供給電圧</td>
+                    <td>一部のファームウェアは非対応で ERROR が返るのは正常。本機のファームウェアは対応しており、
+                        実測 <code>+CBC: 0,0,4264</code> —— 末尾の欄が電圧（mV）、つまり 4.264 V</td></tr>
+                <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+                    <td>ネットワーク同期から推算した現在のローカル時刻</td>
+                    <td>実測 <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>。
+                        Clock との違いは<strong>ソース</strong>：CCLK はモジュール自身の RTC を読むのに対し、
+                        QLTS はネットワーク時刻を直接取得します。年の形式も異なります（RTC は 2 桁、QLTS は 4 桁）。解析時に混同しないように</td></tr>
+            </table>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td>RDY 直後に SIM を照会するとエラー 14 か 13 が返る</td>
+                    <td>SIM がまだ初期化中です（14＝SIM busy。13＝SIM failure もこの段階で出たことがあります）。
+                        約 6 秒待って送れば正常になります。カードが壊れたと早合点しないでください</td></tr>
+                <tr><td>Card In? はカード取り外しと言うのに、他の機能はすべて正常</td>
+                    <td>SIM_DET 検出ピンの問題（本機での実測事例）で、カードの問題ではありません。
+                        代わりに <code>AT+CPIN?</code>／<code>AT+QINISTAT</code> を見てください</td></tr>
+                <tr><td>画面上のすべての文字が 2 回表示される</td>
+                    <td>モジュールのエコーとターミナルのローカルエコーが同時に有効です —— エコー切替ボタンを 1 回押せば解決</td></tr>
+                <tr><td>エラーが素っ気ない数字しか返さない</td>
+                    <td>まだ CMEE を有効にしていません。Verbose Err を押してください。これは session-only なので、
+                        起動シーケンスのたびに押し直しが必要です</td></tr>
+                <tr><td>コマンドを送っても全く応答が無い</td>
+                    <td>ポートを開き直すと RTS が再アサート＝電源断となり、モジュールは実は再起動しています。
+                        完全な起動シーケンスをやり直す必要があり、飛ばすと全く応答しません</td></tr>
+            </table>

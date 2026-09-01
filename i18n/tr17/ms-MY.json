@@ -1,0 +1,17 @@
+{
+ "⚠ 本機出廠為空，沒有它 AT+QLBS 會回 10002（token 不存在）。⚠ 若回 702 那是伺服器逾時、不是 token 問題 —— 先確認 AT+QIACT? 有 PDP。設定後讀回會被模組遮成 *，跟 FTP 密碼一樣": "⚠ Kosong dari kilang pada unit ini; tanpanya AT+QLBS akan menjawab 10002 (token tidak wujud). ⚠ Jika ia menjawab 702, itu tamat masa pelayan, bukan masalah token —— sahkan dahulu AT+QIACT? mempunyai PDP. Selepas ditetapkan, bacaan semula akan ditopengkan oleh modul menjadi *, persis seperti kata laluan FTP",
+ "設定 QuecLocator token。⚠ 這串要向 Quectel 申請，本機出廠是空的 —— 沒有它 AT+QLBS 會回 10002（token 不存在）。⚠ 若回的是 702 那是「伺服器逾時」不是 token 問題 —— 先查 AT+QIACT? 有沒有 PDP。讀回時會被模組遮成 *": "Tetapkan token QuecLocator. ⚠ Rentetan ini perlu dipohon daripada Quectel dan unit ini kosong dari kilang —— tanpanya AT+QLBS akan menjawab 10002 (token tidak wujud). ⚠ Jika yang dikembalikan ialah 702, itu «tamat masa pelayan» bukan masalah token —— semak dahulu sama ada AT+QIACT? mempunyai PDP. Ketika dibaca semula ia akan ditopengkan oleh modul menjadi *",
+ "網路定位失敗 —— 錯誤 {0}：伺服器逾時未回應": "Penentuan kedudukan melalui rangkaian gagal —— ralat {0}: pelayan tamat masa tanpa jawapan",
+ "定位失敗": "Penentuan kedudukan gagal",
+ "IMEI 不合法": "IMEI tidak sah",
+ "token 不存在": "token tidak wujud",
+ "同一 token 的裝置數超過上限": "Bilangan peranti bagi token yang sama melebihi had",
+ "同一裝置單日定位次數超過上限": "Bilangan penentuan kedudukan sehari bagi peranti yang sama melebihi had",
+ "同一 token 的總定位次數超過上限": "Jumlah keseluruhan penentuan kedudukan bagi token yang sama melebihi had",
+ "token 已過期": "token telah tamat tempoh",
+ "伺服器不接受此 IMEI": "Pelayan tidak menerima IMEI ini",
+ "同一 token 單日定位次數超過上限": "Bilangan penentuan kedudukan sehari bagi token yang sama melebihi had",
+ "（QuecLocator 走 HTTP，此碼可能是 HTTP 層錯誤；官方 10000-10008 表未收錄）": " (QuecLocator berjalan atas HTTP, jadi kod ini mungkin ralat lapisan HTTP; ia tidak disenaraikan dalam jadual rasmi 10000-10008)",
+ "（不是 token 問題！先確認 AT+QIACT? 回得出 IP —— 沒有 PDP 就連不到 QuecLocator 伺服器。逾時秒數見 AT+QLBSCFG=\"timeout\"）": " (Bukan masalah token! Sahkan dahulu AT+QIACT? memulangkan IP —— tanpa PDP modul tidak dapat menghubungi pelayan QuecLocator. Untuk bilangan saat tamat masa lihat AT+QLBSCFG=\"timeout\")",
+ "（模組讀回時會遮成 *；沒設 token 時 AT+QLBS 回 10002）": " (Modul menopengkan bacaan semula menjadi *; apabila token tidak ditetapkan AT+QLBS menjawab 10002)"
+}

@@ -1,0 +1,152 @@
+<h3 id="tab-http">HTTP —— Web リクエスト</h3>
+            <p><strong>動作原理：</strong>モジュールの HTTP は<strong>3 段階</strong>です：
+            まず URL を設定し（このステップ自体がまた 2 段階）、次にリクエストを発行し（GET／POST）、最後にレスポンスを読み戻します。
+            各段階の結果は <code>OK</code> の中にはなく、その後に届く URC にあります ——
+            したがって <code>AT+QURCCFG="urcport"</code> は <code>"uart1"</code> でなければならず（Hardware ページで変更可）、
+            そうでないと結果は 1 つも見えません。データはすべて 2026-08 の実機実測です。</p>
+
+            <h4>始める前に：まずデータチャネルを</h4>
+            <p>前提は PDP が有効化され IP を取得済みであること（TCP/IP ページの <code>AT+QIACT=1</code>）。
+            本ページの <strong>Connect グループ</strong>には読み取り専用チェックしか置いていません：
+            <code>AT+CPIN?</code>／<code>AT+CGATT?</code>／<code>AT+CGREG?</code>／
+            <code>AT+QIACT?</code>、<code>AT+QIDNSCFG=1</code>（DNS 0.0.0.0＝未割当）、
+            <code>AT+QIGETERROR</code>（⚠ 最後の 1 本の TCP/IP コマンドにしか有効でないため、
+            失敗したら<strong>すぐに</strong>押すこと）。</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> は嘘をつきます。</strong>実測で PDP の途中漂流に遭遇しました：
+                すべてのリクエストが失敗、<strong>固定 30 秒タイムアウト</strong>でエラー 716 なのに、
+                <code>AT+QIACT?</code> は平然と IP を返します。<code>AT+CGACT?</code> と突き合わせ、
+                不一致なら漂流です。直し方：<code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;漂流した cid&gt;</code> → <code>AT+QIACT=1</code>、
+                ping を通してから続行。
+            </div>
+
+            <h4>初めての GET：4 つのステップ</h4>
+            <ol>
+                <li><strong>前準備の設定</strong>（Config グループ、通信量ゼロ）：<code>contextid</code>
+                    のパラメータカードで 1 を設定（使う PDP context に紐付け）。<code>rspout/auto</code>、
+                    <code>requestheader</code>、<code>responseheader</code> の 3 スイッチは 0 のまま
+                    （理由は後述）。<code>AT+QHTTPCFG?</code> で全設定を一度に読み戻して照合し、
+                    <code>AT+QHTTPCFG=?</code> で設定可能項目を一覧します。</li>
+                <li><strong>URL を設定（2 段階）</strong>：<code>AT+QHTTPURL</code> のカードには
+                    「送出（2 段階）」ボタンが 1 つだけあります —— URL を記入すれば長さはプログラムが自動計算。流れ：まず
+                    <code>AT+QHTTPURL=&lt;長さ&gt;,80</code> を送り、<code>CONNECT</code> を待って
+                    データモードに入り、URL のバイト列をそのまま送出します。<strong>行末は一切付けません</strong>
+                    （CR/LF は長さに数えられてしまいます）。
+                    <code>http://www.example.com/</code> の長さはちょうど 23 です。送り終えたら
+                    <code>AT+QHTTPURL?</code> で読み戻し、一字一句同じなら＝行末が紛れ込んでいません。</li>
+                <li><strong>リクエストを発行</strong>：<code>AT+QHTTPGET=80</code>（レスポンス待ち秒数）。
+                    <code>OK</code> は「コマンドを受け付けた」の意味でしかなく、本当の結果は少し後の URC
+                    <code>+QHTTPGET: 0,200</code> です。読み方は次の段落を参照。</li>
+                <li><strong>レスポンスを読む</strong>：<code>AT+QHTTPREAD=80</code>。
+                    <code>CONNECT</code> の後はすべて生バイトで（実測では example.com は
+                    559 bytes）、続けて <code>OK</code> ——
+                    ただし<strong>最後に独立した 1 行の <code>+QHTTPREAD: 0</code> こそ終了マーカーです</strong>。</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="HTTP タブ">
+                <figcaption>HTTP ページ：Config／Connect／Transfer／Close の 4 グループ。</figcaption>
+            </figure>
+
+            <h4>+QHTTPGET の読み方：第 1 欄は HTTP ステータスコードではない</h4>
+            <p>GET／POST／POSTFILE の結果 URC はいずれも
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code> の 3 欄です：
+            <code>err</code> は <strong>0 ＝ コマンド実行成功</strong>、非 0 はモジュール層のエラー（716、711…）。
+            <code>httprspcode</code> は HTTP ステータスコードで、<strong>err=0 のときだけ報告されます</strong>
+            （マニュアル明記。ツールには 200／403／404／409／411／500 の対照注釈を内蔵）。
+            <code>content_length</code> は任意 —— サーバーのレスポンスヘッダに CONTENT-LENGTH があるときだけ現れ、
+            普通の GET はしばしば 2 欄だけです。したがって実測の <code>+QHTTPGET: 0,404,0</code> は
+            <strong>失敗ではありません</strong>：コマンドは成功し、サーバーが見つからないと言っているのです。</p>
+
+            <h4>レスポンスを読む：AT+QHTTPREAD の罠</h4>
+            <p>パラメータは「2 つのパケット間の最大間隔秒数」であって、総時間ではありません。
+            <strong>本機のファームウェアはパラメータを 1 つしか受け付けません</strong>：アプリケーションノートの
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> という分割読みは実測で裸の
+            <code>ERROR</code> が返り（<code>=?</code> の探索で実証）、ボタンは撤去済みです ——
+            分割取得は <code>GETEX</code> を使います。</p>
+            <div class="warning">
+                <strong>相互ロックの罠：<code>rspout/auto</code> を 1 にすると、READ 系は一律失敗します</strong>
+                （マニュアル明記）。モジュールが自動でレスポンスを吐く代わりに READ 系が全滅するため、
+                このボタンには確認ダイアログが付いています。READ が突然全滅したら、まず <code>AT+QHTTPCFG?</code> を確認。
+            </div>
+
+            <h4>分割取得：AT+QHTTPGETEX でバイト単位に読む</h4>
+            <p><code>AT+QHTTPGETEX=&lt;秒&gt;,&lt;開始オフセット&gt;,&lt;長さ&gt;</code>
+            は HTTP Range で指定した断片だけを取り、通信量を節約します。実測（エンドポイントの内容は
+            <code>abcdefghijklmnop</code> に固定）：オフセット 0 から 8 取ると <code>+QHTTPGET: 0,206,8</code>、
+            読み出しは <code>abcdefgh</code>。オフセット 8 からさらに 8 取ると <code>ijklmnop</code>。
+            読み方：<strong>ステータスコードは 206 でなければなりません</strong>。<strong>200 が返り毎回内容が同じ</strong>
+            ＝サーバーが Range 非対応なだけで、モジュールの故障ではありません。
+            ⚠ <code>requestheader=0</code> のときだけ実行できます。</p>
+
+            <h4>POST：2 段階と Content-Type</h4>
+            <p><code>AT+QHTTPPOST</code> のカードも 2 段階です：body を記入すれば長さは自動計算。まず
+            <code>AT+QHTTPPOST=&lt;長さ&gt;,&lt;入力秒&gt;,&lt;応答秒&gt;</code> を送り、
+            <code>CONNECT</code> を待って body を送ります。3 つのこと：</p>
+            <ul>
+                <li><strong><code>CONNECT</code> は最長 125 秒待つ必要があります</strong>（マニュアル明記）——
+                    プロンプト待ちのタイムアウトは 125 秒に設定し、MQTT の 5 秒を流用しないこと。</li>
+                <li>body の上限は 1 MB（<code>=?</code> の実測範囲 1–1024000）。</li>
+                <li>Content-Type は先に <code>contenttype</code> のパラメータカードで設定
+                    （型コード 0 ＝ form-urlencoded）。</li>
+            </ul>
+            <p>実測：POST <code>Message=HelloQuectel</code>（20 bytes）は
+            <code>+QHTTPPOST: 0,200,440</code> を返しました。READ が返す JSON でキーと値の到達、
+            長さの計算、Content-Type の効きを検証でき、User-Agent はモジュールの自己申告の
+            <code>QUECTEL_MODULE</code> でした。</p>
+
+            <h4>カスタムヘッダとレスポンスヘッダ</h4>
+            <ul>
+                <li><code>reqheader/add</code>：カスタムリクエストヘッダを 1 本追加（マニュアルに実例なし）。
+                    照会ボタンで現在何本追加済みかを確認でき、<code>reqheader/remove</code> で除去します。</li>
+                <li><code>requestheader</code> を 1 に＝リクエストヘッダ全体を自分で組むことになり、GET まで 2 段階になり、
+                    しかも <code>GETEX</code> が使えません。普段は 0 のまま。</li>
+                <li><code>responseheader</code> を 1 にすると READ が HTTP レスポンスヘッダも一緒に吐きます
+                    （実測ではカスタムの X-Test まで持ち帰れました）。試し終えたら 0 に戻すこと。</li>
+                <li><code>closed/ind</code>：「session が閉じられた」の URC 報告を有効化。</li>
+            </ul>
+
+            <h4>ファイル版：POSTFILE と READFILE（UFS）</h4>
+            <p><code>AT+QHTTPPOSTFILE="ファイル名",&lt;秒&gt;</code> はモジュールのファイルシステム（UFS）のファイルを
+            body として POST を送り、<code>AT+QHTTPREADFILE="ファイル名",&lt;秒&gt;</code> はレスポンスを
+            UFS ファイルとして保存します。⚠ 本ツールは現在<strong>UFS へのファイル事前アップロードも、UFS
+            ファイル内容の読み戻しもできません</strong>。この 2 本はファームウェア側のフローと組み合わせて使うためのものです。</p>
+
+            <h4>HTTPS：検証なしの経路</h4>
+            <p>HTTPS ＝ HTTP ＋ SSL context。Connect グループに最短経路を用意してあります。5 つを順に押します：</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP に SSL context 1 を指定
+AT+QSSLCFG="sslversion",1,4        ← TLS バージョンはサーバーとの交渉に委ねる
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← 暗号スイート全開
+AT+QSSLCFG="seclevel",1,0          ← 証明書を検証しない（下記参照）
+AT+QSSLCFG="sni",1,1               ← SNI を有効化（出荷時は 0！）</pre>
+            <p>その後 URL を <code>https://</code> 始まりに替えれば通常どおり GET／READ ——
+            実測では読み戻した HTML は平文版と一字一句同じでした。
+            <strong><code>seclevel=0</code>（証明書を検証しない）が本ツールで完走できる唯一の経路です</strong>
+            —— 証明書を検証するには先に CA 証明書を UFS へ書き込む必要があります。SSL の詳細（<code>AT+QSSLCFG=?</code>
+            で全サブ項目を一覧、<code>negotiatetime</code> でハンドシェイク待ち秒数を調整）は〈SSL —— TLS チャネル〉の節を参照。
+            <strong>SNI は出荷時 0</strong>：有効にしないと、IP を共用する HTTPS サイトは一致しない証明書を受け取り、
+            検証すれば必ず失敗します。<strong>証明書チェーンが通信量の大半です</strong>：HTTPS GET 一巡で約 8–15 KB、
+            平文なら約 1 KB です。</p>
+
+            <h4>リダイレクトと後始末</h4>
+            <p><strong>リダイレクト（マニュアル未記載、実測で解明）</strong>：モジュールは 302 を自動で追いますが、
+            <strong>絶対パスの Location しか受け付けません</strong> —— 相対パスは即エラー 711、
+            1 ミリ秒で即失敗します。<strong>後始末</strong>：
+            <code>AT+QHTTPSTOP</code>（Close グループ）は進行中のリクエストを取り消して session を切断します。
+            状態がおかしいとき、またはエラー 704（データモードが占有中）が出たときは、まずこれを押してきれいにします。</p>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td>結果 URC が何も見えない</td><td><code>urcport</code> が <code>uart1</code> ではありません。
+                    Hardware ページで変更を</td></tr>
+                <tr><td>すべての URL が 716、固定 30 秒タイムアウト</td>
+                    <td>PDP の漂流。上の警告を参照</td></tr>
+                <tr><td>特定の URL だけ 716 が返る</td><td>実測では DNS 失敗も 716 でした（古い文書が推測した
+                    714 ではなく）。続く READ の 705 は正常な連鎖です</td></tr>
+                <tr><td><code>READ</code>／<code>GETEX</code> が突然失敗する</td>
+                    <td><code>rspout/auto</code> と <code>requestheader</code>
+                        はどちらも 0 であること（上記参照）</td></tr>
+                <tr><td><code>AT</code> にすら応答しない</td>
+                    <td>モジュールのハング（実測で遭遇。マニュアルに記述なし）—— 起動シーケンスをやり直す</td></tr>
+            </table>

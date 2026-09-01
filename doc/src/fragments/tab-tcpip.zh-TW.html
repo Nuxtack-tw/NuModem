@@ -1,0 +1,148 @@
+<h3 id="tab-tcpip">TCP/IP —— 資料連線的根</h3>
+            <p><strong>工作原理：</strong>這一頁是所有資料協定的地基。<strong>PDP context
+            （電信網路配給的資料通道）只在這一頁啟用與停用</strong>，SSL／HTTP／MQTT／FTP
+            各頁只放唯讀查詢，避免同一條指令兩處互踩。
+            本節陷阱與秒數皆為 2026 年 8 月實機實測。</p>
+            <figure class="shot">
+                <img src="img/03-tcpip.png" alt="TCP/IP 頁簽">
+                <figcaption>TCP/IP 頁：PDP、socket 收送與診斷工具。</figcaption>
+            </figure>
+
+            <h4>第一步：啟用 PDP（QICSGP／QIACT／QIDEACT）</h4>
+            <p>按 <strong>Act PDP</strong>（<code>AT+QIACT=1</code>）：最長阻塞 150 秒、
+            期間勿下其他指令，從此開始產生流量（漫遊注意費用）。成功後<strong>一定要按
+            Query IP</strong>（<code>AT+QIACT?</code>）確認回 <code>+QIACT: 1,1,1,"IP位址"</code>
+            —— 沒啟用前只回 OK。收線按 <strong>Deact PDP</strong>（<code>AT+QIDEACT=1</code>，
+            最長 40 秒），會強制關閉其下所有連線。<strong>Set APN</strong>
+            （<code>AT+QICSGP</code>）平常不必按 —— 模組會自動同步網路配的 APN
+            （實測 1NCE 卡開機讀回已是 <code>iot.1nce.net</code>），要帳密的企業 APN 才需要。</p>
+            <div class="warning">
+                <strong>Act PDP 回 ERROR、Last Error 572？這卡只允許一條 PDP。</strong>
+                開機時網路已自動啟用一個且<strong>編號會浮動</strong>（實測見過 9 與 1），
+                <code>AT+QIACT</code> 只碰得到 1–8。解法：Network 頁 <code>AT+CGACT?</code>
+                查編號 → <code>AT+CGACT=0,&lt;編號&gt;</code> 讓出名額 → 再按 Act PDP。
+                <br><br>
+                <strong>測到一半全掛？<code>AT+QIACT?</code> 會騙人</strong> —— PDP 漂移時
+                它照樣回 IP，要與 <code>AT+CGACT?</code> 交叉比對才看得出來。復原：
+                Deact PDP → <code>AT+CGACT=0,&lt;漂移編號&gt;</code> → Act PDP → Ping 驗證。
+            </div>
+
+            <h4>開連線：OK 只代表「指令收下」</h4>
+            <p>按 <strong>Open TCP</strong>、參數卡填主機與埠
+            （<code>AT+QIOPEN=1,0,"TCP","主機",埠,0,0</code>；context 1、connectID 0、
+            buffer 模式已固定）。<strong>OK 只代表指令收下</strong>，成敗看 URC
+            <code>+QIOPEN: 0,&lt;err&gt;</code>：0＝成功，最長 150 秒；
+            <strong>563＝connectID 還開著</strong>，先按 Close Sock。
+            <strong>All Socks</strong>（<code>AT+QISTATE</code>）列出所有 socket，
+            state 2＝已連上。</p>
+
+            <h4>送資料：三種方式</h4>
+            <table>
+                <tr><th>按鈕</th><th>說明</th></tr>
+                <tr><td><strong>Send Text</strong><br><code>AT+QISEND=0,&lt;len&gt;</code></td>
+                    <td>定長兩段式：等 <code>&gt;</code> 再送本文，長度自動算、
+                        <strong>免 Ctrl+Z</strong>。純文字首選；上限 1460 bytes、
+                        支援 <code>\n \r \t \xHH</code> 跳脫</td></tr>
+                <tr><td><strong>Send Var 三顆鈕</strong><br><code>AT+QISEND=0</code></td>
+                    <td>變長式：進資料模式一直收，見 Ctrl+Z（0x1A）才送出 ——
+                        可分次寫，見下段</td></tr>
+                <tr><td><strong>Send Hex</strong><br><code>AT+QISENDEX=0,"hex"</code></td>
+                    <td>單行式，不進資料模式。可送任意位元組（含 0x00）；
+                        hex 上限 512 字元＝實際 256 bytes</td></tr>
+            </table>
+            <p><strong>送出（續寫）</strong>第一次按進資料模式、之後每按追加一段
+            （已在資料模式時不重送指令，重送會變成資料）；<strong>送出後自動結束</strong>
+            追加並補 Ctrl+Z，只送一段時最快；<strong>結束（Ctrl+Z）</strong>把累積內容
+            一次送出。進資料模式時終端機會標示；放棄按
+            <strong>ESC Cancel</strong>（0x1B，兩段式卡住時的脫身鍵）。
+            ⚠ 資料不能含 0x1A（會被當提早結束），控制字元改用 Send Hex。</p>
+            <div class="tip">
+                <strong>SEND OK 不代表對方收到</strong>，只表示資料交給模組。按
+                <strong>Check ACK</strong>（<code>AT+QISEND=0,0</code>）查已送／已 ACK，
+                <strong>看 acked 才算數</strong>。
+            </div>
+
+            <h4>收資料：不會自己出現，要按 Read Data</h4>
+            <p>buffer 模式下收到的資料<strong>不會</strong>自動出現在終端機：模組只發
+            <code>+QIURC: "recv",0</code> 通知，要按 <strong>Read Data</strong>
+            （<code>AT+QIRD=0,1500</code>）取出，且<strong>重複讀到回 <code>+QIRD: 0</code>
+            為止</strong> —— 沒讀乾淨就不會再有下一次通知。
+            <strong>Unread Len</strong>（<code>AT+QIRD=0,0</code>）查總收／已讀／未讀。
+            收發完按 <strong>Close Sock</strong>（<code>AT+QICLOSE=0</code>，最長 10 秒）。
+            ⚠ <strong>完全收不到 recv 通知？</strong>Hardware 頁查
+            <code>AT+QURCCFG="urcport"</code> 是不是 <code>uart1</code> ——
+            出廠值是 USB 埠，URC 全跑去那邊。</p>
+
+            <h4>內建對端 tcpbin.com 的兩個脾氣</h4>
+            <p>Open TCP 預設對端是免費 echo 伺服器 <code>tcpbin.com:4242</code>，
+            兩個實測脾氣：</p>
+            <ul>
+                <li><strong>逐行 echo，結尾要換行（0A）</strong>：送 Hello 無 0A 等 6 秒
+                    無回應，補 0A 後 0.1 秒立刻收到。Send Text 結尾加 <code>\n</code>、
+                    Send Hex 尾加 <code>0A</code>。</li>
+                <li><strong>15 秒閒置逾時</strong>：閒置就被斷線並收到
+                    <code>+QIURC: "closed",0</code>。這與 QIRD 無關（它只讀本地緩衝、
+                    不觸網）。要維持連線每 10 秒內送一次資料。收到 closed 後 socket 停在 closing，
+                    <strong>必須先按 Close Sock</strong> 才能重用，否則 QIOPEN 回 563。</li>
+            </ul>
+
+            <h4>診斷三件套：Ping／DNS Lookup／NTP Sync</h4>
+            <table>
+                <tr><th>按鈕（都須先 Act PDP）</th><th>行為與實測</th></tr>
+                <tr><td><strong>Ping</strong><br><code>AT+QPING</code></td>
+                    <td>timeout 4 秒 ×4 已固定。實測 8.8.8.8 全通、RTT 160–270 ms。
+                        ⚠ 很多伺服器擋 ICMP，<strong>ping 不通不代表 TCP 連不上</strong>，
+                        連通性直接 Open TCP</td></tr>
+                <tr><td><strong>DNS Lookup</strong><br><code>AT+QIDNSGIP</code></td>
+                    <td>結果以 URC <code>+QIURC: "dnsgip"</code> 回報（最長 60 秒），
+                        實測分兩段、含多筆 IP</td></tr>
+                <tr><td><strong>NTP Sync</strong><br><code>AT+QNTP</code></td>
+                    <td>最長 125 秒、埠 123 已固定，結果看 URC <code>+QNTP</code>。
+                        ⚠ <strong>時間是 UTC 卻帶本地時區標記</strong>（+32 刻＝GMT+8，實測差正好
+                        8 小時）；看本地時間用 <code>AT+CCLK?</code></td></tr>
+            </table>
+
+            <h4>出錯了：先按 Last Error，再做 30 秒鑑別</h4>
+            <p>指令回 ERROR 就<strong>立刻</strong>按 <strong>Last Error</strong>
+            （<code>AT+QIGETERROR</code>）—— 只保留最後一條，被下一個錯誤蓋掉就查不到。
+            它查 Quectel 堆疊層；網路層用 Network 頁的 <code>AT+CEER</code>。</p>
+            <div class="warning">
+                <strong>🔴 資料堆疊退化 —— 最耗時的坑。</strong>症狀：所有連線一律
+                失敗，但自檢全說沒事（QIACT? 有 IP、QIGETERROR 回 0）。實測連續開關 SSL
+                約 20 次後觸發，連純 TCP 的 QIOPEN 都回 552；QIDEACT＋QIACT 救不回，
+                <strong>只有重跑開機儀式能復原</strong>。<br><br>
+                <strong>30 秒鑑別法</strong>：用 Open TCP 打同一目標 —— 也失敗＝整個堆疊
+                壞了，重跑開機儀式；成功＝問題在上層協定，繼續查。
+            </div>
+
+            <h4>Keepalive：擋得住電信商 NAT，擋不住 tcpbin</h4>
+            <p><strong>QICFG=?</strong> 列子項與範圍、<strong>Keepalive?</strong> 查現值、
+            <strong>Keepalive On／Off</strong> 開關 —— 這四顆指令<strong>本身</strong>零流量；
+            啟用後只要有 socket 閒置著，探測封包就計入行動流量。
+            <strong>它擋不住 tcpbin 的 15 秒逾時</strong>：實測開了仍在 15.1 秒被關 ——
+            keepalive 是 TCP 層空探測，應用程式看不到；且 interval 最小 25 秒，
+            本來就大於 15。要撐應用層逾時只能送真資料（如每 10 秒 Send Hex 送
+            <code>0A</code>）。真正用途是<strong>電信商 NAT
+            保活</strong>（IoT 卡 NAT 閒置數分鐘就被回收）。</p>
+            <p>流量帳（<strong>推算非實測</strong>）：一次探測來回約 80 bytes；
+            預設 idle＝30 秒持續閒置 → 每小時約 9.4 KB、一天約 225 KB、
+            <strong>一個月約 6.8 MB</strong>；idle＝600 秒 → 一天約 11 KB。
+            1NCE 這類總量預付卡要把 idle 調大。沒 socket 開著就完全不耗流量。</p>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td><code>+QIOPEN: 0,563</code></td>
+                    <td>connectID 還開著 —— 先 Close Sock</td></tr>
+                <tr><td>收不到 <code>+QIURC: "recv"</code></td>
+                    <td>① urcport 不是 uart1（Hardware 頁）
+                        ② 沒讀到 <code>+QIRD: 0</code>，通知被抑制</td></tr>
+                <tr><td>冒出 <code>+QIURC: "closed",0</code></td>
+                    <td>tcpbin 15 秒閒置逾時；Close Sock 後可重開</td></tr>
+                <tr><td>兩段式卡住、AT 口不回應</td>
+                    <td>按 ESC Cancel 脫身；再不行 Hardware 頁 Reset</td></tr>
+                <tr><td>連線全失敗但自檢全綠</td>
+                    <td>資料堆疊退化 —— 鑑別後重跑開機儀式</td></tr>
+                <tr><td>Act PDP 回 ERROR，或測到一半全掛</td>
+                    <td>單一 PDP 名額被佔／PDP 漂移 —— 見〈第一步〉兩個排障框</td></tr>
+            </table>

@@ -1,0 +1,149 @@
+<h3 id="tab-network">Network —— kayıt, operatör, radyo</h3>
+            <p><strong>Çalışma prensibi:</strong> Tüm veri işlevlerinin çalışabilmesinin ön koşulu, <strong>mobil şebekeye kayıtlı olmak</strong>
+            ve <strong>PDP veri kanalının hazır olmasıdır</strong> —— bu sayfa şebekeye girişin gösterge paneli ve anahtarlarıdır;
+            "internete bağlanamıyorum" sorunlarının ayıklanması hep buradan başlar. Bu bölümdeki değerler, Ağustos 2026'da gerçek bir EG800K üzerinde ölçülmüştür.</p>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Network sekmesi">
+                <figcaption>Network sayfasının beş düğme grubu: kayıt sorgusu, Signal URC, PDP, tanılama, radyo kontrolü.</figcaption>
+            </figure>
+
+            <h4>Başlamadan önce: URC'yi UART'a alın</h4>
+            <p>EG800K fabrikadan kendiliğinden bildirim mesajlarını (URC) <code>usbat</code>'a (USB AT portu) gönderir;
+            bu araç UART üzerinden çalışır —— <strong>URC'lerin hiçbiri alınamaz</strong>: sinyal bildirimi,
+            TCP / MQTT / Wi-Fi tarama sonuçları tümüyle sessizdir; belirti şudur: <strong>"komutlar OK dönüyor ama mesaj yok"</strong>.</p>
+            <div class="warning">
+                <strong>"Bütün URC'ler kayboldu"nun bir numaralı nedeni budur.</strong>
+                Hardware sekmesinde <code>AT+QURCCFG="urcport"</code> ile sorgulayın;
+                yanıt <code>"uart1"</code> değilse geçiş düğmesiyle değiştirin —— ayar NVRAM'e yazılır, bir kez değiştirmek yeniden başlatmalar boyunca geçerlidir.
+            </div>
+
+            <h4>İlk adım: kayıt durumunu doğrulayın</h4>
+            <p>Açılış prosedüründe <code>RDY</code> göründükten sonra önce <code>AT+CEREG?</code>'e basın (4G modülde en isabetli sorgu budur).
+            Üç kayıt düğmesi üç alana karşılık gelir: <code>CEREG</code> = LTE/EPS, <code>CREG</code> = devre anahtarlamalı alan,
+            <code>CGREG</code> = paket anahtarlamalı alan; ikinci sayının (stat) yorumu hepsinde aynıdır:</p>
+            <table>
+                <tr><th>stat</th><th>Anlamı</th><th>Ne yapmalı</th></tr>
+                <tr><td>0</td><td>Henüz kayıtlı değil</td><td>Açılıştan hemen sonra olağandır; birkaç saniye bekleyip yeniden sorgulayın</td></tr>
+                <tr><td>1</td><td>Kayıtlı (ev şebekesi)</td><td>Normal, devam edin</td></tr>
+                <tr><td>2</td><td>Arıyor</td><td>Bekleyin</td></tr>
+                <tr><td>3</td><td>Şebeke reddetti</td><td>SIM'i / tarifeyi kontrol edin, nedenini CEER'den okuyun</td></tr>
+                <tr><td>5</td><td>Kayıtlı (dolaşımda)</td><td><strong>Bu cihazın olağan hâli</strong>, aşağıya bakın</td></tr>
+            </table>
+            <div class="tip">
+                <strong>stat=5 arıza değildir.</strong> Ölçümde üç kayıt sorgusu da <code>0,5</code> döndürdü:
+                SIM bir 1NCE IoT kartıdır (MCC 901 uluslararası dolaşım kartı); hangi ülkede olursa olsun "dolaşımda" sayılır,
+                5 gördüğünüzde 1 gibi davranın.
+            </div>
+            <p>Kayıt başarılı ama internet yoksa, ardından <code>AT+CGATT?</code> ile paket alanı bağlanmasını (attach) sorgulayın;
+            gerekirse <code>AT+CGATT=1</code> ile elle bağlanın; o da başarısız olursa nedenini <code>AT+CEER</code> ile
+            sorgulayın (TCP/IP sayfasındaki <code>QIGETERROR</code> ile aynı katman değildir).
+            CGATT en fazla <strong>140 saniye</strong> bloke edebilir; art arda basmayın.</p>
+
+            <h4>Şu an hangi operatörde, hangi bantta</h4>
+            <p><code>AT+COPS?</code> güncel kayıtlı operatörü sorgular (son alan 7 = LTE).
+            <strong>Tuzak: operatör adı boş dize olabilir</strong> —— ölçümde <code>+COPS: 0,0,"",7</code> döndü,
+            arıza değildir. Operatörü görmek için <code>AT+QNWINFO</code>'ya basın (teknoloji / operatör / bant / kanal):</p>
+            <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+            <p>46692 = Chunghwa Telecom, Band 8; servis yokken <code>NO SERVICE</code> döner.
+            Bu dolaşım kartı şebekeyi kendisi seçer: farklı günlerde yapılan ölçümlerde Chunghwa Telecom Band 8'e de
+            FarEasTone'a (466-01) Band 3'e de takıldı; operatör ve bant değişimi normaldir. <code>AT+COPS=?</code> çevredeki tüm operatörleri tarar:
+            <strong>en fazla 300 saniye bloke eder ve süren işleri keser</strong>; gerçekten gerekiyorsa basın.</p>
+
+            <h4>Sinyal gücü ve kalitesi: CSQ yalnızca kaba bir değerdir</h4>
+            <p><code>AT+CSQ</code> rssi ve ber döndürür: rssi 0–31, -113 ile -51 dBm aralığına karşılık gelir;
+            99 = algılanamıyor (açılıştan hemen sonra olağandır, birkaç saniye bekleyin). Ölçümde rssi 18–24 (-77 ile -65 dBm, iyi);
+            <strong>ber hep 99, referans değeri yok</strong>. LTE'nin gerçek kalite üçlüsü
+            <strong>RSRP (güç) / RSRQ (kalite) / SINR (sinyal-gürültü oranı; düşük = parazit altında)</strong>
+            yalnızca Signal URC grubundan alınabilir (<code>AT+QINDCFG="sqi"</code> değersiz = anahtarı sorgular):</p>
+            <table>
+                <tr><th>Düğme</th><th>Komut</th><th>İşlevi</th></tr>
+                <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+                    <td>RSRP / RSRQ / SINR bildirimini açar —— <strong>anten ve yerleşim testlerinin olmazsa olmazı</strong>.
+                        Yalnızca sinyal "değiştiğinde" iletir; kıpırtı yoksa anteni sarın ya da takıp çıkarın; ayar yeniden başlatmada korunmaz</td></tr>
+                <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+                    <td>Sinyal değişir değişmez bildirir; CSQ'ya deli gibi basmanın yerini alır</td></tr>
+                <tr><td>URC Off / On</td><td><code>AT+QINDCFG="all",0/1</code></td>
+                    <td>Ekran mesaj seline boğulunca tek tuşla susturur —— sonrasında yeniden açmayı unutmayın</td></tr>
+            </table>
+
+            <h4>PDP kanalı: 3GPP katmanı vs TCP/IP sayfası</h4>
+            <p>PDP context = mobil şebekenin tahsis ettiği "veri kanalı"; IP ancak onunla gelir. Bu grup 3GPP standart katmanının salt okunur sorgularıdır:
+            <code>AT+CGDCONT?</code> context'leri ve APN'i listeler, <code>AT+CGACT?</code> etkinlik durumunu listeler
+            (en fazla 150 saniye bloke eder; ⚠ yazma biçiminde parametre sırası terstir), <code>AT+CGPADDR</code>
+            alınan IP'yi listeler. TCP/IP sayfasındaki <code>QIACT?</code> / <code>QICSGP</code> ise
+            <strong>Quectel'in kendi yığınıdır, aynı katman değildir</strong> —— yan yana karşılaştırmak arızalı tarafı ayırt ettirir:
+            burada IP var, orada yok = şebeke vermiş ama yığın başlatılmamış. Bu cihaz açılışta PDP'yi kendiliğinden etkinleştirip IP alıyor.</p>
+            <p><code>AT+QGDCNT?</code> birikmiş trafiği sorgular (ilk sayı <strong>gönderilen</strong>, ikincisi alınan);
+            dolaşım kartıyla trafik ölçerken şarttır. ⚠ <strong>Ölçüm, düğme ipucundaki "yeniden başlatmalar boyunca birikir" iddiasını yalanladı</strong>:
+            sayaç varsayılan olarak NV'ye yazılmaz; güç kesilince (sayfa yeniden yüklemesi dahil) sıfırlanır —— ya anında not edin,
+            ya da <code>AT+QGDCNT=1</code> ile NV'ye kaydedin.</p>
+
+            <h4>Uygulamalı ayıklama: bu kart yalnızca tek PDP'ye izin veriyor</h4>
+            <p>TCP/IP sayfasında <code>AT+QIACT=1</code> bastınız ama ERROR (<code>572,operation not
+            allowed</code>) mı döndü? Bu kartın değişmez senaryosu: açılıştan sonra 3GPP katmanı zaten <strong>bir PDP'yi kendiliğinden etkinleştirmiştir</strong>,
+            ama <strong>context numarası oynaktır</strong> (ölçümde 1 de 9 da görüldü); ikinci bir tane açmaya kalkınca
+            <code>+CME ERROR: 100</code> döner ⇒ şebeke yalnızca tek PDP'ye izin veriyor; <code>QIACT</code>'in
+            contextID aralığı ise yalnızca 1–8'dir; PDP 9'da açılmışsa Quectel yığını ona hiç dokunamaz.
+            Çözüm iki adımdır (her açılıştan sonra bir kez):</p>
+            <pre>AT+CGACT?             ← hangi cid olduğuna bakın (numara oynaktır, bu adım atlanamaz)
+AT+CGACT=0,&lt;o cid&gt;   ← 3GPP katmanı kontenjanı bıraksın
+AT+QIACT=1            ← TCP/IP sayfası; +QIACT: 1,1,1,"10.187.7.8" dönerse başarılı</pre>
+            <p><code>QICSGP</code> ile APN ayarlamak bu kartta atlanabilir —— ölçümde modül, şebekenin verdiği APN'i
+            (<code>iot.1nce.net</code>) kendiliğinden eşitledi; ancak kullanıcı adı/parola isteyen kurumsal APN kartlarında gereklidir.</p>
+            <div class="warning">
+                <strong>Testin ortasında her şey birden zaman aşımına mı düşüyor? Önce PDP kaymasından şüphelenin.</strong>
+                Ölçümde HTTP art arda tümüyle başarısızken (hata 716, sabit 30 saniye zaman aşımı) <code>AT+QIACT?</code>
+                yine de IP döndürüyordu —— bu durumda o yalan söyler; <code>AT+CGACT?</code> ile çapraz karşılaştırın
+                (ölçüm: 1,0 ile 9,1 = 9'a kaymış).
+                Çözüm: <code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;kayılan cid&gt;</code> →
+                <code>AT+QIACT=1</code>, sonra ping ile doğrulayın.
+            </div>
+
+            <h4>CFUN işlev düzeyi ve radyo kontrolü</h4>
+            <p>RF Control grubunun tamamı modül durumunu değiştirir; hepsi basmadan önce onay isteyen kırmızı çerçeveli düğmelerdir.
+            Önce <code>AT+CFUN?</code> ile güncel düzeye bakın, sonra el atın:</p>
+            <table>
+                <tr><th>Komut</th><th>Düzey</th><th>Anlamı</th></tr>
+                <tr><td><code>AT+CFUN=1</code></td><td>Tam işlev</td>
+                    <td>Radyo tümüyle açık; <strong>toparlanmak için her zaman bu düğme</strong></td></tr>
+                <tr><td><code>AT+CFUN=4</code></td><td>Uçak modu</td>
+                    <td>Alış-veriş tümüyle kapalı, SIM yerinde —— "şebekeye yeniden giriş" testinin başlangıç noktası</td></tr>
+                <tr><td><code>AT+CFUN=0</code></td><td>Asgari</td>
+                    <td>SIM de devre dışı; kılavuz yalnızca Minimum functionality yazar, ayrıntı vermez</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>Yazılımsal yeniden başlatma</td>
+                    <td>Modülün tamamını yeniden başlatır. ⚠ AT portu kısa süre devre dışı kalır; <code>RDY</code> yeniden beklenmelidir</td></tr>
+            </table>
+            <p>CFUN en fazla 15 saniye bloke eder. <strong>SIM'de PIN kilidi varsa, CFUN=1'e dönüşten sonra PIN yeniden girilmeden
+            kayıt olmaz.</strong> <code>AT+CGATT=0</code> (PS Detach) paket alanından ayrılır ——
+            <strong>tüm TCP / MQTT bağlantılarını düşürür</strong>; yalnızca "yeniden bağlanma" testinde kullanın.</p>
+
+            <h4>İleri düzey: QENG ile baz istasyonu bilgisi (komut satırından)</h4>
+            <p>Bu sayfada düğmesi yoktur —— komut satırına <code>AT+QENG="servingcell"</code> yazarak
+            hizmet veren hücrenin parametrelerini okuyun; ölçümdeki kilit alanlar:</p>
+            <table>
+                <tr><th>Alan</th><th>Ölçülen değer</th><th>Yorumlama</th></tr>
+                <tr><td>MCC / MNC</td><td>466 / 01</td><td>Tayvan / FarEasTone</td></tr>
+                <tr><td>Cell ID / TAC</td><td><code>ABCDE02</code> / <code>1234</code> (hex)</td>
+                    <td>Ondalık 180149762 / 4660; eNodeB = ECI≫8 = 703710, sektör = 2</td></tr>
+                <tr><td>PCID / EARFCN</td><td>144 / 1550</td>
+                    <td>Fiziksel hücre kimliği (<strong>küresel benzersiz değildir</strong>) / Band 3</td></tr>
+                <tr><td>RSRP / RSRQ / RSSI / SINR</td><td>-113 / -18 / -92 / -1</td>
+                    <td>RSRP -100'ün altı kötü sayılır; SINR -1 dB = kalite zayıf</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Cell ID ve TAC onaltılıktır; veritabanında aramadan önce ondalığa çevrilmelidir.</strong>
+                OpenCelliD gibi veritabanları yalnızca ondalık kabul eder; <code>ABCDE02</code>'yi olduğu gibi atarsanız kayıt bulunamaz.
+                Ayrıca <code>AT+QENG="neighbourcell"</code> yalnızca PCID döndürür,
+                <strong>küresel Cell ID vermez</strong> (LTE standardının sınırı).
+            </div>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td>Komutlar OK dönüyor, kendiliğinden mesajlar hiç görünmüyor</td>
+                    <td>urcport usbat'ta (fabrika değeri) —— Hardware sekmesinden uart1'e geçirin</td></tr>
+                <tr><td><code>QIACT=1</code> ERROR (572) dönüyor</td>
+                    <td>Tek PDP kontenjanı kapılmış —— yukarıdaki iki adımlı ayıklamayı uygulayın</td></tr>
+                <tr><td>Art arda istekler hep sabit 30 saniyede zaman aşımına düşüyor</td>
+                    <td>PDP kayması —— <code>AT+CGACT?</code> ile çapraz karşılaştırın; yalnızca <code>QIACT?</code> sorgusuna güvenmeyin</td></tr>
+            </table>

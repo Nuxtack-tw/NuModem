@@ -1,0 +1,152 @@
+<h3 id="tab-http">HTTP — בקשות אינטרנט</h3>
+            <p><strong>עקרון הפעולה:</strong> ה-HTTP של המודול הוא <strong>תלת-שלבי</strong>:
+            תחילה קובעים URL (השלב הזה כשלעצמו הוא דו-שלבי), אחר כך שולחים את הבקשה (GET / POST), ולבסוף קוראים בחזרה את התשובה.
+            התוצאה של כל שלב אינה נמצאת ב-<code>OK</code> אלא ב-URC שמגיע אחריו —
+            ולכן <code>AT+QURCCFG="urcport"</code> חייב להיות <code>"uart1"</code> (ניתן לשנות בלשונית Hardware),
+            אחרת לא תראה אף תוצאה. כל הנתונים נמדדו על חומרה אמיתית ב-2026-08.</p>
+
+            <h4>לפני שמתחילים: צריך ערוץ נתונים</h4>
+            <p>התנאי המקדים הוא ש-PDP כבר מופעל וקיבל IP (<code>AT+QIACT=1</code> בלשונית TCP/IP).
+            <strong>קבוצת Connect</strong> בדף הזה כוללת בדיקות לקריאה בלבד:
+            <code>AT+CPIN?</code> / <code>AT+CGATT?</code> / <code>AT+CGREG?</code> /
+            <code>AT+QIACT?</code>, <code>AT+QIDNSCFG=1</code> (DNS של 0.0.0.0 = לא הוקצה),
+            ו-<code>AT+QIGETERROR</code> (⚠ תקף רק לפקודת TCP/IP האחרונה,
+            ולכן יש ללחוץ עליו <strong>מיד</strong> אחרי כישלון).</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> משקר.</strong> במדידה נתקלנו בסחיפה של ה-PDP באמצע העבודה:
+                כל הבקשות נכשלו והחזירו שגיאה 716 אחרי <strong>פקיעת זמן קבועה של 30 שניות</strong>,
+                אבל <code>AT+QIACT?</code> המשיך להחזיר IP כרגיל. בצע הצלבה מול <code>AT+CGACT?</code>,
+                ואם השניים אינם עקביים — זו סחיפה. התיקון: <code>AT+QIDEACT=1</code> ←
+                <code>AT+CGACT=0,&lt;ה-cid שנסחף&gt;</code> ← <code>AT+QIACT=1</code>,
+                ורק אחרי ping מוצלח ממשיכים.
+            </div>
+
+            <h4>ה-GET הראשון: ארבעה שלבים</h4>
+            <ol>
+                <li><strong>הגדרות מקדימות</strong> (קבוצת Config, ללא תעבורה): בכרטיס הפרמטרים של <code>contextid</code>
+                    קבע 1 (קשירה ל-PDP context שבו רוצים לעבוד); את שלושת המתגים <code>rspout/auto</code>,
+                    <code>requestheader</code> ו-<code>responseheader</code> השאר על 0
+                    (הנימוקים בהמשך); <code>AT+QHTTPCFG?</code> קורא בבת אחת את כל ההגדרות לצורך השוואה,
+                    ו-<code>AT+QHTTPCFG=?</code> מציג את הפריטים הניתנים להגדרה.</li>
+                <li><strong>קביעת ה-URL (דו-שלבית)</strong>: בכרטיס <code>AT+QHTTPURL</code> יש כפתור אחד בלבד,
+                    "שליחה (דו-שלבית)" — אתה ממלא את ה-URL, והאורך מחושב אוטומטית על ידי התוכנה. הרצף: תחילה נשלח
+                    <code>AT+QHTTPURL=&lt;אורך&gt;,80</code>, ממתינים ל-<code>CONNECT</code>
+                    כדי להיכנס למצב נתונים, ואז שולחים את בתי ה-URL כמות שהם, <strong>בלי להוסיף שום סוף שורה</strong>
+                    (CR/LF ייספרו לתוך האורך).
+                    האורך של <code>http://www.example.com/</code> הוא בדיוק 23. אחרי השליחה לחץ
+                    <code>AT+QHTTPURL?</code> לקריאה חוזרת, וזהות תו-בתו פירושה שסוף שורה לא התגנב פנימה.</li>
+                <li><strong>שליחת הבקשה</strong>: <code>AT+QHTTPGET=80</code> (מספר השניות להמתנה לתשובה).
+                    <code>OK</code> מעיד רק על "הפקודה התקבלה", והתוצאה האמיתית היא ה-URC שמגיע אחר כך,
+                    <code>+QHTTPGET: 0,200</code>, ופענוחו בסעיף הבא.</li>
+                <li><strong>קריאת התשובה</strong>: <code>AT+QHTTPREAD=80</code>.
+                    אחרי <code>CONNECT</code> הכול בתים גולמיים (במדידה, example.com החזיר
+                    559 bytes), ואחריהם <code>OK</code> —
+                    אבל <strong>רק <code>+QHTTPREAD: 0</code> בשורה נפרדת בסוף הוא סימן הסיום</strong>.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="לשונית HTTP">
+                <figcaption>לשונית HTTP: ארבע הקבוצות Config / Connect / Transfer / Close.</figcaption>
+            </figure>
+
+            <h4>פענוח +QHTTPGET: השדה הראשון אינו קוד המצב של HTTP</h4>
+            <p>ה-URC של התוצאה עבור GET / POST / POSTFILE הוא תמיד בן שלושה שדות,
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code>:
+            <code>err</code> <strong>0 = ביצוע הפקודה הצליח</strong>, וערך שאינו 0 הוא שגיאה בשכבת המודול (716, 711…);
+            <code>httprspcode</code> הוא קוד המצב של HTTP, <strong>והוא מדווח רק כאשר err=0</strong>
+            (כתוב במפורש במדריך; בכלי משובצות הערות השוואה ל-200 / 403 / 404 / 409 / 411 / 500);
+            <code>content_length</code> הוא אופציונלי — הוא מופיע רק אם בכותרות התשובה של השרת יש CONTENT-LENGTH,
+            ובבקשת GET רגילה יש לעיתים קרובות שני שדות בלבד. לכן <code>+QHTTPGET: 0,404,0</code> שנמדד
+            <strong>אינו כישלון</strong>: הפקודה הצליחה, והשרת הוא זה שאומר שלא מצא.</p>
+
+            <h4>קריאת התשובה: המלכודות של AT+QHTTPREAD</h4>
+            <p>הפרמטר הוא "המרווח המרבי בשניות בין שתי מנות נתונים", ולא משך הזמן הכולל.
+            <strong>הקושחה ביחידה הזו מקבלת פרמטר אחד בלבד</strong>: שיטת הקריאה המקוטעת של מסמך היישום,
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code>, החזירה במדידה <code>ERROR</code> חשוף
+            (אושר בבדיקת <code>=?</code>), והכפתור הוסר —
+            לקריאה מקוטעת יש להשתמש ב-<code>GETEX</code>.</p>
+            <div class="warning">
+                <strong>מלכודת נעילה הדדית: ברגע ש-<code>rspout/auto</code> מוגדר ל-1, כל פקודות READ נכשלות</strong>
+                (כתוב במפורש במדריך). ההגדרה גורמת למודול לפלוט את התשובה אוטומטית, והמחיר הוא חיסול מוחלט של משפחת READ,
+                ולכן לכפתור הזה יש תיבת אישור. אם READ נופל פתאום כולו, בדוק תחילה <code>AT+QHTTPCFG?</code>.
+            </div>
+
+            <h4>קריאה מקוטעת: AT+QHTTPGETEX קורא בית אחר בית</h4>
+            <p><code>AT+QHTTPGETEX=&lt;שניות&gt;,&lt;היסט התחלה&gt;,&lt;אורך&gt;</code>
+            משתמש ב-HTTP Range כדי למשוך רק את הקטע המבוקש ולחסוך בתעבורה. במדידה (תוכן נקודת הקצה קבוע על
+            <code>abcdefghijklmnop</code>): היסט 0 באורך 8 החזיר <code>+QHTTPGET: 0,206,8</code>
+            ונקרא <code>abcdefgh</code>; היסט 8 באורך 8 נוסף החזיר <code>ijklmnop</code>.
+            פענוח: <strong>קוד המצב חייב להיות 206</strong>; אם מוחזר <strong>200 והתוכן זהה בכל פעם</strong>,
+            משמע שהשרת אינו תומך ב-Range, וזו אינה תקלה במודול.
+            ⚠ ניתן להריץ רק כאשר <code>requestheader=0</code>.</p>
+
+            <h4>POST: דו-שלביות ו-Content-Type</h4>
+            <p>גם כרטיס <code>AT+QHTTPPOST</code> הוא דו-שלבי: אתה ממלא את גוף ההודעה, האורך מחושב אוטומטית, תחילה נשלח
+            <code>AT+QHTTPPOST=&lt;אורך&gt;,&lt;שניות קלט&gt;,&lt;שניות תשובה&gt;</code>,
+            ממתינים ל-<code>CONNECT</code> ואז שולחים את הגוף. שלושה דברים:</p>
+            <ul>
+                <li><strong>ל-<code>CONNECT</code> יש להמתין עד 125 שניות</strong> (כתוב במפורש במדריך) —
+                    יש לקבוע את פקיעת ההמתנה לסימן ההנחיה על 125 שניות מלאות, ולא להשתמש ב-5 השניות של MQTT.</li>
+                <li>גבול הגוף הוא 1 MB (בבדיקת <code>=?</code> הטווח שנמדד הוא 1–1024000).</li>
+                <li>את Content-Type יש לקבוע מראש בכרטיס הפרמטרים <code>contenttype</code>
+                    (קוד טיפוס 0 = form-urlencoded).</li>
+            </ul>
+            <p>במדידה: POST של <code>Message=HelloQuectel</code> (20 bytes) החזיר
+            <code>+QHTTPPOST: 0,200,440</code>; ה-JSON שחזר ב-READ מאפשר לאמת שזוג המפתח-ערך הגיע,
+            שהאורך חושב נכון ושה-Content-Type נכנס לתוקף, וש-User-Agent הוא מה שהמודול מדווח על עצמו,
+            <code>QUECTEL_MODULE</code>.</p>
+
+            <h4>כותרות מותאמות אישית וכותרות תשובה</h4>
+            <ul>
+                <li><code>reqheader/add</code>: הוספת כותרת בקשה מותאמת אחת (המדריך אינו מצרף דוגמה);
+                    כפתור השאילתה מציג כמה כותרות נוספו עד כה; <code>reqheader/remove</code> מסיר.</li>
+                <li><code>requestheader</code> על 1 = אתה מרכיב בעצמך את כל כותרות הבקשה, וגם GET הופך לדו-שלבי,
+                    וכן <code>GETEX</code> אינו זמין. בשגרה יש להשאיר על 0.</li>
+                <li>אחרי <code>responseheader</code> על 1, פקודת READ פולטת גם את כותרות התשובה של HTTP
+                    (במדידה חזרה אפילו כותרת X-Test מותאמת אישית). אחרי הבדיקה החזר ל-0.</li>
+                <li><code>closed/ind</code>: הפעלת דיווח URC על "ה-session נסגר".</li>
+            </ul>
+
+            <h4>גרסת הקבצים: POSTFILE ו-READFILE (UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="שם קובץ",&lt;שניות&gt;</code> שולח POST שגופו הוא קובץ ממערכת הקבצים של המודול (UFS);
+            <code>AT+QHTTPREADFILE="שם קובץ",&lt;שניות&gt;</code> שומר את התשובה כקובץ
+            ב-UFS. ⚠ הכלי הזה כרגע <strong>אינו יכול להעלות קובץ ל-UFS מראש, וגם אינו יכול לקרוא בחזרה את תוכן
+            הקבצים ב-UFS</strong>, ושתי הפקודות האלה נועדו לשילוב עם תהליכים שרצים בצד הקושחה.</p>
+
+            <h4>HTTPS: המסלול ללא אימות</h4>
+            <p>HTTPS = HTTP + SSL context. בקבוצת Connect מוכן המסלול הקצר ביותר, חמישה כפתורים שנלחצים לפי הסדר:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP יעבוד עם SSL context מספר 1
+AT+QSSLCFG="sslversion",1,4        ← גרסת ה-TLS נקבעת במשא ומתן מול השרת
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← כל חבילות ההצפנה פתוחות
+AT+QSSLCFG="seclevel",1,0          ← ללא אימות תעודה (ראה בהמשך)
+AT+QSSLCFG="sni",1,1               ← הפעלת SNI (ערך היצרן הוא 0!)</pre>
+            <p>לאחר מכן מחליפים את ה-URL לכזה שמתחיל ב-<code>https://</code> ומריצים GET / READ כרגיל —
+            במדידה, ה-HTML שנקרא היה זהה תו-בתו לגרסה הלא מוצפנת.
+            <strong><code>seclevel=0</code> (ללא אימות תעודה) הוא המסלול היחיד שהכלי הזה מסוגל להשלים</strong>
+            — כדי לאמת תעודה חובה קודם לכתוב תעודת CA ל-UFS; לפרטי SSL (<code>AT+QSSLCFG=?</code>
+            מציג את כל הפריטים, ו-<code>negotiatetime</code> מכוונן את שניות ההמתנה ללחיצת היד) ראה את הסעיף "SSL — ערוץ TLS".
+            <strong>ערך היצרן של SNI הוא 0</strong>: בלי להפעיל אותו, אתר HTTPS שחולק IP יחזיר תעודה שאינה תואמת,
+            והאימות ייכשל מיד. <strong>שרשרת התעודות היא צרכנית התעבורה העיקרית</strong>: סבב GET אחד ב-HTTPS צורך כ-8–15 KB,
+            לעומת כ-1 KB בלבד ללא הצפנה.</p>
+
+            <h4>הפניות וסיום</h4>
+            <p><strong>הפניות (לא כתוב במדריך, הובהר במדידה)</strong>: המודול עוקב אוטומטית אחרי 302, אבל
+            <strong>מקבל רק Location בנתיב מוחלט</strong> — נתיב יחסי מחזיר מיד שגיאה 711
+            ונכשל תוך מילישנייה אחת. <strong>סיום</strong>:
+            <code>AT+QHTTPSTOP</code> (קבוצת Close) מבטל בקשה שבתהליך ומנתק את ה-session;
+            כשהמצב נראה מוזר, או כשמופיעה שגיאה 704 (מצב הנתונים תפוס), לחץ עליו קודם כדי לנקות.</p>
+
+            <h4>פתרון תקלות</h4>
+            <table>
+                <tr><th>תסמין</th><th>סיבה ופתרון</th></tr>
+                <tr><td>לא מופיע שום URC של תוצאה</td><td><code>urcport</code> אינו <code>uart1</code>,
+                    עבור ללשונית Hardware ושנה</td></tr>
+                <tr><td>כל ה-URL מחזירים 716 עם פקיעת זמן קבועה של 30 שניות</td>
+                    <td>סחיפת PDP, ראה את האזהרה שלמעלה</td></tr>
+                <tr><td>URL בודד מחזיר 716</td><td>במדידה גם כשל DNS מחזיר 716 (ולא 714 כפי שניחשו מסמכים ישנים);
+                    ו-705 שחוזר אחר כך מ-READ הוא שרשור תקין</td></tr>
+                <tr><td><code>READ</code> / <code>GETEX</code> נכשלים פתאום</td>
+                    <td>גם <code>rspout/auto</code> וגם <code>requestheader</code>
+                        חייבים להיות 0 (ראה למעלה)</td></tr>
+                <tr><td>אפילו <code>AT</code> אינו מגיב</td>
+                    <td>המודול נתקע (נתקלנו בכך במדידה, המדריך אינו מתאר זאת) — הרץ מחדש את טקס האתחול</td></tr>
+            </table>

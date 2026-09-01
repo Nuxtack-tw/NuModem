@@ -1,0 +1,152 @@
+<h3 id="tab-http">HTTP —— web istekleri</h3>
+            <p><strong>Çalışma prensibi:</strong> Modülün HTTP'si <strong>üç aşamalıdır</strong>:
+            önce URL ayarlanır (bu adımın kendisi de iki aşamalıdır), sonra istek gönderilir (GET / POST), en sonunda yanıt geri okunur.
+            Hiçbir aşamanın sonucu <code>OK</code> içinde değildir; sonradan gelen URC'dedir ——
+            bu yüzden <code>AT+QURCCFG="urcport"</code> mutlaka <code>"uart1"</code> olmalıdır (Hardware sayfasından değiştirilir);
+            yoksa sonuçların hiçbiri görünmez. Veriler 2026-08'de gerçek cihazda ölçülmüştür.</p>
+
+            <h4>Başlamadan önce: veri kanalı hazır olmalı</h4>
+            <p>Ön koşul, PDP'nin etkinleştirilmiş ve IP alınmış olmasıdır (TCP/IP sayfasındaki <code>AT+QIACT=1</code>).
+            Bu sayfanın <strong>Connect grubu</strong> yalnızca salt okunur denetimler içerir:
+            <code>AT+CPIN?</code> / <code>AT+CGATT?</code> / <code>AT+CGREG?</code> /
+            <code>AT+QIACT?</code>, <code>AT+QIDNSCFG=1</code> (DNS 0.0.0.0 = atanmamış),
+            <code>AT+QIGETERROR</code> (⚠ yalnızca son TCP/IP komutu için geçerlidir;
+            başarısızlıktan sonra <strong>hemen</strong> basın).</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> yalan söyler.</strong> Ölçümde PDP'nin yolda kayması yaşandı:
+                tüm istekler başarısız, <strong>sabit 30 saniye zaman aşımı</strong> ile hata 716,
+                ama <code>AT+QIACT?</code> yine de IP döndürüyordu. <code>AT+CGACT?</code> ile çapraz karşılaştırın;
+                tutarsızlık = kayma. Onarım: <code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;kayılan cid&gt;</code> → <code>AT+QIACT=1</code>,
+                ping geçtikten sonra devam edin.
+            </div>
+
+            <h4>İlk GET: dört adım</h4>
+            <ol>
+                <li><strong>Ön ayarlar</strong> (Config grubu, sıfır trafik): <code>contextid</code>
+                    parametre kartında 1 (kullanılacak PDP context'ine bağlar); <code>rspout/auto</code>,
+                    <code>requestheader</code>, <code>responseheader</code> üç anahtarı 0'da bırakın
+                    (gerekçe ileride); <code>AT+QHTTPCFG?</code> tüm ayarları tek seferde geri okuyup denetler,
+                    <code>AT+QHTTPCFG=?</code> ayarlanabilir maddeleri listeler.</li>
+                <li><strong>URL ayarlama (iki aşamalı)</strong>: <code>AT+QHTTPURL</code> kartında yalnızca bir
+                    "gönder (iki aşamalı)" düğmesi vardır —— URL'yi siz yazarsınız, uzunluğu program hesaplar. Akış: önce
+                    <code>AT+QHTTPURL=&lt;uzunluk&gt;,80</code> gönderilir, <code>CONNECT</code> beklenip
+                    veri moduna girilir, sonra URL baytları olduğu gibi gönderilir; <strong>hiçbir satır sonu eklenmez</strong>
+                    (CR/LF uzunluğa dahil edilirdi).
+                    <code>http://www.example.com/</code> uzunluğu tam 23'tür. Bitince
+                    <code>AT+QHTTPURL?</code> ile geri okuyun; harfi harfine aynıysa araya satır sonu karışmamıştır.</li>
+                <li><strong>İstek gönderme</strong>: <code>AT+QHTTPGET=80</code> (yanıt bekleme saniyesi).
+                    <code>OK</code> yalnızca "komut alındı" demektir; gerçek sonuç birazdan gelen URC'dir:
+                    <code>+QHTTPGET: 0,200</code>; yorumu bir sonraki paragrafta.</li>
+                <li><strong>Yanıtı okuma</strong>: <code>AT+QHTTPREAD=80</code>.
+                    <code>CONNECT</code>'ten sonrası tümüyle ham bayttır (ölçümde example.com için
+                    559 bytes), ardından <code>OK</code> gelir ——
+                    ama <strong>bitiş imi, en sonda tek başına duran <code>+QHTTPREAD: 0</code> satırıdır</strong>.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="HTTP sekmesi">
+                <figcaption>HTTP sayfası: Config / Connect / Transfer / Close dört grubu.</figcaption>
+            </figure>
+
+            <h4>+QHTTPGET yorumu: ilk alan HTTP durum kodu değildir</h4>
+            <p>GET / POST / POSTFILE'ın sonuç URC'leri hep
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code> üç alandır:
+            <code>err</code> <strong>0 = komut başarıyla yürütüldü</strong>; 0 dışı, modül katmanı hatasıdır (716, 711…);
+            <code>httprspcode</code> HTTP durum kodudur, <strong>yalnızca err=0 iken bildirilir</strong>
+            (kılavuz açıkça yazar; araçta 200 / 403 / 404 / 409 / 411 / 500 için hazır açıklamalar vardır);
+            <code>content_length</code> isteğe bağlıdır —— sunucu yanıt başlığında CONTENT-LENGTH varsa gelir;
+            sıradan GET'te çoğu kez yalnızca iki alan görünür. Dolayısıyla ölçümdeki <code>+QHTTPGET: 0,404,0</code>
+            <strong>başarısızlık değildir</strong>: komut başarılıdır; sunucu "bulunamadı" demiştir.</p>
+
+            <h4>Yanıtı okumak: AT+QHTTPREAD'in tuzağı</h4>
+            <p>Parametre, "iki veri paketi arasındaki en uzun aralık saniyesidir", toplam süre değildir.
+            <strong>Bu cihazın firmware'i yalnızca tek parametre kabul eder</strong>: uygulama belgesindeki
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> parçalı okuma biçimi ölçümde çıplak
+            <code>ERROR</code> döndürdü (<code>=?</code> sondasıyla doğrulandı); düğme kaldırıldı ——
+            parçalı almak için <code>GETEX</code> kullanın.</p>
+            <div class="warning">
+                <strong>Kilitlenme tuzağı: <code>rspout/auto</code> 1 yapılır yapılmaz READ ailesi istisnasız başarısız olur</strong>
+                (kılavuz açıkça yazar). Modülün yanıtı kendiliğinden dökmesini sağlar; bedeli READ ailesinin topyekûn ölmesidir;
+                bu yüzden bu düğmede onay penceresi vardır. READ birden hep düşmeye başlarsa önce <code>AT+QHTTPCFG?</code> bakın.
+            </div>
+
+            <h4>Parçalı alma: AT+QHTTPGETEX ile bayt bayt okuma</h4>
+            <p><code>AT+QHTTPGETEX=&lt;saniye&gt;,&lt;başlangıç konumu&gt;,&lt;uzunluk&gt;</code>
+            HTTP Range kullanır; yalnızca belirtilen parçayı çeker, trafik kazandırır. Ölçüm (uç noktanın içeriği sabit
+            <code>abcdefghijklmnop</code>): konum 0'dan 8 alınca <code>+QHTTPGET: 0,206,8</code> döndü,
+            <code>abcdefgh</code> okundu; konum 8'den 8 daha alınca <code>ijklmnop</code> okundu.
+            Yorum: <strong>durum kodu mutlaka 206 olmalıdır</strong>; <strong>200 dönüyor ve içerik her seferinde aynıysa</strong>
+            = sunucu Range desteklemiyordur; modül bozulmamıştır.
+            ⚠ Yalnızca <code>requestheader=0</code> iken çalışır.</p>
+
+            <h4>POST: iki aşama ve Content-Type</h4>
+            <p><code>AT+QHTTPPOST</code> kartı da iki aşamalıdır: body'yi siz yazarsınız, uzunluk kendiliğinden hesaplanır; önce
+            <code>AT+QHTTPPOST=&lt;uzunluk&gt;,&lt;giriş saniyesi&gt;,&lt;yanıt saniyesi&gt;</code> gönderilir,
+            <code>CONNECT</code> beklenir, sonra body gönderilir. Üç nokta:</p>
+            <ul>
+                <li><strong><code>CONNECT</code> için en fazla 125 saniye beklemek gerekebilir</strong> (kılavuz açıkça yazar) ——
+                    istem bekleme zaman aşımını 125 saniyeye kurun; MQTT'nin 5 saniyesini devralmayın.</li>
+                <li>body üst sınırı 1 MB (<code>=?</code> ölçüm aralığı 1–1024000).</li>
+                <li>Content-Type'ı önceden <code>contenttype</code> parametre kartından ayarlayın
+                    (tür kodu 0 = form-urlencoded).</li>
+            </ul>
+            <p>Ölçüm: POST <code>Message=HelloQuectel</code> (20 bytes) →
+            <code>+QHTTPPOST: 0,200,440</code>; READ'in döndürdüğü JSON, anahtar-değerin ulaştığını,
+            uzunluğun doğru hesaplandığını, Content-Type'ın işlediğini doğruladı; User-Agent, modülün kendi bildirdiği
+            <code>QUECTEL_MODULE</code> idi.</p>
+
+            <h4>Özel başlıklar ve yanıt başlıkları</h4>
+            <ul>
+                <li><code>reqheader/add</code>: tek bir özel istek başlığı ekler (kılavuzda örnek yok);
+                    sorgu düğmesi kaç tane eklendiğini gösterir; <code>reqheader/remove</code> kaldırır.</li>
+                <li><code>requestheader</code> 1 = istek başlığının tamamını kendiniz kurarsınız; GET bile iki aşamalı olur
+                    ve <code>GETEX</code> kullanılamaz. Normalde 0'da tutun.</li>
+                <li><code>responseheader</code> 1 yapılınca READ, HTTP yanıt başlıklarını da döker
+                    (ölçümde özel X-Test başlığı bile geri geldi). Test bitince 0'a alın.</li>
+                <li><code>closed/ind</code>: "session kapatıldı" URC bildirimini açar.</li>
+            </ul>
+
+            <h4>Dosya sürümü: POSTFILE ve READFILE (UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="dosyaadı",&lt;saniye&gt;</code>, modül dosya sistemindeki (UFS) dosyayı
+            body olarak POST eder; <code>AT+QHTTPREADFILE="dosyaadı",&lt;saniye&gt;</code> yanıtı
+            UFS dosyası olarak kaydeder. ⚠ Bu araç şu anda <strong>UFS'e dosya yükleyemiyor ve UFS
+            dosya içeriğini geri okuyamıyor</strong>; bu iki komut, firmware tarafındaki akışlarla birlikte kullanılmak içindir.</p>
+
+            <h4>HTTPS: doğrulamasız yol</h4>
+            <p>HTTPS = HTTP + SSL context. Connect grubunda en kısa yol hazırdır; beş düğmeye sırayla basın:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP, SSL context 1'i kullansın
+AT+QSSLCFG="sslversion",1,4        ← TLS sürümünü sunucuyla pazarlığa bırak
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← tüm şifre takımları açık
+AT+QSSLCFG="seclevel",1,0          ← sertifika doğrulaması yok (aşağıya bakın)
+AT+QSSLCFG="sni",1,1               ← SNI'yi aç (fabrika değeri 0!)</pre>
+            <p>Sonrasında URL'yi <code>https://</code> ile başlatıp her zamanki gibi GET / READ yapın ——
+            ölçümde geri okunan HTML, düz metin sürümüyle harfi harfine aynıydı.
+            <strong><code>seclevel=0</code> (doğrulamasız), bu araçta sonuna kadar yürünebilen tek yoldur</strong>
+            —— sertifika doğrulamak için önce CA sertifikası UFS'e yazılmalıdır; SSL ayrıntıları (<code>AT+QSSLCFG=?</code>
+            tüm alt maddeleri listeler, <code>negotiatetime</code> el sıkışma beklemesini ayarlar) "SSL —— TLS tüneli" bölümündedir.
+            <strong>SNI fabrikadan 0'dır</strong>: açılmazsa, IP paylaşan HTTPS siteleri eşleşmeyen sertifika alır ve
+            doğrulama anında düşer. <strong>Trafiğin aslan payı sertifika zinciridir</strong>: bir tur HTTPS GET yaklaşık 8–15 KB,
+            düz metin ise yalnızca yaklaşık 1 KB.</p>
+
+            <h4>Yönlendirme ve kapanış</h4>
+            <p><strong>Yönlendirme (kılavuzda yok, ölçümle netleştirildi)</strong>: modül 302'yi kendiliğinden izler ama
+            <strong>yalnızca mutlak yollu Location kabul eder</strong> —— göreli yol doğrudan hata 711 döndürür,
+            1 milisaniyede anında başarısız olur. <strong>Kapanış</strong>:
+            <code>AT+QHTTPSTOP</code> (Close grubu) süren isteği iptal eder ve session'ı koparır;
+            durum tuhaflaştığında ya da hata 704 (veri modu meşgul) çıktığında önce buna basıp ortalığı temizleyin.</p>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td>Hiçbir sonuç URC'si görünmüyor</td><td><code>urcport</code> <code>uart1</code> değil;
+                    Hardware sayfasından değiştirin</td></tr>
+                <tr><td>Tüm URL'ler 716, sabit 30 saniye zaman aşımı</td>
+                    <td>PDP kayması, yukarıdaki uyarıya bakın</td></tr>
+                <tr><td>Tek bir URL 716 dönüyor</td><td>Ölçümde DNS hatası da 716 döndürüyor (eski belgenin tahmin ettiği
+                    714 değil); ardından READ'in 705 dönmesi olağan zincirdir</td></tr>
+                <tr><td><code>READ</code> / <code>GETEX</code> birden başarısız olmaya başladı</td>
+                    <td><code>rspout/auto</code> ile <code>requestheader</code>
+                        ikisi de 0 olmalı (yukarıya bakın)</td></tr>
+                <tr><td><code>AT</code> bile yanıt vermiyor</td>
+                    <td>Modül asılı kaldı (ölçümde yaşandı, kılavuz anlatmaz) —— açılış prosedürünü yeniden çalıştırın</td></tr>
+            </table>

@@ -1,0 +1,159 @@
+<h3 id="tab-ssl">SSL —— TLS 通道</h3>
+            <p><strong>工作原理：</strong>SSL 頁是加密連線的<strong>共用底層</strong> ——
+            這裡設好的 SSL context 與上傳的憑證，同時供 SSL raw socket、MQTT over SSL
+            與 HTTPS 使用。本節的秒數與行為都是 2026 年 8 月對實體 EG800K 的實測值。</p>
+
+            <h4>第一次 TLS 連線：五個步驟</h4>
+            <ol>
+                <li><strong>跑開機儀式</strong>（見〈開機儀式〉一節），再按
+                    <code>AT+QIACT?</code> 確認資料通道 —— 要回得出
+                    <code>+QIACT: 1,1,…,"IP"</code>，沒有就先 <code>AT+QIACT=1</code>。</li>
+                <li><strong>設 context</strong>：<code>sslversion</code> 填 4（全部版本，
+                    相容性最好）、<code>ciphersuite</code> 填 0XFFFF（全部套件）、
+                    <code>seclevel</code> 先填 0 —— 先確認通道會通，驗證留到後面。</li>
+                <li><strong>開連線</strong>：按 <code>AT+QSSLOPEN</code>（末碼 0），參數卡填
+                    主機與埠。⚠ <code>OK</code> 只代表「指令收下」，成敗要等 URC：
+                    <code>+QSSLOPEN: 4,0</code> 才是成功（實測交握 2.0 秒）。</li>
+                <li><strong>送資料</strong>：按 <code>AT+QSSLSEND</code>（兩段式）——
+                    出現 <code>&gt;</code> 後送本文，<strong>數滿宣告長度自動送出，
+                    免 Ctrl+Z</strong>（單包上限 1460 bytes）。對方回話會出
+                    <code>+QSSLURC: "recv",4</code>。</li>
+                <li><strong>讀回與關閉</strong>：<code>AT+QSSLRECV</code>（單次上限 1500）
+                    讀到 <code>+QSSLRECV: 0</code> 代表收乾淨了，不是錯誤。
+                    <code>AT+QSSLCLOSE=4</code> 關閉（預設最長等 10 秒；
+                    另一顆可指定秒數，0＝立即）。</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2.0 秒，0＝成功
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← 數滿 15 bytes 自動送出
+SEND OK
++QSSLURC: "recv",4        ← 0.4 秒
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>連線期間可按 <code>AT+QSSLSTATE</code> 看所有連線（<code>=4</code>
+            查單一 clientID，狀態 2＝已連線）。注意<strong>本地埠永遠回 0</strong> ——
+            模組行為，不是錯誤。</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="SSL 頁簽">
+                <figcaption>SSL 頁：context 設定、UFS 憑證上傳、連線、收送、關閉。</figcaption>
+            </figure>
+
+            <h4>三種存取模式（<code>AT+QSSLOPEN</code> 末碼）</h4>
+            <table>
+                <tr><th>末碼</th><th>行為</th></tr>
+                <tr><td>0 緩衝</td><td>收到資料只發 <code>+QSSLURC: "recv",&lt;id&gt;</code>，
+                    自己下 <code>AT+QSSLRECV</code> 讀</td></tr>
+                <tr><td>1 直推</td><td>URC 多帶長度、<strong>資料直接吐在下一行</strong>；
+                    ⚠ 此模式下 <code>AT+QSSLRECV</code> 回 ERROR 是正常的</td></tr>
+                <tr><td>2 透傳</td><td>AT 口整個變成資料通道（本頁按鈕只備 0 與 1）</td></tr>
+            </table>
+
+            <h4>context 設定逐項</h4>
+            <p>不確定韌體支援哪些子項就先按 <code>AT+QSSLCFG=?</code> ——
+            實測回 17 個子項，比應用手冊列的多。常用子項都有設定與查詢兩顆按鈕，
+            實測寫入後讀回完全一致。</p>
+            <table>
+                <tr><th>子項</th><th>出廠</th><th>作用與實測要點</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>協定版本；4＝全部支援</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>加密套件；0XFFFF＝全部支援</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0＝不驗證、1＝驗證伺服器
+                    （要先上傳 CA 憑證）、2＝雙向認證（還要用戶端憑證＋私鑰）</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>CA 憑證路徑，格式
+                    <code>"UFS:檔名"</code>，檔案須已在 UFS（見下節）</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>連虛擬主機／CDN 必開 —— 同一 IP 掛多網域時不送 SNI
+                    就拿到不匹配的憑證，驗證必敗 566</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>出廠即使開了 seclevel 1 也不檢查憑證有效期</strong>。
+                    要檢查就設 0，且模組時鐘要對</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>TLS 交握最長等待秒數（10–300）</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 三個出廠預設加起來＝完全不驗證憑證</strong>
+                （seclevel 0、sni 0、ignorelocaltime 1），要真的驗就三個都要設對。
+                且這三個設定與 <code>cacert</code> <strong>不跨重開機保存</strong>
+                （實測確認），每次開機都回出廠值；UFS 裡的憑證檔則斷電不丟。
+            </div>
+
+            <h4>UFS 檔案群：憑證怎麼進模組</h4>
+            <p>UFS 是模組內建快閃儲存，實測總容量 <strong>280 KB</strong>、每檔佔一個
+            4 KB 區塊。憑證要先上傳到這裡，<code>cacert</code> 才有檔案可指。
+            <strong>上傳走 UART、零數據流量</strong>，二進位檔也送得進去。
+            <strong>Upload 卡</strong>：選檔後檔名與大小自動填入，送出後工具等模組回
+            <code>CONNECT</code> 才送原始位元組（等不到就不送）。完成時
+            <strong>註解引擎自動比對</strong>模組回報的大小與 checksum：
+            ✅＝完整無誤、❌＝傳壞了，先刪再重傳。</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← 接著送出 1939 bytes
++QFUPL: 1939,4f64         ← 實收大小,checksum，註解自動比對 ✅</pre>
+            <table>
+                <tr><th>按鈕</th><th>用途</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>列出 UFS 全部檔案與大小 ——
+                    上傳後用它驗證（零流量）</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>查剩餘／總空間 bytes（零流量）</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>刪除指定檔（<code>*</code>＝全部）；
+                    同名檔不先刪、重傳會被擋</td></tr>
+            </table>
+            <div class="tip">
+                <strong>兩個手冊沒明說的實測行為：</strong>（1）FILE 錯誤碼形式不一致 ——
+                同名重傳回文字 <code>file already exist</code>、逾時回數字 <code>421</code>，
+                本工具兩種都能解讀；（2）大小欄填得比實際大，模組逾時後
+                <strong>照樣把實收內容存檔</strong> —— checksum 比對會抓出來。
+            </div>
+
+            <h4>憑證驗證實戰：成對測試法</h4>
+            <p>流程：上傳根憑證 → <code>cacert</code> 指到它 → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → 連目標的 443。<strong>要上傳的是憑證鏈最上層的根憑證</strong>
+            （badssl.com 的鏈有四層，上傳最頂端的 ISRG Root X1）。
+            <strong>只測「壞憑證連不上」不夠</strong> —— 「全部連不上」也會通過。
+            要成對測試：好憑證連得上、壞憑證連不上，
+            <strong>兩個方向都成立才算數</strong>。實測 2×5 對照：</p>
+            <table>
+                <tr><th>主機</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com（正對照）</td><td>連得上</td>
+                    <td><strong>連得上</strong> <code>4,0</code></td></tr>
+                <tr><td>expired（過期）</td><td>連得上</td><td>拒絕 566</td></tr>
+                <tr><td>self-signed（自簽）</td><td>連得上</td><td>拒絕 566</td></tr>
+                <tr><td>wrong.host（主機名不符）</td><td>連得上</td><td>拒絕 566</td></tr>
+                <tr><td>untrusted-root（根不受信）</td><td>連得上</td><td>拒絕 566</td></tr>
+            </table>
+            <p>限制：<strong>四種憑證錯誤全回 566，模組不區分</strong>是哪一種。
+            <code>AT+QIGETERROR</code> 也幫不上忙 —— 它管 TCP/IP 層，
+            這時只回 <code>0,operate successfully</code>。</p>
+            <div class="tip">
+                負向測項避開 expired —— 出廠 <code>ignorelocaltime</code> 是 1，過期本身
+                不會被擋（上表它被擋是因為同時不在上傳的根之下），單測就用 wrong.host。
+                另外<strong>留意流量</strong>：每次交握都下載完整憑證鏈、失敗照付，
+                實測 30 次交握約 150–200 KB。
+            </div>
+
+            <h4>🔴 陷阱：連續開關約 20 次後，資料堆疊整個退化</h4>
+            <div class="warning">
+                <strong>症狀：所有 <code>AT+QSSLOPEN</code> 一律回 552</strong>，連 seclevel 0
+                都連不上，而每項自我檢查都說沒事。<strong>30 秒鑑別</strong>：用純 TCP 的
+                <code>AT+QIOPEN</code> 打同一目標 —— 也失敗就是資料堆疊壞了，別再查
+                SSL 設定。PDP 重啟救不回來，<strong>只有完整開機儀式能復原</strong>。
+                退化會污染測試資料、易誤判成「被憑證驗證擋掉」——
+                做成對測試前先重開機清乾淨。
+            </div>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>憑證驗證失敗。依序查：<code>sni</code> 開了沒（最常見）、
+                        <code>cacert</code> 的根對不對、憑證本身壞；
+                        三個設定重開機就歸零</td></tr>
+                <tr><td><code>OK</code> 之後沒下文</td>
+                    <td><code>OK</code> 只代表收下，結果走 URC，最久等到
+                        150 秒＋<code>negotiatetime</code></td></tr>
+                <tr><td>AT 口卡住不理任何指令</td>
+                    <td><code>AT+QSSLSEND</code> 長度算錯、卡在資料模式吞指令 ——
+                        用 Hardware 頁的原始位元組按鈕送 ESC（0x1B）脫身</td></tr>
+            </table>

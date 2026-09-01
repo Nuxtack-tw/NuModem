@@ -1,0 +1,152 @@
+<h3 id="tab-http">HTTP —— yêu cầu web</h3>
+            <p><strong>Nguyên lý hoạt động:</strong> HTTP của module là <strong>ba chặng</strong>:
+            đặt URL trước (bản thân bước này lại là hai giai đoạn), rồi phát yêu cầu (GET / POST), cuối cùng đọc phản hồi về.
+            Kết quả của mỗi chặng đều không nằm trong <code>OK</code>, mà là URC đến sau đó ——
+            vì vậy <code>AT+QURCCFG="urcport"</code> bắt buộc phải là <code>"uart1"</code> (trang Hardware đổi được),
+            không thì kết quả chẳng thấy được cái nào. Số liệu đều là đo thực tế trên máy thật 2026-08.</p>
+
+            <h4>Trước khi bắt đầu: phải có kênh dữ liệu đã</h4>
+            <p>Tiền đề là PDP đã kích hoạt và lấy được IP (<code>AT+QIACT=1</code> của trang TCP/IP).
+            <strong>Cụm Connect</strong> của trang này chỉ đặt các phép kiểm chỉ đọc:
+            <code>AT+CPIN?</code> / <code>AT+CGATT?</code> / <code>AT+CGREG?</code> /
+            <code>AT+QIACT?</code>, <code>AT+QIDNSCFG=1</code> (DNS 0.0.0.0 = chưa được cấp),
+            <code>AT+QIGETERROR</code> (⚠ chỉ có hiệu lực với lệnh TCP/IP cuối cùng,
+            thất bại xong phải bấm <strong>ngay lập tức</strong>).</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> biết lừa người.</strong> Đo thực tế từng gặp PDP trôi giữa chừng:
+                mọi yêu cầu thất bại toàn bộ, <strong>hết giờ cố định 30 giây</strong> trả lỗi 716,
+                <code>AT+QIACT?</code> vẫn trả IP như thường. Dùng <code>AT+CGACT?</code> đối chiếu chéo,
+                không khớp nhau nghĩa là trôi rồi. Cách sửa: <code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;cid bị trôi&gt;</code> → <code>AT+QIACT=1</code>,
+                ping thông rồi hãy tiếp tục.
+            </div>
+
+            <h4>Lần GET đầu tiên: bốn bước</h4>
+            <ol>
+                <li><strong>Thiết lập trước</strong> (cụm Config, không tốn lưu lượng): thẻ tham số <code>contextid</code>
+                    đặt 1 (ràng buộc PDP context sẽ đi); ba công tắc <code>rspout/auto</code>,
+                    <code>requestheader</code>, <code>responseheader</code> giữ nguyên 0
+                    (lý do xem phía sau); <code>AT+QHTTPCFG?</code> đọc lại toàn bộ thiết lập một lượt để rà soát,
+                    <code>AT+QHTTPCFG=?</code> liệt kê các mục đặt được.</li>
+                <li><strong>Đặt URL (hai giai đoạn)</strong>: thẻ <code>AT+QHTTPURL</code> chỉ có một nút
+                    "gửi (hai giai đoạn)" —— bạn điền URL, độ dài do chương trình tự tính. Quy trình: gửi
+                    <code>AT+QHTTPURL=&lt;độ dài&gt;,80</code> trước, chờ <code>CONNECT</code>
+                    vào data mode, rồi gửi nguyên xi các byte của URL, <strong>không thêm bất kỳ ký tự cuối dòng nào</strong>
+                    (CR/LF sẽ bị tính vào độ dài).
+                    <code>http://www.example.com/</code> độ dài đúng là 23. Gửi xong bấm
+                    <code>AT+QHTTPURL?</code> đọc lại, giống từng chữ = không có ký tự cuối dòng lẫn vào.</li>
+                <li><strong>Phát yêu cầu</strong>: <code>AT+QHTTPGET=80</code> (số giây chờ phản hồi).
+                    <code>OK</code> chỉ có nghĩa là "đã nhận lệnh", kết quả thật là URC đến sau
+                    <code>+QHTTPGET: 0,200</code>, cách đọc xem đoạn dưới.</li>
+                <li><strong>Đọc phản hồi</strong>: <code>AT+QHTTPREAD=80</code>.
+                    Sau <code>CONNECT</code> toàn là byte thô (đo thực tế example.com là
+                    559 bytes), tiếp đến <code>OK</code> ——
+                    nhưng <strong>dòng <code>+QHTTPREAD: 0</code> đứng riêng ở cuối mới là dấu kết thúc</strong>.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="Tab HTTP">
+                <figcaption>Trang HTTP: bốn cụm Config / Connect / Transfer / Close.</figcaption>
+            </figure>
+
+            <h4>Đọc +QHTTPGET: cột đầu không phải mã trạng thái HTTP</h4>
+            <p>URC kết quả của GET / POST / POSTFILE đều có ba cột
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code>:
+            <code>err</code> <strong>0 = lệnh thực thi thành công</strong>, khác 0 là lỗi tầng module (716, 711…);
+            <code>httprspcode</code> là mã trạng thái HTTP, <strong>chỉ được báo khi err=0</strong>
+            (sổ tay ghi rõ; công cụ cài sẵn chú giải đối chiếu 200 / 403 / 404 / 409 / 411 / 500);
+            <code>content_length</code> tùy chọn —— header phản hồi của máy chủ có CONTENT-LENGTH mới có,
+            GET thông thường hay chỉ có hai cột. Cho nên <code>+QHTTPGET: 0,404,0</code> đo thực tế
+            <strong>không phải thất bại</strong>: lệnh thành công rồi, là máy chủ nói không tìm thấy.</p>
+
+            <h4>Đọc phản hồi: cái bẫy của AT+QHTTPREAD</h4>
+            <p>Tham số là "số giây cách quãng tối đa giữa hai gói dữ liệu", không phải tổng thời lượng.
+            <strong>Firmware máy này chỉ ăn một tham số</strong>: cách đọc chia đoạn
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> trong tài liệu ứng dụng đo thực tế trả
+            <code>ERROR</code> trần trụi (thăm dò <code>=?</code> xác thực), nút đã gỡ bỏ ——
+            muốn lấy về theo đoạn thì chuyển sang <code>GETEX</code>.</p>
+            <div class="warning">
+                <strong>Bẫy khóa lẫn nhau: <code>rspout/auto</code> hễ đặt 1, họ READ nhất loạt thất bại</strong>
+                (sổ tay ghi rõ). Nó cho module tự nhả phản hồi, cái giá là họ READ chết sạch,
+                nên nút này có hộp thoại xác nhận. READ bỗng dưng sập hết, tra <code>AT+QHTTPCFG?</code> trước.
+            </div>
+
+            <h4>Lấy về theo đoạn: AT+QHTTPGETEX đọc từng byte</h4>
+            <p><code>AT+QHTTPGETEX=&lt;giây&gt;,&lt;vị trí bắt đầu&gt;,&lt;độ dài&gt;</code>
+            đi đường HTTP Range chỉ vớt đúng mảnh chỉ định, tiết kiệm lưu lượng. Đo thực tế (nội dung điểm cuối cố định là
+            <code>abcdefghijklmnop</code>): vị trí 0 lấy 8 trả <code>+QHTTPGET: 0,206,8</code>,
+            đọc ra <code>abcdefgh</code>; vị trí 8 lấy tiếp 8 đọc ra <code>ijklmnop</code>.
+            Cách đọc: <strong>mã trạng thái phải là 206</strong>; trả <strong>200 và lần nào nội dung cũng y hệt</strong>
+            = máy chủ không hỗ trợ Range, không phải module hỏng.
+            ⚠ Chỉ chạy được khi <code>requestheader=0</code>.</p>
+
+            <h4>POST: hai giai đoạn và Content-Type</h4>
+            <p>Thẻ <code>AT+QHTTPPOST</code> cũng là hai giai đoạn: bạn điền body, độ dài tự tính, gửi trước
+            <code>AT+QHTTPPOST=&lt;độ dài&gt;,&lt;giây nhập&gt;,&lt;giây phản hồi&gt;</code>,
+            chờ <code>CONNECT</code> rồi gửi body. Ba chuyện:</p>
+            <ul>
+                <li><strong><code>CONNECT</code> phải chờ tối đa tới 125 giây</strong> (sổ tay ghi rõ) ——
+                    hạn chờ dấu nhắc phải đặt đủ 125 giây, đừng dùng lại 5 giây của MQTT.</li>
+                <li>Trần body 1 MB (phạm vi đo thực tế của <code>=?</code> là 1–1024000).</li>
+                <li>Content-Type đặt sẵn bằng thẻ tham số <code>contenttype</code>
+                    (mã kiểu 0 = form-urlencoded).</li>
+            </ul>
+            <p>Đo thực tế: POST <code>Message=HelloQuectel</code> (20 bytes) trả
+            <code>+QHTTPPOST: 0,200,440</code>; JSON mà READ trả về kiểm chứng được cặp khóa-giá trị đã tới nơi,
+            độ dài tính đúng, Content-Type có hiệu lực, User-Agent là
+            <code>QUECTEL_MODULE</code> do module tự khai.</p>
+
+            <h4>Header tự đặt và header phản hồi</h4>
+            <ul>
+                <li><code>reqheader/add</code>: thêm một dòng header yêu cầu tự đặt (sổ tay không kèm ví dụ);
+                    nút truy vấn tra được hiện đã thêm mấy dòng; <code>reqheader/remove</code> gỡ bỏ.</li>
+                <li><code>requestheader</code> đặt 1 = cả bộ header yêu cầu tự ghép lấy, đến GET cũng biến thành hai giai đoạn,
+                    và <code>GETEX</code> không dùng được. Bình thường giữ 0.</li>
+                <li><code>responseheader</code> đặt 1 thì READ nhả kèm luôn header phản hồi HTTP
+                    (đo thực tế đến X-Test tự đặt cũng mang về được). Thử xong đổi lại 0.</li>
+                <li><code>closed/ind</code>: bật báo URC "session bị đóng".</li>
+            </ul>
+
+            <h4>Bản tệp: POSTFILE và READFILE (UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="tên tệp",&lt;giây&gt;</code> lấy tệp trong hệ thống tệp của module (UFS)
+            làm body gửi POST; <code>AT+QHTTPREADFILE="tên tệp",&lt;giây&gt;</code> lưu phản hồi thành
+            tệp UFS. ⚠ Công cụ này hiện <strong>chưa tải được tệp lên UFS, cũng chưa đọc lại được nội dung tệp
+            UFS</strong>, hai lệnh này để phối hợp với quy trình phía firmware.</p>
+
+            <h4>HTTPS: lối đi miễn xác thực</h4>
+            <p>HTTPS = HTTP + SSL context. Cụm Connect chuẩn bị sẵn lối ngắn nhất, năm nút bấm theo thứ tự:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP chỉ định dùng SSL context 1
+AT+QSSLCFG="sslversion",1,4        ← Phiên bản TLS giao cho máy chủ thương lượng
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← Bộ mã hóa mở hết
+AT+QSSLCFG="seclevel",1,0          ← Không xác thực chứng chỉ (xem dưới)
+AT+QSSLCFG="sni",1,1               ← Bật SNI (xuất xưởng là 0!)</pre>
+            <p>Sau đó URL đổi sang đầu <code>https://</code> rồi GET / READ như thường ——
+            đo thực tế HTML đọc về giống từng chữ với bản rõ chữ.
+            <strong><code>seclevel=0</code> (không xác thực chứng chỉ) là lối duy nhất công cụ này đi trọn được</strong>
+            —— muốn xác thực chứng chỉ phải ghi chứng chỉ CA vào UFS trước; chi tiết SSL (<code>AT+QSSLCFG=?</code>
+            liệt kê mọi mục con, <code>negotiatetime</code> chỉnh số giây chờ bắt tay) xem mục "SSL —— kênh TLS".
+            <strong>SNI xuất xưởng là 0</strong>: không bật, trang HTTPS dùng chung IP nhận về chứng chỉ không khớp,
+            vừa xác thực là thua. <strong>Chuỗi chứng chỉ là khoản lưu lượng to đầu</strong>: một lượt HTTPS GET khoảng 8–15 KB,
+            bản rõ chữ chỉ khoảng 1 KB.</p>
+
+            <h4>Chuyển hướng và thu dọn</h4>
+            <p><strong>Chuyển hướng (sổ tay không ghi, đo thực tế làm rõ)</strong>: module tự bám theo 302, nhưng
+            <strong>chỉ ăn Location dạng đường dẫn tuyệt đối</strong> —— đường dẫn tương đối trả thẳng lỗi 711,
+            thất bại tức thì trong 1 mili giây. <strong>Thu dọn</strong>:
+            <code>AT+QHTTPSTOP</code> (cụm Close) hủy yêu cầu đang chạy và ngắt session;
+            trạng thái là lạ, hoặc hiện lỗi 704 (data mode bị chiếm) thì bấm nút này dọn sạch trước.</p>
+
+            <h4>Khắc phục sự cố</h4>
+            <table>
+                <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+                <tr><td>Không thấy URC kết quả nào</td><td><code>urcport</code> không phải <code>uart1</code>,
+                    sang trang Hardware đổi</td></tr>
+                <tr><td>Mọi URL đều 716, hết giờ cố định 30 giây</td>
+                    <td>PDP trôi, xem cảnh báo bên trên</td></tr>
+                <tr><td>Một URL đơn lẻ trả 716</td><td>Đo thực tế DNS thất bại cũng là 716 (không phải
+                    714 như tài liệu cũ đoán); READ tiếp theo trả 705 là dây chuyền bình thường</td></tr>
+                <tr><td><code>READ</code> / <code>GETEX</code> bỗng dưng thất bại</td>
+                    <td><code>rspout/auto</code> và <code>requestheader</code>
+                        đều phải là 0 (xem bên trên)</td></tr>
+                <tr><td><code>AT</code> đều không phản hồi</td>
+                    <td>Module treo cứng (đo thực tế từng gặp, sổ tay không mô tả) —— chạy lại nghi thức khởi động</td></tr>
+            </table>

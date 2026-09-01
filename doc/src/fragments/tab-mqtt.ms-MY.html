@@ -1,0 +1,148 @@
+<h3 id="tab-mqtt">MQTT — pemesejan IoT</h3>
+            <p><strong>Prinsip kerja:</strong> MQTT ialah protokol bergaya "broker" (pelayan perantara mesej):
+            peranti tidak bersambung terus antara satu sama lain, masing-masing bersambung kepada broker, kemudian menerbitkan atau melanggan mesej pada "topik".
+            Pada EG800K ia terbahagi dua lapisan: mula-mula <code>AT+QMTOPEN</code> membuka "sambungan rangkaian" (TCP ke broker),
+            kemudian <code>AT+QMTCONN</code> melakukan "log masuk MQTT"; kedua-dua lapisan mesti menjadi barulah boleh melanggan dan menerbitkan.
+            Ingat dahulu: <strong>keputusan setiap arahan MQTT mengikut corak "OK dahulu, URC kemudian"</strong> (sama seperti FTP) —
+            <code>OK</code> hanya bermakna arahan telah diterima; berjaya atau gagal bergantung pada URC keputusan selepasnya.</p>
+            <p>Halaman ini tetap menggunakan client 0; perisian tegar turut menyokong berbilang client (0–5), SSL dan pengesahan platform awan
+            (disahkan melalui ujian sebenar <code>=?</code>); untuk penggunaan lanjutan lihat nota aplikasi MQTT.</p>
+
+            <h4>Sebelum bermula: dua prasyarat</h4>
+            <ol>
+                <li><strong>URC mesti melalui UART</strong>: <code>AT+QURCCFG="urcport"</code> mesti memulangkan
+                    <code>"uart1"</code>. Nilai kilang ialah <code>"usbat"</code>, sedangkan keputusan MQTT semuanya URC —
+                    tanpa perubahan itu <strong>setiap arahan hanya memulangkan OK tanpa sebarang susulan</strong>
+                    (halaman Basic ada butangnya; ditulis ke NVRAM, cukup diubah sekali).</li>
+                <li><strong>PDP mesti diaktifkan dahulu</strong>: pada halaman TCP/IP tekan <code>AT+QIACT=1</code>
+                    (sehingga 150 saat); jika tidak dibuka, <code>+QMTOPEN</code> memulangkan <strong>3 = pengaktifan PDP gagal</strong>.
+                    Keseluruhan proses menjana trafik data, dianggarkan lebih kurang 5 KB.</li>
+            </ol>
+
+            <h4>Cara menguji: empat broker awam percuma</h4>
+            <p>Kad parameter <code>AT+QMTOPEN</code> mempunyai senarai juntai broker terbina dalam (menaip bebas masih dibenarkan);
+            keempat-empatnya membenarkan tanpa nama, tanpa pendaftaran. Data ialah ujian sebenar Ogos 2026 (letusan 100 mesej dari PC, ping dari modul):</p>
+            <table>
+                <tr><th>Broker</th><th>Letusan 100 mesej</th><th>Ping dari modul</th><th>Catatan</th></tr>
+                <tr><td><strong>mqttgo.io</strong> (lalai)</td><td><strong>100/100</strong></td>
+                    <td><strong>190–210 ms</strong></td><td>HiNet Taiwan; 1883 teks jelas / 8883 TLS</td></tr>
+                <tr><td>broker.hivemq.com</td><td>100/100</td><td>Menyekat ICMP</td>
+                    <td>Jangan panik apabila <code>AT+QPING</code> memulangkan 559 — ujian sebenar: TCP 1883 keempat-empatnya sampai;
+                        untuk kebolehcapaian terus uji dengan <code>AT+QMTOPEN</code></td></tr>
+                <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+                    <td>Laman rasminya sendiri berkata jangan gunakannya untuk tujuan penting; pencemaran topik paling teruk</td></tr>
+                <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>Menyekat ICMP</td>
+                    <td><strong>Ada had kadar penerbitan</strong>; ada Dashboard web</td></tr>
+            </table>
+            <p>Keempat-empatnya <strong>terbuka sepenuhnya</strong>: sesiapa sahaja boleh melanggan topik anda,
+            dan mesej orang lain juga boleh menyelinap masuk — inilah masalah yang hendak diselesaikan oleh akhiran rawak.</p>
+
+            <h4>Akhiran rawak bagi client ID dan topik: bertukar setiap kali halaman dimuat semula</h4>
+            <p>client ID dan topik lalai tidak ditetapkan secara kekal: semasa halaman dimuatkan, akhiran 6 aksara heksadesimal dijana secara automatik,
+            membentuk <code>numodem-&lt;akhiran&gt;</code> dan <code>test/numodem-&lt;akhiran&gt;</code>;
+            ketiga-tiga butang Subscribe / Publish / Unsub berkongsi set yang sama (jika tidak, gelung sendiri tidak akan berpadan). Dua sebabnya:</p>
+            <ul>
+                <li><strong>Nama yang berlanggar akan ditendang keluar</strong>: MQTT 3.1.1 §3.1.4 menetapkan broker mesti memutuskan
+                    pihak yang bersambung lebih awal — dua orang yang menggunakan ID tetap yang sama akan saling menendang, dan gejalanya kelihatan seperti "modul terputus tanpa sebab".</li>
+                <li><strong>Topik tetap akan menerima mesej orang lain</strong>: anda menyangka yang diterima ialah kiriman sendiri, sedangkan bukan —
+                    ini lebih buruk daripada tidak menerima apa-apa, kerana ia memberikan kelulusan palsu.</li>
+            </ul>
+            <div class="warning">
+                <strong>⚠ Setiap kali halaman dimuat semula, akhirannya bertukar —
+                melanggan dan menerbitkan mesti disiapkan dalam kitaran hayat halaman yang sama.</strong>
+                Tambahan pula alat ini menggunakan RTS = kuasa; memuat semula halaman = modul kehilangan kuasa, sambungan MQTT lenyap seluruhnya,
+                dan anda perlu bermula semula daripada ritual but dan <code>AT+QMTOPEN</code>.
+            </div>
+
+            <h4>Aliran penuh: sambung → langgan → terbit → terima balik mesej sendiri</h4>
+            <p>Pengesahan yang paling meyakinkan ialah <strong>gelung sendiri</strong>: selepas melanggan, terbitkan ke topik yang sama,
+            terima balik mesej sendiri, dan seluruh rantaian hantar-terima disahkan sekali gus. Setiap langkah tunggu URC keputusan sebelum meneruskan:</p>
+            <ol>
+                <li><strong>Tetapkan versi protokol</strong>: tekan Ver 3.1.1 (<code>AT+QMTCFG="version",0,4</code>;
+                    3 = 3.1, 4 = 3.1.1). Tekan Version? untuk melihat nilai semasa (tanpa nilai = pertanyaan).
+                    Kad parameter Keepalive boleh melaraskan selang pengekalan hidup; tanpa pelarasan pun ujian tetap boleh dijalankan.</li>
+                <li><strong>Buka rangkaian</strong>: tekan Open Net (<code>AT+QMTOPEN=0,"broker",1883</code>).
+                    Mula-mula memulangkan <code>OK</code>; berjaya atau gagal dilihat pada URC <code>+QMTOPEN: 0,&lt;result&gt;</code>
+                    (0 = berjaya), menunggu sehingga 120 saat. Tekan Open? untuk melihat sambungan yang telah dibuka
+                    (apabila tiada sambungan ia memulangkan <code>OK</code> kosong; ujian sebenar menunjukkan itu normal).</li>
+                <li><strong>Log masuk MQTT</strong>: tekan Connect (<code>AT+QMTCONN=0,"numodem-&lt;akhiran&gt;"</code>).
+                    URC kejayaan sentiasa <code>+QMTCONN: 0,0,0</code>. Broker awam tidak memerlukan akaun dan kata laluan;
+                    apabila diperlukan, tambah sendiri <code>,"user","pass"</code> selepas parameter.
+                    Tekan Conn? untuk melihat status (1 = awal, 2 = sedang bersambung, 3 = telah bersambung, 4 = sedang diputuskan).</li>
+                <li><strong>Langgan</strong>: tekan Subscribe (<code>AT+QMTSUB=0,1,"test/numodem-&lt;akhiran&gt;",0</code>,
+                    msgid tetap 1). URC kejayaan berbentuk <code>+QMTSUB: 0,1,0,0</code>.
+                    Selepas ini semua mesej topik itu masuk sebagai URC <code>+QMTRECV</code>.</li>
+                <li><strong>Terbit</strong>: tekan Publish (<code>AT+QMTPUBEX</code>, dua peringkat, lihat perenggan berikut).
+                    URC kejayaan ialah <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code>.</li>
+                <li><strong>Terima balik</strong>: sasaran penerbitan ialah topik yang sedang dilanggan, jadi sejurus selepas itu anda akan nampak
+                    <code>+QMTRECV</code> membawa topik dan isi mesej yang baru dihantar — gelung sendiri berjaya.
+                    Payload aksara CJK juga tidak terpotong dan tidak berselerak.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="Tab MQTT">
+                <figcaption>Halaman MQTT: senarai juntai broker, sambungan, langganan dan penerbitan; nilai lalai sudah membawa akhiran rawak.</figcaption>
+            </figure>
+
+            <h4>Dua peringkat QMTPUBEX: dihantar automatik apabila panjang cukup, tanpa Ctrl+Z</h4>
+            <p>Parameter terakhir <code>AT+QMTPUBEX</code> ialah <strong>panjang (bilangan bait), bukan isi mesej</strong>
+            (nota aplikasi MQTT §3.3.8 menutup perkara ini — cara satu baris yang menyumbat mesej pasti memulangkan ERROR).
+            Aliran yang betul ialah dua peringkat: hantar arahan → modul memulangkan gesaan <code>&gt;</code> → hantar tepat N bait,
+            dan modul <strong>menghantarnya secara automatik sebaik panjang cukup, tanpa perlu Ctrl+Z</strong>
+            (berbeza daripada mod data <code>AT+QISEND</code> pada halaman TCP). Butang Publish melakukannya sepenuhnya automatik:
+            cukup isikan isi mesej pada kad parameter, dan panjangnya dikira automatik daripada bilangan bait UTF-8
+            (satu aksara CJK = 3 bait; ujian sebenar: dua aksara → 6).</p>
+            <ul>
+                <li>Arahan jenis payload <strong>tidak menyediakan "isi ke baris arahan"</strong> — penghantaran dari baris arahan sentiasa menambah penamat baris,
+                    dan CR itu akan dikira ke dalam panjang lalu tersasar; gunakan butang untuk menghantar.</li>
+                <li>Perisian tegar turut mempunyai <code>AT+QMTPUB</code> (varian mod data, perlu Ctrl+Z sebagai penamat) —
+                    alat ini sentiasa menggunakan <code>QMTPUBEX</code>, jadi tidak perlu mempelajari kedua-duanya.</li>
+            </ul>
+
+            <h4>Mentafsir kod keputusan: julat nilai setiap arahan berbeza</h4>
+            <div class="warning">
+                <strong>Jangan mengenakan jadual kod keputusan arahan A pada arahan B.</strong>
+                3 pada <code>+QMTOPEN</code> bermaksud "pengaktifan PDP gagal",
+                manakala <code>+QMTPUBEX</code> langsung tiada nilai 3.
+                <br><br>
+                Yang paling mudah disalahtafsir ialah <code>+QMTCONN: 0,1</code> —
+                ia <strong>mungkin "status 1 = sedang dimulakan" bagi respons pertanyaan, atau "paket sedang dihantar semula" bagi keputusan penulisan</strong>.
+                Satu baris sahaja tidak dapat membezakannya, jadi alat ini memaparkan kedua-dua bacaan bersebelahan dan tidak meneka.
+            </div>
+            <p>Anda tidak perlu menghafal jadual: daripada <code>+QMTOPEN</code> hingga <code>+QMTRECV</code> / <code>+QMTSTAT</code>,
+            semua URC keputusan diberi anotasi bahasa mudah lajur demi lajur di kawasan terminal, mengikut tujuh jadual rujukan nota aplikasi MQTT v1.5.</p>
+
+            <h4>Log keluar dan penamatan</h4>
+            <ul>
+                <li><strong>Hanya mahu berhenti menerima, sambungan dikekalkan</strong>: tekan Unsub
+                    (<code>AT+QMTUNS=0,2,"topik"</code>, msgid tetap 2).</li>
+                <li><strong>Log keluar biasa</strong>: tekan Disconnect (<code>AT+QMTDISC=0</code>,
+                    menghantar MQTT DISCONNECT), memulangkan <code>+QMTDISC: 0,0</code>.
+                    <strong>Selepas itu tidak perlu menekan Close Net lagi</strong> — <code>AT+QMTCLOSE=0</code>
+                    adalah untuk penutupan paksa apabila "QMTDISC gagal dan lapisan rangkaian tersekat".</li>
+            </ul>
+            <p>Pemutusan yang bukan anda cetuskan (ditendang keluar, keepalive tamat masa, rangkaian terputus) dilaporkan sebagai URC
+            pemutusan luar biasa <code>+QMTSTAT</code> (contoh: <code>+QMTSTAT: 0,5</code>, kawasan terminal akan menganotasi sebabnya);
+            ketika itu anda perlu bermula semula daripada <code>AT+QMTOPEN</code>.</p>
+
+            <h4>Penyelesaian masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Punca dan penyelesaian</th></tr>
+                <tr><td>Setiap arahan memulangkan OK, kemudian tiada susulan</td>
+                    <td>URC dihantar ke port USB — <code>urcport</code> dari kilang ialah <code>usbat</code>,
+                        tukarkan kepada <code>uart1</code> (lihat prasyarat 1)</td></tr>
+                <tr><td><code>+QMTOPEN: 0,3</code></td>
+                    <td>Pengaktifan PDP gagal — <code>AT+QIACT=1</code> dahulu (halaman TCP/IP) kemudian ulang</td></tr>
+                <tr><td>Telah melanggan tetapi tidak menerima mesej sendiri</td>
+                    <td>Halaman dimuat semula di pertengahan — akhirannya bertukar dan modul turut hilang kuasa lalu but semula.
+                        Jalankan semula satu pusingan aliran dalam kitaran hayat halaman yang sama</td></tr>
+                <tr><td>Menerima mesej yang bukan kiriman sendiri</td>
+                    <td>Pencemaran topik broker awam (mosquitto paling teruk). Topik lalai sudah membawa akhiran rawak;
+                        untuk topik tersuai pilih nama yang unik</td></tr>
+                <tr><td>Sebahagian mesej hilang semasa penerbitan pukal</td>
+                    <td>emqx ada had kadar penerbitan (ujian sebenar: letusan 100 hanya sampai 40) —
+                        tukar kepada mqttgo.io atau hivemq (100/100, tanpa had kadar)</td></tr>
+                <tr><td>Menunggu lama tetapi URC keputusan tidak tiba</td>
+                    <td>Keluarga arahan ini memang perlahan: <code>QMTOPEN</code> sehingga 120 saat,
+                        <code>QMTCONN</code> / <code>QMTSUB</code> / <code>QMTPUBEX</code> sehingga 600 saat
+                        (PUBEX = tamat masa paket 60 saat × 10 kali cuba semula); keterangan butang sudah menandakannya, ia bukan tergantung</td></tr>
+            </table>

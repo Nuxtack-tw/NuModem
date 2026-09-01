@@ -1,0 +1,152 @@
+<h3 id="tab-hardware">Hardware — Einschalten und serieller Port</h3>
+            <p><strong>Funktionsweise:</strong> Diese Seite ist das Fundament des gesamten Werkzeugs:
+            Control sind die zwei Schaltflächen der Boot-Sequenz (Power/Reset), Module ist die Produktidentifikation,
+            Serial sind die UART-Einstellungen, Power ist der Stromsparmodus, URC steuert den Ausgabeport
+            für die Eigenmeldungen des Moduls, und dazu kommt eine Reihe von <strong>Rohbyte-Schaltflächen</strong>
+            (Ctrl+Z/ESC/+++) als Notausgang aus dem Datenmodus.
+            Alle anderen Tabs bauen auf zwei Voraussetzungen auf: <strong>Das Modul wurde gemäß der Boot-Sequenz eingeschaltet</strong>
+            und <strong>die URCs laufen über uart1</strong> — beides wird auf dieser Seite erledigt.
+            Alle Verhaltensweisen und Zahlen in diesem Abschnitt sind Messwerte, die im August 2026 an einer echten EG800K erhoben wurden.</p>
+
+            <h4>Warum es eine Boot-Sequenz gibt: RTS = Stromversorgung, DTR = Reset</h4>
+            <p>Die Steuerplatine, mit der dieses Werkzeug arbeitet, zweckentfremdet zwei RS-232-Handshake-Signale — das ist der Schlüssel zum Verständnis dieser Seite:</p>
+            <table>
+                <tr><th>Signal</th><th>Tatsächlich verbunden mit</th><th>Logik</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Ein-/Ausschalter der Modulversorgung</td>
+                    <td><strong>Negative Logik</strong>: RTS OFF = Strom an, RTS ON = Strom aus</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Reset-Pin des Moduls</td>
+                    <td>DTR ON = Reset auf High (startfähig), DTR OFF = Reset auf Low</td></tr>
+            </table>
+            <p>Eigenheit der Schaltung (durch Messung bestätigt): Bei der ersten Verbindung muss RTS <strong>erst auf ON und dann auf OFF</strong>,
+            sonst geht die Versorgung nicht wirklich an — direktes Setzen auf OFF garantiert keinen Strom; auch DTR muss <strong>ON→OFF→ON</strong> durchlaufen,
+            damit Reset wirklich auf High geht. Das Abschalten (RTS ON) ist ein harter Schnitt, das Modul sendet <strong>keinerlei Abschiedsmeldung</strong>.</p>
+            <div class="warning">
+                <strong>Seite neu laden = Strom weg.</strong> Beim erneuten Öffnen des seriellen Ports zieht der Browser RTS wieder hoch,
+                und das Modul verliert schlagartig die Versorgung — nach Abschluss der automatischen Wiederverbindung <strong>muss die Boot-Sequenz erneut durchlaufen werden</strong>.
+                Selbst erlebt: Ohne die Sequenz wurden direkt 17 Befehle abgesetzt, und keiner kam zurück (nur TX-Zeilen, null RX).
+                Bei jedem „eben ging noch alles, jetzt reagiert gar nichts mehr“ denken Sie zuerst hieran.
+            </div>
+
+            <h4>Die Schaltflächen Power und Reset: wie man klickt und was man sieht</h4>
+            <p>Die beiden Schaltflächen sind die Verkörperung der zwei Signale aus der Tabelle oben und mit den RTS/DTR-Anzeigen der Signalleiste <strong>in beide Richtungen gekoppelt</strong>
+            (ohne Verbindung sind sie ausgegraut und nicht klickbar). Web Serial kann den tatsächlichen Zustand der Ausgangssignale nicht zurücklesen;
+            die Signalleiste zeigt den Wert, von dem dieses Werkzeug nach dem Senden ausgeht.</p>
+            <ol>
+                <li><strong>Power</strong> (Umschalter): Leuchtet grün = Strom ON (= RTS OFF).
+                    Die Boot-Sequenz verlangt, dass RTS ON→OFF durchläuft: Leuchtet die Schaltfläche bereits, erst aus- und dann wieder einschalten.</li>
+                <li><strong>Reset</strong> (momentary): Drücken = DTR OFF, Loslassen = DTR ON;
+                    einmal drücken und loslassen ist ein Reset (der Standardablauf hält dazwischen 0.3 Sekunden an).</li>
+                <li><strong>Auf RDY warten</strong>: Binnen Sekunden erscheint im Terminal die Startmeldung <code>RDY</code> des Moduls.</li>
+                <li><strong>Mit ATI verifizieren</strong>: Es sollte <code>Quectel</code>/<code>EG800K</code>/
+                    <code>Revision: …</code>/<code>OK</code> zurückkommen. Kommt das an = UART und Modul sind beide am Leben.</li>
+            </ol>
+            <div class="tip">
+                Nach dem Einschalten empfiehlt es sich, zuerst zu prüfen, dass das Echo (ATE) an ist (Werkseinstellung: an), und dann <code>AT+CMEE=2</code> abzusetzen —
+                ohne das sehen Sie nur ein dürres <code>ERROR</code>, mit ihm dagegen den lesbaren Text von
+                <code>+CME ERROR: …</code>. Beides gilt nur für die Sitzung; nach jedem Neustart des Moduls muss es neu abgesetzt werden.
+            </div>
+
+            <h4>Module: fünf Identifikations-Schaltflächen</h4>
+            <table>
+                <tr><th>Schaltfläche</th><th>Befehl</th><th>Was Sie sehen</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>Hersteller, Modell und Firmware-Version in einem — nach dem Einschalten als erster Befehl absetzen</td></tr>
+                <tr><td>Vendor/Model/FW Ver</td>
+                    <td><code>AT+GMI</code>/<code>AT+GMM</code>/<code>AT+GMR</code></td>
+                    <td>Fragt die drei Zeilen von ATI einzeln ab (jeweils gleichwertig zu CGMI/CGMM/CGMR).
+                        Gemessene Firmware-Version dieses Geräts: <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>IMEI des Moduls (15 Ziffern). Kein Datenvolumen, jederzeit absetzbar</td></tr>
+            </table>
+
+            <h4>Serial: Parameter lesen mit AT&amp;V, Baudrate ändern mit IPR</h4>
+            <p><strong>AT Params (<code>AT&amp;V</code>)</strong>: Listet die aktuellen Werte aller Einbuchstaben-AT-Parameter auf.
+            Die Einbuchstaben-Befehle <code>ATE</code>/<code>ATQ</code>/<code>ATV</code> <strong>haben keine eigene Abfrageform;
+            nur hiermit kommt man an sie heran</strong>. Auf diesem Gerät gemessen: <code>E:1 Q:0 V:1 S3:13 S4:10</code> —
+            Echo an, Ergebniscodes im Textmodus, Zeilenende = CR (ASCII 13), genau die Voraussetzungen, unter denen dieses Werkzeug die Antworten parst.</p>
+            <p><strong>Baud? (<code>AT+IPR?</code>)</strong>: Fragt die aktuelle Baudrate des UART ab, ab Werk 115200.<br>
+            <strong>Baud List (<code>AT+IPR=?</code>)</strong>: Liefert zwei Listen —
+            die erste enthält die automatisch erkennbaren Baudraten, die zweite die nur im festen Modus verfügbaren. Nach einem Lauf dieser Schaltfläche
+            wird das Aufklappmenü von Set Baud durch die tatsächlich von diesem Gerät gemeldete Liste ersetzt. Gemessen reicht die zweite Liste auf diesem Gerät bis
+            <strong>1000000 bps — in der Tabelle in §3.4 des Handbuchs fehlt dieser Wert</strong>.</p>
+            <p><strong>Set Baud (<code>AT+IPR={rate};&amp;W</code>, gestrichelte Karte)</strong>:
+            Ein Klick öffnet zuerst einen Bestätigungsdialog — dies ist die Schaltfläche der ganzen Seite, mit der man sich am leichtesten selbst aussperrt.</p>
+            <div class="warning">
+                <strong>Die dreifache Falle beim Ändern der Baudrate (alle drei durch Messung bestätigt):</strong><br>
+                ① Sobald das <code>OK</code> zurückkommt, gilt die Änderung <strong>sofort</strong>,
+                und ab dem nächsten Moment reden dieses Werkzeug und das Modul aneinander vorbei;<br>
+                ② <code>AT&amp;F</code> (Werksreset) stellt die Baudrate <strong>nicht</strong> zurück — hoffen Sie nicht auf Rettung von dort;<br>
+                ③ Ohne <code>&amp;W</code> wird nicht gespeichert — und neu verbinden = Strom weg: Das Modul wacht mit der alten Baudrate auf,
+                Ihre Porteinstellung steht aber auf der neuen — <strong>doppelter Kontaktverlust</strong>.
+                Deshalb erzwingt dieses Werkzeug die kombinierte Schreibweise <code>;&amp;W</code>.<br>
+                Wiederherstellung in vier Schritten (der Bestätigungsdialog erinnert ebenfalls daran): trennen → Baudrate im Verbindungsbereich ändern → neu verbinden → Boot-Sequenz erneut durchlaufen.
+            </div>
+
+            <h4>Power: Stromsparen mit QSCLK</h4>
+            <p><strong>Sleep? (<code>AT+QSCLK?</code>)</strong>: Fragt ab, ob das Modul in den Schlafmodus wechseln darf.
+            Auf diesem Gerät gemessen ist der Auslieferungswert <code>0</code> = deaktiviert, das Modul bleibt dauerhaft wach.
+            Diese Seite bietet bewusst nur die Abfrage-Schaltfläche: Ein schlafendes Modul <strong>antwortet nicht mehr auf AT</strong>, und das Handbuch nennt als Weckmethode das Herunterziehen von DTR —
+            auf dieser Platine ist DTR aber als Reset-Pin verdrahtet (siehe Anfang dieses Abschnitts). Wer den Schlafmodus über die Befehlszeile selbst eingeschaltet hat und das Modul nicht mehr wach bekommt,
+            befreit sich mit einem erneuten Durchlauf der Boot-Sequenz (Strom aus und wieder an); Details stehen in der offiziellen Application Note zum Stromsparmodus.</p>
+
+            <h4>URC: Wenn keine Meldungen ankommen, schauen Sie zuerst hier</h4>
+            <p>Ein <strong>URC (Unsolicited Result Code, unaufgeforderter Ergebniscode)</strong> ist eine Meldung, die das Modul „unaufgefordert von sich aus ausgibt“
+            und die Antwort auf keinerlei Befehl ist — das <code>RDY</code> beim Start, eintreffende TCP-Daten, MQTT-Nachrichten,
+            Wi-Fi-Scan-Ergebnisse und die Ladebestätigung der GNSS-Firmware gehören alle dazu. Ihr Ausgabeport ist
+            <strong>ab Werk der USB-Port (usbat)</strong> — dieses Werkzeug am UART bekommt davon nicht eine einzige zu sehen,
+            mit einem sehr typischen Symptom: <strong>Alle Befehle antworten mit OK, nur die Meldungen kommen nie</strong>.</p>
+            <table>
+                <tr><th>Schaltfläche</th><th>Befehl</th><th>Zweck</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>Fragt ab, wohin die URCs derzeit gehen — wenn keine URCs ankommen, <strong>ist das die erste Abfrage</strong>;
+                        nur bei der Antwort <code>"uart1"</code> kommen sie hier an</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>Welche Ausgabeports dieses Gerät unterstützt. Gemessen kommt <code>("usbat","usbmodem","uart1")</code> zurück,
+                        <strong>ohne das im Handbuch erwähnte "all"</strong> (das Handbuch merkt an, dass manche Modelle es nicht unterstützen)</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>Schaltet auf den Haupt-UART um. Landet im NVRAM und überlebt Neustarts — <strong>einmal ändern genügt</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>Der Hauptschalter der URCs, die andere große Ursache für „keine URCs“.
+                        Gemessen steht er auf diesem Gerät ab Werk auf 1 (an); das Problem liegt fast immer am Ausgabeport</td></tr>
+            </table>
+
+            <h4>Rohbyte-Schaltflächen: der Notausgang aus dem Datenmodus</h4>
+            <p>Etliche Befehle sind <strong>zweistufig</strong>: erst den Befehl senden, auf die <code>&gt;</code>-Eingabeaufforderung
+            des Moduls warten, dann den Inhalt senden. Wer in diesem <strong>Datenmodus</strong> steckt, dessen sämtliche Tastendrücke schluckt das Modul als Nutzdaten —
+            auch die AT-Befehle, die man absetzen möchte. Bei falsch berechneter Länge, Abbruchwunsch auf halbem Weg oder festhängendem Befehl helfen normale Tasten nicht mehr;
+            dann braucht es diese Reihe von Schaltflächen, die je ein einzelnes Rohbyte senden:</p>
+            <table>
+                <tr><th>Schaltfläche</th><th>Sendet</th><th>Wann verwenden</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td>Das <strong>Abschlusszeichen</strong> des Datenmodus: schickt den angesammelten Inhalt tatsächlich ab</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td><strong>Bricht</strong> den Datenmodus ab und verwirft den angesammelten Inhalt.
+                        Der erste Fluchtweg, wenn ein zweistufiger Befehl festhängt und der AT-Port nicht mehr antwortet (Handbuch §2.3.8)</td></tr>
+                <tr><td>+++</td><td>Drei Pluszeichen (als Rohbytes)</td>
+                    <td>Flucht aus dem <strong>transparenten Datenmodus</strong> (etwa der COM:-Übertragung von FTP) zurück in den AT-Modus.
+                        Die Regeln sind hart: <strong>davor und danach je 1 Sekunde Stille, niemals mit CR/LF</strong> —
+                        gemessen wirkt es mit angehängtem CR nicht; es muss über diese Schaltfläche gesendet werden und darf nicht in der Befehlszeile getippt werden</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Messung widerlegt Handbuch: +++ ist ein „Abbruch“, keine „Pause“.</strong>
+                Die FTPS Application Note v1.5 schreibt auf Seite 13, nach +++ könne man mit <code>ATO</code> in den Datenmodus zurückkehren und fortsetzen;
+                am echten Gerät antwortet <code>ATO</code> nur mit <code>NO CARRIER</code>, die Übertragung ist bereits abgebrochen.
+                Benutzen Sie +++ als Notbremse — und erwarten Sie nicht, nach der Bremsung weiterfahren zu können.
+            </div>
+
+            <h4>Fehlersuche</h4>
+            <table>
+                <tr><th>Symptom</th><th>Ursache und Abhilfe</th></tr>
+                <tr><td>Kein einziger Befehl bekommt eine Antwort</td>
+                    <td>Prüfen Sie der Reihe nach drei Verdächtige: ① Boot-Sequenz nicht durchlaufen (nach einem Neuladen der Seite ist sie es garantiert);
+                        ② Zeilenende steht auf LF — das Modul <strong>akzeptiert nur CR</strong>, auf LF kommt gar keine Antwort;
+                        ③ Baudrate passt nicht (siehe die Wiederherstellung in vier Schritten)</td></tr>
+                <tr><td>Reset gedrückt, aber kein RDY</td>
+                    <td>Schauen Sie zuerst, ob die Power-Schaltfläche leuchtet — ohne Strom nützt noch so häufiges Reset-Drücken nichts;
+                        bei der ersten Verbindung muss die Versorgung ON→OFF durchlaufen</td></tr>
+                <tr><td>Alle Befehle antworten mit OK, nur die URCs kommen nie</td>
+                    <td>Höchstwahrscheinlich steht urcport noch auf dem Werkswert usbat: mit URC Port? abfragen, mit URC → UART umstellen;
+                        hilft das nicht, den Hauptschalter URC Switch prüfen</td></tr>
+                <tr><td>Der AT-Port „verschluckt“ plötzlich Befehle, nichts bekommt eine Antwort</td>
+                    <td>Sie stecken im Datenmodus, alles Getippte wird als Nutzdaten eingesammelt — mit ESC befreien</td></tr>
+            </table>

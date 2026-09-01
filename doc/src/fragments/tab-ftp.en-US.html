@@ -1,0 +1,138 @@
+<h3 id="tab-ftp">FTP — File transfer</h3>
+            <p><strong>Working principle:</strong> FTP has <strong>two channels</strong>: the control channel carries commands,
+            the data channel carries file contents. Login, rename, delete and size queries use the control channel only;
+            LIST, upload and download must <strong>open a separate data connection</strong> —
+            most of this section's oddities (615, bursts of 603) stem from exactly that.
+            The Quectel rule running through the whole section: <strong><code>OK</code> only means "command accepted"</strong>;
+            the real result arrives later as a URC. Every response and number here was measured on a physical EG800K in August 2026.</p>
+
+            <h4>Before you start: two prerequisites</h4>
+            <ul>
+                <li><strong>The PDP must be active first</strong>: this page's first button, <code>AT+QIACT?</code>, does exactly this check —
+                    only a reply of <code>+QIACT: 1,1,…,"IP"</code> lets you continue; a bare OK means going to the TCP/IP page first and clicking
+                    Act PDP (with the PDP inactive, QFTPOPEN always fails).</li>
+                <li><strong>URCs must go to the UART</strong>: FTP commands are almost all "OK first, result later by URC" —
+                    if <code>AT+QURCCFG="urcport"</code> is not <code>"uart1"</code>,
+                    all you see here is a pile of OKs (set it on the Hardware page).</li>
+            </ul>
+
+            <h4>The login walkthrough: configure → open → wait for the URC</h4>
+            <ol>
+                <li><strong>Bind the PDP context</strong>: <code>AT+QFTPCFG="contextid",1</code>
+                    (already 1 from the factory; the query button reads it back to confirm).</li>
+                <li><strong>Set the credentials</strong>: <code>AT+QFTPCFG="account","user","password"</code> —
+                    it <strong>must be set before QFTPOPEN</strong>.</li>
+                <li><strong>Mode and type</strong>: set <code>transmode</code> to 1
+                    (passive; always use it behind NAT, mandatory for FTPS);
+                    <code>filetype</code> 1 for plain-text files, 0 for everything else.</li>
+                <li><strong>Log in</strong>: <code>AT+QFTPOPEN="host",21</code> returns OK immediately (merely accepted);
+                    only <code>+QFTPOPEN: 0,0</code> is a successful login (up to 125 seconds).
+                    Then <code>AT+QFTPSTAT</code> should return 1 (idle; 2 = transferring, 3 = closing).</li>
+            </ol>
+            <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK                ← only means the command was accepted
++QFTPOPEN: 0,0    ← this line is the successful login</pre>
+            <p>The remaining settings: <code>AT+QFTPCFG=?</code> lists all 10 configurable items and their ranges in one click (zero data cost).
+            <code>rsptimeout</code> (20–180, default 90 seconds) is the maximum response time for most commands
+            and also the maximum gap between two packets in data mode; <code>ssltype</code> / <code>sslctxid</code> are
+            for FTPS (keep 0 for plain FTP; SSL parameters are set on the SSL page);
+            <code>data_address</code> / <code>cache</code> / <code>restenable</code>
+            are fine-tuning for special environments — see each button's help and the manual.</p>
+            <div class="tip">
+                <strong>Password masking (measured, contradicting the manual):</strong> when queried, <code>AT+QFTPCFG="account"</code>
+                reads the password back masked as <code>*</code> (the manual says it prints verbatim). But the username is still plaintext,
+                and <strong>the password on the setting line is plaintext too</strong> — for screenshots and recordings, the setting line is the one to watch.
+            </div>
+            <div class="warning">
+                <strong>🔴 <code>AT+QFTPCLOSE</code> is asynchronous — <code>OK</code> does not mean it closed.</strong>
+                Only <code>+QFTPCLOSE: 0,0</code> completes the logout; meanwhile <code>AT+QFTPSTAT</code>
+                returns 3 (closing), and any FTP command <strong>invariably returns <code>+CME ERROR: 603</code></strong> (server busy).
+                <br><br>
+                The symptom is deeply misleading: a string of 603s looks like a broken module or a server ban,
+                when it is merely not done closing (a long detour was wasted on exactly this during testing). The wait ceiling = rsptimeout.
+                Also, it only logs out of FTP; to reset the network entirely, click Deact PDP on the TCP/IP page.
+            </div>
+
+            <h4>Directory and file management: the server as a file explorer</h4>
+            <p>The full set of server-side file operations (LIST / NLST / MLSD open a data connection; the rest use the control channel only).
+            Success responses are always <code>+QFTPXXX: 0,…</code> — a leading 0 is success:</p>
+            <table>
+                <tr><th>Command</th><th>What it does</th><th>Success response (measured)</th></tr>
+                <tr><td><code>AT+QFTPPWD</code></td><td>Queries the current working directory</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+                <tr><td><code>AT+QFTPCWD</code></td><td>Changes the working directory; later operations are relative to it</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPLIST</code></td><td>Dumps the full listing straight into the terminal (two buttons: current directory / named directory)</td><td>After the content, <code>+QFTPLIST: 0,1175</code> (trailing number = byte count)</td></tr>
+                <tr><td><code>AT+QFTPNLST</code> / <code>AT+QFTPMLSD</code></td><td>Names only (saves data) / MLSD standard format (easy to parse)</td><td>Same as LIST</td></tr>
+                <tr><td><code>AT+QFTPSIZE</code></td><td>Queries a file's size without downloading it</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+                <tr><td><code>AT+QFTPMDTM</code></td><td>Queries a file's modification time without downloading it</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+                <tr><td><code>AT+QFTPMKDIR</code> / <code>AT+QFTPRMDIR</code></td><td>Creates / deletes a folder</td><td><code>…: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPRENAME</code></td><td>Renames a file or folder</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPDEL</code></td><td>Deletes a file</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+            </table>
+            <p>A trick (the whole chain passed in testing): <strong>use SIZE as an existence check</strong> —
+            after a rename, querying the old name returns <code>+QFTPSIZE: 627,550</code> and the new name <code>0,20</code>;
+            after deletion the query is <code>627,550</code> again — every step verified without downloading a single byte.
+            <code>627,550</code> is a <strong>two-layer error code</strong>: 627 = module layer "FTP did not perform the requested action",
+            550 = the FTP protocol layer's server reply "file or directory does not exist"; this tool's annotations translate each layer.</p>
+
+            <h4>Download: contents printed straight into the terminal (COM:)</h4>
+            <p><code>AT+QFTPGET="filename","COM:"</code> — after <code>CONNECT</code> the file content is dumped straight into the terminal,
+            ending with <code>+QFTPGET: 0,&lt;bytes&gt;</code> (measured: readme.txt returned 0,379).
+            The other button, <strong>chunked download</strong>, adds start-offset and length parameters and is the most recommended way to download:
+            query the size with SIZE first, then fetch in chunks, avoiding a whole-file data blowout.
+            <code>AT+QFTPLEN</code> reports how many bytes the last PUT / GET / LIST / NLST actually transferred.</p>
+
+            <h4>Upload: two-stage, finishes automatically once the declared length is filled</h4>
+            <p><code>AT+QFTPPUT="filename","COM:",0,&lt;length&gt;,1</code> is a two-stage command:
+            after <code>CONNECT</code> (entering data mode), send <strong>exactly</strong> the declared number of bytes;
+            the module exits data mode automatically once the count is full — no Ctrl+Z needed. This tool computes the length automatically; just paste the content into the parameter card.</p>
+            <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT                        ← entering data mode
+NuModem-P6-FTP-test\n          ← send exactly 20 bytes
+OK
++QFTPPUT: 0,20                 ← the server received 20 bytes</pre>
+            <p>Those 20 bytes were deliberately fetched back from the host with Python ftplib during testing and compared byte for byte — an exact match.
+            <strong>The UFS relay form</strong>: the manual also supports writing the filename as <code>"UFS:xxx"</code>,
+            relaying through the module's built-in storage — details in the FTPS application note; to get a PC file into UFS first,
+            use the Upload button in the SSL page's "UFS files" group (<code>AT+QFUPL</code>, over the UART at zero data cost,
+            with automatic checksum comparison).</p>
+            <div class="warning">
+                <strong>⚠ For FTP, <code>+++</code> is "abort", not "pause".</strong>
+                The manual (FTPS AN v1.5 p13) says that after escaping you can rejoin data mode with <code>ATO</code> and resume —
+                <strong>disproven by testing</strong> (two runs, same result): after the escape, <code>AT+QFTPSTAT</code>
+                returns 1 (idle) instead of 2 (transferring), and <code>ATO</code> returns <code>NO CARRIER</code> —
+                the transfer has been aborted outright, with no connection left to resume. So <code>+++</code> is only for escaping a runaway
+                data mode; it cannot pause a large download.
+                <br><br>
+                The correct way to send it: <strong>1 second of silence before and after, as raw bytes, no CR</strong> (with one it does not work) —
+                this page's <code>+++</code> button already follows the rule; the <code>ATO</code> button is kept per the manual's semantics.
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="FTP tab">
+                <figcaption>The FTP page: login settings, directory and file management, upload and download.</figcaption>
+            </figure>
+
+            <h4>Troubleshooting</h4>
+            <table>
+                <tr><th>Symptom</th><th>Cause and fix</th></tr>
+                <tr><td>Bursts of <code>+CME ERROR: 603</code></td>
+                    <td>① Still closing after QFTPCLOSE (QFTPSTAT returns 3) — wait for <code>+QFTPCLOSE: 0,0</code>;
+                        ② a 615 happened earlier — <strong>after a 615, every FTP command returns 603</strong> until a proper close</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>Failed to open the data connection: <strong>control channel fine, data channel dead</strong>
+                        (SIZE responds; PUT / GET / LIST all fall over). Usually a server-side problem —
+                        dlptest failed from two different network paths while rebex had zero failures throughout;
+                        read from rebex, write to dlptest only, and finish in one sitting</td></tr>
+                <tr><td><code>627,550</code></td>
+                    <td>File or directory does not exist — a mistyped name or path; run QFTPPWD / QFTPLIST first to see where you are</td></tr>
+                <tr><td>The first PUT after a reboot gets 615</td>
+                    <td>Data-stack degradation: neither QFTPCLOSE nor a PDP restart can save it —
+                        <strong>only the full power-up ritual recovers</strong>. Triage: hit the same target with the TCP/IP page's
+                        <code>AT+QIOPEN</code> — if that fails too, the whole stack is broken; stop auditing FTP settings</td></tr>
+                <tr><td>Nothing happens after the command's OK</td>
+                    <td>The result URCs went to the USB port — check whether <code>AT+QURCCFG="urcport"</code>
+                        is uart1</td></tr>
+                <tr><td><code>AT+QFTPOPEN</code> fails outright</td>
+                    <td>The PDP is not active — click this page's <code>AT+QIACT?</code> first; no IP means going to the TCP/IP page for Act PDP</td></tr>
+            </table>

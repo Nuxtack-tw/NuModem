@@ -1,0 +1,151 @@
+<h3 id="tab-hardware">Hardware —— 起動とシリアルポート</h3>
+            <p><strong>動作原理：</strong>このページはツール全体の土台です：
+            Control は起動シーケンスの 2 ボタン（Power／Reset）、Module は製品識別、
+            Serial は UART 設定、Power は低消費電力、URC はモジュールの自発メッセージの出力ポートを管理し、
+            さらに<strong>生バイトボタン</strong>の一列（Ctrl+Z／ESC／+++）がデータモードの脱出口になります。
+            他のタブはすべて 2 つの前提の上に成り立っています：<strong>モジュールがシーケンスどおりに起動済みであること</strong>、
+            <strong>URC が uart1 を通っていること</strong> —— この 2 つはどちらも本ページで行います。
+            本節の挙動と数値はすべて 2026 年 8 月に実機 EG800K で実測したものです。</p>
+
+            <h4>なぜ起動シーケンスが必要か：RTS ＝ 電源、DTR ＝ Reset</h4>
+            <p>本ツールと組み合わせる制御ボードは RS-232 のハンドシェイク信号 2 本を別用途に転用しており、これがこのページ全体を理解する鍵です：</p>
+            <table>
+                <tr><th>信号</th><th>実際の接続先</th><th>論理</th></tr>
+                <tr><td><strong>RTS</strong></td><td>モジュールの電源スイッチ</td>
+                    <td><strong>負論理</strong>：RTS OFF＝通電、RTS ON＝電源断</td></tr>
+                <tr><td><strong>DTR</strong></td><td>モジュールの Reset ピン</td>
+                    <td>DTR ON＝Reset を High に（起動可能）、DTR OFF＝Reset を Low に</td></tr>
+            </table>
+            <p>回路特性（実測で確認）：初回接続時、RTS は<strong>いったん ON にしてから OFF</strong> にしないと
+            電源は本当には入りません —— 最初から OFF に設定するだけでは通電は保証されません。DTR も <strong>ON→OFF→ON</strong> を通過させてはじめて
+            Reset が本当に High になります。電源断（RTS ON）は強制切断で、モジュールは<strong>別れのメッセージを一切送りません</strong>。</p>
+            <div class="warning">
+                <strong>ページの再読み込み ＝ 電源断。</strong>ブラウザがシリアルポートを開き直すとき RTS が再びアサートされ、
+                モジュールは即座に電源を失います —— 自動再接続の完了後は<strong>必ず起動シーケンスをやり直してください</strong>。
+                実測で踏んだ例：シーケンスを飛ばして 17 本のコマンドを送ったところ、全部行きっぱなしで返事なし（TX 行のみ、RX ゼロ）。
+                「さっきまで動いていたのに今は全く反応しない」ときは、まずこれを疑ってください。
+            </div>
+
+            <h4>Power と Reset ボタン：押し方と、何が見えるか</h4>
+            <p>この 2 つのボタンは上表の 2 信号の化身で、信号バーの RTS／DTR 表示と<strong>双方向に連動</strong>します
+            （未接続時はグレーアウトして押せません）。Web Serial は出力信号の実際の状態を読み戻せないため、
+            信号バーに表示されるのは本ツールが送出した認識値です。</p>
+            <ol>
+                <li><strong>Power</strong>（トグル式）：緑点灯＝電源 ON（＝RTS OFF）。
+                    起動シーケンスでは RTS に ON→OFF を通過させます：ボタンがすでに点灯していれば、先にオフを押してからオンを押してください。</li>
+                <li><strong>Reset</strong>（momentary）：押下＝DTR OFF、離す＝DTR ON。
+                    1 回押して離せば 1 回の Reset です（標準タイミングでは間に 0.3 秒の停止）。</li>
+                <li><strong>RDY を待つ</strong>：数秒以内にターミナルへモジュールの起動宣言 <code>RDY</code> が現れます。</li>
+                <li><strong>ATI で検証</strong>：<code>Quectel</code>／<code>EG800K</code>／
+                    <code>Revision: …</code>／<code>OK</code> が返るはずです。返ってくれば UART もモジュールも生きています。</li>
+            </ol>
+            <div class="tip">
+                起動後はまずエコー（ATE）が有効であること（出荷時は有効）を確認し、続けて <code>AT+CMEE=2</code> を打つことを勧めます ——
+                無効のままでは素っ気ない <code>ERROR</code> しか見えず、有効にしてはじめて
+                <code>+CME ERROR: …</code> の読める文字が得られます。どちらも session-only で、モジュールを再起動するたびに打ち直しが必要です。
+            </div>
+
+            <h4>Module：5 つの識別ボタン</h4>
+            <table>
+                <tr><th>ボタン</th><th>コマンド</th><th>何が見えるか</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>メーカー／型番／ファームウェアバージョンの 3 点セット —— 起動後の 1 本目はこれ</td></tr>
+                <tr><td>Vendor／Model／FW Ver</td>
+                    <td><code>AT+GMI</code>／<code>AT+GMM</code>／<code>AT+GMR</code></td>
+                    <td>ATI の 3 行を個別に照会するもの（それぞれ CGMI／CGMM／CGMR と同等）。
+                        本機のファームウェアバージョンは実測 <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>モジュールの IMEI（15 桁の数字）。通信量ゼロ、いつでも送信可</td></tr>
+            </table>
+
+            <h4>Serial：AT&amp;V でパラメータ読み出し、IPR でボーレート変更</h4>
+            <p><strong>AT Params（<code>AT&amp;V</code>）</strong>：単一文字 AT パラメータの現在値を一覧します。
+            <code>ATE</code>／<code>ATQ</code>／<code>ATV</code> といった単一文字コマンドには<strong>個別の照会形式が無く、
+            これでしか読めません</strong>。本機の実測は <code>E:1 Q:0 V:1 S3:13 S4:10</code> ——
+            エコー有効、結果コードはテキストモード、行末＝CR（ASCII 13）で、まさに本ツールが応答を解析する前提です。</p>
+            <p><strong>Baud?（<code>AT+IPR?</code>）</strong>：UART の現在ボーレートを照会します。出荷時は 115200。<br>
+            <strong>Baud List（<code>AT+IPR=?</code>）</strong>：2 つのリストが返ります ——
+            前者は自動検出可能なボーレート、後者は固定モード専用のものです。これを実行した後、
+            Set Baud のドロップダウンは本機が実際に報告したリストに置き換わります。実測では本機の 2 番目のリストは
+            <strong>1000000 bps まで並びます —— マニュアル §3.4 の表にこの値はありません</strong>。</p>
+            <p><strong>Set Baud（<code>AT+IPR={rate};&amp;W</code>、パラメータカード）</strong>：
+            押すとまず確認ダイアログが出ます —— このページで最も自分を締め出しやすいボタンです。</p>
+            <div class="warning">
+                <strong>ボーレート変更の三重の罠（実測ですべて確認）：</strong><br>
+                ① <code>OK</code> が返った瞬間に<strong>即時発効</strong>し、
+                その直後から本ツールとモジュールは話が通じなくなります。<br>
+                ② <code>AT&amp;F</code>（工場リセット）はボーレートを<strong>戻しません</strong> —— 助けてくれると期待しないでください。<br>
+                ③ <code>&amp;W</code> を付けなければ保存されません —— しかも再接続＝電源断なので、モジュールは旧ボーレートで目覚め、
+                ポート設定は新ボーレートのまま、<strong>二重の音信不通</strong>になります。
+                だから本ツールは <code>;&amp;W</code> の合体表記を強制しています。<br>
+                復旧の 4 ステップ（確認ダイアログでも案内されます）：切断 → 接続エリアのボーレート変更 → 再接続 → 起動シーケンスをやり直し。
+            </div>
+
+            <h4>Power：QSCLK 低消費電力</h4>
+            <p><strong>Sleep?（<code>AT+QSCLK?</code>）</strong>：モジュールがスリープに入ることを許可されているかを照会します。
+            本機の実測では出荷時 <code>0</code>＝無効で、モジュールは常時起きています。
+            本ページには照会ボタンしか置いていません：眠ったモジュールは <strong>AT への応答を停止</strong>し、マニュアルの起こし方は DTR を Low に引くことですが ——
+            本ボードの DTR はすでに Reset ピンとして配線されています（本節冒頭を参照）。コマンドラインで自分でスリープを有効にして起こせなくなったら、
+            起動シーケンス（電源断→再投入）をやり直せば脱出できます。詳細は公式の低消費電力アプリケーションノートを参照してください。</p>
+
+            <h4>URC：メッセージが受信できないときは、まずここへ</h4>
+            <p><strong>URC（Unsolicited Result Code、非請求結果コード）</strong>は、モジュールが「頼まれてもいないのに自発的に吐き出す」
+            メッセージで、どのコマンドの応答でもありません —— 起動時の <code>RDY</code>、TCP データ到着、MQTT メッセージ、
+            Wi-Fi スキャン結果、GNSS ファームウェアロード通知がすべてこれです。その出力ポートは
+            <strong>出荷時既定で USB ポート（usbat）</strong>です —— UART を使う本ツールには 1 本も届かず、
+            症状は非常に典型的：<strong>コマンドはすべて OK が返るのに、メッセージだけが来ない</strong>。</p>
+            <table>
+                <tr><th>ボタン</th><th>コマンド</th><th>用途</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>URC が今どこへ送られているかを照会 —— URC が受信できないときは<strong>まずこれを照会</strong>。
+                        <code>"uart1"</code> が返らないと受信できません</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>本機が対応する出力ポート。実測では <code>("usbat","usbmodem","uart1")</code> が返り、
+                        <strong>マニュアルにあった "all" はありません</strong>（マニュアルには一部機種で非対応との注記があります）</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>メイン UART へ切り替え。NVRAM に書かれ再起動をまたいで保持されるので、<strong>変更は 1 回だけで済みます</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>URC の総合スイッチで、「URC が受信できない」もう 1 つの大きな原因。
+                        実測では本機は出荷時から 1（有効）で、問題はほぼ出力ポート側にあります</td></tr>
+            </table>
+
+            <h4>生バイトボタン：データモードの脱出口</h4>
+            <p>少なくないコマンドが<strong>2 段階</strong>です：先にコマンドを送り、モジュールが <code>&gt;</code> プロンプトを返すのを待ち、
+            それから本文を送ります。この<strong>データモード</strong>に入った後、モジュールはあなたが打つすべての文字をデータとして飲み込みます ——
+            打とうとした AT コマンドも含めて。長さを間違えた、途中でやめたくなった、コマンドが固まった、というときは通常のキーでは助からず、
+            単一の生バイトを送るこの一列のボタンに頼ります：</p>
+            <table>
+                <tr><th>ボタン</th><th>送出内容</th><th>いつ使うか</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td>データモードの<strong>終端文字</strong>：蓄積済みの内容を実際に送出します</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td>データモードを<strong>キャンセル</strong>し、蓄積済みの内容を破棄します。
+                        2 段階コマンドが固まった、AT ポートが応答しなくなった、というときの第一選択の脱出キー（マニュアル §2.3.8）</td></tr>
+                <tr><td>+++</td><td>+ 記号 3 個（生バイト）</td>
+                    <td><strong>透過データモード</strong>（FTP の COM: 転送など）から AT モードへ逃げ帰ります。
+                        ルールは厳格：<strong>前後にそれぞれ 1 秒の無音、CR/LF は絶対に付けない</strong> ——
+                        実測では CR を付けると効かないため、このボタンで送る必要があり、コマンドラインで打ってはいけません</td></tr>
+            </table>
+            <div class="warning">
+                <strong>実測がマニュアルを覆した例：+++ は「中断」であって「一時停止」ではありません。</strong>
+                FTPS アプリケーションノート v1.5 の 13 ページには +++ の後 <code>ATO</code> でデータモードに戻って転送を続けられるとありますが、
+                実機では <code>ATO</code> は <code>NO CARRIER</code> を返すだけで、転送はすでに中断されています。
+                +++ は緊急ブレーキとして使い、ブレーキの後も走り続けられるとは期待しないでください。
+            </div>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td>どのコマンドにも応答が無い</td>
+                    <td>3 つの容疑者を順に調べます：① 起動シーケンスを実行していない（ページを再読み込みしたなら必ずこれ）。
+                        ② 行末が LF に設定されている —— モジュールは <strong>CR しか認識せず</strong>、LF には全く応答しません。
+                        ③ ボーレート不一致（4 ステップ復旧を参照）</td></tr>
+                <tr><td>Reset を押したのに RDY が来ない</td>
+                    <td>まず Power ボタンが点灯しているかを見てください —— モジュールに電源が入っていなければ、Reset を何度押しても無駄です。
+                        初回接続時は電源に ON→OFF を通過させる必要があります</td></tr>
+                <tr><td>コマンドはすべて OK が返るのに、URC だけが来ない</td>
+                    <td>十中八九 urcport が出荷時の usbat のままです：URC Port? で照会し、URC → UART で変更。
+                        それでもだめなら URC Switch の総合スイッチを調べてください</td></tr>
+                <tr><td>AT ポートが突然「コマンドを飲み込み」、何を打っても応答が無い</td>
+                    <td>データモードに固着しており、打った文字は全部データとして回収されています —— ESC で脱出してください</td></tr>
+            </table>

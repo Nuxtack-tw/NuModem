@@ -1,0 +1,148 @@
+<h3 id="tab-wifi">WiFiScan —— Wi-Fi taraması ve ağ tabanlı konumlandırma</h3>
+            <p><strong>Çalışma prensibi:</strong> EG800K bir LTE modülüdür, <strong>Wi-Fi ile internete çıkamaz</strong>;
+            ama içinde "yalnızca tarayan, bağlanmayan" bir Wi-Fi alıcısı vardır: çevredeki 2.4GHz erişim noktalarının yayınladığı
+            beacon çerçevelerini edilgen biçimde alır ve her erişim noktasının MAC adresini (BSSID), RSSI'sini (sinyal gücü) ve kanalını bildirir.
+            Tarama saf RF alımıdır, <strong>sıfır veri trafiği</strong>; kendi başına koordinat üretmez ——
+            MAC + RSSI listesini buluttaki erişim noktası konum veritabanına gönderip sorgulamak gerekir; enlem-boylam ancak öyle gelir.
+            <strong>İç mekânda da çalışan, uyduya dayanmayan</strong> ağ tabanlı konumlandırma budur.
+            Bu bölümdeki tüm sayılar ve davranışlar, Ağustos 2026'da gerçek bir EG800K üzerinde ölçülmüştür.</p>
+
+            <h4>Bu sayfanın iki düğme grubu</h4>
+            <p>Üst yarı <strong>Wi-Fi Scan</strong> dört düğme (saf tarama), alt yarı
+            <strong>QuecLocator (QLBS)</strong> on üç düğme (basmadan önce ilerideki gerçekler bölümünü okuyun):</p>
+            <table>
+                <tr><th>Düğme</th><th>Komut</th><th>İşlevi ve ölçüm notu</th></tr>
+                <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>Parametre aralıklarını sorgular. Bu cihazın gerçek yanıtı
+                        <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+                <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+                    <td>Güncel parametreleri okur. Bu cihazın fabrika değeri <code>12000,1,5,5,0</code> =
+                        süre 12 saniye, 1 tur, erişim noktası üst sınırı 5, RRC zaman aşımı 5 saniye, öncelik 0</td></tr>
+                <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+                    <td>Güncel parametrelerle bir kez tarar. Sonuçlar <code>OK</code>'den sonra <strong>eşzamansız</strong> bildirilir;
+                        en fazla 13 saniye bekleyin</td></tr>
+                <tr><td>Scan (custom)</td><td>parametre kartı</td>
+                    <td>Süre (milisaniye) / tur sayısı / erişim noktası üst sınırı / RRC zaman aşımı / öncelik ayarlanıp taranır</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="WiFiScan sekmesi ve QuecLocator grubu">
+                <figcaption>WiFiScan sayfası: dört tarama düğmesi ve QuecLocator (QLBS) grubu.</figcaption>
+            </figure>
+
+            <h4>İlk tarama: nasıl basılır, ne görürsünüz</h4>
+            <ol>
+                <li><strong>Açılış prosedürünü çalıştırın</strong> (bkz. "Açılış Prosedürü" bölümü).</li>
+                <li><strong>URC'lerin UART'tan geldiğini doğrulayın</strong>: <code>AT+QURCCFG="urcport"</code> yanıtı
+                    <code>"uart1"</code> olmalıdır. Fabrika değeri <code>"usbat"</code>'tır ——
+                    tarama sonuçlarının hepsi USB portuna gider; burada yalnızca <code>OK</code> görünür,
+                    TIMEOUT bile gelmez (ayar NVRAM'e yazılır, bir kez değiştirmek yeter).</li>
+                <li><strong><code>Scan</code>'e basın</strong>: modül önce <code>OK</code> döndürür;
+                    bu "tarama başladı" demektir, <strong>sonuç değildir</strong>. Birkaç saniye içinde (en geç tarama süresi dolunca)
+                    sonuçlar satır satır gelir; her satıra otomatik açıklama düşer (MAC / RSSI / kanal).</li>
+            </ol>
+
+            <h4>Tarama sonucunu yorumlamak</h4>
+            <p>Ölçümdeki bildirim şöyle görünür (2026-08-29, 7 erişim noktası bulundu, RSSI -37 ~ -89 dBm):</p>
+            <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+            <p>Alan sırası <code>(ecn, ssid, rssi, mac, channel)</code> biçimindedir.
+            <strong>Bu cihazın firmware'i ecn ile ssid için her zaman <code>-</code> döndürür</strong> (2026-08-02 ölçümü);
+            listede "bu kimin Wi-Fi'si" görünmez ——
+            konumlandırma için tam yeterlidir; veritabanının yediği zaten MAC + RSSI'dir.
+            RSSI sezgisi: -30 ~ -50 çok yakın, -60 ~ -75 orta, -80 altı çok zayıf.</p>
+            <p>Süre içinde tek erişim noktası bile bulunamazsa <code>+QWIFISCAN:TIMEOUT</code> döner ——
+            <strong>normal bitiştir, hata değildir</strong> (iki noktadan sonra boşluk yoktur; bu aracın çözümleyicisi bunu ele alır).
+            Daha çok nokta yakalamak için: parametre kartından erişim noktası üst sınırını fabrikadaki 5'ten yükseltin (bu cihazda en çok 10),
+            tur sayısını 2-3'e çıkarın (ölçümde turlar arası sonuçlar tekilleştiriliyor).</p>
+            <div class="warning">
+                <strong>Bulunan her erişim noktası konumlandırmada kullanılamaz.</strong> 2026-08-29 ölçümünde 7 noktadan
+                4'ü "yerel yönetimli adres"ti (<code>C2:</code> / <code>62:</code> / <code>9E:</code>
+                ile başlayan; ilk baytın 0x02 biti 1 —— çoklu SSID kopyalarının sanal BSSID'si);
+                <strong>konum veritabanları bu adresleri genellikle doğrudan yok sayar</strong>; işe yarar malzeme yalnızca 3 küresel adresti.
+            </div>
+            <div class="warning">
+                <strong>Uygulama belgesi V1.2'nin parametre aralıkları bu cihaz için yanlıştır.</strong>
+                Belge tur sayısını 1-6'ya, erişim noktası üst sınırını 4-30'a genişletir; ama bu cihazın firmware'inin gerçek yanıtı hâlâ
+                <strong>tur 1-3, erişim noktası üst sınırı 4-10</strong> (2026-08-06 ölçümü).
+                <code>Support?</code> düğmesinin gerçek yanıtını esas alın; belgedeki sayıları kopyalamayın.
+            </div>
+
+            <h4>QuecLocator (QLBS) düğme grubu: basmadan önce gerçeklere bakın</h4>
+            <p>QuecLocator, Quectel'in bulut konumlandırma hizmetidir: <code>AT+QLBS</code> (<code>Locate</code>
+            düğmesi) tek komuttur; malzemeyi firmware kendisi toplar, sunucuya gönderip veritabanına baktırır, koordinat döndürür. Üç gerçek:</p>
+            <ol>
+                <li><strong>Token ister ve ücretli bir hizmettir.</strong> Resmi belge, başvurunun Quectel
+                    teknik desteğiyle iletişim kurularak yapılacağını açıkça yazar (öz kayıt yoktur). Bu cihazda token fabrikadan boştur.</li>
+                <li><strong>16 resmi EG800K belgesinin hiçbiri QuecLocator'dan söz etmez.</strong>
+                    Eldeki uygulama belgesi EC200U / EG915U içindir (sözdizimi ve hata kodları ölçümle uyuştu);
+                    bu cihazın resmi belgesi değildir.</li>
+                <li><strong>Bu proje kullanmamaya karar verdi</strong> (2026-08-29): konumlandırma mantığı firmware'e kilitlidir;
+                    hizmet kapanırsa AT komutunun tamamı geçersizleşir, sağlayıcı değiştirilemez
+                    (Quectel forumu BG95 serisinde desteğin durdurulduğunu doğruladı).
+                    Düğmeler yalnızca "ücretsiz token bulunursa elden doğrulama" için tutuldu.</li>
+            </ol>
+            <div class="warning">
+                <strong><code>+QLBS: 702</code> "sunucu zaman aşımı"dır, token sorunu değildir.</strong>
+                Bu proje 702'yi tam üç hafta "token yok" diye yanlış okudu —— gerçek şuydu: PDP önceden etkinleştirilmemişti,
+                modül sunucuya hiç ulaşamıyordu; zaman aşımı dolunca (fabrika 60 saniye) 702 dönüyordu.
+                2026-08-29 karşılaştırmalı deney (token baştan sona boş):
+                PDP kapalıyken <code>702</code>, açıkken <code>10002</code> (token yok) döndü ——
+                <strong>sunucuya Tayvan'dan ulaşılabiliyor; eksik olan yalnızca token</strong>.
+                <code>AT+QLBS</code> göndermeden önce mutlaka <code>AT+QIACT=1</code> (trafik üretir).
+            </div>
+            <p>Yedi yapılandırma alt maddesinin sorgu / ayar düğmeleri vardır; <code>Cfg?</code> (<code>AT+QLBSCFG=?</code>)
+            tüm aralıkları tek tuşla listeler (sıfır trafik). Bu cihazın fabrika değerleri ve ölçüm notları:</p>
+            <table>
+                <tr><th>Alt madde (düğme)</th><th>Fabrika değeri</th><th>Ölçüm notu</th></tr>
+                <tr><td><code>token</code> (Set Token / Token?)</td><td>boş</td>
+                    <td>Geri okunduğunda hep <code>*</code> ile maskelenir; ayarlama yolunun çalıştığı ölçüldü</td></tr>
+                <tr><td><code>server</code> (Server? / Set Server)</td>
+                    <td><code>www.queclocator.com:80</code></td><td>Konum sunucusunun adresi</td></tr>
+                <tr><td><code>timeout</code> (Timeout? / Set Timeout)</td><td>60 saniye</td>
+                    <td>702'nin beklediği zaman aşımı tam da budur; aralık 10-120</td></tr>
+                <tr><td><code>asynch</code> (Async? / Set Async)</td><td>0</td>
+                    <td>Eşzamanlı / eşzamansız geçişi</td></tr>
+                <tr><td><code>latorder</code> (LatOrder?)</td><td>0</td>
+                    <td>Enlem-boylam çıktı sırası. ⚠ Ayarda küçük harfli anahtar kullanılır, geri okuma ise deve notasyonu <code>latOrder</code></td></tr>
+                <tr><td><code>withtime</code> (WithTime?)</td><td>0</td>
+                    <td>Yanıta saat eklensin mi; geri okuma anahtarı <code>withTime</code></td></tr>
+                <tr><td><code>timeupdate</code> (TimeUpd?)</td><td>0</td>
+                    <td>Konum sonucuyla modül saati düzeltilsin mi; geri okuma anahtarı <code>timeUpdate</code></td></tr>
+            </table>
+            <p>Token gerçekten elinize geçerse: <code>Set Token</code> ile girin → <code>Token?</code>
+            ile doğrulayın (<code>*</code> görünür) → TCP/IP sayfasından PDP'yi etkinleştirin → <code>Locate</code>.</p>
+
+            <h4>Alternatif rota: token'sız ağ konumlandırma (ölçüm: 71 metre)</h4>
+            <p>Ağ tabanlı konumlandırma için QuecLocator şart değildir. Alternatif rota 2026-08-29'da uçtan uca doğrulandı:
+            modül yalnızca malzeme üretir (bu sayfadan erişim noktası taraması, <code>AT+QENG="servingcell"</code> ile baz istasyonu okuma),
+            terminal çıktısı dosyaya kaydedilip <code>tools/wifi_geolocate.py</code> ile PC'de açık veritabanlarına sorulur ——
+            <strong>modülde sıfır trafik, Quectel hizmeti gerekmez</strong>.
+            Ölçüm (aynı günkü GNSS gerçek değeriyle karşılaştırıldı): baz istasyonu sorgusunda Unwired Labs (ücretsiz kayıt) <strong>hata
+            71 metre</strong> (konumlandırma hattının kapanış sonucu), beaconDB (anahtarsız) 632 metre;
+            Wi-Fi sorgusu ise sağlayıcıya takıldı —— ücretsiz ekosistem çökmüş durumda (beaconDB'nin bu bölgede kapsaması yok,
+            Unwired Labs ücretsiz planı Wi-Fi içermiyor, Google / HERE kart bağlamayı şart koşuyor); askıya alındı.</p>
+            <div class="tip">
+                <strong>71 metre bir "tablo isabeti"dir, "ölçüm hassasiyeti" değildir.</strong>
+                Baz istasyonu konumlandırması, Cell ID ile o istasyonun kayıtlı koordinatını bulur; aynı hücre hep aynı noktayı döndürür ——
+                istasyon değişince hata kilometre düzeyine çıkabilir; hizmetin kendi bildirdiği ±1051 metre daha dürüst bir tahmindir.
+                Ayrıca Cell ID ile TAC <strong>onaltılıktır</strong>;
+                sorgudan önce ondalığa çevrilmelidir (araç bunu kendiliğinden yapar).
+            </div>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td><code>Scan</code> yalnızca <code>OK</code> dönüyor, sonuç hiç gelmiyor</td>
+                    <td>URC'ler USB portuna gidiyor —— <code>AT+QURCCFG="urcport"</code> ile sorgulayın,
+                        <code>"uart1"</code> değilse değiştirin (NVRAM'e yazılır)</td></tr>
+                <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+                    <td>Süre içinde erişim noktası bulunamadı; normal bitiştir, hata değildir. Yer değiştirin ya da süreyi uzatın</td></tr>
+                <tr><td><code>+QLBS: 702</code></td>
+                    <td>Sunucu zaman aşımı —— neredeyse hep <code>AT+QIACT=1</code> unutulmuştur, token sorunu değildir</td></tr>
+                <tr><td><code>+QLBS: 10002</code></td>
+                    <td>Token yok —— Quectel'den ücretli alınması gerekir; bu proje kullanmamaya karar verdi,
+                        yukarıdaki alternatif rotaya geçin</td></tr>
+                <tr><td><code>AT+QCELLLOC</code> kullanmak istiyorum</td>
+                    <td>Bu cihaz <strong>desteklemez</strong> (ERROR döner) —— o, EC2x serisinin komutudur</td></tr>
+            </table>

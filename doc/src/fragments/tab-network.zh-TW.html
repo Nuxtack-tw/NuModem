@@ -1,0 +1,149 @@
+<h3 id="tab-network">Network —— 註冊、業者、射頻</h3>
+            <p><strong>工作原理：</strong>所有資料功能要能用，前提是<strong>已註冊到電信網路</strong>
+            且 <strong>PDP 資料通道已就緒</strong> —— 這一頁就是入網的儀表板與開關，
+            「連不上網」的排查都從這裡開始。本節數值皆為 2026 年 8 月實體 EG800K 實測。</p>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Network 頁簽">
+                <figcaption>Network 頁五組按鈕：註冊查詢、Signal URC、PDP、診斷、射頻控制。</figcaption>
+            </figure>
+
+            <h4>開始之前：先把 URC 切到 UART</h4>
+            <p>EG800K 出廠把主動回報訊息（URC）送到 <code>usbat</code>（USB AT 埠），
+            本工具走 UART —— <strong>所有 URC 一條都收不到</strong>：訊號回報、
+            TCP／MQTT／Wi-Fi 掃描結果全部靜默，症狀是<strong>「指令都回 OK，就是沒訊息」</strong>。</p>
+            <div class="warning">
+                <strong>「全部 URC 消失」的頭號原因就是它。</strong>
+                到 Hardware 頁簽按 <code>AT+QURCCFG="urcport"</code> 查詢，
+                不是 <code>"uart1"</code> 就用切換鈕改過去 —— 設定寫 NVRAM，改一次跨重開機有效。
+            </div>
+
+            <h4>第一步：確認註冊狀態</h4>
+            <p>開機儀式看到 <code>RDY</code> 後，先按 <code>AT+CEREG?</code>（4G 模組看這條最準）。
+            三顆註冊鈕對應三個網域：<code>CEREG</code>＝LTE/EPS、<code>CREG</code>＝電路交換域、
+            <code>CGREG</code>＝封包交換域，第二個數字（stat）判讀相同：</p>
+            <table>
+                <tr><th>stat</th><th>意義</th><th>怎麼辦</th></tr>
+                <tr><td>0</td><td>還沒註冊</td><td>剛開機常見，等幾秒再查</td></tr>
+                <tr><td>1</td><td>已註冊（本網）</td><td>正常，往下走</td></tr>
+                <tr><td>2</td><td>搜尋中</td><td>等</td></tr>
+                <tr><td>3</td><td>被網路拒絕</td><td>查 SIM／資費，CEER 看原因</td></tr>
+                <tr><td>5</td><td>已註冊（漫遊）</td><td><strong>本機的正常態</strong>，見下</td></tr>
+            </table>
+            <div class="tip">
+                <strong>stat=5 不是故障。</strong>實測三條註冊查詢都回 <code>0,5</code>：
+                SIM 是 1NCE 物聯網卡（MCC 901 國際漫遊卡），在哪國都算「漫遊」，
+                看到 5 當 1 用。
+            </div>
+            <p>註冊成功但上不了網，接著按 <code>AT+CGATT?</code> 查封包域附著；
+            必要時按 <code>AT+CGATT=1</code> 手動附著，失敗再用 <code>AT+CEER</code>
+            查原因（與 TCP/IP 頁 <code>QIGETERROR</code> 不同層）。
+            CGATT 最長阻塞 <strong>140 秒</strong>，別連打。</p>
+
+            <h4>現在掛在哪家業者、哪個頻段</h4>
+            <p><code>AT+COPS?</code> 查目前登錄的業者（末位 7＝LTE）。
+            <strong>陷阱：業者名可能是空字串</strong> —— 實測回 <code>+COPS: 0,0,"",7</code>，
+            不是故障。要看業者改按 <code>AT+QNWINFO</code>（制式／業者／頻段／通道）：</p>
+            <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+            <p>46692＝中華電信、Band 8；沒服務時回 <code>NO SERVICE</code>。
+            本漫遊卡會自己挑網：不同日期實測掛過中華電信 Band 8 與遠傳（466-01）Band 3，
+            換業者換頻段都正常。<code>AT+COPS=?</code> 掃描周邊所有業者：
+            <strong>最長阻塞 300 秒且會中斷現有業務</strong>，確認需要再按。</p>
+
+            <h4>訊號強度與品質：CSQ 只是粗略值</h4>
+            <p><code>AT+CSQ</code> 回 rssi 與 ber：rssi 0–31 對應 -113～-51 dBm，
+            99＝偵測不到（剛開機常見，等幾秒）。實測 rssi 18–24（-77～-65 dBm，良好）；
+            <strong>ber 恆為 99，無參考值</strong>。LTE 真正的品質三要素
+            <strong>RSRP（強度）／RSRQ（品質）／SINR（訊噪比，低＝被干擾）</strong>
+            只有 Signal URC 組拿得到（<code>AT+QINDCFG="sqi"</code> 不帶值＝查開關）：</p>
+            <table>
+                <tr><th>按鈕</th><th>指令</th><th>作用</th></tr>
+                <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+                    <td>開 RSRP／RSRQ／SINR 回報 —— <strong>天線與擺位測試必備</strong>。
+                        只在訊號「有變化」時推播，沒動靜就包住或拔插天線；設定不跨重開機</td></tr>
+                <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+                    <td>訊號一變就回報，取代狂按 CSQ</td></tr>
+                <tr><td>URC Off／On</td><td><code>AT+QINDCFG="all",0／1</code></td>
+                    <td>被洗版時一鍵靜音 —— 記得事後開回來</td></tr>
+            </table>
+
+            <h4>PDP 通道：3GPP 層 vs TCP/IP 頁</h4>
+            <p>PDP context＝電信網路配給的「資料通道」，有它才有 IP。本組是 3GPP 標準層唯讀查詢：
+            <code>AT+CGDCONT?</code> 列 context 與 APN、<code>AT+CGACT?</code> 列啟用狀態
+            （最長阻塞 150 秒；⚠ 寫入式參數順序相反）、<code>AT+CGPADDR</code>
+            列取得的 IP。TCP/IP 頁的 <code>QIACT?</code>／<code>QICSGP</code> 是
+            <strong>Quectel 自家堆疊，不是同一層</strong> —— 並排比對可分辨故障側：
+            這裡有 IP、那邊沒有＝網路給了但堆疊沒啟動。本機開機即自動啟用 PDP 取得 IP。</p>
+            <p><code>AT+QGDCNT?</code> 查累計流量（第一個數字<strong>送出</strong>、第二個接收），
+            漫遊卡測流量必用。⚠ <strong>實測推翻按鈕提示的「跨開機累計」</strong>：
+            計數器預設不存 NV，一斷電（含重載頁面）就歸零 —— 要當場記，
+            或 <code>AT+QGDCNT=1</code> 存 NV。</p>
+
+            <h4>排障實戰：本卡只允許單一 PDP</h4>
+            <p>TCP/IP 頁按 <code>AT+QIACT=1</code> 卻回 ERROR（<code>572,operation not
+            allowed</code>）？本卡固定劇本：開機後 3GPP 層已<strong>自動啟用一個 PDP</strong>，
+            但 <strong>context 編號會浮動</strong>（實測見過 1 與 9）；再開第二個回
+            <code>+CME ERROR: 100</code> ⇒ 網路只允許單一 PDP；而 <code>QIACT</code> 的
+            contextID 範圍只有 1–8，PDP 被開在 9 時 Quectel 堆疊根本碰不到。
+            解法兩步（每次開機後做一次）：</p>
+            <pre>AT+CGACT?             ← 看是哪個 cid（編號會浮動，不能省）
+AT+CGACT=0,&lt;那個 cid&gt;   ← 3GPP 層讓出名額
+AT+QIACT=1            ← TCP/IP 頁；回 +QIACT: 1,1,1,"10.187.7.8" 即成功</pre>
+            <p><code>QICSGP</code> 設 APN 本卡可省 —— 實測模組會自動同步網路配下的 APN
+            （<code>iot.1nce.net</code>）；換需帳密的企業 APN 卡才必要。</p>
+            <div class="warning">
+                <strong>測到一半突然全部逾時？先懷疑 PDP 漂移。</strong>
+                實測 HTTP 連續全敗（錯誤 716、固定 30 秒逾時）時 <code>AT+QIACT?</code>
+                照樣回 IP —— 這時它會騙人，要與 <code>AT+CGACT?</code> 交叉比對
+                （實測：1,0 與 9,1＝漂到 9）。
+                解法：<code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;漂到的 cid&gt;</code> →
+                <code>AT+QIACT=1</code>，再 ping 驗證。
+            </div>
+
+            <h4>CFUN 功能等級與射頻控制</h4>
+            <p>RF Control 整組都會改變模組狀態，全是按下前再確認的紅框鈕。
+            先按 <code>AT+CFUN?</code> 看目前等級再動手：</p>
+            <table>
+                <tr><th>指令</th><th>等級</th><th>意義</th></tr>
+                <tr><td><code>AT+CFUN=1</code></td><td>全功能</td>
+                    <td>射頻全開；<strong>復原一律按這顆</strong></td></tr>
+                <tr><td><code>AT+CFUN=4</code></td><td>飛航</td>
+                    <td>收發全關、SIM 還在 —— 測「重新入網」的起點</td></tr>
+                <tr><td><code>AT+CFUN=0</code></td><td>最小</td>
+                    <td>SIM 也停用；手冊僅寫 Minimum functionality，未列細節</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>軟重啟</td>
+                    <td>重啟整顆模組。⚠ AT 口短暫失效，要重新等 <code>RDY</code></td></tr>
+            </table>
+            <p>CFUN 最長阻塞 15 秒。<strong>SIM 若有 PIN 鎖，切回 CFUN=1 後要重輸 PIN
+            才會註冊。</strong><code>AT+CGATT=0</code>（PS Detach）脫離封包域 ——
+            <strong>會打掉所有 TCP／MQTT 連線</strong>，測「重新附著」才用。</p>
+
+            <h4>進階：QENG 讀基地台資訊（命令列輸入）</h4>
+            <p>本頁沒有按鈕 —— 命令列輸入 <code>AT+QENG="servingcell"</code>
+            讀服務基地台參數，實測關鍵欄位：</p>
+            <table>
+                <tr><th>欄位</th><th>實測值</th><th>判讀</th></tr>
+                <tr><td>MCC／MNC</td><td>466／01</td><td>臺灣／遠傳電信</td></tr>
+                <tr><td>Cell ID／TAC</td><td><code>ABCDE02</code>／<code>1234</code>（hex）</td>
+                    <td>十進位 180149762／4660；eNodeB＝ECI≫8＝703710、扇區＝2</td></tr>
+                <tr><td>PCID／EARFCN</td><td>144／1550</td>
+                    <td>實體小區識別（<strong>非全域唯一</strong>）／Band 3</td></tr>
+                <tr><td>RSRP／RSRQ／RSSI／SINR</td><td>-113／-18／-92／-1</td>
+                    <td>RSRP 低於 -100 算差；SINR -1 dB＝品質不佳</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Cell ID 與 TAC 是十六進位，查資料庫前必須轉十進位。</strong>
+                OpenCelliD 等資料庫一律吃十進位，直接丟 <code>ABCDE02</code> 只會查無此筆。
+                另 <code>AT+QENG="neighbourcell"</code> 只回 PCID、
+                <strong>無全域 Cell ID</strong>（LTE 標準限制）。
+            </div>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td>指令都回 OK，主動訊息全沒出現</td>
+                    <td>urcport 在 usbat（出廠值）—— Hardware 頁簽切 uart1</td></tr>
+                <tr><td><code>QIACT=1</code> 回 ERROR（572）</td>
+                    <td>單一 PDP 名額被占走 —— 走上面的兩步排障</td></tr>
+                <tr><td>連續請求全部固定 30 秒逾時</td>
+                    <td>PDP 漂移 —— <code>AT+CGACT?</code> 交叉比對，別只信 <code>QIACT?</code></td></tr>
+            </table>

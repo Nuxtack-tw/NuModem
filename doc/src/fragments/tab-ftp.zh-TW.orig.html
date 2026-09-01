@@ -1,0 +1,41 @@
+<h3 id="tab-ftp">FTP —— 檔案傳輸</h3>
+            <p><strong>工作原理：</strong>FTP 有<strong>兩條通道</strong>：控制通道走命令，
+            資料通道走檔案內容。理解這件事，很多怪現象就解釋得通了。</p>
+            <pre>AT+QFTPCFG="account","帳號","密碼"
+AT+QFTPCFG="transmode",1      ← 1 ＝ 被動模式（NAT 後方必用）
+AT+QFTPOPEN="主機",21          ← 等 +QFTPOPEN: 0,0
+AT+QFTPPUT="檔名","COM:",0,&lt;長度&gt;,1   ← CONNECT → 送資料
+AT+QFTPGET="檔名","COM:"       ← CONNECT → 資料直接印出
+AT+QFTPCLOSE                  ← ⚠ 見下</pre>
+            <div class="important">
+                <strong>🔴 <code>AT+QFTPCLOSE</code> 是非同步的 —— <code>OK</code> 不代表關好了。</strong>
+                必須等到 <code>+QFTPCLOSE: 0,0</code> 才算完成。
+                期間狀態是 3（關閉中），這時下任何 FTP 指令<strong>一律回
+                <code>+CME ERROR: 603</code></strong>。
+                <br><br>
+                症狀極具誤導性：一連串 603 看起來像模組壞了或被伺服器擋，
+                實際上只是關閉還沒完成。
+            </div>
+            <table>
+                <tr><th>回應</th><th>意思</th></tr>
+                <tr><td><code>+QFTPSIZE: 627,550</code></td>
+                    <td>兩層錯誤碼：模組層 627（未執行請求的動作）＋
+                        FTP 協定層 550（檔案不存在）</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>開資料連線失敗。特徵是<strong>控制通道正常、資料通道全滅</strong>。
+                        一旦發生，後續全部 603 直到正確關閉</td></tr>
+                <tr><td><code>+QFTPSTAT: 0,1</code></td><td>1 ＝ 閒置、2 ＝ 傳輸中、3 ＝ 關閉中</td></tr>
+            </table>
+            <div class="warning">
+                <strong>⚠ <code>+++</code> 對 FTP 是「中止」不是「暫停」。</strong>
+                手冊（FTP(S) AN v1.5 p13）寫 <code>ATO</code> 可以重入資料模式續傳，
+                <strong>實測不成立</strong>：逃逸後 <code>AT+QFTPSTAT</code> 回 1（閒置）而不是 2（傳輸中），
+                <code>ATO</code> 回 <code>NO CARRIER</code>。
+                所以 <code>+++</code> 只能用來從失控的資料模式脫身，不能拿來暫停大檔下載。
+                <br><br>
+                正確下法：<strong>前後各靜默 1 秒、不加 CR</strong>。
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="FTP 頁簽">
+                <figcaption>FTP 頁：帳密與模式、登入、目錄、上傳下載。</figcaption>
+            </figure>

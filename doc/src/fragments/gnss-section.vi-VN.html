@@ -1,0 +1,154 @@
+<h3 id="tab-gnss">GNSS —— định vị vệ tinh</h3>
+            <p><strong>Nguyên lý hoạt động:</strong> GNSS là chức năng <strong>độc lập với mạng di động</strong> ——
+            không cần SIM có mạng, không cần PDP, không tốn lưu lượng (trừ AGNSS, xem bên dưới).
+            Bật lên rồi thì module tự thu tín hiệu vệ tinh, bạn dùng <code>AT+QGPSLOC</code> hỏi vòng kết quả định vị.
+            Mọi con số giây và hành vi trong mục này đều là giá trị đo thực tế trên EG800K vật lý vào tháng 8 năm 2026.</p>
+
+            <h4>Trước khi bắt đầu: ăng-ten quyết định tất cả</h4>
+            <p>Nguyên nhân số một khiến định vị thất bại không phải là gõ sai lệnh, mà là <strong>ăng-ten không thu được tín hiệu</strong>.
+            Đo thực tế đối chứng: trong nhà, ăng-ten kém, module liệt kê được vị trí của 38 vệ tinh nhưng <strong>không nghe thấy nổi một vệ tinh nào</strong>
+            (SNR toàn bộ 00); đổi sang <strong>ăng-ten GNSS chủ động (active)</strong> và đặt ra cạnh cửa sổ thì
+            khởi động lạnh định vị thành công trong vòng 95 giây.</p>
+            <div class="warning">
+                <strong>Trong nhà không đo được GNSS, chờ kiểu gì cũng vô ích.</strong> Khi không có tầm nhìn bầu trời,
+                <code>$GNGGA</code> sẽ trả về "dùng 00 vệ tinh, chất lượng định vị 0",
+                còn <code>AT+QGPSLOC</code> mãi mãi trả lỗi 516.
+                Hãy đưa ăng-ten ra cạnh cửa sổ hoặc ngoài trời rồi hãy bắt đầu —— đây không phải vấn đề kiên nhẫn, mà là vấn đề vật lý.
+            </div>
+
+            <h4>Lần định vị đầu tiên: năm bước</h4>
+            <ol>
+                <li><strong>Chạy nghi thức khởi động</strong> (xem phần "Nghi thức khởi động").
+                    ⚠ Mỗi lần tải lại trang đều tương đương cắt điện, trạng thái bật GNSS lẫn phần lịch thiên văn thu dở dang đều về số không,
+                    phải làm lại từ bước này.</li>
+                <li><strong>Xác nhận URC đi đường UART</strong>: <code>AT+QURCCFG="urcport"</code> phải trả về
+                    <code>"uart1"</code>. Giá trị xuất xưởng là <code>"usbat"</code>, không đổi thì rất nhiều thông báo kết quả
+                    sẽ bị đẩy sang cổng USB, ở đây chẳng thấy gì cả (thiết lập ghi vào NVRAM, đổi một lần là xong).</li>
+                <li><strong>Bật GNSS</strong>: bấm <code>AT+QGPS=1</code>.
+                    Trong vài giây sẽ thấy <code>+QGPS: "firmware",0,0</code> (firmware GNSS nạp thành công).
+                    Đang bật rồi mà bấm nữa thì trả <code>+CME ERROR: 504</code>, vô hại.</li>
+                <li><strong>Xem thu tín hiệu</strong>: bấm <code>AT+QGPSGNMEA="GSV"</code> để đọc các vệ tinh nhìn thấy được.
+                    Khu terminal sẽ tự động mở tab <strong>vệ tinh</strong>, vẽ biểu đồ cột tín hiệu và biểu đồ bầu trời ——
+                    cách đọc hiểu xem đoạn dưới.</li>
+                <li><strong>Hỏi vòng định vị</strong>: cứ mỗi 5–10 giây bấm <code>AT+QGPSLOC=2</code> một lần.
+                    Trả về <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> (lỗi 516) nghĩa là chưa định vị được,
+                    <strong>cứ tiếp tục chờ là được</strong>. Khi thành công sẽ trả về tọa độ,
+                    khu terminal tự động mở tab <strong>bản đồ</strong> và vẽ vị trí lên đó.</li>
+            </ol>
+            <figure class="shot narrow">
+                <img src="img/07-gnss.png" alt="Tab GNSS">
+                <figcaption>Tab GNSS: bật/tắt, đọc NMEA, truy vấn vị trí, tăng tốc AGNSS.</figcaption>
+            </figure>
+
+            <h4>Đọc hiểu tab vệ tinh: "nhìn thấy" không đồng nghĩa với "nghe thấy"</h4>
+            <p>GSV cho mỗi vệ tinh bốn con số: số hiệu, góc ngẩng, góc phương vị, <strong>SNR (tỷ số tín hiệu trên nhiễu, dB-Hz)</strong>.
+            Ba con số đầu chỉ nói "nó đáng lẽ nằm ở đâu trên trời", <strong>chỉ có SNR mới chứng tỏ thực sự thu được tín hiệu</strong>.</p>
+            <table>
+                <tr><th>SNR</th><th>Ý nghĩa</th></tr>
+                <tr><td>(trống) hoặc 00</td><td>Hoàn toàn không thu được —— chỉ biết nó ở đâu, không nghe thấy nó</td></tr>
+                <tr><td>14–28</td><td>Ngưỡng ranh giới: giải điều chế lịch thiên văn hay lỗi phải làm lại, định vị vừa chậm vừa thiếu ổn định</td></tr>
+                <tr><td>Từ 30 trở lên</td><td>Giải điều chế ổn định được; <strong>đa số vệ tinh đạt mức này thì định vị sẽ nhanh</strong></td></tr>
+                <tr><td>Từ 40 trở lên</td><td>Mức của bầu trời thoáng đãng + ăng-ten tốt</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/20-sat-view.png" alt="Tab vệ tinh: biểu đồ cột SNR và biểu đồ bầu trời">
+                <figcaption>Tab vệ tinh khi định vị thành công: 31/41 vệ tinh có tín hiệu, biểu đồ cột SNR và biểu đồ bầu trời
+                của bốn chòm vệ tinh (GPS/QZSS/GLONASS/BDS). Đa số cột vượt 20, một số đạt 40 —— "nghe thấy" trông chính là như vậy.</figcaption>
+            </figure>
+
+            <h4>Vì sao phải chờ: giới hạn vật lý của khởi động lạnh và thời gian đo thực tế</h4>
+            <p>Định vị cần quỹ đạo chính xác của từng vệ tinh (lịch thiên văn), mà lịch thiên văn lại nằm trong tín hiệu vệ tinh phát quảng bá ở tốc độ
+            <strong>50 bps</strong> —— mỗi vệ tinh phải giải điều chế đúng liên tục khoảng 18–30 giây,
+            sai một bit là làm lại, và còn phải gom đủ ít nhất 4 vệ tinh. Đó chính là lý do "khởi động lạnh" chậm.
+            Đo thực tế trên máy này (cùng một địa điểm, ăng-ten chủ động, độ phân giải phép đo ±5 giây):</p>
+            <table>
+                <tr><th>Tình huống</th><th>Thời gian định vị lần đầu (đo thực tế)</th></tr>
+                <tr><td>Khởi động lạnh (không có hỗ trợ nào)</td><td><strong>95 giây</strong></td></tr>
+                <tr><td>Khởi động lạnh + AGNSS</td><td><strong>52 giây</strong> (và chỉ khoảng 20 giây đã trả về trước một vị trí thô)</td></tr>
+                <tr><td>AGNSS + lịch thiên văn gần đây còn sót lại (dùng lặp lại hằng ngày)</td><td><strong>25 giây</strong></td></tr>
+            </table>
+            <div class="tip">
+                <strong>Trong lúc thử nghiệm đừng tải lại trang.</strong> Thiết kế phần cứng của công cụ này là RTS = nguồn điện,
+                tải lại trang = cắt điện = mất sạch lịch thiên văn, mọi thứ làm lại từ khởi động lạnh.
+                Muốn tạm dừng thì bấm <code>AT+QGPSEND</code>, đừng cắt điện.
+            </div>
+
+            <h4>Tăng tốc AGNSS: quy trình đầy đủ</h4>
+            <p><strong>Nguyên lý:</strong> AGNSS chuyển sang tải lịch thiên văn từ mạng (mỗi lần khoảng 32–34 KB),
+            bỏ qua bước giải điều chế chậm chạp 50 bps. Nó <strong>không thể biến không thành có tín hiệu vệ tinh</strong> ——
+            trong nhà vẫn không định vị nổi, thứ nó tiết kiệm chỉ là khoảng thời gian "chờ lịch thiên văn".</p>
+            <p>Hai tiền đề dễ bị bỏ sót nhất, thiếu bất kỳ cái nào thì AGNSS sẽ <strong>lặng lẽ hoàn toàn không hoạt động, không hề báo lỗi</strong>:</p>
+            <table>
+                <tr><th>Tiền đề</th><th>Lệnh</th><th>Bẫy</th></tr>
+                <tr><td>AGNSS đã bật</td><td><code>AT+QAGPS=1</code></td>
+                    <td>⚠ <strong>Phải khởi động lại mới có hiệu lực</strong> (ghi vào NVRAM, đặt một lần là xong)</td></tr>
+                <tr><td>PDP đã kích hoạt</td><td><code>AT+QIACT=1</code></td>
+                    <td>⚠ Mỗi lần khởi động đều phải gửi lại. <strong><code>AT+CGATT?</code> trả về 1 không tính</strong> ——
+                        attach chỉ là đăng ký ở tầng mạng; phải <code>AT+QIACT?</code> trả ra được
+                        <code>+QIACT: 1,1,…,"IP"</code> mới có kênh dữ liệu</td></tr>
+            </table>
+            <p>Trình tự đầy đủ (sau mỗi lần khởi động):</p>
+            <pre>AT+QIACT=1          ← Mở kênh dữ liệu (chờ tối đa 150 giây; phát sinh lưu lượng)
+AT+QIACT?           ← Phải thấy +QIACT: 1,1,…,"IP"
+AT+QGPS=1           ← Bật GNSS; AGNSS sẽ tự động tải dữ liệu hỗ trợ ngay lúc này
+AT+QGPSLOC=2        ← Hỏi vòng mỗi 5–10 giây</pre>
+            <p><strong>Làm sao xác nhận AGNSS thực sự đang chạy?</strong> Firmware trên máy này <strong>không</strong> phát
+            thông báo kiểu <code>+QGPS: "agps"</code> (đã xác nhận bằng đo thực tế), phải nhìn bằng chứng gián tiếp, chọn một trong ba cách là đủ:</p>
+            <ol>
+                <li><code>AT+QGDCNT?</code> truy vấn hai lần trước và sau <code>AT+QGPS=1</code>,
+                    chiều nhận tăng thêm khoảng 30 KB = dữ liệu hỗ trợ đã được tải về</li>
+                <li>GSV chỉ trong vài giây đã liệt kê được <strong>vị trí của rất nhiều vệ tinh</strong> (SNR có thể vẫn là 00) ——
+                    vị trí đó là tải về, tự giải điều chế không thể nhanh đến vậy</li>
+                <li>Trường thời gian của <code>$GNGGA</code> có giá trị (thời gian cũng là một phần của dữ liệu hỗ trợ)</li>
+            </ol>
+            <div class="warning">
+                <strong>Bẫy định vị giả: tọa độ với số vệ tinh bằng không thì không phải là định vị.</strong>
+                Khoảng 20 giây sau khi AGNSS khởi động, <code>AT+QGPSLOC</code> có thể trả ra một bộ tọa độ,
+                nhưng nhìn kỹ: <code>HDOP 0.00 / alt 0.0 / nsat 00</code> ——
+                đó là <strong>tiêm vị trí tham chiếu</strong> nằm sẵn trong dữ liệu hỗ trợ, không phải kết quả đo, sai số có thể rất lớn.
+                <br><br>
+                <strong>Tiêu chí của định vị thật: số vệ tinh sử dụng &gt; 0, chế độ định vị ≥ 2, HDOP &gt; 0.</strong>
+                Khi viết logic tự động hóa hoặc sản phẩm, không thể chỉ nhìn "có trả về tọa độ hay không".
+            </div>
+
+            <h4>apflash: cắt điện bật lại vẫn nhanh (có điều kiện)</h4>
+            <p><code>AT+QGPSCFG="apflash"</code> xuất xưởng đã là 1: mỗi lần định vị thành công sẽ lưu lịch thiên văn vào
+            flash, lần khởi động sau tự động nạp vào —— cắt điện bật lại trong vòng một giờ thì từ khởi động lạnh biến thành khởi động nóng nhanh,
+            <strong>không tốn lưu lượng</strong>. Hai giới hạn: lịch thiên văn hết hạn sau khoảng một giờ;
+            và <strong>phải từng định vị thành công ít nhất một lần</strong> thì trong flash mới có thứ để nạp ——
+            module chưa bao giờ định vị thành công thì apflash không giúp gì được.</p>
+
+            <h4>Sau khi định vị thành công: tab bản đồ</h4>
+            <p>Mỗi lần <code>AT+QGPSLOC</code> thành công, vị trí sẽ được vẽ vào tab bản đồ:
+            điểm đánh dấu màu xanh dương là vị trí mới nhất, đường màu lục lam là quỹ đạo di chuyển, rê chuột lên mỗi điểm quỹ đạo sẽ hiện giờ địa phương và cao độ.
+            Thanh tóm tắt hiển thị tọa độ / cao độ / HDOP / số vệ tinh, thời gian tự động quy đổi sang múi giờ địa phương theo kinh độ.</p>
+            <figure class="shot">
+                <img src="img/21-map-track.png" alt="Tab bản đồ: quỹ đạo định vị">
+                <figcaption>Tab bản đồ sau khi định vị thành công: điểm đánh dấu = vị trí mới nhất, đường lục lam = quỹ đạo;
+                thanh tóm tắt trên cùng có tọa độ, cao độ, HDOP, số vệ tinh sử dụng và giờ địa phương.</figcaption>
+            </figure>
+
+            <h4>Khắc phục sự cố</h4>
+            <table>
+                <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+                <tr><td><code>+CME ERROR: 505</code></td>
+                    <td>GNSS chưa bật —— hãy <code>AT+QGPS=1</code> trước.
+                        Mỗi lần khởi động lại (kể cả tải lại trang) đều phải bật lại</td></tr>
+                <tr><td><code>+CME ERROR: 504</code></td><td>GNSS đang bật sẵn, chỉ là bật trùng thôi, vô hại</td></tr>
+                <tr><td>Lỗi 516 (NOT_FIXED_NOW)</td>
+                    <td>Chưa định vị được. GSV có tín hiệu (SNR ≥ 30) thì cứ tiếp tục chờ;
+                        toàn bộ 00 thì là vấn đề ăng-ten / môi trường, chờ bao lâu cũng vô ích</td></tr>
+                <tr><td>Không lấy được luồng NMEA liên tục</td>
+                    <td>Xuất xưởng <code>outport</code> là <code>usbnmea</code>, luồng liên tục đi cổng USB.
+                        Cổng AT thì bắt từng câu bằng <code>AT+QGPSGNMEA</code> là được (cần
+                        <code>nmeasrc,1</code> trước, nút trên tab này đã chuẩn bị sẵn)</td></tr>
+                <tr><td><code>AT+QGPSDEL</code> muốn ép khởi động lạnh</td>
+                    <td>⚠ Đừng dùng —— firmware máy này <code>=?</code> trả về <code>(0-2)</code>
+                        nhưng cả ba tham số đều <strong>bị từ chối hết</strong> (INVALID_PARA), tài liệu chính thức cũng không ghi nhận.
+                        Muốn khởi động lạnh: <code>apflash,0</code> + cắt điện bật lại (đo xong nhớ đổi về 1)</td></tr>
+                <tr><td>Đổi thiết lập rồi mà không thấy hiệu lực</td>
+                    <td><code>QAGPS</code> phải khởi động lại mới có hiệu lực; <code>gnssconfig</code> (tổ hợp chòm vệ tinh)
+                        cũng vậy. Đổi xong phải chạy lại một lượt nghi thức khởi động</td></tr>
+            </table>
+
+

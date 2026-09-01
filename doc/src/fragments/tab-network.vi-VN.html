@@ -1,0 +1,149 @@
+<h3 id="tab-network">Network —— đăng ký, nhà mạng, RF</h3>
+            <p><strong>Nguyên lý hoạt động:</strong> mọi chức năng dữ liệu muốn dùng được, tiền đề là <strong>đã đăng ký vào mạng di động</strong>
+            và <strong>kênh dữ liệu PDP đã sẵn sàng</strong> —— trang này chính là bảng đồng hồ và công tắc của việc vào mạng,
+            mọi cuộc truy lùng "không lên mạng được" đều bắt đầu từ đây. Số liệu trong mục này đều là đo thực tế trên EG800K vật lý tháng 8 năm 2026.</p>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Tab Network">
+                <figcaption>Năm cụm nút của trang Network: truy vấn đăng ký, Signal URC, PDP, chẩn đoán, điều khiển RF.</figcaption>
+            </figure>
+
+            <h4>Trước khi bắt đầu: chuyển URC sang UART đã</h4>
+            <p>EG800K xuất xưởng gửi các thông báo chủ động (URC) tới <code>usbat</code> (cổng AT trên USB),
+            công cụ này đi đường UART —— <strong>mọi URC đều không nhận được lấy một cái</strong>: báo cáo tín hiệu,
+            kết quả TCP / MQTT / quét Wi-Fi im lặng toàn bộ, triệu chứng là <strong>"lệnh nào cũng trả OK, riêng thông báo thì không thấy"</strong>.</p>
+            <div class="warning">
+                <strong>Thủ phạm số một của "URC biến mất sạch" chính là nó.</strong>
+                Sang tab Hardware bấm <code>AT+QURCCFG="urcport"</code> để tra,
+                không phải <code>"uart1"</code> thì dùng nút chuyển để đổi —— thiết lập ghi NVRAM, đổi một lần là có hiệu lực xuyên qua các lần khởi động lại.
+            </div>
+
+            <h4>Bước một: xác nhận trạng thái đăng ký</h4>
+            <p>Nghi thức khởi động thấy <code>RDY</code> xong, bấm <code>AT+CEREG?</code> trước (module 4G nhìn lệnh này là chuẩn nhất).
+            Ba nút đăng ký ứng với ba miền mạng: <code>CEREG</code> = LTE/EPS, <code>CREG</code> = miền chuyển mạch kênh,
+            <code>CGREG</code> = miền chuyển mạch gói, con số thứ hai (stat) đọc giống nhau:</p>
+            <table>
+                <tr><th>stat</th><th>Ý nghĩa</th><th>Làm gì</th></tr>
+                <tr><td>0</td><td>Chưa đăng ký</td><td>Vừa khởi động thì thường gặp, chờ vài giây tra lại</td></tr>
+                <tr><td>1</td><td>Đã đăng ký (mạng nhà)</td><td>Bình thường, đi tiếp</td></tr>
+                <tr><td>2</td><td>Đang tìm mạng</td><td>Chờ</td></tr>
+                <tr><td>3</td><td>Bị mạng từ chối</td><td>Kiểm SIM / gói cước, CEER xem nguyên nhân</td></tr>
+                <tr><td>5</td><td>Đã đăng ký (chuyển vùng)</td><td><strong>Trạng thái bình thường của máy này</strong>, xem bên dưới</td></tr>
+            </table>
+            <div class="tip">
+                <strong>stat=5 không phải hỏng hóc.</strong> Đo thực tế cả ba lệnh tra đăng ký đều trả <code>0,5</code>:
+                SIM là thẻ IoT của 1NCE (thẻ chuyển vùng quốc tế MCC 901), ở nước nào cũng tính là "chuyển vùng",
+                thấy 5 cứ coi như 1 mà dùng.
+            </div>
+            <p>Đăng ký thành công mà vẫn không lên mạng được, tiếp theo bấm <code>AT+CGATT?</code> tra attach miền gói;
+            khi cần bấm <code>AT+CGATT=1</code> attach thủ công, thất bại thì dùng <code>AT+CEER</code>
+            tra nguyên nhân (khác tầng với <code>QIGETERROR</code> của trang TCP/IP).
+            CGATT chặn tối đa <strong>140 giây</strong>, đừng bấm liên hồi.</p>
+
+            <h4>Hiện đang treo trên nhà mạng nào, băng tần nào</h4>
+            <p><code>AT+COPS?</code> tra nhà mạng hiện đã đăng nhập (số cuối 7 = LTE).
+            <strong>Bẫy: tên nhà mạng có thể là chuỗi rỗng</strong> —— đo thực tế trả <code>+COPS: 0,0,"",7</code>,
+            không phải hỏng. Muốn xem nhà mạng thì bấm <code>AT+QNWINFO</code> (chuẩn mạng / nhà mạng / băng tần / kênh):</p>
+            <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+            <p>46692 = Chunghwa Telecom, Band 8; không có dịch vụ thì trả <code>NO SERVICE</code>.
+            Thẻ chuyển vùng này tự chọn mạng: các ngày đo thực tế khác nhau từng treo trên Chunghwa Telecom Band 8 và FarEasTone (466-01) Band 3,
+            đổi nhà mạng đổi băng tần đều bình thường. <code>AT+COPS=?</code> quét mọi nhà mạng xung quanh:
+            <strong>chặn tối đa 300 giây và sẽ cắt ngang các phiên đang chạy</strong>, chắc chắn cần hãy bấm.</p>
+
+            <h4>Cường độ và chất lượng tín hiệu: CSQ chỉ là giá trị thô</h4>
+            <p><code>AT+CSQ</code> trả rssi và ber: rssi 0–31 ứng với -113 đến -51 dBm,
+            99 = không dò được (vừa khởi động thường gặp, chờ vài giây). Đo thực tế rssi 18–24 (-77 đến -65 dBm, tốt);
+            <strong>ber luôn là 99, không có giá trị tham khảo</strong>. Bộ ba chất lượng thật sự của LTE
+            <strong>RSRP (cường độ) / RSRQ (chất lượng) / SINR (tỷ số tín hiệu trên nhiễu, thấp = đang bị can nhiễu)</strong>
+            chỉ cụm Signal URC mới lấy được (<code>AT+QINDCFG="sqi"</code> không kèm giá trị = tra công tắc):</p>
+            <table>
+                <tr><th>Nút</th><th>Lệnh</th><th>Tác dụng</th></tr>
+                <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+                    <td>Bật báo cáo RSRP / RSRQ / SINR —— <strong>đồ nghề bắt buộc khi thử ăng-ten và vị trí đặt</strong>.
+                        Chỉ đẩy khi tín hiệu "có thay đổi", không thấy động tĩnh thì bọc kín hoặc rút cắm ăng-ten; thiết lập không giữ qua khởi động lại</td></tr>
+                <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+                    <td>Tín hiệu vừa đổi là báo ngay, thay cho việc bấm CSQ điên cuồng</td></tr>
+                <tr><td>URC Off／On</td><td><code>AT+QINDCFG="all",0／1</code></td>
+                    <td>Bị dội thông báo ngập màn hình thì một phím tắt tiếng —— nhớ bật lại sau đó</td></tr>
+            </table>
+
+            <h4>Kênh PDP: tầng 3GPP vs trang TCP/IP</h4>
+            <p>PDP context = "kênh dữ liệu" do mạng di động cấp phát, có nó mới có IP. Cụm này là truy vấn chỉ đọc ở tầng chuẩn 3GPP:
+            <code>AT+CGDCONT?</code> liệt kê context và APN, <code>AT+CGACT?</code> liệt kê trạng thái kích hoạt
+            (chặn tối đa 150 giây; ⚠ dạng ghi thì thứ tự tham số ngược lại), <code>AT+CGPADDR</code>
+            liệt kê IP đã lấy được. <code>QIACT?</code> / <code>QICSGP</code> của trang TCP/IP là
+            <strong>stack riêng của Quectel, không cùng một tầng</strong> —— so sánh song song sẽ phân biệt được phía hỏng:
+            bên này có IP, bên kia không có = mạng đã cấp nhưng stack chưa khởi động. Máy này khởi động là tự kích hoạt PDP lấy IP.</p>
+            <p><code>AT+QGDCNT?</code> tra lưu lượng tích lũy (số đầu là <strong>gửi đi</strong>, số sau là nhận về),
+            thẻ chuyển vùng đo lưu lượng nhất định phải dùng. ⚠ <strong>Đo thực tế lật ngược dòng gợi ý trên nút "tích lũy xuyên khởi động"</strong>:
+            bộ đếm mặc định không lưu NV, cứ ngắt điện (kể cả tải lại trang) là về không —— phải ghi lại tại chỗ,
+            hoặc <code>AT+QGDCNT=1</code> lưu vào NV.</p>
+
+            <h4>Thực chiến gỡ lỗi: thẻ này chỉ cho phép một PDP duy nhất</h4>
+            <p>Trang TCP/IP bấm <code>AT+QIACT=1</code> lại trả ERROR (<code>572,operation not
+            allowed</code>)? Kịch bản cố định của thẻ này: sau khi khởi động, tầng 3GPP đã <strong>tự kích hoạt một PDP</strong>,
+            nhưng <strong>số hiệu context sẽ trôi nổi</strong> (đo thực tế từng thấy 1 và 9); mở thêm cái thứ hai thì trả
+            <code>+CME ERROR: 100</code> ⇒ mạng chỉ cho phép một PDP duy nhất; mà phạm vi
+            contextID của <code>QIACT</code> chỉ có 1–8, PDP bị mở ở số 9 thì stack Quectel căn bản không chạm tới được.
+            Cách giải hai bước (mỗi lần khởi động làm một lần):</p>
+            <pre>AT+CGACT?             ← Xem là cid nào (số hiệu trôi nổi, không bỏ bước này được)
+AT+CGACT=0,&lt;cid đó&gt;   ← Tầng 3GPP nhường chỗ ra
+AT+QIACT=1            ← Trang TCP/IP; trả +QIACT: 1,1,1,"10.187.7.8" là thành công</pre>
+            <p><code>QICSGP</code> đặt APN với thẻ này có thể bỏ qua —— đo thực tế module tự đồng bộ APN mạng cấp xuống
+            (<code>iot.1nce.net</code>); chỉ thẻ APN doanh nghiệp cần tài khoản mật khẩu mới bắt buộc.</p>
+            <div class="warning">
+                <strong>Đo được nửa chừng bỗng dưng mọi thứ hết giờ chờ? Nghi PDP trôi trước tiên.</strong>
+                Đo thực tế khi HTTP thất bại liên tục toàn bộ (lỗi 716, hết giờ cố định 30 giây) thì <code>AT+QIACT?</code>
+                vẫn trả IP như thường —— lúc này nó biết lừa người, phải đối chiếu chéo với <code>AT+CGACT?</code>
+                (đo thực tế: 1,0 và 9,1 = trôi sang 9).
+                Cách giải: <code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;cid bị trôi&gt;</code> →
+                <code>AT+QIACT=1</code>, rồi ping kiểm chứng.
+            </div>
+
+            <h4>Mức chức năng CFUN và điều khiển RF</h4>
+            <p>Cả cụm RF Control đều làm thay đổi trạng thái module, toàn là nút viền đỏ bấm sẽ hỏi xác nhận trước.
+            Bấm <code>AT+CFUN?</code> xem mức hiện tại rồi hãy ra tay:</p>
+            <table>
+                <tr><th>Lệnh</th><th>Mức</th><th>Ý nghĩa</th></tr>
+                <tr><td><code>AT+CFUN=1</code></td><td>Đầy đủ chức năng</td>
+                    <td>RF mở hết; <strong>muốn khôi phục thì luôn bấm nút này</strong></td></tr>
+                <tr><td><code>AT+CFUN=4</code></td><td>Máy bay</td>
+                    <td>Thu phát tắt hết, SIM vẫn còn —— điểm xuất phát để thử "vào mạng lại"</td></tr>
+                <tr><td><code>AT+CFUN=0</code></td><td>Tối thiểu</td>
+                    <td>SIM cũng bị tắt; sổ tay chỉ ghi Minimum functionality, không liệt kê chi tiết</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>Khởi động lại mềm</td>
+                    <td>Khởi động lại cả module. ⚠ Cổng AT mất tác dụng trong chốc lát, phải chờ lại <code>RDY</code></td></tr>
+            </table>
+            <p>CFUN chặn tối đa 15 giây. <strong>SIM nếu có khóa PIN, chuyển về CFUN=1 xong phải nhập lại PIN
+            mới đăng ký được.</strong> <code>AT+CGATT=0</code> (PS Detach) rời khỏi miền gói ——
+            <strong>sẽ đánh sập mọi kết nối TCP / MQTT</strong>, chỉ dùng khi thử "attach lại".</p>
+
+            <h4>Nâng cao: QENG đọc thông tin trạm gốc (gõ ở dòng lệnh)</h4>
+            <p>Trang này không có nút —— gõ ở dòng lệnh <code>AT+QENG="servingcell"</code>
+            đọc tham số trạm gốc đang phục vụ, các cột then chốt đo thực tế:</p>
+            <table>
+                <tr><th>Cột</th><th>Giá trị đo thực tế</th><th>Cách đọc</th></tr>
+                <tr><td>MCC / MNC</td><td>466 / 01</td><td>Đài Loan / FarEasTone</td></tr>
+                <tr><td>Cell ID / TAC</td><td><code>ABCDE02</code> / <code>1234</code> (hex)</td>
+                    <td>Thập phân 180149762 / 4660; eNodeB = ECI≫8 = 703710, sector = 2</td></tr>
+                <tr><td>PCID / EARFCN</td><td>144 / 1550</td>
+                    <td>Nhận dạng cell vật lý (<strong>không duy nhất toàn cầu</strong>) / Band 3</td></tr>
+                <tr><td>RSRP / RSRQ / RSSI / SINR</td><td>-113 / -18 / -92 / -1</td>
+                    <td>RSRP dưới -100 tính là kém; SINR -1 dB = chất lượng tồi</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Cell ID và TAC là thập lục phân, trước khi tra cơ sở dữ liệu phải đổi sang thập phân.</strong>
+                Các cơ sở dữ liệu như OpenCelliD chỉ ăn thập phân, ném thẳng <code>ABCDE02</code> vào chỉ nhận về "không có bản ghi".
+                Ngoài ra <code>AT+QENG="neighbourcell"</code> chỉ trả PCID,
+                <strong>không có Cell ID toàn cầu</strong> (giới hạn của chuẩn LTE).
+            </div>
+
+            <h4>Khắc phục sự cố</h4>
+            <table>
+                <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+                <tr><td>Lệnh nào cũng trả OK, thông báo chủ động không hiện cái nào</td>
+                    <td>urcport đang ở usbat (giá trị xuất xưởng) —— sang tab Hardware chuyển uart1</td></tr>
+                <tr><td><code>QIACT=1</code> trả ERROR (572)</td>
+                    <td>Suất PDP duy nhất bị chiếm mất —— đi theo hai bước gỡ lỗi bên trên</td></tr>
+                <tr><td>Các yêu cầu liên tiếp toàn bộ hết giờ cố định 30 giây</td>
+                    <td>PDP trôi —— <code>AT+CGACT?</code> đối chiếu chéo, đừng chỉ tin <code>QIACT?</code></td></tr>
+            </table>

@@ -1,0 +1,150 @@
+<h3 id="tab-tcpip">TCP/IP — השורש של חיבורי הנתונים</h3>
+            <p><strong>עקרון הפעולה:</strong> הלשונית הזו היא היסוד של כל פרוטוקולי הנתונים. <strong>PDP context
+            (ערוץ הנתונים שהרשת הסלולרית מקצה) מופעל ומושבת רק בלשונית הזו</strong>, ובלשוניות SSL / HTTP / MQTT / FTP
+            יש רק שאילתות לקריאה בלבד, כדי שאותה פקודה בשני מקומות לא תדרוך אחת על השנייה.
+            כל המלכודות והשניות בסעיף נמדדו באוגוסט 2026 על החומרה האמיתית.</p>
+            <figure class="shot">
+                <img src="img/03-tcpip.png" alt="לשונית TCP/IP">
+                <figcaption>לשונית TCP/IP: ‏PDP, שליחה וקבלה ב-socket וכלי אבחון.</figcaption>
+            </figure>
+
+            <h4>שלב ראשון: הפעלת PDP‏ (QICSGP / QIACT / QIDEACT)</h4>
+            <p>לחץ על <strong>Act PDP</strong>‏ (<code>AT+QIACT=1</code>): חוסם עד 150 שניות,
+            אל תשלח פקודות אחרות בזמן הזה, ומכאן והלאה נוצרת תעבורה (בנדידה שים לב לעלויות). אחרי הצלחה
+            <strong>חובה ללחוץ על Query IP</strong>‏ (<code>AT+QIACT?</code>) ולוודא שחוזר <code>+QIACT: 1,1,1,"כתובת IP"</code>
+            — לפני ההפעלה חוזר רק OK. לסיום לחץ על <strong>Deact PDP</strong>‏ (<code>AT+QIDEACT=1</code>,
+            עד 40 שניות), שסוגר בכוח את כל החיבורים שתחתיו. על <strong>Set APN</strong>
+            (<code>AT+QICSGP</code>) בדרך כלל לא צריך ללחוץ — המודול מסנכרן אוטומטית את ה-APN שהרשת מקצה
+            (במדידה, כרטיס ה-1NCE נקרא באתחול כשהוא כבר על <code>iot.1nce.net</code>);
+            הוא נחוץ רק ל-APN ארגוני עם שם משתמש וסיסמה.</p>
+            <div class="warning">
+                <strong>Act PDP מחזיר ERROR ו-Last Error מראה 572? הכרטיס הזה מתיר PDP אחד בלבד.</strong>
+                באתחול הרשת כבר הפעילה אחד אוטומטית ו<strong>המספר שלו נודד</strong> (במדידות נראו גם 9 וגם 1),
+                בעוד <code>AT+QIACT</code> מגיע רק ל-1-8. הפתרון: בלשונית Network‏ <code>AT+CGACT?</code>
+                לבדיקת המספר → ‏<code>AT+CGACT=0,&lt;המספר&gt;</code> לפינוי המקום → לחץ שוב על Act PDP.
+                <br><br>
+                <strong>הכול קרס באמצע הבדיקות? <code>AT+QIACT?</code> משקר</strong> — בנדידת PDP
+                הוא ממשיך להחזיר IP, ורק הצלבה עם <code>AT+CGACT?</code> חושפת את זה. השחזור:
+                Deact PDP → ‏<code>AT+CGACT=0,&lt;המספר שנדד&gt;</code> → Act PDP → אימות עם Ping.
+            </div>
+
+            <h4>פתיחת חיבור: OK אומר רק "הפקודה התקבלה"</h4>
+            <p>לחץ על <strong>Open TCP</strong> ומלא בכרטיס הפרמטרים מארח ופורט
+            (<code>AT+QIOPEN=1,0,"TCP","מארח",פורט,0,0</code>; ‏context 1, ‏connectID 0
+            ומצב buffer כבר קבועים מראש). <strong>OK אומר רק שהפקודה התקבלה</strong>, וההצלחה או הכישלון נקבעים לפי ה-URC
+            <code>+QIOPEN: 0,&lt;err&gt;</code>: ‏0 = הצלחה, עד 150 שניות;
+            <strong>563 = ה-connectID עדיין פתוח</strong>, לחץ קודם על Close Sock.
+            <strong>All Socks</strong>‏ (<code>AT+QISTATE</code>) מפרט את כל ה-sockets, ‏state 2 = מחובר.</p>
+
+            <h4>שליחת נתונים: שלוש דרכים</h4>
+            <table>
+                <tr><th>כפתור</th><th>הסבר</th></tr>
+                <tr><td><strong>Send Text</strong><br><code>AT+QISEND=0,&lt;len&gt;</code></td>
+                    <td>דו-שלבי באורך קבוע: ממתין ל-<code>&gt;</code> ואז שולח את התוכן, האורך מחושב אוטומטית,
+                        <strong>בלי Ctrl+Z</strong>. הבחירה הראשונה לטקסט רגיל; התקרה 1460 bytes,
+                        תמיכה ברצפי בריחה <code>\n \r \t \xHH</code></td></tr>
+                <tr><td><strong>שלושת כפתורי Send Var</strong><br><code>AT+QISEND=0</code></td>
+                    <td>אורך משתנה: נכנסים למצב נתונים והמודול אוסף עד שהוא רואה Ctrl+Z‏ (0x1A) ורק אז משדר —
+                        אפשר לכתוב בכמה מנות, ראה בהמשך</td></tr>
+                <tr><td><strong>Send Hex</strong><br><code>AT+QISENDEX=0,"hex"</code></td>
+                    <td>שורה אחת, בלי כניסה למצב נתונים. אפשר לשלוח כל בית (כולל 0x00);
+                        תקרת ה-hex היא 512 תווים = בפועל 256 bytes</td></tr>
+            </table>
+            <p><strong>"שלח (המשך כתיבה)"</strong> — הלחיצה הראשונה נכנסת למצב נתונים, וכל לחיצה נוספת מוסיפה מנה
+            (כשכבר נמצאים במצב נתונים הפקודה לא נשלחת שוב — שליחה חוזרת שלה הייתה הופכת לנתונים);
+            <strong>"שלח וסיים אוטומטית"</strong> מוסיף את המנה ומשלים Ctrl+Z, הכי מהיר כששולחים מנה אחת בלבד;
+            <strong>"סיים (Ctrl+Z)"</strong> משדר בבת אחת את כל התוכן שהצטבר. בזמן מצב נתונים המסוף מסמן זאת;
+            לוויתור לחץ על <strong>ESC Cancel</strong>‏ (0x1B, מקש החילוץ כשפקודה דו-שלבית נתקעת).
+            ⚠ אסור שהנתונים יכילו 0x1A (ייחשב סיום מוקדם); לתווי בקרה עבור ל-Send Hex.</p>
+            <div class="tip">
+                <strong>SEND OK לא אומר שהצד השני קיבל</strong>, אלא רק שהנתונים נמסרו למודול. לחץ על
+                <strong>Check ACK</strong>‏ (<code>AT+QISEND=0,0</code>) לבדיקת נשלח / אושר ב-ACK —
+                <strong>רק acked קובע</strong>.
+            </div>
+
+            <h4>קבלת נתונים: הם לא מופיעים לבד, צריך ללחוץ Read Data</h4>
+            <p>במצב buffer הנתונים שהתקבלו <strong>לא</strong> מופיעים אוטומטית במסוף: המודול רק שולח הודעת
+            <code>+QIURC: "recv",0</code>, וצריך ללחוץ על <strong>Read Data</strong>
+            (<code>AT+QIRD=0,1500</code>) לשליפה, ו<strong>לחזור על הקריאה עד שחוזר <code>+QIRD: 0</code></strong> —
+            אם לא רוקנת את המאגר, לא תגיע הודעה נוספת.
+            <strong>Unread Len</strong>‏ (<code>AT+QIRD=0,0</code>) בודק סך התקבל / נקרא / לא נקרא.
+            בסיום השליחה והקבלה לחץ על <strong>Close Sock</strong>‏ (<code>AT+QICLOSE=0</code>, עד 10 שניות).
+            ⚠ <strong>הודעות recv לא מגיעות בכלל?</strong> בדוק בלשונית Hardware אם
+            <code>AT+QURCCFG="urcport"</code> מוגדר ל-<code>uart1</code> —
+            ערך היצרן הוא פורט ה-USB, וכל ה-URC בורחים לשם.</p>
+
+            <h4>שתי הגחמות של הצד המרוחק המובנה tcpbin.com</h4>
+            <p>הצד המרוחק המוגדר כברירת מחדל ב-Open TCP הוא שרת ה-echo החינמי <code>tcpbin.com:4242</code>,
+            ולו שתי גחמות שנמדדו:</p>
+            <ul>
+                <li><strong>הד שורה-שורה, וחובה שורה חדשה (0A) בסוף</strong>: שליחת Hello בלי 0A — ‏6 שניות המתנה בלי תשובה;
+                    אחרי השלמת 0A ההד מגיע מיד בתוך 0.1 שניות. ב-Send Text הוסף <code>\n</code> בסוף,
+                    ב-Send Hex הוסף <code>0A</code> בסוף.</li>
+                <li><strong>‏timeout של 15 שניות חוסר פעילות</strong>: בחוסר פעילות החיבור מנותק ומתקבל
+                    <code>+QIURC: "closed",0</code>. זה לא קשור ל-QIRD (הוא קורא רק מהמאגר המקומי,
+                    בלי לגעת ברשת). לשמירת החיבור שלח נתונים לפחות אחת ל-10 שניות. אחרי closed ה-socket נשאר במצב closing,
+                    <strong>וחובה ללחוץ קודם על Close Sock</strong> לפני שימוש חוזר, אחרת QIOPEN מחזיר 563.</li>
+            </ul>
+
+            <h4>שלישיית האבחון: Ping / DNS Lookup / NTP Sync</h4>
+            <table>
+                <tr><th>כפתור (כולם דורשים Act PDP קודם)</th><th>התנהגות ומדידות</th></tr>
+                <tr><td><strong>Ping</strong><br><code>AT+QPING</code></td>
+                    <td>‏timeout של 4 שניות ×4 קבוע מראש. במדידה 8.8.8.8 עבר במלואו, ‏RTT ‏160-270 ms.
+                        ⚠ הרבה שרתים חוסמים ICMP, ‏<strong>ping כושל לא אומר ש-TCP לא יתחבר</strong>;
+                        לבדיקת קישוריות עבור ישר ל-Open TCP</td></tr>
+                <tr><td><strong>DNS Lookup</strong><br><code>AT+QIDNSGIP</code></td>
+                    <td>התוצאה מדווחת ב-URC‏ <code>+QIURC: "dnsgip"</code> (עד 60 שניות),
+                        במדידה הגיעה בשני חלקים ועם כמה כתובות IP</td></tr>
+                <tr><td><strong>NTP Sync</strong><br><code>AT+QNTP</code></td>
+                    <td>עד 125 שניות, פורט 123 קבוע מראש, התוצאה ב-URC‏ <code>+QNTP</code>.
+                        ⚠ <strong>הזמן הוא UTC אבל נושא סימון אזור זמן מקומי</strong>
+                        (32 רבעי שעה = GMT+8, במדידה הפרש של 8 שעות בדיוק);
+                        לזמן המקומי השתמש ב-<code>AT+CCLK?</code></td></tr>
+            </table>
+
+            <h4>משהו נכשל: לחץ קודם על Last Error, ואז הרץ את אבחנת 30 השניות</h4>
+            <p>כשפקודה מחזירה ERROR, לחץ <strong>מיד</strong> על <strong>Last Error</strong>
+            (<code>AT+QIGETERROR</code>) — נשמרת רק השגיאה האחרונה, וברגע שהשגיאה הבאה דורסת אותה אין מה לבדוק.
+            הוא בודק את שכבת המחסנית של Quectel; לשכבת הרשת השתמש ב-<code>AT+CEER</code> שבלשונית Network.</p>
+            <div class="warning">
+                <strong>🔴 הידרדרות מחסנית הנתונים — הבור שגוזל הכי הרבה זמן.</strong> התסמין: כל החיבורים
+                נכשלים ללא יוצא מן הכלל, אבל כל הבדיקות העצמיות טוענות שהכול תקין
+                (ל-<code>QIACT?</code> יש IP, ‏QIGETERROR מחזיר 0). במדידה זה הופעל אחרי כ-20 מחזורי פתיחה
+                וסגירה רצופים של SSL, ואפילו QIOPEN של TCP טהור החזיר 552;
+                ‏QIDEACT + QIACT לא מצילים, <strong>רק הרצה מחדש של טקס האתחול משחזרת</strong>.<br><br>
+                <strong>שיטת האבחנה של 30 שניות</strong>: פנה לאותו יעד עם Open TCP — נכשל גם הוא = המחסנית כולה
+                מקולקלת, הרץ שוב את טקס האתחול; הצליח = הבעיה בפרוטוקול שמעל, המשך לחקור.
+            </div>
+
+            <h4>Keepalive: עוזר מול ה-NAT של המפעיל, לא מול tcpbin</h4>
+            <p><strong>QICFG=?</strong> מפרט תת-פריטים וטווחים, <strong>Keepalive?</strong> בודק את הערך הנוכחי,
+            ו-<strong>Keepalive On / Off</strong> מדליק ומכבה — ארבע הפקודות האלה <strong>עצמן</strong> באפס תעבורה;
+            אחרי ההפעלה, כל עוד socket כלשהו יושב בחוסר פעילות, מנות הגישוש נספרות בתעבורה הסלולרית.
+            <strong>הוא לא עוצר את ה-timeout של 15 שניות של tcpbin</strong>: במדידה, גם כשהופעל, החיבור נסגר אחרי 15.1 שניות —
+            keepalive הוא גישוש ריק בשכבת ה-TCP שהאפליקציה לא רואה; וה-interval המינימלי הוא 25 שניות,
+            גדול מ-15 מלכתחילה. כדי לשרוד timeout בשכבת האפליקציה חייבים לשלוח נתונים אמיתיים
+            (למשל Send Hex עם <code>0A</code> כל 10 שניות). הייעוד האמיתי הוא <strong>שמירת חיים מול ה-NAT
+            של המפעיל</strong> (ב-NAT של כרטיסי IoT חיבור לא פעיל נמחק אחרי דקות ספורות).</p>
+            <p>חשבון התעבורה (<strong>חישוב, לא מדידה</strong>): הלוך ושוב של גישוש אחד הוא כ-80 bytes;
+            עם ברירת המחדל idle = 30 שניות בחוסר פעילות מתמשך → כ-9.4 KB לשעה, כ-225 KB ליום,
+            <strong>כ-6.8 MB לחודש</strong>; עם idle = 600 שניות → כ-11 KB ליום.
+            בכרטיסים בתשלום מראש לפי נפח כמו 1NCE כדאי להגדיל את ה-idle. בלי socket פתוח אין שום צריכת תעבורה.</p>
+
+            <h4>פתרון בעיות</h4>
+            <table>
+                <tr><th>תסמין</th><th>סיבה ופתרון</th></tr>
+                <tr><td><code>+QIOPEN: 0,563</code></td>
+                    <td>ה-connectID עדיין פתוח — לחץ קודם על Close Sock</td></tr>
+                <tr><td>לא מתקבל <code>+QIURC: "recv"</code></td>
+                    <td>① urcport אינו uart1 (לשונית Hardware)
+                        ② לא קראת עד <code>+QIRD: 0</code>, וההודעות מדוכאות</td></tr>
+                <tr><td>צץ <code>+QIURC: "closed",0</code></td>
+                    <td>‏timeout חוסר הפעילות של 15 שניות של tcpbin; אחרי Close Sock אפשר לפתוח מחדש</td></tr>
+                <tr><td>פקודה דו-שלבית נתקעה ופורט ה-AT לא מגיב</td>
+                    <td>לחץ על ESC Cancel לחילוץ; אם לא עוזר, Reset בלשונית Hardware</td></tr>
+                <tr><td>כל החיבורים נכשלים אבל כל הבדיקות העצמיות ירוקות</td>
+                    <td>הידרדרות מחסנית הנתונים — אחרי האבחנה הרץ שוב את טקס האתחול</td></tr>
+                <tr><td>Act PDP מחזיר ERROR, או שהכול קורס באמצע הבדיקות</td>
+                    <td>מקום ה-PDP היחיד תפוס / נדידת PDP — ראה שתי מסגרות התחקור בסעיף "שלב ראשון"</td></tr>
+            </table>

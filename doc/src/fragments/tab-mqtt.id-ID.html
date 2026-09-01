@@ -1,0 +1,148 @@
+<h3 id="tab-mqtt">MQTT — Pesan IoT</h3>
+            <p><strong>Cara kerja:</strong> MQTT adalah protokol bergaya "broker (server perantara pesan)":
+            perangkat tidak saling terhubung langsung; masing-masing tersambung ke broker, lalu menerbitkan atau berlangganan pesan
+            pada "topik (topic)". Di EG800K ia berlapis dua: pertama <code>AT+QMTOPEN</code> membuka "koneksi jaringan"
+            (TCP ke broker), lalu <code>AT+QMTCONN</code> melakukan "login MQTT"; hanya setelah kedua lapis tembus barulah bisa
+            berlangganan dan menerbitkan. Ingat dulu: <strong>hasil semua perintah MQTT berpola "OK dulu, URC kemudian"</strong>
+            (sama seperti FTP) — <code>OK</code> hanya berarti perintah diterima; berhasil-gagalnya lihat URC hasil sesudahnya.</p>
+            <p>Halaman ini selalu memakai client 0; firmware juga mendukung multi-client (0–5), SSL, dan autentikasi platform cloud
+            (dikonfirmasi lewat uji <code>=?</code>); pemakaian lanjutan lihat application note MQTT.</p>
+
+            <h4>Sebelum mulai: dua prasyarat</h4>
+            <ol>
+                <li><strong>URC harus lewat UART</strong>: <code>AT+QURCCFG="urcport"</code> wajib membalas
+                    <code>"uart1"</code>. Nilai pabriknya <code>"usbat"</code>, sedangkan hasil MQTT semuanya URC —
+                    bila tak diubah, <strong>setiap perintah hanya membalas OK tanpa kelanjutan</strong>
+                    (tombolnya ada di halaman Basic; ditulis ke NVRAM, cukup diubah sekali).</li>
+                <li><strong>PDP harus diaktifkan dulu</strong>: tekan dulu <code>AT+QIACT=1</code> di halaman TCP/IP
+                    (maksimum 150 detik); bila belum, <code>+QMTOPEN</code> membalas <strong>3 = aktivasi PDP gagal</strong>.
+                    Sepanjang proses kuota data terpakai, perkiraan sekitar 5 KB.</li>
+            </ol>
+
+            <h4>Cara mengujinya: empat broker publik gratis</h4>
+            <p>Kartu parameter <code>AT+QMTOPEN</code> menyediakan menu tarik-turun broker bawaan (pengetikan bebas tetap bisa);
+            keempatnya mengizinkan anonim, tak perlu registrasi. Data hasil uji Agustus 2026 (dari sisi PC dibanjiri 100 pesan, dari sisi modul di-ping):</p>
+            <table>
+                <tr><th>Broker</th><th>Banjir 100 pesan</th><th>Ping dari modul</th><th>Catatan</th></tr>
+                <tr><td><strong>mqttgo.io</strong> (default)</td><td><strong>100/100</strong></td>
+                    <td><strong>190–210 ms</strong></td><td>HiNet Taiwan; 1883 teks polos / 8883 TLS</td></tr>
+                <tr><td>broker.hivemq.com</td><td>100/100</td><td>Memblokir ICMP</td>
+                    <td><code>AT+QPING</code> membalas 559, jangan panik — hasil uji: TCP 1883 keempatnya tembus semua;
+                        ketercapaian langsung diuji dengan <code>AT+QMTOPEN</code></td></tr>
+                <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+                    <td>Situs resminya sendiri berpesan jangan dipakai untuk keperluan penting; polusi topiknya paling parah</td></tr>
+                <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>Memblokir ICMP</td>
+                    <td><strong>Ada pembatasan laju penerbitan</strong>; punya Dashboard web</td></tr>
+            </table>
+            <p>Keempatnya <strong>sepenuhnya publik</strong>: siapa pun bisa berlangganan topik Anda,
+            dan pesan orang lain pun bisa menyusup masuk — inilah persoalan yang hendak diselesaikan sufiks acak.</p>
+
+            <h4>Sufiks acak pada client ID dan topik: setiap refresh berganti satu set</h4>
+            <p>Client ID dan topik default tidak dipatok mati: saat halaman dimuat, otomatis dibangkitkan sufiks 6 karakter heksadesimal,
+            membentuk <code>numodem-&lt;sufiks&gt;</code> dan <code>test/numodem-&lt;sufiks&gt;</code>;
+            tiga tombol Subscribe / Publish / Unsub memakai set yang sama (kalau tidak, loop-balik takkan saling ketemu). Alasannya dua:</p>
+            <ul>
+                <li><strong>Nama bentrok berujung ditendang</strong>: MQTT 3.1.1 §3.1.4 mewajibkan broker menendang yang tersambung
+                    lebih dulu — dua orang memakai ID tetap yang sama akan saling tendang; gejalanya tampak seperti "modul putus tanpa sebab".</li>
+                <li><strong>Topik tetap akan menerima pesan orang lain</strong>: Anda mengira yang diterima adalah kiriman sendiri, padahal bukan —
+                    ini lebih buruk daripada tak menerima, karena memberi kelulusan palsu.</li>
+            </ul>
+            <div class="warning">
+                <strong>⚠ Setiap kali halaman di-refresh, sufiks berganti satu set —
+                berlangganan dan menerbitkan wajib diselesaikan dalam satu siklus hidup halaman yang sama.</strong>
+                Apalagi pada alat ini RTS = daya; memuat ulang halaman = modul putus daya, koneksi MQTT lenyap seluruhnya,
+                harus mengulang dari ritual boot dan <code>AT+QMTOPEN</code>.
+            </div>
+
+            <h4>Alur lengkap: sambung → langganan → terbitkan → menerima kembali pesan sendiri</h4>
+            <p>Verifikasi paling meyakinkan adalah <strong>loop-balik</strong>: setelah berlangganan, terbitkan ke topik yang sama
+            dan terima kembali pesan sendiri — sekali jalan menguji seluruh rantai kirim-terima. Setiap langkah tunggu URC hasil dulu baru lanjut:</p>
+            <ol>
+                <li><strong>Setel versi protokol</strong>: tekan Ver 3.1.1 (<code>AT+QMTCFG="version",0,4</code>;
+                    3 = 3.1, 4 = 3.1.1). Tekan Version? untuk melihat nilai kini (tanpa nilai = query).
+                    Kartu parameter Keepalive bisa mengatur interval jaga-hidup; tanpa diatur pun tetap bisa diuji.</li>
+                <li><strong>Buka jaringan</strong>: tekan Open Net (<code>AT+QMTOPEN=0,"broker",1883</code>).
+                    Ia membalas <code>OK</code> dulu; berhasil-gagalnya lihat URC <code>+QMTOPEN: 0,&lt;result&gt;</code>
+                    (0 = berhasil), menunggu maksimum 120 detik. Tekan Open? untuk melihat koneksi yang sudah terbuka
+                    (tanpa koneksi, balasannya <code>OK</code> kosong; hasil uji: normal).</li>
+                <li><strong>Login MQTT</strong>: tekan Connect (<code>AT+QMTCONN=0,"numodem-&lt;sufiks&gt;"</code>).
+                    URC keberhasilannya selalu <code>+QMTCONN: 0,0,0</code>. Broker publik bebas akun-sandi;
+                    bila butuh, tambahkan sendiri <code>,"user","pass"</code> di belakang parameter.
+                    Tekan Conn? untuk melihat status (1 = inisial, 2 = menyambung, 3 = tersambung, 4 = memutus).</li>
+                <li><strong>Berlangganan</strong>: tekan Subscribe (<code>AT+QMTSUB=0,1,"test/numodem-&lt;sufiks&gt;",0</code>,
+                    msgid dipatok 1). URC keberhasilannya berbentuk <code>+QMTSUB: 0,1,0,0</code>.
+                    Sejak itu semua pesan topik ini masuk lewat URC <code>+QMTRECV</code>.</li>
+                <li><strong>Terbitkan</strong>: tekan Publish (<code>AT+QMTPUBEX</code>, dua tahap, lihat paragraf berikut).
+                    URC keberhasilannya <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code>.</li>
+                <li><strong>Terima kembali</strong>: sasaran penerbitan persis topik yang sedang dilanggan, sehingga segera terlihat
+                    <code>+QMTRECV</code> membawa topik beserta isi pesan barusan — loop-balik berhasil.
+                    Payload non-Latin pun tak terpotong, tak rusak.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="Tab MQTT">
+                <figcaption>Halaman MQTT: menu tarik-turun broker, koneksi, berlangganan dan menerbitkan; nilai default sudah membawa sufiks acak.</figcaption>
+            </figure>
+
+            <h4>Dua tahap QMTPUBEX: begitu panjang tercapai langsung terkirim otomatis, tanpa Ctrl+Z</h4>
+            <p>Parameter terakhir <code>AT+QMTPUBEX</code> adalah <strong>panjang (jumlah byte), bukan isi pesan</strong>
+            (application note MQTT §3.3.8 menutup kasusnya — cara kirim satu baris dengan menjejalkan pesan pasti membalas ERROR).
+            Alur yang benar adalah dua tahap: kirim perintah → modul membalas prompt <code>&gt;</code> → kirim tepat N byte,
+            modul <strong>otomatis mengirim begitu panjang tercapai, tak butuh Ctrl+Z</strong>
+            (berbeda dengan mode data <code>AT+QISEND</code> di halaman TCP).
+            Menekan Publish serba otomatis: cukup isi isi pesan di kartu parameter,
+            panjangnya dihitung otomatis dari jumlah byte UTF-8 (satu aksara CJK 3 byte; hasil uji: dua aksara → 6).</p>
+            <ul>
+                <li>Perintah bertipe payload <strong>tidak menyediakan "isikan ke baris perintah"</strong> — pengiriman dari baris perintah
+                    selalu menambahkan akhir baris, dan CR itu ikut terhitung ke panjang sehingga meleset; kirimlah lewat tombol.</li>
+                <li>Firmware juga punya <code>AT+QMTPUB</code> (varian mode data, harus ditutup Ctrl+Z) —
+                    alat ini seragam memakai <code>QMTPUBEX</code>; tak perlu mempelajari dua-duanya.</li>
+            </ul>
+
+            <h4>Membaca kode hasil: rentang nilai tiap perintah berbeda-beda</h4>
+            <div class="warning">
+                <strong>Jangan menempelkan tabel kode hasil perintah A ke perintah B.</strong>
+                Angka 3 pada <code>+QMTOPEN</code> berarti "aktivasi PDP gagal",
+                sedangkan <code>+QMTPUBEX</code> sama sekali tak punya nilai 3.
+                <br><br>
+                Yang paling mudah salah baca adalah <code>+QMTCONN: 0,1</code> —
+                ia <strong>bisa berarti balasan query "status 1 = sedang inisialisasi", bisa pula hasil penulisan "paket sedang dikirim ulang"</strong>.
+                Dari satu baris saja tak terbedakan, maka alat ini menampilkan kedua tafsir berdampingan, tidak menebak paksa.
+            </div>
+            <p>Anda tak perlu menghafal tabel: seluruh URC hasil dari <code>+QMTOPEN</code> sampai <code>+QMTRECV</code> / <code>+QMTSTAT</code>
+            diberi anotasi bahasa awam kolom demi kolom di area terminal, mengikuti tujuh tabel rujukan application note MQTT v1.5.</p>
+
+            <h4>Offline dan penutupan</h4>
+            <ul>
+                <li><strong>Hanya ingin berhenti menerima, koneksi tetap ada</strong>: tekan Unsub
+                    (<code>AT+QMTUNS=0,2,"topik"</code>, msgid dipatok 2).</li>
+                <li><strong>Offline secara normal</strong>: tekan Disconnect (<code>AT+QMTDISC=0</code>,
+                    mengirim MQTT DISCONNECT), dibalas <code>+QMTDISC: 0,0</code>.
+                    <strong>Sesudahnya tak perlu lagi menekan Close Net</strong> — <code>AT+QMTCLOSE=0</code>
+                    disediakan untuk penutupan paksa saat "QMTDISC gagal, lapisan jaringan tersangkut".</li>
+            </ul>
+            <p>Pemutusan yang bukan Anda tekan (ditendang, keepalive timeout, jaringan putus) dilaporkan lewat URC pemutusan abnormal
+            <code>+QMTSTAT</code> (contoh: <code>+QMTSTAT: 0,5</code>; area terminal menganotasi penyebabnya);
+            saat itu harus mengulang dari <code>AT+QMTOPEN</code>.</p>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td>Setiap perintah membalas OK, lalu tak ada kelanjutan</td>
+                    <td>URC dikirim ke port USB — <code>urcport</code> dari pabrik adalah <code>usbat</code>;
+                        alihkan ke <code>uart1</code> (lihat prasyarat 1)</td></tr>
+                <tr><td><code>+QMTOPEN: 0,3</code></td>
+                    <td>Aktivasi PDP gagal — jalankan dulu <code>AT+QIACT=1</code> (halaman TCP/IP) lalu ulangi</td></tr>
+                <tr><td>Sudah berlangganan tetapi tak menerima pesan kiriman sendiri</td>
+                    <td>Halaman sempat di-refresh di tengah jalan — sufiks berganti set, modul pun putus daya dan boot ulang.
+                        Ulangi satu putaran alur dalam siklus hidup halaman yang sama</td></tr>
+                <tr><td>Menerima pesan yang bukan kiriman sendiri</td>
+                    <td>Polusi topik broker publik (mosquitto paling parah). Topik default sudah bersufiks acak;
+                        untuk topik kustom, pilih nama yang unik</td></tr>
+                <tr><td>Saat menerbitkan dalam jumlah besar, sebagian pesan hilang</td>
+                    <td>emqx membatasi laju penerbitan (hasil uji: banjir 100 hanya sampai 40) —
+                        ganti ke mqttgo.io atau hivemq (100/100 tanpa pembatasan)</td></tr>
+                <tr><td>URC hasil tak kunjung datang meski lama ditunggu</td>
+                    <td>Keluarga perintah ini memang lambat: <code>QMTOPEN</code> maksimum 120 detik,
+                        <code>QMTCONN</code> / <code>QMTSUB</code> / <code>QMTPUBEX</code> maksimum 600 detik
+                        (PUBEX = timeout paket 60 detik × 10 kali coba ulang); keterangan tombol sudah menandainya — bukan hang</td></tr>
+            </table>

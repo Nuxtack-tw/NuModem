@@ -1,0 +1,159 @@
+<h3 id="tab-ssl">SSL —— kênh TLS</h3>
+            <p><strong>Nguyên lý hoạt động:</strong> trang SSL là <strong>tầng đáy dùng chung</strong> của kết nối mã hóa ——
+            SSL context đặt ở đây cùng chứng chỉ đã tải lên, phục vụ đồng thời cho SSL raw socket, MQTT over SSL
+            và HTTPS. Các con số giây và hành vi trong mục này đều là giá trị đo thực tế trên EG800K vật lý tháng 8 năm 2026.</p>
+
+            <h4>Lần kết nối TLS đầu tiên: năm bước</h4>
+            <ol>
+                <li><strong>Chạy nghi thức khởi động</strong> (xem phần "Nghi thức khởi động"), rồi bấm
+                    <code>AT+QIACT?</code> xác nhận kênh dữ liệu —— phải trả ra được
+                    <code>+QIACT: 1,1,…,"IP"</code>, không có thì <code>AT+QIACT=1</code> trước.</li>
+                <li><strong>Đặt context</strong>: <code>sslversion</code> điền 4 (mọi phiên bản,
+                    tương thích tốt nhất), <code>ciphersuite</code> điền 0XFFFF (mọi bộ mã),
+                    <code>seclevel</code> điền 0 trước đã —— xác nhận kênh thông cái đã, xác thực để lại phía sau.</li>
+                <li><strong>Mở kết nối</strong>: bấm <code>AT+QSSLOPEN</code> (số cuối 0), thẻ tham số điền
+                    máy chủ và cổng. ⚠ <code>OK</code> chỉ có nghĩa là "lệnh đã được nhận", thành bại phải chờ URC:
+                    <code>+QSSLOPEN: 4,0</code> mới là thành công (đo thực tế bắt tay 2.0 giây).</li>
+                <li><strong>Gửi dữ liệu</strong>: bấm <code>AT+QSSLSEND</code> (hai giai đoạn) ——
+                    hiện <code>&gt;</code> rồi gửi nội dung, <strong>đếm đủ độ dài đã khai là tự động gửi đi,
+                    miễn Ctrl+Z</strong> (trần mỗi gói 1460 bytes). Bên kia trả lời sẽ hiện
+                    <code>+QSSLURC: "recv",4</code>.</li>
+                <li><strong>Đọc về và đóng</strong>: <code>AT+QSSLRECV</code> (trần mỗi lần 1500)
+                    đọc tới <code>+QSSLRECV: 0</code> nghĩa là đã nhận cạn, không phải lỗi.
+                    <code>AT+QSSLCLOSE=4</code> đóng lại (mặc định chờ tối đa 10 giây;
+                    nút còn lại chỉ định được số giây, 0 = ngay lập tức).</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2.0 giây, 0 = thành công
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← Đếm đủ 15 bytes tự động gửi đi
+SEND OK
++QSSLURC: "recv",4        ← 0.4 giây
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>Trong lúc kết nối có thể bấm <code>AT+QSSLSTATE</code> xem mọi kết nối (<code>=4</code>
+            tra một clientID đơn lẻ, trạng thái 2 = đã nối). Lưu ý <strong>cổng cục bộ luôn trả 0</strong> ——
+            hành vi của module, không phải lỗi.</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="Tab SSL">
+                <figcaption>Trang SSL: thiết lập context, tải chứng chỉ lên UFS, kết nối, thu phát, đóng.</figcaption>
+            </figure>
+
+            <h4>Ba chế độ truy cập (số cuối của <code>AT+QSSLOPEN</code>)</h4>
+            <table>
+                <tr><th>Số cuối</th><th>Hành vi</th></tr>
+                <tr><td>0 buffer</td><td>Nhận được dữ liệu chỉ phát <code>+QSSLURC: "recv",&lt;id&gt;</code>,
+                    tự gõ <code>AT+QSSLRECV</code> để đọc</td></tr>
+                <tr><td>1 đẩy thẳng</td><td>URC kèm thêm độ dài, <strong>dữ liệu nhả thẳng ở dòng kế</strong>;
+                    ⚠ ở chế độ này <code>AT+QSSLRECV</code> trả ERROR là bình thường</td></tr>
+                <tr><td>2 xuyên suốt</td><td>Cổng AT biến hẳn thành kênh dữ liệu (nút của trang này chỉ chuẩn bị 0 và 1)</td></tr>
+            </table>
+
+            <h4>Thiết lập context từng mục</h4>
+            <p>Không chắc firmware hỗ trợ những mục con nào thì bấm <code>AT+QSSLCFG=?</code> trước ——
+            đo thực tế trả 17 mục con, nhiều hơn danh sách trong sổ tay ứng dụng. Các mục thường dùng đều có hai nút đặt và tra,
+            đo thực tế ghi xong đọc lại trùng khớp hoàn toàn.</p>
+            <table>
+                <tr><th>Mục con</th><th>Xuất xưởng</th><th>Tác dụng và điểm chính đo thực tế</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>Phiên bản giao thức; 4 = hỗ trợ tất cả</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>Bộ mã hóa; 0XFFFF = hỗ trợ tất cả</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0 = không xác thực, 1 = xác thực máy chủ
+                    (phải tải chứng chỉ CA lên trước), 2 = xác thực hai chiều (còn cần chứng chỉ client + khóa riêng)</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>Đường dẫn chứng chỉ CA, định dạng
+                    <code>"UFS:tên tệp"</code>, tệp phải đã nằm trong UFS (xem mục dưới)</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>Nối virtual host / CDN bắt buộc bật —— cùng một IP treo nhiều tên miền mà không gửi SNI
+                    thì nhận về chứng chỉ không khớp, xác thực chắc chắn thua với 566</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>Ở trạng thái xuất xưởng, kể cả bật seclevel 1 cũng không kiểm tra hạn hiệu lực của chứng chỉ</strong>.
+                    Muốn kiểm thì đặt 0, và đồng hồ module phải đúng giờ</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>Số giây chờ tối đa của bắt tay TLS (10–300)</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 Ba giá trị mặc định xuất xưởng cộng lại = hoàn toàn không xác thực chứng chỉ</strong>
+                (seclevel 0, sni 0, ignorelocaltime 1), muốn xác thực thật thì cả ba đều phải đặt đúng.
+                Hơn nữa ba thiết lập này cùng <code>cacert</code> <strong>không lưu qua các lần khởi động lại</strong>
+                (đã xác nhận bằng đo thực tế), mỗi lần khởi động là về giá trị xuất xưởng; còn tệp chứng chỉ trong UFS thì mất điện không mất.
+            </div>
+
+            <h4>Cụm tệp UFS: chứng chỉ vào module bằng cách nào</h4>
+            <p>UFS là bộ nhớ flash cài sẵn trong module, đo thực tế tổng dung lượng <strong>280 KB</strong>, mỗi tệp chiếm một
+            khối 4 KB. Chứng chỉ phải tải lên đây trước, <code>cacert</code> mới có tệp để trỏ.
+            <strong>Tải lên đi đường UART, không tốn một byte lưu lượng dữ liệu</strong>, tệp nhị phân cũng gửi vào được.
+            <strong>Thẻ Upload</strong>: chọn tệp xong tên và kích thước tự điền, gửi đi rồi công cụ chờ module trả
+            <code>CONNECT</code> mới gửi các byte thô (không chờ được thì không gửi). Khi hoàn tất,
+            <strong>bộ máy chú giải tự đối chiếu</strong> kích thước và checksum module báo về:
+            ✅ = nguyên vẹn không lỗi, ❌ = truyền hỏng rồi, xóa trước rồi truyền lại.</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← Tiếp đó gửi đi 1939 bytes
++QFUPL: 1939,4f64         ← Kích thước thực nhận,checksum, chú giải tự đối chiếu ✅</pre>
+            <table>
+                <tr><th>Nút</th><th>Công dụng</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>Liệt kê toàn bộ tệp trong UFS kèm kích thước ——
+                    tải lên xong dùng nó kiểm chứng (không tốn lưu lượng)</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>Tra dung lượng còn trống / tổng, đơn vị bytes (không tốn lưu lượng)</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>Xóa tệp chỉ định (<code>*</code> = tất cả);
+                    tệp trùng tên không xóa trước thì truyền lại sẽ bị chặn</td></tr>
+            </table>
+            <div class="tip">
+                <strong>Hai hành vi đo thực tế sổ tay không nói rõ:</strong> (1) dạng mã lỗi FILE không nhất quán ——
+                truyền lại trùng tên trả chữ <code>file already exist</code>, hết giờ trả số <code>421</code>,
+                công cụ này đọc hiểu được cả hai; (2) cột kích thước điền to hơn thực tế, module hết giờ xong
+                <strong>vẫn cứ lưu phần nội dung thực nhận thành tệp</strong> —— phép đối chiếu checksum sẽ tóm ra.
+            </div>
+
+            <h4>Thực chiến xác thực chứng chỉ: phép kiểm thử theo cặp</h4>
+            <p>Quy trình: tải chứng chỉ gốc lên → <code>cacert</code> trỏ vào nó → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → nối cổng 443 của đích. <strong>Thứ cần tải lên là chứng chỉ gốc trên cùng của chuỗi chứng chỉ</strong>
+            (chuỗi của badssl.com có bốn tầng, tải cái đỉnh nhất ISRG Root X1).
+            <strong>Chỉ thử "chứng chỉ hỏng không nối được" là chưa đủ</strong> —— "cái gì cũng không nối được" cũng qua bài.
+            Phải kiểm thử theo cặp: chứng chỉ tốt nối được, chứng chỉ hỏng không nối được,
+            <strong>cả hai chiều đều đứng vững mới tính</strong>. Đo thực tế đối chứng 2x5:</p>
+            <table>
+                <tr><th>Máy chủ</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com (đối chứng dương)</td><td>Nối được</td>
+                    <td><strong>Nối được</strong> <code>4,0</code></td></tr>
+                <tr><td>expired (hết hạn)</td><td>Nối được</td><td>Từ chối 566</td></tr>
+                <tr><td>self-signed (tự ký)</td><td>Nối được</td><td>Từ chối 566</td></tr>
+                <tr><td>wrong.host (tên máy chủ không khớp)</td><td>Nối được</td><td>Từ chối 566</td></tr>
+                <tr><td>untrusted-root (gốc không tin cậy)</td><td>Nối được</td><td>Từ chối 566</td></tr>
+            </table>
+            <p>Giới hạn: <strong>bốn loại lỗi chứng chỉ đều trả 566, module không phân biệt</strong> là loại nào.
+            <code>AT+QIGETERROR</code> cũng chẳng giúp được —— nó quản tầng TCP/IP,
+            lúc này chỉ trả <code>0,operate successfully</code>.</p>
+            <div class="tip">
+                Bài thử chiều âm hãy né expired —— xuất xưởng <code>ignorelocaltime</code> là 1, bản thân chuyện hết hạn
+                không bị chặn (ở bảng trên nó bị chặn là vì đồng thời không nằm dưới cái gốc đã tải lên), thử đơn lẻ thì dùng wrong.host.
+                Ngoài ra <strong>để ý lưu lượng</strong>: mỗi lần bắt tay đều tải về trọn chuỗi chứng chỉ, thất bại vẫn trả tiền,
+                đo thực tế 30 lần bắt tay khoảng 150–200 KB.
+            </div>
+
+            <h4>🔴 Bẫy: mở đóng liên tục khoảng 20 lần, cả stack dữ liệu thoái hóa</h4>
+            <div class="warning">
+                <strong>Triệu chứng: mọi <code>AT+QSSLOPEN</code> nhất loạt trả 552</strong>, đến seclevel 0
+                cũng không nối được, mà từng mục tự kiểm tra đều nói ổn. <strong>Phép phân định 30 giây</strong>: dùng
+                <code>AT+QIOPEN</code> của TCP thuần đánh vào cùng một đích —— cũng thất bại thì là stack dữ liệu hỏng rồi, đừng tra
+                thiết lập SSL nữa. Khởi động lại PDP không cứu được, <strong>chỉ có nghi thức khởi động trọn vẹn mới phục hồi</strong>.
+                Thoái hóa sẽ làm bẩn dữ liệu kiểm thử, dễ phán nhầm thành "bị xác thực chứng chỉ chặn" ——
+                trước khi làm kiểm thử theo cặp hãy khởi động lại cho sạch sẽ.
+            </div>
+
+            <h4>Khắc phục sự cố</h4>
+            <table>
+                <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>Xác thực chứng chỉ thất bại. Lần lượt kiểm: <code>sni</code> bật chưa (thường gặp nhất),
+                        cái gốc của <code>cacert</code> đúng không, bản thân chứng chỉ hỏng;
+                        ba thiết lập cứ khởi động lại là về số không</td></tr>
+                <tr><td>Sau <code>OK</code> không có hồi sau</td>
+                    <td><code>OK</code> chỉ có nghĩa là đã nhận, kết quả đi đường URC, chờ lâu nhất tới
+                        150 giây + <code>negotiatetime</code></td></tr>
+                <tr><td>Cổng AT kẹt cứng không đoái hoài lệnh nào</td>
+                    <td><code>AT+QSSLSEND</code> tính sai độ dài, kẹt trong data mode nuốt lệnh ——
+                        dùng nút byte thô của trang Hardware gửi ESC (0x1B) thoát thân</td></tr>
+            </table>

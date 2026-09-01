@@ -1,0 +1,159 @@
+<h3 id="tab-ssl">SSL — der TLS-Kanal</h3>
+            <p><strong>Funktionsweise:</strong> Die SSL-Seite ist die <strong>gemeinsame Unterschicht</strong> aller verschlüsselten Verbindungen —
+            der hier konfigurierte SSL context und die hochgeladenen Zertifikate dienen gleichzeitig SSL raw sockets, MQTT over SSL
+            und HTTPS. Alle Sekundenangaben und Verhaltensweisen in diesem Abschnitt sind Messwerte, die im August 2026 an einer echten EG800K erhoben wurden.</p>
+
+            <h4>Die erste TLS-Verbindung: fünf Schritte</h4>
+            <ol>
+                <li><strong>Boot-Sequenz durchlaufen</strong> (siehe Abschnitt „Boot-Sequenz“), dann mit
+                    <code>AT+QIACT?</code> den Datenkanal prüfen — es muss
+                    <code>+QIACT: 1,1,…,"IP"</code> zurückkommen; wenn nicht, zuerst <code>AT+QIACT=1</code>.</li>
+                <li><strong>Context konfigurieren</strong>: <code>sslversion</code> auf 4 (alle Versionen,
+                    beste Verträglichkeit), <code>ciphersuite</code> auf 0XFFFF (alle Suiten),
+                    <code>seclevel</code> zunächst auf 0 — erst sicherstellen, dass der Kanal überhaupt steht; die Prüfung kommt später.</li>
+                <li><strong>Verbindung öffnen</strong>: <code>AT+QSSLOPEN</code> drücken (letzter Parameter 0), in der Parameterkarte
+                    Host und Port eintragen. ⚠ <code>OK</code> heißt nur „Befehl angenommen“; über Erfolg oder Misserfolg entscheidet die URC:
+                    Erst <code>+QSSLOPEN: 4,0</code> ist der Erfolg (gemessener Handshake: 2.0 Sekunden).</li>
+                <li><strong>Daten senden</strong>: <code>AT+QSSLSEND</code> drücken (zweistufig) —
+                    nach dem <code>&gt;</code> den Inhalt senden; <strong>bei erreichter angekündigter Länge wird automatisch gesendet,
+                    ohne Ctrl+Z</strong> (Obergrenze pro Paket 1460 bytes). Antwortet die Gegenseite, erscheint
+                    <code>+QSSLURC: "recv",4</code>.</li>
+                <li><strong>Auslesen und Schließen</strong>: <code>AT+QSSLRECV</code> (Obergrenze pro Aufruf 1500)
+                    lesen, bis <code>+QSSLRECV: 0</code> kommt — das heißt „leer gelesen“ und ist kein Fehler.
+                    Mit <code>AT+QSSLCLOSE=4</code> schließen (Standardwartezeit maximal 10 Sekunden;
+                    eine zweite Schaltfläche erlaubt eine eigene Sekundenzahl, 0 = sofort).</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2.0 Sekunden, 0 = Erfolg
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← bei 15 bytes wird automatisch gesendet
+SEND OK
++QSSLURC: "recv",4        ← 0.4 Sekunden
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>Während der Verbindung zeigt <code>AT+QSSLSTATE</code> alle Verbindungen (<code>=4</code>
+            fragt eine einzelne clientID ab, Zustand 2 = verbunden). Beachten Sie: <strong>Der lokale Port wird immer als 0 gemeldet</strong> —
+            ein Modulverhalten, kein Fehler.</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="SSL-Tab">
+                <figcaption>Die SSL-Seite: Context-Konfiguration, UFS-Zertifikatsupload, Verbinden, Senden/Empfangen, Schließen.</figcaption>
+            </figure>
+
+            <h4>Die drei Zugriffsmodi (letzter Parameter von <code>AT+QSSLOPEN</code>)</h4>
+            <table>
+                <tr><th>Letzter Parameter</th><th>Verhalten</th></tr>
+                <tr><td>0 Puffer</td><td>Bei eintreffenden Daten kommt nur <code>+QSSLURC: "recv",&lt;id&gt;</code>;
+                    selbst mit <code>AT+QSSLRECV</code> auslesen</td></tr>
+                <tr><td>1 Direktausgabe</td><td>Die URC trägt zusätzlich die Länge, und <strong>die Daten erscheinen direkt in der nächsten Zeile</strong>;
+                    ⚠ dass <code>AT+QSSLRECV</code> in diesem Modus mit ERROR antwortet, ist normal</td></tr>
+                <tr><td>2 Transparent</td><td>Der AT-Port wird komplett zum Datenkanal (die Schaltflächen dieser Seite bieten nur 0 und 1)</td></tr>
+            </table>
+
+            <h4>Die Context-Konfiguration Punkt für Punkt</h4>
+            <p>Wer nicht sicher ist, welche Unterpunkte die Firmware unterstützt, drückt zuerst <code>AT+QSSLCFG=?</code> —
+            gemessen kamen 17 Unterpunkte zurück, mehr als die Application Note aufzählt. Für die gängigen Unterpunkte gibt es je eine Setz- und eine Abfrage-Schaltfläche;
+            gemessen stimmte das Zurückgelesene nach dem Schreiben exakt überein.</p>
+            <table>
+                <tr><th>Unterpunkt</th><th>Werkswert</th><th>Wirkung und gemessene Kernpunkte</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>Protokollversion; 4 = alle unterstützen</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>Cipher-Suiten; 0XFFFF = alle unterstützen</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0 = keine Prüfung, 1 = Server prüfen
+                    (vorher CA-Zertifikat hochladen), 2 = gegenseitige Authentifizierung (zusätzlich Client-Zertifikat + privater Schlüssel)</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>Pfad des CA-Zertifikats im Format
+                    <code>"UFS:Dateiname"</code>; die Datei muss bereits im UFS liegen (siehe nächster Abschnitt)</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>Für virtuelle Hosts/CDNs zwingend an — hängen mehrere Domains an derselben IP, bekommt man ohne SNI
+                    ein nicht passendes Zertifikat, und die Prüfung scheitert zwangsläufig mit 566</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>Ab Werk wird die Gültigkeitsdauer des Zertifikats selbst mit seclevel 1 nicht geprüft</strong>.
+                    Wer sie prüfen will, setzt 0 — und die Moduluhr muss stimmen</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>Maximale Wartezeit des TLS-Handshakes in Sekunden (10–300)</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 Drei Werkseinstellungen zusammen = überhaupt keine Zertifikatsprüfung</strong>
+                (seclevel 0, sni 0, ignorelocaltime 1); wer wirklich prüfen will, muss alle drei richtig setzen.
+                Und diese drei Einstellungen sowie <code>cacert</code> <strong>überleben keinen Neustart</strong>
+                (durch Messung bestätigt) — nach jedem Einschalten gelten wieder die Werkswerte; die Zertifikatsdateien im UFS überstehen den Stromausfall dagegen.
+            </div>
+
+            <h4>Die UFS-Dateigruppe: Wie Zertifikate ins Modul kommen</h4>
+            <p>Das UFS ist der eingebaute Flash-Speicher des Moduls, gemessene Gesamtkapazität <strong>280 KB</strong>, jede Datei belegt einen
+            4-KB-Block. Zertifikate müssen zuerst hierher hochgeladen werden, damit <code>cacert</code> auf eine Datei zeigen kann.
+            <strong>Der Upload läuft über den UART und kostet kein Datenvolumen</strong>; auch Binärdateien lassen sich übertragen.
+            <strong>Die Upload-Karte</strong>: Nach der Dateiauswahl werden Name und Größe automatisch eingetragen; nach dem Absenden wartet das Werkzeug auf das
+            <code>CONNECT</code> des Moduls, bevor es die Rohbytes sendet (kommt es nicht, wird nicht gesendet). Zum Abschluss
+            <strong>vergleicht die Kommentar-Engine automatisch</strong> die vom Modul gemeldete Größe und die checksum:
+            ✅ = vollständig und fehlerfrei, ❌ = kaputt übertragen — erst löschen, dann erneut hochladen.</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← anschließend 1939 bytes senden
++QFUPL: 1939,4f64         ← empfangene Größe,checksum; der Kommentar vergleicht automatisch ✅</pre>
+            <table>
+                <tr><th>Schaltfläche</th><th>Zweck</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>Listet alle UFS-Dateien mit Größe auf —
+                    nach dem Upload damit verifizieren (kein Datenvolumen)</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>Fragt freien/gesamten Speicher in bytes ab (kein Datenvolumen)</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>Löscht die angegebene Datei (<code>*</code> = alle);
+                    ein erneuter Upload ohne vorheriges Löschen der namensgleichen Datei wird abgewiesen</td></tr>
+            </table>
+            <div class="tip">
+                <strong>Zwei gemessene Verhaltensweisen, die das Handbuch nicht ausspricht:</strong> (1) Die FILE-Fehlercodes sind formal uneinheitlich —
+                ein namensgleicher Upload antwortet mit dem Text <code>file already exist</code>, ein Timeout mit der Zahl <code>421</code>;
+                dieses Werkzeug versteht beide Formen. (2) Wird das Größenfeld größer als die Datei angegeben, speichert das Modul nach dem Timeout
+                <strong>trotzdem den tatsächlich empfangenen Inhalt</strong> — der checksum-Vergleich deckt das auf.
+            </div>
+
+            <h4>Zertifikatsprüfung in der Praxis: die Paartest-Methode</h4>
+            <p>Der Ablauf: Root-Zertifikat hochladen → <code>cacert</code> darauf zeigen lassen → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → Port 443 des Ziels ansteuern. <strong>Hochzuladen ist das Root-Zertifikat an der Spitze der Kette</strong>
+            (die Kette von badssl.com hat vier Ebenen; hochgeladen wird das oberste ISRG Root X1).
+            <strong>Nur zu testen, dass „ein schlechtes Zertifikat nicht durchkommt“, reicht nicht</strong> — „gar nichts kommt durch“ bestünde diesen Test auch.
+            Testen Sie paarweise: Das gute Zertifikat kommt durch, das schlechte nicht;
+            <strong>erst wenn beide Richtungen stimmen, zählt es</strong>. Gemessener 2×5-Vergleich:</p>
+            <table>
+                <tr><th>Host</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com (Positivkontrolle)</td><td>verbindet</td>
+                    <td><strong>verbindet</strong> <code>4,0</code></td></tr>
+                <tr><td>expired (abgelaufen)</td><td>verbindet</td><td>abgewiesen 566</td></tr>
+                <tr><td>self-signed (selbstsigniert)</td><td>verbindet</td><td>abgewiesen 566</td></tr>
+                <tr><td>wrong.host (Hostname passt nicht)</td><td>verbindet</td><td>abgewiesen 566</td></tr>
+                <tr><td>untrusted-root (Root nicht vertrauenswürdig)</td><td>verbindet</td><td>abgewiesen 566</td></tr>
+            </table>
+            <p>Die Grenze: <strong>Alle vier Zertifikatsfehler liefern dieselbe 566 — das Modul unterscheidet nicht</strong>, welcher es war.
+            Auch <code>AT+QIGETERROR</code> hilft nicht — es ist für die TCP/IP-Schicht zuständig
+            und antwortet in diesem Fall nur mit <code>0,operate successfully</code>.</p>
+            <div class="tip">
+                Meiden Sie im Negativtest den Fall expired — ab Werk steht <code>ignorelocaltime</code> auf 1, das Ablaufdatum allein
+                wird also nicht abgewiesen (in der Tabelle oben scheiterte es, weil es zugleich nicht unter dem hochgeladenen Root lag); für den Einzeltest nehmen Sie wrong.host.
+                Und <strong>behalten Sie das Datenvolumen im Blick</strong>: Bei jedem Handshake wird die vollständige Zertifikatskette heruntergeladen, auch ein Fehlschlag kostet voll —
+                gemessen kosteten 30 Handshakes rund 150–200 KB.
+            </div>
+
+            <h4>🔴 Falle: Nach rund 20 Auf-und-Zu-Zyklen degradiert der ganze Datenstack</h4>
+            <div class="warning">
+                <strong>Symptom: Jedes <code>AT+QSSLOPEN</code> antwortet ausnahmslos mit 552</strong>, selbst mit seclevel 0
+                kommt keine Verbindung zustande, während jede Selbstprüfung „alles gut“ meldet. <strong>Die 30-Sekunden-Unterscheidung</strong>: mit reinem TCP per
+                <code>AT+QIOPEN</code> dasselbe Ziel ansteuern — scheitert auch das, ist der Datenstack kaputt; suchen Sie nicht weiter in den
+                SSL-Einstellungen. Ein PDP-Neustart rettet nichts, <strong>nur die vollständige Boot-Sequenz stellt den Zustand wieder her</strong>.
+                Die Degradierung verseucht Testdaten und wird leicht als „von der Zertifikatsprüfung abgewiesen“ fehlgedeutet —
+                starten Sie vor einem Paartest einmal sauber neu.
+            </div>
+
+            <h4>Fehlersuche</h4>
+            <table>
+                <tr><th>Symptom</th><th>Ursache und Abhilfe</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>Zertifikatsprüfung fehlgeschlagen. Der Reihe nach prüfen: Ist <code>sni</code> an (der häufigste Fall)?
+                        Stimmt das Root von <code>cacert</code>? Ist das Zertifikat selbst kaputt?
+                        Alle drei Einstellungen fallen bei einem Neustart auf null zurück</td></tr>
+                <tr><td>Nach dem <code>OK</code> kommt nichts mehr</td>
+                    <td><code>OK</code> heißt nur „angenommen“; das Ergebnis kommt per URC, Wartezeit bis zu
+                        150 Sekunden + <code>negotiatetime</code></td></tr>
+                <tr><td>Der AT-Port hängt und ignoriert jeden Befehl</td>
+                    <td>Die Länge bei <code>AT+QSSLSEND</code> war falsch berechnet, der Datenmodus schluckt die Befehle —
+                        mit der Rohbyte-Schaltfläche der Hardware-Seite ein ESC (0x1B) senden und sich befreien</td></tr>
+            </table>

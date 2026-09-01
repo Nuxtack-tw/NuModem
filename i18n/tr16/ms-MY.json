@@ -1,0 +1,16 @@
+{
+ " 秒": " saat",
+ "125 秒": "125 saat",
+ "BSSID 上限": "Had BSSID",
+ "{0} 成功": "{0} berjaya",
+ "{0}成功": "{0} berjaya",
+ "例：mqttgo.io": "cth. mqttgo.io",
+ "充電中": "Sedang mengecas",
+ "列出全部 FTP 設定子項：9 項回支援值範圍。account 那行的密碼會被模組遮成 *（2026-08-07 P6 實測），帳號則是明文": "Menyenaraikan semua subitem konfigurasi FTP: 9 baris julat nilai yang disokong. Pada baris account, modul menyamarkan kata laluan menjadi * (diukur 2026-08-07, P6); nama pengguna kekal teks biasa",
+ "失敗": "Gagal",
+ "字串，最大 255 bytes。查詢指令讀回時密碼會被模組遮成 *（2026-08-07 P6 實測），但你在這裡輸入的原文仍是明碼": "Rentetan, maksimum 255 bait. Apabila dibaca semula oleh perintah pertanyaan, modul menyamarkan kata laluan menjadi * (diukur 2026-08-07, P6), tetapi apa yang anda taip di sini kekal teks biasa",
+ "成功": "Berjaya",
+ "查詢目前帳密設定；密碼會被模組遮成 *（2026-08-07 P6 實測）": "Menanyakan tetapan akaun semasa; modul menyamarkan kata laluan menjadi * (diukur 2026-08-07, P6)",
+ "查詢目前設定的 FTP 帳號與密碼。⚠ 手冊寫「回應會把密碼原樣印出」，但 2026-08-07 P6 實測本機韌體是遮成 * 的 —— 以實測為準，不要因為手冊那句話就不敢查。": "Menanyakan nama pengguna dan kata laluan FTP yang sedang ditetapkan. ⚠ Manual menyatakan \"respons mencetak kata laluan sebagaimana adanya\", tetapi ujian P6 pada 2026-08-07 menunjukkan perisian tegar unit ini menyamarkannya menjadi * —— percayai hasil ukuran, jangan elak pertanyaan ini kerana ayat itu dalam manual.",
+ "（空）": "(kosong)"
+}

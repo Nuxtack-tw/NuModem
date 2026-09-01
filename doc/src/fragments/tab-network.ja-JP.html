@@ -1,0 +1,149 @@
+<h3 id="tab-network">Network —— 登録、オペレータ、RF</h3>
+            <p><strong>動作原理：</strong>すべてのデータ機能が使えるための前提は、<strong>通信ネットワークへ登録済み</strong>であること、
+            そして <strong>PDP データチャネルが準備できている</strong>こと —— このページは入網のダッシュボードとスイッチであり、
+            「ネットにつながらない」の切り分けはすべてここから始まります。本節の数値はすべて 2026 年 8 月に実機 EG800K で実測したものです。</p>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Network タブ">
+                <figcaption>Network ページの 5 グループのボタン：登録照会、Signal URC、PDP、診断、RF 制御。</figcaption>
+            </figure>
+
+            <h4>始める前に：まず URC を UART へ切り替える</h4>
+            <p>EG800K は出荷時、自発報告メッセージ（URC）を <code>usbat</code>（USB AT ポート）へ送ります。
+            本ツールは UART を使うため —— <strong>URC は 1 本も受信できません</strong>：信号報告、
+            TCP／MQTT／Wi-Fi スキャン結果がすべて無音になり、症状は<strong>「コマンドはすべて OK が返るのに、メッセージだけが無い」</strong>です。</p>
+            <div class="warning">
+                <strong>「URC が全部消えた」の筆頭原因がこれです。</strong>
+                Hardware タブで <code>AT+QURCCFG="urcport"</code> を照会し、
+                <code>"uart1"</code> でなければ切替ボタンで変更してください —— 設定は NVRAM に書かれ、1 回の変更で再起動をまたいで有効です。
+            </div>
+
+            <h4>第一歩：登録状態を確認する</h4>
+            <p>起動シーケンスで <code>RDY</code> を見たら、まず <code>AT+CEREG?</code> を押します（4G モジュールではこれが最も確か）。
+            3 つの登録ボタンは 3 つのドメインに対応します：<code>CEREG</code>＝LTE/EPS、<code>CREG</code>＝回線交換ドメイン、
+            <code>CGREG</code>＝パケット交換ドメイン。2 番目の数字（stat）の読み方は共通です：</p>
+            <table>
+                <tr><th>stat</th><th>意味</th><th>どうするか</th></tr>
+                <tr><td>0</td><td>まだ登録されていない</td><td>起動直後によくあります。数秒待って再照会</td></tr>
+                <tr><td>1</td><td>登録済み（ホーム網）</td><td>正常。先へ進む</td></tr>
+                <tr><td>2</td><td>検索中</td><td>待つ</td></tr>
+                <tr><td>3</td><td>ネットワークに拒否された</td><td>SIM／料金プランを確認し、CEER で原因を見る</td></tr>
+                <tr><td>5</td><td>登録済み（ローミング）</td><td><strong>本機の常態</strong>。下記参照</td></tr>
+            </table>
+            <div class="tip">
+                <strong>stat=5 は故障ではありません。</strong>実測では 3 つの登録照会がすべて <code>0,5</code> を返しました：
+                SIM は 1NCE の IoT カード（MCC 901 の国際ローミングカード）で、どの国にいても「ローミング」扱いです。
+                5 を見たら 1 と同じに扱ってください。
+            </div>
+            <p>登録は成功したのにネットに出られないときは、続けて <code>AT+CGATT?</code> でパケットドメインへのアタッチを照会します。
+            必要なら <code>AT+CGATT=1</code> で手動アタッチし、失敗したら <code>AT+CEER</code>
+            で原因を調べます（TCP/IP ページの <code>QIGETERROR</code> とは別レイヤ）。
+            CGATT は最長 <strong>140 秒</strong>ブロックするので、連打しないでください。</p>
+
+            <h4>今どのオペレータのどのバンドにいるか</h4>
+            <p><code>AT+COPS?</code> は現在登録中のオペレータを照会します（末尾の 7＝LTE）。
+            <strong>罠：オペレータ名が空文字列のことがあります</strong> —— 実測では <code>+COPS: 0,0,"",7</code> が返りましたが、
+            故障ではありません。オペレータを見たいときは代わりに <code>AT+QNWINFO</code>（方式／オペレータ／バンド／チャネル）を押します：</p>
+            <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+            <p>46692＝中華電信（台湾）、Band 8。圏外のときは <code>NO SERVICE</code> が返ります。
+            本ローミングカードは自分で網を選びます：日付の異なる実測で中華電信 Band 8 と Far EasTone（466-01）Band 3 に載ったことがあり、
+            オペレータやバンドが変わっても正常です。<code>AT+COPS=?</code> は周辺の全オペレータをスキャンします：
+            <strong>最長 300 秒ブロックし、既存の業務を中断します</strong>。必要と確信してから押してください。</p>
+
+            <h4>信号強度と品質：CSQ は粗い値にすぎない</h4>
+            <p><code>AT+CSQ</code> は rssi と ber を返します：rssi 0–31 は -113～-51 dBm に対応し、
+            99＝検出不能（起動直後によくあります。数秒待つ）。実測では rssi 18–24（-77～-65 dBm、良好）。
+            <strong>ber は常に 99 で参考になりません</strong>。LTE の本当の品質 3 要素
+            <strong>RSRP（強度）／RSRQ（品質）／SINR（信号対雑音比、低い＝干渉されている）</strong>
+            は Signal URC グループでしか得られません（<code>AT+QINDCFG="sqi"</code> を値なしで＝スイッチの照会）：</p>
+            <table>
+                <tr><th>ボタン</th><th>コマンド</th><th>働き</th></tr>
+                <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+                    <td>RSRP／RSRQ／SINR の報告を有効化 —— <strong>アンテナと設置位置のテストに必須</strong>。
+                        信号が「変化した」ときだけプッシュされるので、動きが無ければアンテナを包むか抜き挿しします。設定は再起動をまたぎません</td></tr>
+                <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+                    <td>信号が変わるたびに報告。CSQ 連打の代わりに</td></tr>
+                <tr><td>URC Off／On</td><td><code>AT+QINDCFG="all",0／1</code></td>
+                    <td>画面が流されるときのワンキー消音 —— 後で戻すのを忘れずに</td></tr>
+            </table>
+
+            <h4>PDP チャネル：3GPP レイヤ vs TCP/IP ページ</h4>
+            <p>PDP context＝通信ネットワークが割り当てる「データチャネル」で、これがあってはじめて IP があります。このグループは 3GPP 標準レイヤの読み取り専用照会です：
+            <code>AT+CGDCONT?</code> は context と APN を、<code>AT+CGACT?</code> は有効化状態を一覧し
+            （最長 150 秒ブロック。⚠ 書き込み形式はパラメータの順序が逆）、<code>AT+CGPADDR</code>
+            は取得した IP を一覧します。TCP/IP ページの <code>QIACT?</code>／<code>QICSGP</code> は
+            <strong>Quectel 自社スタックで、同じレイヤではありません</strong> —— 並べて比較すると故障側を切り分けられます：
+            こちらに IP があってあちらに無い＝ネットワークは与えたのにスタックが起動していない。本機は起動と同時に自動で PDP を有効化し IP を取得します。</p>
+            <p><code>AT+QGDCNT?</code> は累計通信量を照会します（最初の数字が<strong>送信</strong>、2 番目が受信）。
+            ローミングカードの通信量テストには必須です。⚠ <strong>実測がボタンのヒント「再起動をまたいで累計」を覆しました</strong>：
+            カウンタは既定では NV に保存されず、電源断（ページの再読み込みを含む）で即ゼロに戻ります —— その場で記録するか、
+            <code>AT+QGDCNT=1</code> で NV に保存してください。</p>
+
+            <h4>障害切り分けの実戦：このカードは単一 PDP しか許可しない</h4>
+            <p>TCP/IP ページで <code>AT+QIACT=1</code> を押したのに ERROR（<code>572,operation not
+            allowed</code>）？ 本カードの決まった筋書き：起動後、3GPP レイヤがすでに<strong>PDP を 1 本自動有効化</strong>していますが、
+            <strong>context 番号は浮動します</strong>（実測で 1 と 9 を確認）。2 本目を開こうとすると
+            <code>+CME ERROR: 100</code> ⇒ ネットワークは単一 PDP しか許可していません。しかも <code>QIACT</code> の
+            contextID 範囲は 1–8 しかなく、PDP が 9 に開かれていると Quectel スタックからはまったく触れません。
+            対処は 2 ステップ（起動のたびに 1 回）：</p>
+            <pre>AT+CGACT?             ← どの cid かを見る（番号は浮動するので省略不可）
+AT+CGACT=0,&lt;その cid&gt;   ← 3GPP レイヤに枠を譲らせる
+AT+QIACT=1            ← TCP/IP ページ。+QIACT: 1,1,1,"10.187.7.8" が返れば成功</pre>
+            <p><code>QICSGP</code> の APN 設定は本カードでは省略できます —— 実測ではモジュールがネットワークの割り当てた APN
+            （<code>iot.1nce.net</code>）を自動同期しました。ユーザー名とパスワードが必要な企業向け APN カードに替えたときだけ必要です。</p>
+            <div class="warning">
+                <strong>テストの途中で突然すべてタイムアウトし始めた？ まず PDP の漂流を疑ってください。</strong>
+                実測では HTTP が連続全敗（エラー 716、固定 30 秒タイムアウト）のときも <code>AT+QIACT?</code>
+                は平然と IP を返しました —— このとき、これは嘘をつくので、<code>AT+CGACT?</code> と突き合わせてください
+                （実測：1,0 と 9,1＝9 へ漂流）。
+                対処：<code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;漂流先の cid&gt;</code> →
+                <code>AT+QIACT=1</code>、その後 ping で検証。
+            </div>
+
+            <h4>CFUN 機能レベルと RF 制御</h4>
+            <p>RF Control のグループはすべてモジュールの状態を変えるもので、全部が押す前に再確認する赤枠ボタンです。
+            まず <code>AT+CFUN?</code> で現在のレベルを見てから動いてください：</p>
+            <table>
+                <tr><th>コマンド</th><th>レベル</th><th>意味</th></tr>
+                <tr><td><code>AT+CFUN=1</code></td><td>全機能</td>
+                    <td>RF 全開。<strong>復旧は必ずこれを押す</strong></td></tr>
+                <tr><td><code>AT+CFUN=4</code></td><td>機内モード</td>
+                    <td>送受信全停止、SIM は生きたまま —— 「再入網」テストの起点</td></tr>
+                <tr><td><code>AT+CFUN=0</code></td><td>最小</td>
+                    <td>SIM も無効化。マニュアルには Minimum functionality としか書かれておらず、詳細はありません</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>ソフト再起動</td>
+                    <td>モジュール全体を再起動。⚠ AT ポートが短時間無効になり、あらためて <code>RDY</code> を待つ必要があります</td></tr>
+            </table>
+            <p>CFUN は最長 15 秒ブロックします。<strong>SIM に PIN ロックがある場合、CFUN=1 に戻した後 PIN を入力し直さないと
+            登録されません。</strong><code>AT+CGATT=0</code>（PS Detach）はパケットドメインから離脱します ——
+            <strong>すべての TCP／MQTT 接続を叩き落とします</strong>。「再アタッチ」のテストのときだけ使ってください。</p>
+
+            <h4>上級：QENG で基地局情報を読む（コマンドライン入力）</h4>
+            <p>このページにボタンはありません —— コマンドラインで <code>AT+QENG="servingcell"</code>
+            と入力すると在圏基地局のパラメータが読めます。実測の主要フィールド：</p>
+            <table>
+                <tr><th>フィールド</th><th>実測値</th><th>読み方</th></tr>
+                <tr><td>MCC／MNC</td><td>466／01</td><td>台湾／Far EasTone</td></tr>
+                <tr><td>Cell ID／TAC</td><td><code>ABCDE02</code>／<code>1234</code>（hex）</td>
+                    <td>10 進で 180149762／4660。eNodeB＝ECI≫8＝703710、セクタ＝2</td></tr>
+                <tr><td>PCID／EARFCN</td><td>144／1550</td>
+                    <td>物理セル ID（<strong>全域一意ではない</strong>）／Band 3</td></tr>
+                <tr><td>RSRP／RSRQ／RSSI／SINR</td><td>-113／-18／-92／-1</td>
+                    <td>RSRP が -100 未満は悪い部類。SINR -1 dB＝品質不良</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Cell ID と TAC は 16 進です。データベースを引く前に必ず 10 進へ変換してください。</strong>
+                OpenCelliD などのデータベースは一律 10 進を受け取り、<code>ABCDE02</code> をそのまま投げても該当なしになるだけです。
+                なお <code>AT+QENG="neighbourcell"</code> は PCID しか返さず、
+                <strong>全域 Cell ID はありません</strong>（LTE 標準の制限）。
+            </div>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td>コマンドはすべて OK が返るのに、自発メッセージが全く現れない</td>
+                    <td>urcport が usbat（出荷値）のまま —— Hardware タブで uart1 へ切り替え</td></tr>
+                <tr><td><code>QIACT=1</code> が ERROR（572）を返す</td>
+                    <td>単一 PDP の枠が先に取られています —— 上記の 2 ステップ切り分けを実行</td></tr>
+                <tr><td>連続リクエストがすべて固定 30 秒でタイムアウト</td>
+                    <td>PDP の漂流 —— <code>AT+CGACT?</code> と突き合わせ、<code>QIACT?</code> だけを信じない</td></tr>
+            </table>

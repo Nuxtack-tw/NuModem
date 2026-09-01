@@ -1,0 +1,152 @@
+<h3 id="tab-http">HTTP — Permintaan Web</h3>
+            <p><strong>Cara kerja:</strong> HTTP pada modul ini <strong>tiga babak</strong>:
+            setel dulu URL (langkah ini sendiri lagi-lagi dua tahap), lalu kirim permintaan (GET / POST), terakhir baca kembali balasannya.
+            Hasil tiap babak tidak berada di dalam <code>OK</code>, melainkan pada URC yang datang kemudian —
+            karena itu <code>AT+QURCCFG="urcport"</code> wajib <code>"uart1"</code> (bisa diubah di halaman Hardware),
+            kalau tidak, tak satu pun hasil akan terlihat. Datanya semua hasil uji perangkat nyata 2026-08.</p>
+
+            <h4>Sebelum mulai: pastikan ada kanal data</h4>
+            <p>Prasyaratnya PDP sudah aktif dan mendapat IP (<code>AT+QIACT=1</code> di halaman TCP/IP).
+            <strong>Kelompok Connect</strong> halaman ini hanya menaruh pemeriksaan baca-saja:
+            <code>AT+CPIN?</code> / <code>AT+CGATT?</code> / <code>AT+CGREG?</code> /
+            <code>AT+QIACT?</code>, <code>AT+QIDNSCFG=1</code> (DNS 0.0.0.0 = belum terjatah),
+            <code>AT+QIGETERROR</code> (⚠ hanya berlaku untuk perintah TCP/IP terakhir;
+            begitu gagal, tekan <strong>segera</strong>).</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> bisa menipu.</strong> Pengujian pernah mengalami PDP hanyut di tengah jalan:
+                semua permintaan gagal, <strong>timeout tetap 30 detik</strong> membalas error 716,
+                tetapi <code>AT+QIACT?</code> tetap saja membalas IP. Silangkan dengan <code>AT+CGACT?</code>;
+                bila tak konsisten berarti hanyut. Perbaikannya: <code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;cid yang hanyut&gt;</code> → <code>AT+QIACT=1</code>,
+                lolos ping dulu baru lanjut.
+            </div>
+
+            <h4>GET pertama: empat langkah</h4>
+            <ol>
+                <li><strong>Setelan awal</strong> (kelompok Config, nol kuota): kartu parameter <code>contextid</code>
+                    disetel 1 (mengikat PDP context yang akan dipakai); tiga sakelar <code>rspout/auto</code>,
+                    <code>requestheader</code>, <code>responseheader</code> tetap 0
+                    (alasannya lihat belakang); <code>AT+QHTTPCFG?</code> membaca kembali semua setelan sekaligus untuk dicek,
+                    <code>AT+QHTTPCFG=?</code> menampilkan butir yang bisa disetel.</li>
+                <li><strong>Setel URL (dua tahap)</strong>: kartu <code>AT+QHTTPURL</code> hanya punya satu tombol
+                    "Kirim (dua tahap)" — Anda mengisi URL, panjangnya dihitung otomatis oleh program. Alurnya: kirim dulu
+                    <code>AT+QHTTPURL=&lt;panjang&gt;,80</code>, tunggu <code>CONNECT</code>
+                    masuk mode data, lalu kirim byte URL apa adanya, <strong>tanpa akhir baris apa pun</strong>
+                    (CR/LF akan terhitung ke panjang).
+                    <code>http://www.example.com/</code> panjangnya tepat 23. Selesai mengirim, tekan
+                    <code>AT+QHTTPURL?</code> untuk membaca kembali; sama huruf demi huruf = akhir baris tak menyusup.</li>
+                <li><strong>Kirim permintaan</strong>: <code>AT+QHTTPGET=80</code> (detik menunggu balasan).
+                    <code>OK</code> hanya berarti "perintah diterima"; hasil sesungguhnya adalah URC yang datang kemudian
+                    <code>+QHTTPGET: 0,200</code>, cara membacanya lihat paragraf berikut.</li>
+                <li><strong>Baca balasan</strong>: <code>AT+QHTTPREAD=80</code>.
+                    Setelah <code>CONNECT</code> semuanya byte mentah (hasil uji example.com:
+                    559 bytes), disusul <code>OK</code> —
+                    tetapi <strong><code>+QHTTPREAD: 0</code> pada satu baris tersendiri di akhirlah penanda selesainya</strong>.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="Tab HTTP">
+                <figcaption>Halaman HTTP: empat kelompok Config / Connect / Transfer / Close.</figcaption>
+            </figure>
+
+            <h4>Membaca +QHTTPGET: kolom pertama bukan kode status HTTP</h4>
+            <p>URC hasil GET / POST / POSTFILE semuanya tiga kolom
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code>:
+            <code>err</code> <strong>0 = perintah berhasil dieksekusi</strong>, bukan 0 adalah error lapisan modul (716, 711…);
+            <code>httprspcode</code> adalah kode status HTTP, <strong>hanya dilaporkan saat err=0</strong>
+            (manual menulisnya tegas; alat ini menyertakan anotasi rujukan 200 / 403 / 404 / 409 / 411 / 500);
+            <code>content_length</code> opsional — hanya ada bila header balasan server memuat CONTENT-LENGTH;
+            GET biasa sering hanya dua kolom. Maka <code>+QHTTPGET: 0,404,0</code> hasil uji
+            <strong>bukan kegagalan</strong>: perintahnya berhasil; servernyalah yang bilang tidak ditemukan.</p>
+
+            <h4>Membaca balasan: jebakan AT+QHTTPREAD</h4>
+            <p>Parameternya adalah "detik jeda maksimum antara dua paket data", bukan durasi total.
+            <strong>Firmware perangkat ini hanya menerima satu parameter</strong>: cara baca bertahap
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> dari dokumen aplikasi nyatanya membalas
+            <code>ERROR</code> telanjang (dibuktikan lewat probing <code>=?</code>); tombolnya sudah dihapus —
+            untuk pengambilan bertahap pakai <code>GETEX</code>.</p>
+            <div class="warning">
+                <strong>Jebakan saling kunci: begitu <code>rspout/auto</code> disetel 1, semua keluarga READ gagal</strong>
+                (manual menulisnya tegas). Ia membuat modul otomatis memuntahkan balasan, dengan harga seluruh keluarga READ tumbang;
+                itulah sebabnya tombol ini berdialog konfirmasi. Bila READ mendadak tumbang semua, periksa dulu <code>AT+QHTTPCFG?</code>.
+            </div>
+
+            <h4>Pengambilan bertahap: AT+QHTTPGETEX membaca byte demi byte</h4>
+            <p><code>AT+QHTTPGETEX=&lt;detik&gt;,&lt;offset awal&gt;,&lt;panjang&gt;</code>
+            memakai HTTP Range untuk mengambil hanya potongan tertentu, hemat kuota. Hasil uji (isi endpoint dipatok
+            <code>abcdefghijklmnop</code>): offset 0 ambil 8 membalas <code>+QHTTPGET: 0,206,8</code>,
+            terbaca <code>abcdefgh</code>; offset 8 ambil 8 lagi terbaca <code>ijklmnop</code>.
+            Cara membacanya: <strong>kode status wajib 206</strong>; bila membalas <strong>200 dan isinya sama setiap kali</strong>
+            = server tak mendukung Range, bukan modulnya rusak.
+            ⚠ Hanya bisa dieksekusi saat <code>requestheader=0</code>.</p>
+
+            <h4>POST: dua tahap dan Content-Type</h4>
+            <p>Kartu <code>AT+QHTTPPOST</code> juga dua tahap: Anda mengisi body, panjang dihitung otomatis; kirim dulu
+            <code>AT+QHTTPPOST=&lt;panjang&gt;,&lt;detik input&gt;,&lt;detik balasan&gt;</code>,
+            tunggu <code>CONNECT</code> baru kirim body. Tiga hal:</p>
+            <ul>
+                <li><strong><code>CONNECT</code> bisa menunggu sampai 125 detik</strong> (manual menulisnya tegas) —
+                    timeout menunggu prompt harus disetel penuh 125 detik; jangan mewarisi 5 detik milik MQTT.</li>
+                <li>Batas body 1 MB (rentang hasil uji <code>=?</code>: 1–1024000).</li>
+                <li>Setel dulu Content-Type lewat kartu parameter <code>contenttype</code>
+                    (kode tipe 0 = form-urlencoded).</li>
+            </ul>
+            <p>Hasil uji: POST <code>Message=HelloQuectel</code> (20 bytes) membalas
+            <code>+QHTTPPOST: 0,200,440</code>; JSON yang dibalas READ membuktikan pasangan kunci-nilai sampai,
+            panjang terhitung benar, Content-Type berlaku, dan User-Agent yang dilaporkan modul sendiri adalah
+            <code>QUECTEL_MODULE</code>.</p>
+
+            <h4>Header kustom dan header balasan</h4>
+            <ul>
+                <li><code>reqheader/add</code>: menambah satu header permintaan kustom (manual tak memberi contoh);
+                    tombol query bisa melihat sudah berapa yang ditambahkan; <code>reqheader/remove</code> menghapusnya.</li>
+                <li><code>requestheader</code> disetel 1 = seluruh header permintaan dirakit sendiri, bahkan GET pun berubah dua tahap,
+                    dan <code>GETEX</code> tak bisa dipakai. Sehari-hari pertahankan 0.</li>
+                <li>Setelah <code>responseheader</code> disetel 1, READ ikut memuntahkan header balasan HTTP
+                    (hasil uji: bahkan X-Test kustom pun terbawa pulang). Selesai menguji, kembalikan ke 0.</li>
+                <li><code>closed/ind</code>: menyalakan pelaporan URC "session ditutup".</li>
+            </ul>
+
+            <h4>Versi berkas: POSTFILE dan READFILE (UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="namafile",&lt;detik&gt;</code> mengirim POST dengan berkas di sistem berkas modul (UFS)
+            sebagai body; <code>AT+QHTTPREADFILE="namafile",&lt;detik&gt;</code> menyimpan balasan sebagai
+            berkas UFS. ⚠ Alat ini saat ini <strong>belum bisa mengunggah berkas ke UFS lebih dulu, dan tak bisa membaca kembali isi
+            berkas UFS</strong>; kedua perintah ini disediakan untuk dipadukan dengan alur di sisi firmware.</p>
+
+            <h4>HTTPS: jalur tanpa verifikasi</h4>
+            <p>HTTPS = HTTP + SSL context. Kelompok Connect menyiapkan jalur terpendek; lima tombol ditekan berurutan:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP ditunjuk memakai SSL context 1
+AT+QSSLCFG="sslversion",1,4        ← Versi TLS diserahkan ke negosiasi server
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← Suite enkripsi dibuka semua
+AT+QSSLCFG="seclevel",1,0          ← Tidak memverifikasi sertifikat (lihat bawah)
+AT+QSSLCFG="sni",1,1               ← Nyalakan SNI (pabriknya 0!)</pre>
+            <p>Sesudahnya ganti URL berawalan <code>https://</code> lalu GET / READ seperti biasa —
+            hasil uji: HTML yang terbaca sama huruf demi huruf dengan versi teks polos.
+            <strong><code>seclevel=0</code> (tanpa verifikasi sertifikat) adalah satu-satunya jalur yang bisa dituntaskan alat ini</strong>
+            — untuk memverifikasi sertifikat, sertifikat CA harus ditulis dulu ke UFS; detail SSL (<code>AT+QSSLCFG=?</code>
+            menampilkan semua subitem, <code>negotiatetime</code> mengatur detik tunggu handshake) lihat bagian "SSL — Kanal TLS".
+            <strong>SNI dari pabrik bernilai 0</strong>: tanpa dinyalakan, situs HTTPS ber-IP bersama mendapat sertifikat tak cocok
+            dan verifikasi langsung gagal. <strong>Rantai sertifikat adalah pemakan kuota terbesar</strong>: satu putaran HTTPS GET
+            sekitar 8–15 KB, teks polos hanya sekitar 1 KB.</p>
+
+            <h4>Pengalihan dan penutupan</h4>
+            <p><strong>Pengalihan (manual tak menulisnya; dijernihkan lewat pengujian)</strong>: modul otomatis mengikuti 302, tetapi
+            <strong>hanya menerima Location berjalur absolut</strong> — jalur relatif langsung membalas error 711,
+            gagal seketika dalam 1 milidetik. <strong>Penutupan</strong>:
+            <code>AT+QHTTPSTOP</code> (kelompok Close) membatalkan permintaan yang sedang berjalan dan memutus session;
+            saat status terasa aneh, atau muncul error 704 (mode data sedang terpakai), tekan dulu tombol ini agar bersih.</p>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td>Tak terlihat URC hasil apa pun</td><td><code>urcport</code> bukan <code>uart1</code>;
+                    ubah di halaman Hardware</td></tr>
+                <tr><td>Semua URL 716, timeout tetap 30 detik</td>
+                    <td>PDP hanyut, lihat peringatan di atas</td></tr>
+                <tr><td>Satu URL tertentu membalas 716</td><td>Hasil uji: DNS gagal pun 716 (bukan
+                    714 seperti tebakan dokumen lama); READ yang menyusul membalas 705 adalah rentetan yang normal</td></tr>
+                <tr><td><code>READ</code> / <code>GETEX</code> mendadak gagal</td>
+                    <td><code>rspout/auto</code> dan <code>requestheader</code>
+                        keduanya harus 0 (lihat di atas)</td></tr>
+                <tr><td><code>AT</code> pun tak dibalas</td>
+                    <td>Modul hang (pernah dialami dalam pengujian; manual tak mendeskripsikannya) — jalankan ulang ritual boot</td></tr>
+            </table>

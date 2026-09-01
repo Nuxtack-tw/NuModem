@@ -1,0 +1,2010 @@
+
+    <header class="header">
+        <h1>📡 NuModem EG800 Kullanım Kılavuzu</h1>
+        <p class="subtitle">4G modemi tarayıcıdan kontrol edin —— AT komutları, anlık açıklamalar, 18 dil</p>
+        <span class="version">V26.0.76</span>
+    </header>
+
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="#intro">Giriş</a>
+            <a href="#requirements">Gereksinimler</a>
+            <a href="#quickstart">Hızlı Başlangıç</a>
+            <a href="#boot">Açılış Prosedürü</a>
+            <a href="#terminal">Terminal</a>
+            <a href="#signals">Sinyal Çubuğu</a>
+            <a href="#panel">AT Paneli</a>
+            <a href="#tabs">On Sekme</a>
+            <a href="#method">Test Yöntemi</a>
+            <a href="#faq">SSS</a>
+        </div>
+    </nav>
+
+    <main class="container">
+
+        <section id="intro">
+            <h2><span class="icon">🎯</span> Giriş</h2>
+            <p>NuModem EG800, <strong>tek bir HTML dosyasından</strong> oluşan bir 4G modem konsoludur. Tarayıcının
+            Web Serial API'si üzerinden Quectel <strong>EG800K</strong> serisi modüle doğrudan AT komutu gönderir;
+            hiçbir şey kurmanız gerekmez, sürücü dışında yazılım gerekmez, arka uç sunucusu da yoktur.</p>
+
+            <p>Sıradan bir seri port terminalinden farkı nedir? Farkı, <strong>AT komutlarını anlamasıdır</strong>.
+            Gönderdiğiniz her komutun ve modülden dönen her satırın yanına anında insan diliyle bir açıklama düşer ——
+            yalnızca rakamdan ibaret olan hata kodları dahil.</p>
+
+            <div class="info-box">
+                <div class="info-box-title">Bu kılavuz neleri kapsıyor</div>
+                Sayfayı açmaktan, modülü bağlamaktan ve açılış prosedürünü çalıştırmaktan başlayarak, on işlev
+                sekmesindeki her AT komut grubunun <strong>çalışma prensibine</strong> ve <strong>test yöntemine</strong>
+                kadar. Buradaki tüm davranış açıklamaları 2026 Ağustos'ta fiziksel EG800K üzerinde yapılan
+                ölçümlerden gelir, kılavuzdan kopyalanmamıştır ——
+                <strong>kılavuzun yanlış yazdığı yerler burada açıkça söylenir</strong>.
+            </div>
+
+            <figure class="shot">
+                <img src="img/02-hardware-boot.png" alt="NuModem ana ekranı: solda AT komut paneli, sağda açıklamalı terminal">
+                <figcaption>Ana ekran. Solda AT komut paneli, sağda terminal ——
+                her satırın ardındaki <code>//</code> anlık açıklamadır.</figcaption>
+            </figure>
+                    <h3>Dil ve tema</h3>
+            <figure class="shot">
+                <img src="img/08-language-menu.png" alt="Sağ üst köşedeki dil menüsü: 18 dil">
+                <figcaption>Sağ üst köşedeki dil menüsü: 18 dil. Arayüz metinleri ve AT komut açıklamaları birlikte değişir.</figcaption>
+            </figure>
+            <figure class="shot">
+                <img src="img/09-theme-light.png" alt="Açık tema">
+                <figcaption>Açık tema. Sağ üst köşeden tek tıkla; seçiminiz tarayıcıda saklanır ve bir sonraki açılışta korunur.</figcaption>
+            </figure>
+        </section>
+
+        <section id="requirements">
+            <h2><span class="icon">💻</span> Sistem Gereksinimleri</h2>
+
+            <h3>Tarayıcı</h3>
+            <p>NuModem <strong>Web Serial API</strong> üzerine kuruludur; bu API yalnızca
+            Chromium tabanlı tarayıcılarda vardır.</p>
+            <table>
+                <tr><th>Tarayıcı</th><th>Sürüm</th><th>Durum</th></tr>
+                <tr><td>Google Chrome</td><td>89 ve üzeri</td><td>✅ Önerilir</td></tr>
+                <tr><td>Microsoft Edge</td><td>89 ve üzeri</td><td>✅ Destekleniyor</td></tr>
+                <tr><td>Opera</td><td>75 ve üzeri</td><td>✅ Destekleniyor</td></tr>
+                <tr><td>Firefox</td><td>—</td><td>❌ Web Serial API yok</td></tr>
+                <tr><td>Safari</td><td>—</td><td>❌ Web Serial API yok</td></tr>
+            </table>
+
+            <div class="warning">
+                <strong><code>file://</code> ile doğrudan açmak çalışır</strong> — Chromium yerel
+                dosyaları güvenli köken sayar, dolayısıyla Web Serial engellenmez. İndirin,
+                <code>NuModem_EG800.html</code> dosyasına çift tıklayın ve bağlanın;
+                <code>https://</code> ya da <code>http://localhost</code> üzerinden sunmak da aynı şekilde çalışır.
+                Tek fark, <code>file://</code> altında <code>fetch()</code> işlevinin CORS tarafından
+                engellenmesidir — ancak çeviri dosyaları <code>&lt;script&gt;</code> etiketleriyle
+                yüklendiği için 18 dilin tamamı çalışmaya devam eder.
+            </div>
+
+            <h3>Donanım</h3>
+            <table>
+                <tr><th>Öğe</th><th>Açıklama</th></tr>
+                <tr><td>Modül</td><td>Quectel EG800K serisi (buradaki tüm ölçümler
+                    <code>EG800KCNGCR07A06M04</code> yazılım sürümünde yapılmıştır)</td></tr>
+                <tr><td>Arayüz</td><td>USB-UART köprüsü. Ölçümlerde CH343 kullanıldı (<code>1A86:55D3</code>)</td></tr>
+                <tr><td>Baud hızı</td><td><strong>115200</strong></td></tr>
+                <tr><td>Satır sonu</td><td><strong>CR</strong> (LF gönderilirse modül hiç yanıt vermez)</td></tr>
+                <tr><td>SIM kart</td><td>Yalnızca veri işlevleri için gerekir. Ölçümlerde 1NCE IoT kartı kullanıldı, APN otomatik atanıyor</td></tr>
+            </table>
+            <p>Kontrol kartı <strong>RTS ile modül gücünü</strong> ve <strong>DTR ile Reset bacağını</strong> sürebilmelidir;
+            açılış prosedürü ancak o zaman çalışır (bkz. <a href="#boot">Açılış Prosedürü</a>).</p>
+        </section>
+
+        <section id="quickstart">
+            <h2><span class="icon">🚀</span> Hızlı Başlangıç</h2>
+
+            <h3>Adım 1 —— NuModem'i açın</h3>
+            <p>Chrome veya Edge ile <code>NuModem_EG800.html</code> dosyasını açın — çift tıklamak yeterli, sunucuya gerek yok.</p>
+
+            <h3>Adım 2 —— Modülü bağlayın</h3>
+            <p>Sol üstteki <strong>Bağlan</strong> düğmesine basın. Tarayıcı port seçme penceresini açar, USB-UART köprünüzü seçin.
+            Sağdaki ok açılır listeyi genişletir; daha önce izin verilmiş portları doğrudan seçebilirsiniz.</p>
+            <div class="tip">
+                Bir kez izin verdikten sonra, sayfayı açıp "Bağlan"a bastığınızda doğrudan bağlanır, bir daha sormaz.
+                Birden çok seri cihazınız varsa açılır listeden seçmek daha hızlıdır.
+            </div>
+
+            <h3>Adım 3 —— Baud hızını doğrulayın</h3>
+            <p>Üstteki baud listesi varsayılan olarak <strong>115200</strong>'dür; EG800K fabrika çıkışı da budur, genelde değiştirmeye gerek yoktur.</p>
+
+            <h3>Adım 4 —— Açılış prosedürünü çalıştırın</h3>
+            <p><strong>Bu adım atlanamaz.</strong> Tarayıcı seri portu açtığı anda RTS'i yeniden yukarı çeker
+            ve bu kontrol kartında RTS ters mantıklı bir güç anahtarıdır —— yani
+            <strong>bağlantı kurulduğu anda modülün gücü kesilir</strong>.
+            Ayrıntılı adımlar bir sonraki bölümde.</p>
+
+            <div class="warning">
+                Açılış prosedürünü atlamanın en tipik belirtisi şudur: <strong>gönderdiğiniz komutlar terminalde görünür ama hiçbir yanıt gelmez</strong>.
+                Bu ne yanlış baud hızıdır ne de ters bağlanmış kablo; modüle hiç güç gitmiyordur.
+            </div>
+        </section>
+
+        <section id="boot">
+            <h2><span class="icon">🔌</span> Açılış Prosedürü (en önemli bölüm)</h2>
+
+            <p>EG800K fişe takılınca açılmaz. Bu kontrol kartı iki RS-232 çıkış sinyalini modülün kontrol bacaklarına bağlar:</p>
+
+            <table>
+                <tr><th>Sinyal</th><th>Nereye bağlı</th><th>Mantık</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Modül güç anahtarı</td>
+                    <td><strong>Ters mantık</strong>: RTS <strong>OFF = güç var</strong>, RTS ON = güç kesik</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Modül Reset bacağı</td>
+                    <td>DTR <strong>ON = Reset yukarıda</strong> (çalışabilir), OFF = Reset aşağıda</td></tr>
+            </table>
+
+            <h3>Standart prosedür</h3>
+            <p><strong>Hardware</strong> sekmesine geçin; orada iki özel düğme var:</p>
+            <ol>
+                <li><strong>Power</strong> —— RTS'i bir kez ON → OFF geçirir.
+                    Düğmenin yeşil yanması gücün açık olduğu anlamına gelir (yani RTS OFF konumunda).
+                    <br>⚠ Doğrudan OFF yapmak güç verildiğini garanti etmez, <strong>mutlaka önce ON sonra OFF</strong>.</li>
+                <li>Bir saniye bekleyin.</li>
+                <li><strong>Reset</strong> —— bu "basılı tutunca geçerli" bir düğmedir:
+                    basılınca DTR OFF'a çekilir, bırakılınca ON'a döner. Yaklaşık 300 milisaniye basılı tutun.</li>
+                <li>Terminalde <code>RDY</code> çıkmasını bekleyin. Ölçümlerde birkaç saniye içinde çıkıyor.</li>
+            </ol>
+
+            <p>Sinyal çubuğundaki <code>RTS</code> / <code>DTR</code> göstergelerine doğrudan tıklayarak da aynı sonucu alırsınız,
+            yalnızca sırayı kendiniz saymanız gerekir.</p>
+
+            <h3>Açılışın başarılı olduğu nasıl anlaşılır</h3>
+            <p>Terminal sırasıyla şunları basmalıdır:</p>
+            <pre>RDY              ← modül açılışı tamamlandı
++CFUN: 1         ← RF açık
++CPIN: READY     ← SIM hazır
++QUSIM: 1
++QIND: SMS DONE  ← SMS ilklendirmesi tamamlandı
++QIND: PB DONE   ← telefon defteri ilklendirmesi tamamlandı</pre>
+            <p>Ardından doğrulamak için bir <code>ATI</code> gönderin; marka, model ve yazılım sürümü olmak üzere üç satır artı <code>OK</code> dönmelidir.</p>
+
+            <div class="important">
+                <strong>⚠ Sayfayı her yenilediğinizde açılış prosedürünü yeniden çalıştırmanız gerekir.</strong>
+                Sayfayı yeniden yüklemek seri portu yeniden açar, seri portu yeniden açmak da RTS'i tekrar assert eder ——
+                yani modülün gücü bir kez daha kesilir. Bu araçta "modül bozuldu" sanılan durumların en sık nedeni budur.
+            </div>
+
+            <h3>Açılıştan sonra ilk gönderilmesi önerilen iki komut</h3>
+            <table>
+                <tr><th>Komut</th><th>Neden</th></tr>
+                <tr><td><code>ATE1</code></td>
+                    <td>Ekoyu açar. Modül aldığı komutu aynen geri basar,
+                    böylece terminalde "sizin gönderdiğinizi" ve "modülün gerçekten aldığını" karşılaştırabilirsiniz; yazım hatası bir bakışta görünür.</td></tr>
+                <tr><td><code>AT+CMEE=2</code></td>
+                    <td>Hata mesajlarını metne çevirir. Açılmazsa hata sadece kuru bir <code>ERROR</code> olur;
+                    açınca <code>+CME ERROR: SIM not inserted</code> gibi okunabilir mesajlar görürsünüz.</td></tr>
+            </table>
+            <p><strong>Bu iki komut da yalnızca oturum boyunca geçerlidir (session-only)</strong>; modül yeniden açıldığında tekrar gönderilmelidir.</p>
+
+            <div class="warning">
+                <strong>🔴 Hiç URC gelmiyorsa ilk bakılacak şey <code>AT+QURCCFG="urcport"</code>.</strong>
+                Modül fabrika ayarında URC'leri (kendiliğinden gelen bildirim mesajları) <strong>USB AT portuna</strong> gönderir;
+                UART üzerinden çalışan bu araç bunların hiçbirini alamaz —— belirti şudur: "komutlar OK dönüyor ama arkasından hiçbir mesaj gelmiyor",
+                GNSS konumu, gelen TCP verisi, MQTT mesajları, Wi-Fi tarama sonuçları hepsi sessiz kalır.
+                Çözüm: <code>AT+QURCCFG="urcport","uart1"</code>; bu komut NVRAM'e yazar, yeniden başlatmaya dayanır.
+            </div>
+        </section>
+
+        <section id="terminal">
+            <h2><span class="icon">📟</span> Terminal</h2>
+
+            <p>Sağ yarı terminaldir. Sıradan bir seri terminalden en büyük farkı <strong>her satırın açıklamalı olmasıdır</strong>.</p>
+
+            <h3>Dört renk</h3>
+            <table>
+                <tr><th>Renk</th><th>Anlamı</th></tr>
+                <tr><td><strong>TX</strong></td><td>Sizin gönderdiğiniz veri</td></tr>
+                <tr><td><strong>RX</strong></td><td>Modülden dönen veri</td></tr>
+                <tr><td><strong>SYS</strong></td><td>Aracın kendi sistem mesajları (bağlantı, sinyal değişimi, veri moduna giriş/çıkış)</td></tr>
+                <tr><td><strong>CMT</strong></td><td>Açıklama —— yani <code>//</code> ile başlayan o notlar</td></tr>
+            </table>
+            <p>Dört rengin hepsi değiştirilebilir; renk karesine tıklayınca palet açılır.</p>
+
+            <h3>Açıklama motoru</h3>
+            <p>NuModem'in çekirdeği budur. İki iş yapar:</p>
+            <ul>
+                <li><strong>Gönderdiğiniz komutu açıklar</strong> —— örneğin
+                    <code>AT+QSSLSEND=4,18</code> gönderdiğinizde yanına şu düşer: "clientID 4'e sabit uzunlukta 18 bayt gönder:
+                    modül <code>&gt;</code> istemini döndükten sonra 'tam olarak' 18 bayt doldurulmalıdır, ancak o zaman gönderilir; Ctrl+Z gerekmez".</li>
+                <li><strong>Modülün yanıtını çözer</strong> —— özellikle o salt sayısal kodları.
+                    Örneğin <code>+QFTPSIZE: 627,550</code> iki katmana ayrılır:
+                    "hata 627: FTP istenen işlemi gerçekleştirmedi; sunucu yanıtı 550: işlem yapılmadı: dosya veya dizin yok".</li>
+            </ul>
+
+            <div class="tip">
+                Açıklamalar <strong>gerçekten girdiğiniz parametrelere</strong> göre değişir. Aynı düğmeye farklı değerler girerseniz
+                açıklamadaki sayılar da onunla birlikte değişir —— sabit bir açıklama metni değildir.
+            </div>
+
+            <h3>Satır sonu</h3>
+            <p>Giriş kutusunun sağından satır sonunu seçebilirsiniz. <strong>EG800K için CR kullanılmak zorundadır</strong>;
+            LF seçilirse modül hiç yanıt vermez. En sık tökezlenen ayar budur.</p>
+
+            <h3>Diğer</h3>
+            <ul>
+                <li>Altta toplam <strong>RX / TX bayt sayısı</strong> ve geçerli port adı görünür.</li>
+                <li>Sağ üstte bir düğme dizisi: açıklama anahtarı, satır sonu, zaman damgası, otomatik kaydırma, temizle.</li>
+                <li>Terminal alanında ayrıca <strong>uydu durumu</strong> ve <strong>harita</strong> olmak üzere iki sekme vardır;
+                    GNSS konumu alındıktan sonra içerik dolar.</li>
+            </ul>
+        </section>
+
+        <section id="signals">
+            <h2><span class="icon">🚦</span> RS-232 Sinyal Çubuğu</h2>
+
+            <p>Bağlandıktan sonra başlık çubuğunun altında iki gruba ayrılmış bir sinyal lambası dizisi belirir.</p>
+
+            <h3>LOCAL (OUT) —— sizin çıkışınız, tıklanabilir</h3>
+            <table>
+                <tr><th>Sinyal</th><th>Bu karttaki işlevi</th></tr>
+                <tr><td><strong>BRK</strong></td><td>Break sinyali</td></tr>
+                <tr><td><strong>RTS</strong></td><td><strong>Modül gücü</strong> (ters mantık, OFF = güç var)</td></tr>
+                <tr><td><strong>DTR</strong></td><td><strong>Modül Reset</strong> (ON = Reset yukarıda)</td></tr>
+            </table>
+
+            <h3>REMOTE (IN) —— modülün çıkışı, salt okunur</h3>
+            <p><code>DCD</code> / <code>DSR</code> / <code>CTS</code> / <code>RI</code>,
+            ayrıca <code>ACT</code> (veri akışı var) ve <code>ERR</code> (çerçeve/eşlik hatası) göstergeleri.</p>
+
+            <div class="warning">
+                <strong>Web Serial kendi gönderdiği sinyallerin durumunu geri okuyamaz.</strong>
+                Bu yüzden LOCAL'daki üç lamba "aracın gönderdiğini sandığı değeri" gösterir, donanımdan gerçek geri okumayı değil.
+                İşlemin gerçekten geçerli olduğunu doğrulamak için terminaldeki sistem mesajlarına bakmak (<code>RTS → ON</code> gibi) daha güvenilirdir.
+            </div>
+        </section>
+
+        <section id="panel">
+            <h2><span class="icon">🎛️</span> AT Komut Panelinin Çalışma Biçimi</h2>
+
+            <p>Sol yarıda on sekme ve iki yüzden fazla düğme var. Tek tek sekmelere bakmadan önce şu ortak mekanizmaları anlayın;
+            her sayfada işinize yarayacaklar.</p>
+
+            <h3>İki tür düğme</h3>
+            <table>
+                <tr><th>Biçim</th><th>Davranış</th></tr>
+                <tr><td>Normal düğme</td><td>Tıklayınca <strong>doğrudan gönderir</strong></td></tr>
+                <tr><td>Kesik çerçeve</td><td>Doldurulacak parametreleri vardır. Doldurduktan sonra "Gönder" diyebilir,
+                    ya da "Komut satırına aktar" ile oluşan komutu alttaki giriş kutusuna atıp kendiniz düzenleyebilirsiniz</td></tr>
+            </table>
+
+
+            <figure class="shot narrow">
+                <img src="img/13-btn-kinds.png" alt="Sade bir düğme hemen gönderir; kesikli çerçeveli kart önce parametre ister — sonra ya gönderirsiniz ya da kurulan komutu komut satırına aktarıp kendiniz düzenlersiniz.">
+                <figcaption>Sade bir düğme <strong>hemen gönderir</strong>; kesikli çerçeveli kart önce parametre ister — sonra ya gönderirsiniz ya da kurulan komutu komut satırına aktarıp kendiniz düzenlersiniz.</figcaption>
+            </figure>
+            <h3>Parametre alanları</h3>
+            <p>Her alanın kendi açıklaması vardır (fareyi üzerine getirince çıkar) ve <strong>bu cihazda ölçülen</strong> aralığı yazar,
+            kılavuzdan kopyalanmış değildir. Örneğin Wi-Fi taramasındaki "tur sayısı" 1-3 yazar,
+            çünkü <code>AT+QWIFISCAN=?</code> gerçekten bu aralığı döndürüyor —— uygulama notundaki 1-6 yanlıştır.</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/14-params.png" alt="Parametre alanları. Her biri üzerine gelince kendi açıklamasını gösterir ve aralıklar bu cihazda ölçülmüştür: &quot;tur&quot; için 1-3, &quot;BSSID üst sınırı&quot; için 4-10 yazar; bunlar AT+QWIFISCAN=? komutunun gerçekten döndürdüğü değerlerdir, uygulama notundan kopya değildir. Kutulara önceden yazılmış 1 ve 10 yalnızca varsayılan değerlerdir.">
+                <figcaption>Parametre alanları. Her biri üzerine gelince kendi açıklamasını gösterir ve aralıklar <strong>bu cihazda ölçülmüştür</strong>: "tur" için 1-3, "BSSID üst sınırı" için 4-10 yazar; bunlar <code>AT+QWIFISCAN=?</code> komutunun gerçekten döndürdüğü değerlerdir, uygulama notundan kopya değildir. Kutulara önceden yazılmış 1 ve 10 yalnızca varsayılan değerlerdir.</figcaption>
+            </figure>
+            <h3>İki aşamalı veri gönderimi</h3>
+            <p>Bazı komutlar tek satırla bitmez. Akışları şöyledir:</p>
+            <pre>komut gönder  →  modül &gt; veya CONNECT döner  →  tam olarak N bayt gönder  →  modül sonucu döner</pre>
+            <p>Bu tür düğmelerin ayrı bir "veri içeriği" alanı vardır ve <strong>uzunluk otomatik hesaplanıp komuta yazılır</strong>,
+            kendiniz saymanıza gerek yoktur. Bu sınıfa girenler:
+            <code>AT+QISEND</code>, <code>AT+QSSLSEND</code>, <code>AT+QMTPUBEX</code>,
+            <code>AT+QHTTPURL</code>, <code>AT+QHTTPPOST</code>, <code>AT+QFTPPUT</code>.</p>
+
+            <div class="warning">
+                <strong>Uzunluğu yanlış hesaplamanın bedeli ağırdır.</strong> Modül, bildirdiğiniz bayt sayısı dolana kadar bekler;
+                bu süre boyunca AT portu "veri modundadır" —— sonrasında yazdığınız her şey veri olarak yutulur.
+                <br><br>
+                Kurtulma yolu: <strong>Hardware sekmesindeki ham bayt düğmesiyle bir ESC (0x1B) gönderin</strong>.
+                Bağlantıyı kapatmanız da modülü yeniden başlatmanız da gerekmez.
+            </div>
+
+
+            <figure class="shot narrow">
+                <img src="img/15-two-stage.png" alt="İki aşamalı gönderim. AT+QISEND=0,6 içindeki 6 değerini araç kendisi hesaplar; siz yalnızca veri alanını doldurursunuz.">
+                <figcaption>İki aşamalı gönderim. <code>AT+QISEND=0,6</code> içindeki <strong>6 değerini araç kendisi hesaplar</strong>; siz yalnızca veri alanını doldurursunuz.</figcaption>
+            </figure>
+            <h3>Kaçış dizileri</h3>
+            <p>Veri içeriği alanı tek satırlık bir metin kutusudur; satır sonu, Tab gibi kontrol karakterleri yazılamaz.
+            Bu yüzden bu alanlar kaçış dizilerini destekler:</p>
+            <table>
+                <tr><th>Yazım</th><th>Gönderilen bayt</th></tr>
+                <tr><td><code>\n</code></td><td>0x0A satır beslemesi</td></tr>
+                <tr><td><code>\r</code></td><td>0x0D satır başı</td></tr>
+                <tr><td><code>\t</code></td><td>0x09 Tab</td></tr>
+                <tr><td><code>\0</code></td><td>0x00 NUL</td></tr>
+                <tr><td><code>\xHH</code></td><td>Herhangi bir bayt, HH onaltılıktır</td></tr>
+                <tr><td><code>\\</code></td><td>Ters eğik çizginin kendisi</td></tr>
+            </table>
+            <p><strong>Çözümleme gönderimden önce yapılır ve uzunluk da çözümlenmiş bayt sayısına göre hesaplanır.</strong>
+            Örneğin <code>hello\n</code> alanda 7 karakterdir ama gönderilen 6 bayttır,
+            dolayısıyla komuta yazılan uzunluk 6 olur.</p>
+
+            <div class="tip">
+                <strong>Bu neden önemli:</strong> Birçok test sunucusu <strong>satır satır</strong> eko yapar
+                (ne gönderirseniz onu döner, ama satır sonunu görmeden hareket etmez).
+                Payload'ın sonunda <code>\n</code> yoksa hiçbir zaman yanıt alamazsınız ——
+                üstelik bu tam olarak "bağlantı bozuldu" gibi görünür.
+            </div>
+
+
+            <figure class="shot narrow">
+                <img src="img/16-escapes.png" alt="Kaçış dizileri. Alanda 10 karakter var, A\tB\x21\n, çözüldüğünde yalnızca 5 bayt — komut da AT+QISEND=0,5 hâline gelir.">
+                <figcaption>Kaçış dizileri. Alanda 10 karakter var, <code>A\tB\x21\n</code>, çözüldüğünde yalnızca <strong>5 bayt</strong> — komut da <code>AT+QISEND=0,5</code> hâline gelir.</figcaption>
+            </figure>
+            <h3>Zaman aşımı işaretleri</h3>
+            <p>Bazı AT komutları çok uzun süre bloklar. Düğmelerdeki ⏱ işareti kılavuzda yazan en uzun bekleme süresidir;
+            örneğin <code>AT+QIACT=1</code> için en fazla 150 saniye, <code>AT+COPS=?</code> için en fazla 300 saniye.
+            <strong>Uzun süre yanıt gelmediğinde önce bu işarete bakın</strong>, çoğu zaman süre henüz dolmamıştır.</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/17-timeout.png" alt="⏱ işareti kılavuzun verdiği en uzun bekleme süresidir. AT+COPS=? 300 sn sürebilir — hiçbir yanıt gelmiyor gibiyse önce buraya bakın; çoğu zaman sadece süre dolmamıştır.">
+                <figcaption>⏱ işareti kılavuzun verdiği en uzun bekleme süresidir. <code>AT+COPS=?</code> 300 sn sürebilir — hiçbir yanıt gelmiyor gibiyse önce buraya bakın; çoğu zaman sadece süre dolmamıştır.</figcaption>
+            </figure>
+            <h3>Onay kutuları</h3>
+            <p>Onay penceresi yalnızca AT portunu veri modunda kilitleyecek ya da geri döndürülemez işlemlerde
+            (uzaktaki dosyayı silme, modülü yazılımdan yeniden başlatma, baud hızını değiştirme) çıkar.
+            <strong>Sırf "veri harcayacak" olması sizi engellemez</strong> ——
+            o tür uyarılar düğme açıklamalarına konur.</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/18-confirm.png" alt="Yalnızca kırmızı olanlar önce sorar. Yeniden adlandırma (mavi) doğrudan gider; silme (kırmızı) bir kez onay ister.">
+                <figcaption><strong>Yalnızca kırmızı olanlar önce sorar.</strong> Yeniden adlandırma (mavi) doğrudan gider; silme (kırmızı) bir kez onay ister.</figcaption>
+            </figure>
+            <h3>Yerel anahtarlar</h3>
+            <p>Birkaç düğmenin altında küçük bir onay kutusu vardır; bu <strong>araç tarafındaki bir davranıştır</strong>, AT komutu değildir.
+            Örneğin <code>AT+QICLOSE=0</code> altındaki "<code>+QIURC: "closed",0</code> algılandığında otomatik kapat".
+            Bu seçenekler tarayıcıda saklanır, bir dahaki açılışta yerinde durur.</p>
+        
+            <figure class="shot narrow">
+                <img src="img/19-auto-opt.png" alt="Düğmenin altındaki küçük kutu bir araç tarafı davranıştır, AT komutu değildir. Tarayıcıda saklanır ve bir sonraki açılışta da durur.">
+                <figcaption>Düğmenin altındaki küçük kutu bir <strong>araç tarafı davranıştır</strong>, AT komutu değildir. Tarayıcıda saklanır ve bir sonraki açılışta da durur.</figcaption>
+            </figure>
+</section>
+
+        <section id="tabs">
+            <h2><span class="icon">🗂️</span> On Sekme</h2>
+
+            <p>Sekmelerin sırası anlamlıdır: <strong>soldan sağa doğru kabaca izlemeniz gereken sıradır</strong>.
+            Hardware ile aç → Basic ile modülün canlı olduğunu doğrula → Network ile internete çıkabildiğini doğrula →
+            arkadaki beşi ise çeşitli veri protokolleridir.</p>
+
+            <h3 id="tab-hardware">Hardware —— açılış ve seri port</h3>
+            <p><strong>Çalışma prensibi:</strong> Bu sayfa tüm aracın temelidir:
+            Control, açılış prosedürünün iki düğmesidir (Power / Reset); Module ürün kimliğidir;
+            Serial, UART ayarlarıdır; Power düşük güç yönetimidir; URC, modülün kendiliğinden gönderdiği
+            mesajların çıkış portunu yönetir; ayrıca veri modunun kaçış kapısı olarak bir dizi
+            <strong>ham bayt düğmesi</strong> vardır. Öteki sekmelerin tümü iki ön koşulun üzerine kurulur:
+            <strong>modül prosedüre uygun biçimde açılmıştır</strong> ve
+            <strong>URC'ler uart1'den gelir</strong> —— ikisi de bu sayfada halledilir.
+            Bu bölümdeki davranışlar ve sayılar, Ağustos 2026'da gerçek bir EG800K üzerinde ölçülmüştür.</p>
+
+            <h4>Açılış prosedürü neden var: RTS = güç, DTR = Reset</h4>
+            <p>Bu araca eşlik eden kontrol kartı, iki RS-232 el sıkışma sinyalini başka amaçla kullanır; tüm sayfayı anlamanın anahtarı budur:</p>
+            <table>
+                <tr><th>Sinyal</th><th>Nereye bağlı</th><th>Mantık</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Modülün güç anahtarı</td>
+                    <td><strong>Ters mantık</strong>: RTS OFF = güç açık, RTS ON = güç kesik</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Modülün Reset bacağı</td>
+                    <td>DTR ON = Reset yüksek (başlayabilir), DTR OFF = Reset düşük</td></tr>
+            </table>
+            <p>Devre özelliği (ölçümle doğrulandı): ilk bağlantıda RTS <strong>önce ON, sonra OFF</strong> yapılmalıdır;
+            güç ancak o zaman gerçekten açılır —— doğrudan OFF'a ayarlamak güç geldiğini garanti etmez. DTR de <strong>ON→OFF→ON</strong>
+            yolunu izlemelidir; Reset ancak o zaman gerçekten yükselir. Güç kesme (RTS ON) sert bir kesintidir; modül
+            <strong>hiçbir veda mesajı göndermez</strong>.</p>
+            <div class="warning">
+                <strong>Sayfayı yenilemek = gücü kesmek.</strong> Tarayıcı seri portu yeniden açarken RTS'i tekrar assert eder,
+                modülün gücü anında gider —— otomatik yeniden bağlanma tamamlandıktan sonra <strong>açılış prosedürü yeniden çalıştırılmalıdır</strong>.
+                Ölçümde yaşandı: prosedür atlanıp doğrudan 17 komut gönderildi, hepsi gitti ama hiçbiri dönmedi (yalnızca TX satırları, sıfır RX).
+                "Az önce her şey iyiydi, şimdi hiçbir şey yanıt vermiyor" durumunda aklınıza ilk bu gelsin.
+            </div>
+
+            <h4>Power ve Reset düğmeleri: nasıl basılır, ne görürsünüz</h4>
+            <p>Bu iki düğme, yukarıdaki tablodaki iki sinyalin vücut bulmuş hâlidir; sinyal çubuğundaki RTS / DTR göstergeleriyle
+            <strong>iki yönlü bağlıdır</strong> (bağlantı yokken soluktur, basılamaz). Web Serial çıkış sinyallerinin gerçek durumunu geri okuyamaz;
+            sinyal çubuğunda görünen, bu aracın gönderdiğini varsaydığı değerdir.</p>
+            <ol>
+                <li><strong>Power</strong> (geçişli): yeşil yanıyor = güç ON (= RTS OFF).
+                    Açılış prosedüründe RTS'in ON→OFF yolunu geçmesi gerekir: düğme zaten yanıyorsa önce kapatın, sonra açın.</li>
+                <li><strong>Reset</strong> (momentary): basmak = DTR OFF, bırakmak = DTR ON;
+                    bir bas-bırak = bir Reset (standart zamanlamada arada 0.3 saniye beklenir).</li>
+                <li><strong>RDY'yi bekleyin</strong>: birkaç saniye içinde terminalde modülün açılış duyurusu <code>RDY</code> belirir.</li>
+                <li><strong>ATI ile doğrulayın</strong>: yanıt <code>Quectel</code> / <code>EG800K</code> /
+                    <code>Revision: …</code> / <code>OK</code> olmalıdır. Yanıt geliyorsa hem UART hem modül canlıdır.</li>
+            </ol>
+            <div class="tip">
+                Açılıştan sonra önce ekonun (ATE) açık olduğunu doğrulamanız (fabrika varsayılanı açıktır), sonra <code>AT+CMEE=2</code> göndermeniz önerilir ——
+                açık değilse yalnızca kupkuru bir <code>ERROR</code> görürsünüz; açıksa
+                <code>+CME ERROR: …</code> biçiminde okunabilir metin gelir. İkisi de yalnızca oturumluktur; modül her yeniden açılışta yeniden gönderilmelidir.
+            </div>
+
+            <h4>Module: beş kimlik düğmesi</h4>
+            <table>
+                <tr><th>Düğme</th><th>Komut</th><th>Ne görürsünüz</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>Marka / model / firmware sürümü üçü bir arada —— açılıştan sonraki ilk komut bu olmalı</td></tr>
+                <tr><td>Vendor / Model / FW Ver</td>
+                    <td><code>AT+GMI</code> / <code>AT+GMM</code> / <code>AT+GMR</code></td>
+                    <td>ATI'nin üç satırını tek tek sorgular (sırasıyla CGMI / CGMM / CGMR ile eşdeğer).
+                        Bu cihazda ölçülen firmware sürümü: <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>Modülün IMEI'si (15 basamak). Sıfır veri trafiği, her an gönderilebilir</td></tr>
+            </table>
+
+            <h4>Serial: AT&amp;V ile parametre okuma, IPR ile baud değiştirme</h4>
+            <p><strong>AT Params (<code>AT&amp;V</code>)</strong>: tüm tek harfli AT parametrelerinin güncel değerini listeler.
+            <code>ATE</code> / <code>ATQ</code> / <code>ATV</code> gibi tek harfli komutların <strong>kendi sorgu biçimi yoktur;
+            bunları yalnızca bu komut okuyabilir</strong>. Bu cihazda ölçülen: <code>E:1 Q:0 V:1 S3:13 S4:10</code> ——
+            eko açık, sonuç kodları metin modunda, satır sonu = CR (ASCII 13); bu aracın yanıtları çözümleyebilmesinin ön koşulu tam da budur.</p>
+            <p><strong>Baud? (<code>AT+IPR?</code>)</strong>: UART'ın güncel baud hızını sorgular; fabrika değeri 115200.<br>
+            <strong>Baud List (<code>AT+IPR=?</code>)</strong>: iki liste döner ——
+            ilki otomatik algılanabilen hızlar, ikincisi yalnızca sabit modda kullanılabilenler. Bu düğme bir kez çalıştırıldıktan sonra
+            Set Baud'un açılır listesi, cihazın gerçekten bildirdiği listeyle değiştirilir. Ölçümde bu cihazın ikinci listesi
+            <strong>1000000 bps'ye kadar uzanıyor —— kılavuzun §3.4 tablosunda bu değer yok</strong>.</p>
+            <p><strong>Set Baud (<code>AT+IPR={rate};&amp;W</code>, parametre kartı)</strong>:
+            basınca önce bir onay penceresi çıkar —— bu, sayfada kendinizi kapı dışında bırakması en kolay düğmedir.</p>
+            <div class="warning">
+                <strong>Baud değiştirmenin üçlü tuzağı (üçü de ölçümle doğrulandı):</strong><br>
+                ① <code>OK</code> döner dönmez <strong>hemen geçerli olur</strong>;
+                bir sonraki andan itibaren bu araç ile modül birbirini anlamaz olur;<br>
+                ② <code>AT&amp;F</code> (fabrika sıfırlaması) baud hızını <strong>geri almaz</strong> —— sizi kurtarmasını beklemeyin;<br>
+                ③ <code>&amp;W</code> eklenmezse kaydedilmez —— yeniden bağlanmak ise güç kesmek demektir: modül eski hızla uyanır,
+                port ayarınız yeni hızda kalır, <strong>çifte kopukluk</strong>.
+                Bu yüzden bu araç <code>;&amp;W</code> birleşik yazımını zorunlu kılar.<br>
+                Toparlanma dört adımdır (onay penceresi de hatırlatır): bağlantıyı kes → bağlantı alanındaki baud hızını değiştir → yeniden bağlan → açılış prosedürünü yeniden çalıştır.
+            </div>
+
+            <h4>Power: QSCLK düşük güç</h4>
+            <p><strong>Sleep? (<code>AT+QSCLK?</code>)</strong>: modülün uykuya girmesine izin verilip verilmediğini sorgular.
+            Bu cihazda ölçülen fabrika değeri <code>0</code> = devre dışı, modül hep uyanık.
+            Bu sayfada yalnızca sorgu düğmesi vardır: uyuyan bir modül <strong>AT'ye yanıt vermeyi keser</strong>; kılavuzdaki uyandırma yöntemi DTR'yi düşük çekmektir ——
+            ama bu kartta DTR, Reset bacağı olarak bağlanmıştır (bölümün başına bakın). Komut satırından uykuyu kendiniz açar da modülü uyandıramazsanız,
+            açılış prosedürünü yeniden çalıştırmak (gücü kesip açmak) sizi kurtarır; ayrıntılar resmi düşük güç uygulama notundadır.</p>
+
+            <h4>URC: mesaj alamadığınızda ilk durak burası</h4>
+            <p><strong>URC (Unsolicited Result Code — istenmeden gelen sonuç kodu)</strong>, modülün "istek olmadan kendiliğinden bastığı"
+            mesajdır; hiçbir komutun yanıtı değildir —— açılıştaki <code>RDY</code>, TCP verisi gelişi, MQTT mesajı,
+            Wi-Fi tarama sonucu, GNSS firmware yükleme bildirimi hep budur. Çıkış portu
+            <strong>fabrikada USB portudur (usbat)</strong> —— UART üzerinden çalışan bu araç bunların hiçbirini alamaz;
+            belirti son derece tipiktir: <strong>komutların hepsi OK döner ama mesaj bir türlü gelmez</strong>.</p>
+            <table>
+                <tr><th>Düğme</th><th>Komut</th><th>Amaç</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>URC'nin şu anda nereye gittiğini sorgular —— URC alamıyorsanız <strong>ilk sorgunuz bu olmalı</strong>;
+                        alabilmek için yanıt <code>"uart1"</code> olmalıdır</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>Bu cihazın desteklediği çıkış portları. Ölçümde <code>("usbat","usbmodem","uart1")</code> döndü;
+                        <strong>kılavuzda geçen "all" yok</strong> (kılavuz bazı modellerin desteklemediğini not eder)</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>Ana UART'a geçirir. NVRAM'e yazılır, yeniden başlatmalarda korunur; <strong>bir kez değiştirmek yeter</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>URC ana anahtarı; "URC alamama"nın öbür büyük nedeni.
+                        Ölçümde bu cihaz fabrikadan 1 (açık) geldi; sorun neredeyse her zaman çıkış portundadır</td></tr>
+            </table>
+
+            <h4>Ham bayt düğmeleri: veri modunun kaçış kapısı</h4>
+            <p>Pek çok komut <strong>iki aşamalıdır</strong>: önce komut gönderilir, modülün <code>&gt;</code> istemi beklenir,
+            sonra gövde gönderilir. Bu <strong>veri moduna</strong> girildikten sonra modül yazdığınız her karakteri veri olarak yutar ——
+            göndermek istediğiniz AT komutları dahil. Uzunluk yanlış hesaplandığında, yarı yolda vazgeçtiğinizde ya da komut takıldığında
+            sıradan tuşlar kurtaramaz; tek bir ham bayt gönderen şu düğme dizisi gerekir:</p>
+            <table>
+                <tr><th>Düğme</th><th>Gönderilen</th><th>Ne zaman kullanılır</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td>Veri modunun <strong>bitiş imi</strong>: birikmiş içeriği gerçekten gönderir</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td>Veri modunu <strong>iptal eder</strong>, birikmiş içeriği atar.
+                        İki aşamalı komut takıldığında, AT portu yanıt vermez olduğunda ilk tercih edilecek kaçış tuşu (kılavuz §2.3.8)</td></tr>
+                <tr><td>+++</td><td>üç + işareti (ham bayt)</td>
+                    <td><strong>Şeffaf veri modundan</strong> (örn. FTP'nin COM: aktarımı) AT moduna kaçış.
+                        Kural serttir: <strong>öncesinde ve sonrasında 1'er saniye sessizlik, asla CR/LF eklenmez</strong> ——
+                        ölçümde CR eklenince işe yaramadı; bu düğmeyle gönderilmelidir, komut satırından yazılamaz</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Ölçüm kılavuzu yalanladı: +++ bir "duraklatma" değil, "iptal"dir.</strong>
+                FTPS uygulama notu v1.5 sayfa 13, +++ sonrasında <code>ATO</code> ile veri moduna dönülüp aktarıma devam edilebileceğini yazar;
+                gerçek cihazda <code>ATO</code> yalnızca <code>NO CARRIER</code> döndürür, aktarım çoktan iptal edilmiştir.
+                +++'ı acil fren olarak kullanın; frenden sonra yola devam edebileceğinizi sanmayın.
+            </div>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td>Hiçbir komuta yanıt yok</td>
+                    <td>Sırasıyla üç şüpheliye bakın: ① açılış prosedürü çalıştırılmamış (sayfa yenilendiyse kesinlikle budur);
+                        ② satır sonu LF'ye ayarlı —— modül <strong>yalnızca CR tanır</strong>, LF'ye hiç yanıt vermez;
+                        ③ baud hızı uyuşmuyor (dört adımlı toparlanmaya bakın)</td></tr>
+                <tr><td>Reset'e bastım ama RDY gelmiyor</td>
+                    <td>Önce Power düğmesinin yanıp yanmadığına bakın —— modülün gücü yoksa Reset'e kaç kez basarsanız basın boşuna;
+                        ilk bağlantıda güç ON→OFF yolunu geçmelidir</td></tr>
+                <tr><td>Komutlar OK dönüyor ama URC bir türlü gelmiyor</td>
+                    <td>Büyük olasılıkla urcport hâlâ fabrikadaki usbat'ta: URC Port? ile sorgulayın, URC → UART ile değiştirin;
+                        olmadıysa URC Switch ana anahtarına bakın</td></tr>
+                <tr><td>AT portu birden "komut yutmaya" başladı, ne yazsam yanıt yok</td>
+                    <td>Veri modunda takılı kaldınız; yazdıklarınızın hepsi veri olarak toplanıyor —— ESC ile kaçın</td></tr>
+            </table>
+
+            <h3 id="tab-basic">Basic —— SIM, tanılama ve temel durum</h3>
+            <p><strong>Çalışma prensibi:</strong> Bu sayfa her bağlantıdan sonraki başlangıç noktasıdır. Açılış prosedürü bitip terminalde
+            <code>RDY</code> göründükten sonra önce buraya gelip üç iş yapılır: hata mesajlarını anlaşılır biçime çevirmek,
+            SIM'in hazır olduğunu doğrulamak, kartın kim olduğunu tanımak. <code>AT&amp;F</code> ile PIN / PUK açma dışında sayfanın tamamı
+            salt okunur sorgudur —— basmak modülün durumunu değiştirmez;
+            bağlantı durumunu etkileyen komutlar Network, TCP/IP gibi öteki sekmelerde toplanmıştır.
+            Bu bölümdeki örnekler, Ağustos 2026'da gerçek bir EG800K
+            (firmware EG800KCNGCR07A06M04) üzerinde ölçülmüş değerlerdir.</p>
+
+            <h4>Açılıştan sonra: RDY, SIM hazır demek değildir</h4>
+            <p><code>RDY</code>, modül açılışını bitirdiğinde kendiliğinden gönderdiği URC'dir.
+            Yalnızca AT arayüzünün canlandığını gösterir; <strong>SIM kart arkada hâlâ ağır ağır ilklenmektedir</strong>.
+            Ölçüm: <code>RDY</code> görünür görünmez SIM komutu gönderilirse
+            <code>+CME ERROR: 14</code> (SIM busy), hatta <code>+CME ERROR: 13</code> (SIM failure) döner;
+            <strong>yaklaşık 6 saniye</strong> beklendikten sonra gönderilirse her şey normaldir.</p>
+            <div class="warning">
+                <strong>Otomasyon betiği yazarken RDY'yi "işe başlanabilir" sinyali olarak kullanmayın.</strong>
+                Doğru yol ikisinden biri: RDY'den sonra sabit yaklaşık 6 saniyelik tampon bırakın;
+                ya da <code>AT+QINISTAT</code> yoklayıp bit 1 (CPIN hazır) yanana kadar bekleyin.
+            </div>
+
+            <h4>Eko (ATE): "modül ekosu" ile "terminal yerel ekosu" ayrı şeylerdir</h4>
+            <p>Eko, <strong>modülün</strong> gönderdiğiniz karakterleri aynen geri basmasıdır (<code>ATE1</code> açar,
+            <code>ATE0</code> kapatır); terminalin yerel ekosu ise <strong>araç tarafının</strong> yazdıklarınızı
+            önceden ekrana basmasıdır. İki anahtar birbirinden bağımsızdır: ikisi de açıksa her karakter iki kez görünür.</p>
+            <ul>
+                <li>Bu sayfadaki <strong>eko geçiş düğmesi</strong> modül ekosunu tek tuşla değiştirir.
+                    Açılış varsayılanı <strong>açıktır</strong> (ölçülen AT parametresi <code>E:1</code> bunu doğrular).</li>
+                <li>Düğmede görünen durum havadan yazılmış değildir —— araç <strong>gerçek yanıtlara göre kendini düzeltir</strong>
+                    (eko satırı alınırsa açık sayılır); komut satırından elle <code>ATE0</code> / <code>ATE1</code> /
+                    <code>AT&amp;F</code> yazsanız da düğmenin durumu eşitlenir, kopmaz.</li>
+                <li>Geçiş yalnızca oturumluktur: modül yeniden açılınca varsayılana döner. Açılış varsayılanına yazmak için ayrıca
+                    <code>AT&amp;W</code> gerekir (bu sayfada bunun düğmesi yapılmadı; gerekirse komut satırından elle yazın).</li>
+            </ul>
+
+            <h4>Hata mesajlarını anlaşılır yapmak (CMEE)</h4>
+            <table>
+                <tr><th>Düğme</th><th>Etkisi</th></tr>
+                <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+                    <td>Hata kodları metin açıklamasına döner. Örnek: GNSS henüz konum bulmamışken sayısal mod
+                        <code>+CME ERROR: 516</code> döndürür, metin modu
+                        <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> —— ikincisi tabloya bakmadan ne olduğunu söyler.
+                        <strong>Bu araç, açılış prosedüründen hemen sonra bu düğmeye basmanızı şiddetle önerir</strong></td></tr>
+                <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+                    <td>Hata kodları sayı olarak döner —— araç tabloya kendisi bakar ve numarayı açıklamaya çevirir</td></tr>
+            </table>
+            <div class="tip">
+                İki ayar da <strong>yalnızca oturumluktur</strong>: modem yeniden açılınca gider
+                (sayfayı yeniden yüklemek = RTS ile güç kesmek = yeniden açılış; o da sayılır). Ayrıca ölçümde görüldü:
+                <code>CMEE=2</code> açık olsa bile az sayıda alt sistem (örn. dosya sistemi FILE hataları) metin ve sayıyı karışık döndürür;
+                çözümleyici yazarken iki biçimi de kabul edin.
+            </div>
+
+            <h4>AT&amp;F: fabrika varsayılanına dönüş —— etki alanı</h4>
+            <p><strong>Factory Reset</strong> düğmesi AT ayarlarını fabrika değerlerine sıfırlar;
+            gelişigüzel ayarlanmış bir modülü devralırken ilk adım budur. Sayfada basınca önce onay isteyen tek düğme budur.
+            Ölçümle doğrulanmış etki alanı: <strong>ekoyu yeniden açık yapar</strong>
+            (eko geçiş düğmesinin durumu kendiliğinden ayak uydurur), <strong>baud hızını etkilemez</strong>;
+            öteki ayarların geri alınıp alınmadığını kılavuzun <code>AT&amp;F</code> maddesinden tek tek doğrulayın.</p>
+
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Basic sekmesi">
+                <figcaption>Basic sayfasının üç düğme grubu: Echo (eko ve hata biçimi),
+                SIM (sorgu ile PIN / PUK açma), Status (saat, gerilim, ağ saati).</figcaption>
+            </figure>
+
+            <h4>SIM üçlü sorgusu: takılı mı, parola bekliyor mu, ilkleme nerede</h4>
+            <table>
+                <tr><th>Düğme</th><th>Sorduğu soru</th><th>Yorumlama</th></tr>
+                <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+                    <td>Kart düzgün takılı mı</td>
+                    <td>Yanıt iki sütundur: ilk sütun tak-çıkar URC anahtarıdır, <strong>kart durumu ikinci sütundur</strong>; sütunu karıştırmayın.
+                        Bu cihazda bu düğmenin yanlış alarm sicili var, aşağıdaki uyarıya bakın</td></tr>
+                <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+                    <td>Kart parola bekliyor mu</td>
+                    <td><code>+CPIN: READY</code> = "şu anda hiçbir parola beklenmiyor".
+                        ⚠ <strong>Bu kartın PIN istemediği anlamına gelmez</strong> —— PIN'li kart da açıldıktan sonra READY döner.
+                        Kart yokken <code>+CME ERROR: 10</code> döner</td></tr>
+                <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+                    <td>İlkleme ilerlemesi</td>
+                    <td>Bit maskesi: 1 = CPIN hazır, 2 = SMS, 4 = telefon defteri, 7 = hepsi tamam.
+                        Bu cihazda açılış oturduktan sonra ölçülen değer <strong>3</strong> (telefon defteri biti yok) ——
+                        "işe başlanabilir mi" kararı için bit 1 yeter, <strong>7'yi ölesiye beklemeyin</strong></td></tr>
+            </table>
+            <div class="warning">
+                <strong>Card In? bu cihazda yalan söylüyor.</strong> Ölçümde <code>AT+QSIMSTAT?</code>
+                <code>0,0</code> (kart çıkarılmış) döndürdü; oysa aynı anda CPIN READY, ağa bağlı, IP alınmış ——
+                kart gayet sağlamdı. Tahmin: kontrol kartında SIM_DET algılama bacağı bağlanmamış (ya da <code>AT+QSIMDET</code> etkin değil),
+                okunan değer hep "takılı değil". <strong>Kartın takılı olup olmadığına <code>AT+CPIN?</code> ya da
+                <code>AT+QINISTAT</code> ile karar verin.</strong>
+            </div>
+
+            <h4>Bu kart kim: IMSI ve ICCID</h4>
+            <p><strong>IMSI</strong> düğmesi (<code>AT+CIMI</code>) çıplak bir sayı dizisi döndürür;
+            kartın mobil şebekedeki abone kimliğidir. Bu cihazda ölçülen: <code>901405117661468</code>.
+            İlk üç hane (MCC) <strong>901 = uluslararası dolaşım kart aralığı</strong> ——
+            bu cihazdaki kart bir 1NCE IoT kartıdır; <code>AT+CEREG?</code> sorgusunun neden hep
+            <code>0,5</code> (kayıtlı, <strong>dolaşımda</strong>) döndürdüğünü de bu açıklar: sinyal anormalliği değil,
+            bu tür kartların olağan hâlidir. Veri testine başlamadan dolaşım kartını tanıyın, trafik ücretine dikkat edin.</p>
+            <p><strong>ICCID</strong> düğmesi (<code>AT+QCCID</code>) kart seri numarasını sorgular;
+            ölçümde <code>+QCCID: 89882280666176614687</code> döndü.
+            ⚠ <strong>Kılavuzda <code>AT+CCID</code> diye bir komut yoktur</strong> ——
+            başka modüllerin eğitimlerinde sık görülen o komut burada çalışmaz; Quectel'e özgü <code>AT+QCCID</code> kullanılır.</p>
+
+            <h4>PIN açma: önce kalan hakkı sorgulayın, sonra el atın</h4>
+            <ol>
+                <li><strong>Önce PIN Left'e basın</strong> (<code>AT+QPINC?</code>) ve kalan deneme sayısına bakın ——
+                    kılavuzdaki aralık: PIN için 0–3, PUK için 0–10 hak.
+                    El atmadan önce kaç fişeğiniz kaldığını bilin.</li>
+                <li>Kart PIN beklerken <strong>Enter PIN</strong>'e basın: önce bir <strong>parametre kartı</strong> açılır,
+                    PIN'i yazıp gönderirsiniz (komut şablonu <code>AT+CPIN="{pin}"</code>, en fazla 5 saniye bekler).</li>
+                <li>PIN hakkı tükenip kart PUK istemeye başlayınca <strong>Unlock PUK</strong>'a basın:
+                    kılavuz gereği <strong>PUK yeni PIN ile birlikte gönderilmelidir</strong>
+                    (<code>AT+CPIN="{puk}","{newpin}"</code>); yine parametre kartından, en fazla 5 saniye bekler.</li>
+            </ol>
+            <div class="warning">
+                Her yanlış gönderim bir hak eksiltir; PUK dibe vurunca <strong>durun ve operatörü arayın</strong>,
+                hakları tahminle yakmayın.
+            </div>
+
+            <h4>Durum üçlüsü: saat, gerilim, ağ saati</h4>
+            <table>
+                <tr><th>Düğme</th><th>Neye bakar</th><th>Ölçüm ve yorumlama</th></tr>
+                <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+                    <td>Modülün RTC saati</td>
+                    <td><code>+CCLK: "26/08/01,00:55:32+32"</code>.
+                        Saat dilimi alanı <code>+32</code>'nin birimi "çeyrek"tir (15 dakika): 32 × 15 dk = UTC+8.
+                        Bu cihazda RTC'nin ağ tarafından ayarlandığı ölçüldü; saat de dilim de doğru</td></tr>
+                <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+                    <td>Besleme gerilimi</td>
+                    <td>Bazı firmware'ler desteklemez, ERROR dönmesi normaldir; bu cihazın firmware'i destekliyor,
+                        ölçüm <code>+CBC: 0,0,4264</code> —— son alan gerilimdir (mV), yani 4.264 V</td></tr>
+                <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+                    <td>Ağ eşzamanından türetilen güncel yerel saat</td>
+                    <td>Ölçüm: <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>.
+                        Clock'tan farkı <strong>kaynaktır</strong>: CCLK modülün kendi RTC'sini okur,
+                        QLTS doğrudan ağ saatini alır; yıl biçimi de farklıdır (RTC iki hane, QLTS dört hane), çözümlerken karıştırmayın</td></tr>
+            </table>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td>RDY görünür görünmez SIM sorguladım, hata 14 ya da 13 döndü</td>
+                    <td>SIM hâlâ ilkleniyor (14 = SIM busy; 13 = SIM failure da bu evrede görüldü).
+                        Yaklaşık 6 saniye bekleyip yeniden gönderin; kartın bozuk olduğuna aceleyle hükmetmeyin</td></tr>
+                <tr><td>Card In? kartın çıkarıldığını söylüyor ama her şey çalışıyor</td>
+                    <td>SIM_DET algılama bacağı sorunu (bu cihazda ölçülen vaka), kartın suçu yok.
+                        <code>AT+CPIN?</code> / <code>AT+QINISTAT</code> sorgularına bakın</td></tr>
+                <tr><td>Ekranda her karakter iki kez görünüyor</td>
+                    <td>Modül ekosu ile terminal yerel ekosu aynı anda açık —— eko geçiş düğmesine bir kez basmak yeter</td></tr>
+                <tr><td>Hatalar yalnızca soğuk sayılar olarak dönüyor</td>
+                    <td>CMEE henüz açılmamış. Verbose Err'e basın; yalnızca oturumluktur,
+                        her açılış prosedüründen sonra yeniden basılmalıdır</td></tr>
+                <tr><td>Komut gönderiliyor ama hiçbir yanıt yok</td>
+                    <td>Portu yeniden açmak RTS'i tekrar assert eder = güç kesilir; modül aslında yeniden açılmıştır.
+                        Tam açılış prosedürü yeniden çalıştırılmalıdır; atlanırsa hiçbir şey yanıt vermez</td></tr>
+            </table>
+
+            <h3 id="tab-network">Network —— kayıt, operatör, radyo</h3>
+            <p><strong>Çalışma prensibi:</strong> Tüm veri işlevlerinin çalışabilmesinin ön koşulu, <strong>mobil şebekeye kayıtlı olmak</strong>
+            ve <strong>PDP veri kanalının hazır olmasıdır</strong> —— bu sayfa şebekeye girişin gösterge paneli ve anahtarlarıdır;
+            "internete bağlanamıyorum" sorunlarının ayıklanması hep buradan başlar. Bu bölümdeki değerler, Ağustos 2026'da gerçek bir EG800K üzerinde ölçülmüştür.</p>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Network sekmesi">
+                <figcaption>Network sayfasının beş düğme grubu: kayıt sorgusu, Signal URC, PDP, tanılama, radyo kontrolü.</figcaption>
+            </figure>
+
+            <h4>Başlamadan önce: URC'yi UART'a alın</h4>
+            <p>EG800K fabrikadan kendiliğinden bildirim mesajlarını (URC) <code>usbat</code>'a (USB AT portu) gönderir;
+            bu araç UART üzerinden çalışır —— <strong>URC'lerin hiçbiri alınamaz</strong>: sinyal bildirimi,
+            TCP / MQTT / Wi-Fi tarama sonuçları tümüyle sessizdir; belirti şudur: <strong>"komutlar OK dönüyor ama mesaj yok"</strong>.</p>
+            <div class="warning">
+                <strong>"Bütün URC'ler kayboldu"nun bir numaralı nedeni budur.</strong>
+                Hardware sekmesinde <code>AT+QURCCFG="urcport"</code> ile sorgulayın;
+                yanıt <code>"uart1"</code> değilse geçiş düğmesiyle değiştirin —— ayar NVRAM'e yazılır, bir kez değiştirmek yeniden başlatmalar boyunca geçerlidir.
+            </div>
+
+            <h4>İlk adım: kayıt durumunu doğrulayın</h4>
+            <p>Açılış prosedüründe <code>RDY</code> göründükten sonra önce <code>AT+CEREG?</code>'e basın (4G modülde en isabetli sorgu budur).
+            Üç kayıt düğmesi üç alana karşılık gelir: <code>CEREG</code> = LTE/EPS, <code>CREG</code> = devre anahtarlamalı alan,
+            <code>CGREG</code> = paket anahtarlamalı alan; ikinci sayının (stat) yorumu hepsinde aynıdır:</p>
+            <table>
+                <tr><th>stat</th><th>Anlamı</th><th>Ne yapmalı</th></tr>
+                <tr><td>0</td><td>Henüz kayıtlı değil</td><td>Açılıştan hemen sonra olağandır; birkaç saniye bekleyip yeniden sorgulayın</td></tr>
+                <tr><td>1</td><td>Kayıtlı (ev şebekesi)</td><td>Normal, devam edin</td></tr>
+                <tr><td>2</td><td>Arıyor</td><td>Bekleyin</td></tr>
+                <tr><td>3</td><td>Şebeke reddetti</td><td>SIM'i / tarifeyi kontrol edin, nedenini CEER'den okuyun</td></tr>
+                <tr><td>5</td><td>Kayıtlı (dolaşımda)</td><td><strong>Bu cihazın olağan hâli</strong>, aşağıya bakın</td></tr>
+            </table>
+            <div class="tip">
+                <strong>stat=5 arıza değildir.</strong> Ölçümde üç kayıt sorgusu da <code>0,5</code> döndürdü:
+                SIM bir 1NCE IoT kartıdır (MCC 901 uluslararası dolaşım kartı); hangi ülkede olursa olsun "dolaşımda" sayılır,
+                5 gördüğünüzde 1 gibi davranın.
+            </div>
+            <p>Kayıt başarılı ama internet yoksa, ardından <code>AT+CGATT?</code> ile paket alanı bağlanmasını (attach) sorgulayın;
+            gerekirse <code>AT+CGATT=1</code> ile elle bağlanın; o da başarısız olursa nedenini <code>AT+CEER</code> ile
+            sorgulayın (TCP/IP sayfasındaki <code>QIGETERROR</code> ile aynı katman değildir).
+            CGATT en fazla <strong>140 saniye</strong> bloke edebilir; art arda basmayın.</p>
+
+            <h4>Şu an hangi operatörde, hangi bantta</h4>
+            <p><code>AT+COPS?</code> güncel kayıtlı operatörü sorgular (son alan 7 = LTE).
+            <strong>Tuzak: operatör adı boş dize olabilir</strong> —— ölçümde <code>+COPS: 0,0,"",7</code> döndü,
+            arıza değildir. Operatörü görmek için <code>AT+QNWINFO</code>'ya basın (teknoloji / operatör / bant / kanal):</p>
+            <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+            <p>46692 = Chunghwa Telecom, Band 8; servis yokken <code>NO SERVICE</code> döner.
+            Bu dolaşım kartı şebekeyi kendisi seçer: farklı günlerde yapılan ölçümlerde Chunghwa Telecom Band 8'e de
+            FarEasTone'a (466-01) Band 3'e de takıldı; operatör ve bant değişimi normaldir. <code>AT+COPS=?</code> çevredeki tüm operatörleri tarar:
+            <strong>en fazla 300 saniye bloke eder ve süren işleri keser</strong>; gerçekten gerekiyorsa basın.</p>
+
+            <h4>Sinyal gücü ve kalitesi: CSQ yalnızca kaba bir değerdir</h4>
+            <p><code>AT+CSQ</code> rssi ve ber döndürür: rssi 0–31, -113 ile -51 dBm aralığına karşılık gelir;
+            99 = algılanamıyor (açılıştan hemen sonra olağandır, birkaç saniye bekleyin). Ölçümde rssi 18–24 (-77 ile -65 dBm, iyi);
+            <strong>ber hep 99, referans değeri yok</strong>. LTE'nin gerçek kalite üçlüsü
+            <strong>RSRP (güç) / RSRQ (kalite) / SINR (sinyal-gürültü oranı; düşük = parazit altında)</strong>
+            yalnızca Signal URC grubundan alınabilir (<code>AT+QINDCFG="sqi"</code> değersiz = anahtarı sorgular):</p>
+            <table>
+                <tr><th>Düğme</th><th>Komut</th><th>İşlevi</th></tr>
+                <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+                    <td>RSRP / RSRQ / SINR bildirimini açar —— <strong>anten ve yerleşim testlerinin olmazsa olmazı</strong>.
+                        Yalnızca sinyal "değiştiğinde" iletir; kıpırtı yoksa anteni sarın ya da takıp çıkarın; ayar yeniden başlatmada korunmaz</td></tr>
+                <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+                    <td>Sinyal değişir değişmez bildirir; CSQ'ya deli gibi basmanın yerini alır</td></tr>
+                <tr><td>URC Off / On</td><td><code>AT+QINDCFG="all",0/1</code></td>
+                    <td>Ekran mesaj seline boğulunca tek tuşla susturur —— sonrasında yeniden açmayı unutmayın</td></tr>
+            </table>
+
+            <h4>PDP kanalı: 3GPP katmanı vs TCP/IP sayfası</h4>
+            <p>PDP context = mobil şebekenin tahsis ettiği "veri kanalı"; IP ancak onunla gelir. Bu grup 3GPP standart katmanının salt okunur sorgularıdır:
+            <code>AT+CGDCONT?</code> context'leri ve APN'i listeler, <code>AT+CGACT?</code> etkinlik durumunu listeler
+            (en fazla 150 saniye bloke eder; ⚠ yazma biçiminde parametre sırası terstir), <code>AT+CGPADDR</code>
+            alınan IP'yi listeler. TCP/IP sayfasındaki <code>QIACT?</code> / <code>QICSGP</code> ise
+            <strong>Quectel'in kendi yığınıdır, aynı katman değildir</strong> —— yan yana karşılaştırmak arızalı tarafı ayırt ettirir:
+            burada IP var, orada yok = şebeke vermiş ama yığın başlatılmamış. Bu cihaz açılışta PDP'yi kendiliğinden etkinleştirip IP alıyor.</p>
+            <p><code>AT+QGDCNT?</code> birikmiş trafiği sorgular (ilk sayı <strong>gönderilen</strong>, ikincisi alınan);
+            dolaşım kartıyla trafik ölçerken şarttır. ⚠ <strong>Ölçüm, düğme ipucundaki "yeniden başlatmalar boyunca birikir" iddiasını yalanladı</strong>:
+            sayaç varsayılan olarak NV'ye yazılmaz; güç kesilince (sayfa yeniden yüklemesi dahil) sıfırlanır —— ya anında not edin,
+            ya da <code>AT+QGDCNT=1</code> ile NV'ye kaydedin.</p>
+
+            <h4>Uygulamalı ayıklama: bu kart yalnızca tek PDP'ye izin veriyor</h4>
+            <p>TCP/IP sayfasında <code>AT+QIACT=1</code> bastınız ama ERROR (<code>572,operation not
+            allowed</code>) mı döndü? Bu kartın değişmez senaryosu: açılıştan sonra 3GPP katmanı zaten <strong>bir PDP'yi kendiliğinden etkinleştirmiştir</strong>,
+            ama <strong>context numarası oynaktır</strong> (ölçümde 1 de 9 da görüldü); ikinci bir tane açmaya kalkınca
+            <code>+CME ERROR: 100</code> döner ⇒ şebeke yalnızca tek PDP'ye izin veriyor; <code>QIACT</code>'in
+            contextID aralığı ise yalnızca 1–8'dir; PDP 9'da açılmışsa Quectel yığını ona hiç dokunamaz.
+            Çözüm iki adımdır (her açılıştan sonra bir kez):</p>
+            <pre>AT+CGACT?             ← hangi cid olduğuna bakın (numara oynaktır, bu adım atlanamaz)
+AT+CGACT=0,&lt;o cid&gt;   ← 3GPP katmanı kontenjanı bıraksın
+AT+QIACT=1            ← TCP/IP sayfası; +QIACT: 1,1,1,"10.187.7.8" dönerse başarılı</pre>
+            <p><code>QICSGP</code> ile APN ayarlamak bu kartta atlanabilir —— ölçümde modül, şebekenin verdiği APN'i
+            (<code>iot.1nce.net</code>) kendiliğinden eşitledi; ancak kullanıcı adı/parola isteyen kurumsal APN kartlarında gereklidir.</p>
+            <div class="warning">
+                <strong>Testin ortasında her şey birden zaman aşımına mı düşüyor? Önce PDP kaymasından şüphelenin.</strong>
+                Ölçümde HTTP art arda tümüyle başarısızken (hata 716, sabit 30 saniye zaman aşımı) <code>AT+QIACT?</code>
+                yine de IP döndürüyordu —— bu durumda o yalan söyler; <code>AT+CGACT?</code> ile çapraz karşılaştırın
+                (ölçüm: 1,0 ile 9,1 = 9'a kaymış).
+                Çözüm: <code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;kayılan cid&gt;</code> →
+                <code>AT+QIACT=1</code>, sonra ping ile doğrulayın.
+            </div>
+
+            <h4>CFUN işlev düzeyi ve radyo kontrolü</h4>
+            <p>RF Control grubunun tamamı modül durumunu değiştirir; hepsi basmadan önce onay isteyen kırmızı çerçeveli düğmelerdir.
+            Önce <code>AT+CFUN?</code> ile güncel düzeye bakın, sonra el atın:</p>
+            <table>
+                <tr><th>Komut</th><th>Düzey</th><th>Anlamı</th></tr>
+                <tr><td><code>AT+CFUN=1</code></td><td>Tam işlev</td>
+                    <td>Radyo tümüyle açık; <strong>toparlanmak için her zaman bu düğme</strong></td></tr>
+                <tr><td><code>AT+CFUN=4</code></td><td>Uçak modu</td>
+                    <td>Alış-veriş tümüyle kapalı, SIM yerinde —— "şebekeye yeniden giriş" testinin başlangıç noktası</td></tr>
+                <tr><td><code>AT+CFUN=0</code></td><td>Asgari</td>
+                    <td>SIM de devre dışı; kılavuz yalnızca Minimum functionality yazar, ayrıntı vermez</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>Yazılımsal yeniden başlatma</td>
+                    <td>Modülün tamamını yeniden başlatır. ⚠ AT portu kısa süre devre dışı kalır; <code>RDY</code> yeniden beklenmelidir</td></tr>
+            </table>
+            <p>CFUN en fazla 15 saniye bloke eder. <strong>SIM'de PIN kilidi varsa, CFUN=1'e dönüşten sonra PIN yeniden girilmeden
+            kayıt olmaz.</strong> <code>AT+CGATT=0</code> (PS Detach) paket alanından ayrılır ——
+            <strong>tüm TCP / MQTT bağlantılarını düşürür</strong>; yalnızca "yeniden bağlanma" testinde kullanın.</p>
+
+            <h4>İleri düzey: QENG ile baz istasyonu bilgisi (komut satırından)</h4>
+            <p>Bu sayfada düğmesi yoktur —— komut satırına <code>AT+QENG="servingcell"</code> yazarak
+            hizmet veren hücrenin parametrelerini okuyun; ölçümdeki kilit alanlar:</p>
+            <table>
+                <tr><th>Alan</th><th>Ölçülen değer</th><th>Yorumlama</th></tr>
+                <tr><td>MCC / MNC</td><td>466 / 01</td><td>Tayvan / FarEasTone</td></tr>
+                <tr><td>Cell ID / TAC</td><td><code>ABCDE02</code> / <code>1234</code> (hex)</td>
+                    <td>Ondalık 180149762 / 4660; eNodeB = ECI≫8 = 703710, sektör = 2</td></tr>
+                <tr><td>PCID / EARFCN</td><td>144 / 1550</td>
+                    <td>Fiziksel hücre kimliği (<strong>küresel benzersiz değildir</strong>) / Band 3</td></tr>
+                <tr><td>RSRP / RSRQ / RSSI / SINR</td><td>-113 / -18 / -92 / -1</td>
+                    <td>RSRP -100'ün altı kötü sayılır; SINR -1 dB = kalite zayıf</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Cell ID ve TAC onaltılıktır; veritabanında aramadan önce ondalığa çevrilmelidir.</strong>
+                OpenCelliD gibi veritabanları yalnızca ondalık kabul eder; <code>ABCDE02</code>'yi olduğu gibi atarsanız kayıt bulunamaz.
+                Ayrıca <code>AT+QENG="neighbourcell"</code> yalnızca PCID döndürür,
+                <strong>küresel Cell ID vermez</strong> (LTE standardının sınırı).
+            </div>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td>Komutlar OK dönüyor, kendiliğinden mesajlar hiç görünmüyor</td>
+                    <td>urcport usbat'ta (fabrika değeri) —— Hardware sekmesinden uart1'e geçirin</td></tr>
+                <tr><td><code>QIACT=1</code> ERROR (572) dönüyor</td>
+                    <td>Tek PDP kontenjanı kapılmış —— yukarıdaki iki adımlı ayıklamayı uygulayın</td></tr>
+                <tr><td>Art arda istekler hep sabit 30 saniyede zaman aşımına düşüyor</td>
+                    <td>PDP kayması —— <code>AT+CGACT?</code> ile çapraz karşılaştırın; yalnızca <code>QIACT?</code> sorgusuna güvenmeyin</td></tr>
+            </table>
+
+            <h3 id="tab-gnss">GNSS —— uydu konumlandırma</h3>
+            <p><strong>Çalışma prensibi:</strong> GNSS, <strong>mobil şebekeden bağımsız</strong> bir işlevdir ——
+            SIM kartın internete bağlı olması gerekmez, PDP gerekmez, veri harcamaz (AGNSS hariç, aşağıya bakın).
+            Açıldıktan sonra modül uydu sinyallerini kendisi alır; siz de <code>AT+QGPSLOC</code> ile konum sonucunu yoklarsınız.
+            Bu bölümdeki tüm süreler ve davranışlar, Ağustos 2026'da gerçek bir EG800K üzerinde ölçülmüş değerlerdir.</p>
+
+            <h4>Başlamadan önce: her şeyi anten belirler</h4>
+            <p>Konum alamamanın bir numaralı nedeni yanlış komut değil, <strong>antenin sinyal alamamasıdır</strong>.
+            Ölçülmüş karşılaştırma: iç mekânda, kötü bir antenle modül 38 uydunun konumunu listeleyebildi ama
+            <strong>tek birini bile duyamadı</strong> (SNR'lerin hepsi 00); <strong>aktif (active) GNSS anteni</strong>
+            takılıp pencere kenarına konduğunda ise soğuk başlangıç 95 saniye içinde konum buldu.</p>
+            <div class="warning">
+                <strong>İç mekânda GNSS test edilemez; ne kadar beklerseniz bekleyin boşunadır.</strong> Gökyüzü görüşü yokken
+                <code>$GNGGA</code> "kullanılan uydu 00, konum kalitesi 0" döner,
+                <code>AT+QGPSLOC</code> ise hep 516 hatası verir.
+                Başlamadan önce anteni pencere kenarına ya da dışarı taşıyın —— bu bir sabır sorunu değil, fizik sorunudur.
+            </div>
+
+            <h4>İlk konum: beş adım</h4>
+            <ol>
+                <li><strong>Açılış prosedürünü çalıştırın</strong> (bkz. "Açılış Prosedürü" bölümü).
+                    ⚠ Sayfanın her yenilenmesi güç kesintisi demektir; GNSS'in açık durumu ve yarısı alınmış efemeris tamamen sıfırlanır,
+                    bu adımdan yeniden başlamanız gerekir.</li>
+                <li><strong>URC'lerin UART'tan geldiğini doğrulayın</strong>: <code>AT+QURCCFG="urcport"</code> yanıtı
+                    <code>"uart1"</code> olmalıdır. Fabrika değeri <code>"usbat"</code>'tır; değiştirilmezse birçok sonuç mesajı
+                    USB portuna gider ve burada hiçbir şey görünmez (ayar NVRAM'e yazılır, bir kez değiştirmek yeter).</li>
+                <li><strong>GNSS'i açın</strong>: <code>AT+QGPS=1</code> düğmesine basın.
+                    Birkaç saniye içinde <code>+QGPS: "firmware",0,0</code> görünür (GNSS yazılımı başarıyla yüklendi).
+                    Zaten açıkken tekrar basılırsa <code>+CME ERROR: 504</code> döner, zararsızdır.</li>
+                <li><strong>Alımı görün</strong>: <code>AT+QGPSGNMEA="GSV"</code> ile görünür uyduları okuyun.
+                    Terminal alanı <strong>uydu durumu</strong> sekmesini otomatik açar; SNR sütun grafiği ile gökyüzü grafiği çizilir ——
+                    nasıl okunacağı bir sonraki bölümde.</li>
+                <li><strong>Konumu yoklayın</strong>: her 5–10 saniyede bir <code>AT+QGPSLOC=2</code> gönderin.
+                    <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> (hata 516) dönmesi henüz konum bulunmadığı anlamına gelir,
+                    <strong>beklemeye devam etmeniz yeterlidir</strong>. Başarıldığında koordinatlar döner;
+                    terminal alanı <strong>harita</strong> sekmesini otomatik açar ve konumu üzerine işler.</li>
+            </ol>
+            <figure class="shot narrow">
+                <img src="img/07-gnss.png" alt="GNSS sekmesi">
+                <figcaption>GNSS sayfası: açma/kapama, NMEA okuma, konum sorgusu, AGNSS hızlandırma.</figcaption>
+            </figure>
+
+            <h4>Uydu durumu sekmesini okumak: "görmek", "duymak" demek değildir</h4>
+            <p>GSV'de her uydu için dört sayı vardır: numara, yükseklik açısı, azimut ve <strong>SNR (sinyal-gürültü oranı, dB-Hz)</strong>.
+            İlk üçü yalnızca "gökyüzünde nerede olması gerektiğini" söyler; <strong>sinyalin gerçekten alındığını yalnızca SNR gösterir</strong>.</p>
+            <table>
+                <tr><th>SNR</th><th>Anlamı</th></tr>
+                <tr><td>(boş) ya da 00</td><td>Hiç alım yok —— uydunun yalnızca nerede olduğu biliniyor, sesi duyulmuyor</td></tr>
+                <tr><td>14–28</td><td>Sınırda: efemeris çözümü sık sık bozulup baştan başlar, konum bulma hem yavaş hem kararsızdır</td></tr>
+                <tr><td>30 ve üzeri</td><td>Kararlı çözüm mümkündür; <strong>uyduların çoğu bu düzeye gelince konum hızla gelir</strong></td></tr>
+                <tr><td>40 ve üzeri</td><td>Açık gökyüzü + iyi anten düzeyi</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/20-sat-view.png" alt="Uydu durumu sekmesi: SNR sütun grafiği ve gökyüzü grafiği">
+                <figcaption>Konum bulunduğu andaki uydu durumu sekmesi: 31/41 uyduda sinyal var; dört uydu sisteminin (GPS/QZSS/GLONASS/BDS)
+                SNR sütun grafiği ve gökyüzü grafiği. Sütunların çoğunun 20'yi aşması, bir kısmının 40'a ulaşması —— "duymak" işte böyle görünür.</figcaption>
+            </figure>
+
+            <h4>Neden beklemek gerekir: soğuk başlangıcın fiziksel sınırı ve ölçülen süreler</h4>
+            <p>Konum bulmak için her uydunun hassas yörüngesi (efemeris) gerekir; efemeris ise uydunun
+            <strong>50 bps</strong> hızla yayınladığı sinyalin içinde saklıdır —— bir uydu için yaklaşık 18–30 saniye kesintisiz ve hatasız çözüm gerekir,
+            tek bir bit hatası her şeyi baştan başlatır, üstelik en az 4 uydu tamamlanmalıdır. "Soğuk başlangıcın" yavaş olmasının nedeni budur.
+            Bu cihazda ölçülen değerler (aynı konum, aktif anten, ölçüm çözünürlüğü ±5 saniye):</p>
+            <table>
+                <tr><th>Durum</th><th>İlk konum süresi (ölçülen)</th></tr>
+                <tr><td>Soğuk başlangıç (hiçbir yardım yok)</td><td><strong>95 saniye</strong></td></tr>
+                <tr><td>Soğuk başlangıç + AGNSS</td><td><strong>52 saniye</strong> (ayrıca yaklaşık 20 saniyede önden kaba bir konum gelir)</td></tr>
+                <tr><td>AGNSS + yakın tarihli efemeris kalıntısı (günlük tekrarlı kullanım)</td><td><strong>25 saniye</strong></td></tr>
+            </table>
+            <div class="tip">
+                <strong>Test sırasında sayfayı yenilemeyin.</strong> Bu aracın donanım tasarımında RTS = güç demektir;
+                sayfayı yeniden yüklemek = güç kesmek = tüm efemerisi kaybetmek, her şey soğuk başlangıçtan yeniden başlar.
+                Ara vermek isterseniz <code>AT+QGPSEND</code> gönderin, gücü kesmeyin.
+            </div>
+
+            <h4>AGNSS hızlandırma: eksiksiz akış</h4>
+            <p><strong>Prensip:</strong> AGNSS, efemerisi ağdan indirmeye çevirir (her seferinde yaklaşık 32–34 KB)
+            ve 50 bps'lik yavaş çözümü atlar. <strong>Uydu sinyalini yoktan var edemez</strong> ——
+            iç mekânda yine konum bulunamaz; kazandırdığı tek şey "efemeris bekleme" süresidir.</p>
+            <p>En kolay gözden kaçan iki ön koşul şunlardır; herhangi biri eksikse AGNSS <strong>sessizce hiçbir şey yapmaz, hata da vermez</strong>:</p>
+            <table>
+                <tr><th>Ön koşul</th><th>Komut</th><th>Tuzak</th></tr>
+                <tr><td>AGNSS etkin</td><td><code>AT+QAGPS=1</code></td>
+                    <td>⚠ <strong>Ancak yeniden başlatınca geçerli olur</strong> (NVRAM'e yazılır, bir kez ayarlamak yeter)</td></tr>
+                <tr><td>PDP etkin</td><td><code>AT+QIACT=1</code></td>
+                    <td>⚠ Her açılışta yeniden gönderilmelidir. <strong><code>AT+CGATT?</code> yanıtının 1 olması yetmez</strong> ——
+                        attach yalnızca ağ katmanı kaydıdır; veri kanalının var olması için <code>AT+QIACT?</code>
+                        sorgusunun <code>+QIACT: 1,1,…,"IP"</code> döndürmesi gerekir</td></tr>
+            </table>
+            <p>Eksiksiz sıra (her açılıştan sonra):</p>
+            <pre>AT+QIACT=1          ← veri kanalını aç (en fazla 150 saniye bekleyebilir; veri trafiği üretir)
+AT+QIACT?           ← mutlaka +QIACT: 1,1,…,"IP" görülmeli
+AT+QGPS=1           ← GNSS'i aç; AGNSS yardımcı veriyi bu anda otomatik indirir
+AT+QGPSLOC=2        ← her 5–10 saniyede bir yokla</pre>
+            <p><strong>AGNSS'in gerçekten çalıştığı nasıl anlaşılır?</strong> Bu cihazın yazılımı
+            <code>+QGPS: "agps"</code> benzeri bir bildirim <strong>göndermez</strong> (ölçümle doğrulandı); dolaylı kanıta bakmak gerekir, üçünden biri yeter:</p>
+            <ol>
+                <li><code>AT+QGDCNT?</code> sorgusunu <code>AT+QGPS=1</code> öncesinde ve sonrasında iki kez çalıştırın;
+                    alış yönü yaklaşık 30 KB artmışsa yardımcı veri indirilmiştir</li>
+                <li>GSV birkaç saniye içinde <strong>çok sayıda uydunun konumunu</strong> listeler (SNR'ler hâlâ 00 olabilir) ——
+                    bu konumlar indirilmiştir; kendi başına çözümle bu kadar hızlı olamaz</li>
+                <li><code>$GNGGA</code> içindeki saat alanı doludur (saat de yardımcı verinin bir parçasıdır)</li>
+            </ol>
+            <div class="warning">
+                <strong>Sahte konum tuzağı: sıfır uyduyla gelen koordinat, konum değildir.</strong>
+                AGNSS başladıktan yaklaşık 20 saniye sonra <code>AT+QGPSLOC</code> bir koordinat döndürebilir;
+                ama dikkatle bakın: <code>HDOP 0.00 / alt 0.0 / nsat 00</code> ——
+                bu, yardımcı verinin içindeki <strong>referans konum enjeksiyonudur</strong>; ölçüm sonucu değildir ve hatası çok büyük olabilir.
+                <br><br>
+                <strong>Gerçek konumun ölçütü: kullanılan uydu sayısı &gt; 0, konum modu ≥ 2, HDOP &gt; 0.</strong>
+                Otomasyon ya da ürün mantığı yazarken yalnızca "koordinat döndü mü" sorusuna bakamazsınız.
+            </div>
+
+            <h4>apflash: güç kesilip açılsa bile hızlı (koşullu)</h4>
+            <p><code>AT+QGPSCFG="apflash"</code> fabrikadan 1 gelir: her başarılı konumda efemeris
+            flash'a yazılır ve bir sonraki açılışta otomatik içe aktarılır —— bir saat içinde güç kesilip açılırsa soğuk başlangıç
+            hızlı bir sıcak başlangıca dönüşür, <strong>sıfır veri trafiğiyle</strong>. İki sınırı vardır: efemeris yaklaşık bir saatte geçersizleşir;
+            ayrıca <strong>önce en az bir kez başarılı konum alınmış olmalıdır</strong>, yoksa flash'ta içe aktarılacak bir şey yoktur ——
+            hiç konum bulamamış bir modüle apflash'ın faydası olmaz.</p>
+
+            <h4>Konum bulunduktan sonra: harita sekmesi</h4>
+            <p>Her başarılı <code>AT+QGPSLOC</code> sonucu harita sekmesine işlenir:
+            mavi işaretçi en son konumdur, camgöbeği çizgi hareket izidir; fare bir iz noktasının üzerine getirilince yerel saat ve yükseklik görünür.
+            Özet satırı koordinat/yükseklik/HDOP/uydu sayısını gösterir; saat, boylama göre yerel saat dilimine otomatik çevrilir.</p>
+            <figure class="shot">
+                <img src="img/21-map-track.png" alt="Harita sekmesi: konum izi">
+                <figcaption>Konum bulunduktan sonraki harita sekmesi: işaretçi = en son konum, camgöbeği çizgi = iz;
+                üstteki özet satırında koordinat, yükseklik, HDOP, kullanılan uydu sayısı ve yerel saat vardır.</figcaption>
+            </figure>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td><code>+CME ERROR: 505</code></td>
+                    <td>GNSS henüz açılmamış —— önce <code>AT+QGPS=1</code>.
+                        Her yeniden açılışta (sayfa yeniden yüklemesi dahil) tekrar açmak gerekir</td></tr>
+                <tr><td><code>+CME ERROR: 504</code></td><td>GNSS zaten açık; yalnızca tekrar açma denemesidir, zararsız</td></tr>
+                <tr><td>Hata 516 (NOT_FIXED_NOW)</td>
+                    <td>Henüz konum bulunmadı. GSV'de sinyal varsa (SNR ≥ 30) beklemeye devam edin;
+                        hepsi 00 ise sorun anten/ortam sorunudur, ne kadar beklerseniz bekleyin boşunadır</td></tr>
+                <tr><td>Sürekli NMEA akışı alınamıyor</td>
+                    <td>Fabrika <code>outport</code> değeri <code>usbnmea</code>'dır; sürekli akış USB portuna gider.
+                        AT portunda <code>AT+QGPSGNMEA</code> ile cümle cümle çekmek yeterlidir (önce
+                        <code>nmeasrc,1</code> gerekir, bu sayfadaki düğme hazırdır)</td></tr>
+                <tr><td>Zorla soğuk başlangıç için <code>AT+QGPSDEL</code></td>
+                    <td>⚠ Kullanmayın —— bu cihazın yazılımında <code>=?</code> sorgusu <code>(0-2)</code> döndürür
+                        ama üç parametrenin <strong>üçünü de reddeder</strong> (INVALID_PARA); resmi belgede de yer almaz.
+                        Soğuk başlangıç için: <code>apflash,0</code> + güç kesip açma (test bitince 1'e geri alın)</td></tr>
+                <tr><td>Ayarı değiştirdim, etkisi yok</td>
+                    <td><code>QAGPS</code> ancak yeniden başlatınca geçerli olur; <code>gnssconfig</code> (uydu sistemi bileşimi)
+                        de öyle. Değişiklikten sonra açılış prosedürünü bir kez çalıştırın</td></tr>
+            </table>
+
+            <h3 id="tab-tcpip">TCP/IP —— veri bağlantısının kökü</h3>
+            <p><strong>Çalışma prensibi:</strong> Bu sayfa tüm veri protokollerinin temelidir. <strong>PDP context
+            (mobil şebekenin tahsis ettiği veri kanalı) yalnızca bu sayfada etkinleştirilir ve kapatılır</strong>; SSL / HTTP / MQTT / FTP
+            sayfalarında yalnızca salt okunur sorgular vardır, böylece aynı komut iki yerden birbirini ezmez.
+            Bu bölümdeki tuzaklar ve süreler, Ağustos 2026'da gerçek cihazda ölçülmüştür.</p>
+            <figure class="shot">
+                <img src="img/03-tcpip.png" alt="TCP/IP sekmesi">
+                <figcaption>TCP/IP sayfası: PDP, socket alışverişi ve tanılama araçları.</figcaption>
+            </figure>
+
+            <h4>İlk adım: PDP'yi etkinleştirin (QICSGP / QIACT / QIDEACT)</h4>
+            <p><strong>Act PDP</strong>'ye basın (<code>AT+QIACT=1</code>): en fazla 150 saniye bloke eder;
+            bu sırada başka komut göndermeyin; bu andan itibaren trafik üretilir (dolaşımda ücrete dikkat). Başarıdan sonra <strong>mutlaka
+            Query IP</strong>'ye basıp (<code>AT+QIACT?</code>) yanıtın <code>+QIACT: 1,1,1,"IP adresi"</code> olduğunu doğrulayın
+            —— etkinleştirilmeden önce yalnızca OK döner. Kapatmak için <strong>Deact PDP</strong>'ye basın (<code>AT+QIDEACT=1</code>,
+            en fazla 40 saniye); altındaki tüm bağlantıları zorla kapatır. <strong>Set APN</strong>'e
+            (<code>AT+QICSGP</code>) normalde basmak gerekmez —— modül şebekenin verdiği APN'i kendiliğinden eşitler
+            (ölçümde 1NCE kartı açılışta zaten <code>iot.1nce.net</code> okundu); yalnızca kullanıcı adı/parola isteyen kurumsal APN'lerde gerekir.</p>
+            <div class="warning">
+                <strong>Act PDP ERROR döndü, Last Error 572 mi? Bu kart yalnızca tek PDP'ye izin veriyor.</strong>
+                Açılışta şebeke zaten bir tanesini kendiliğinden etkinleştirmiştir ve <strong>numarası oynaktır</strong> (ölçümde 9 da 1 de görüldü);
+                <code>AT+QIACT</code> yalnızca 1–8'e dokunabilir. Çözüm: Network sayfasında <code>AT+CGACT?</code> ile
+                numarayı bulun → <code>AT+CGACT=0,&lt;numara&gt;</code> ile kontenjanı boşaltın → sonra Act PDP'ye basın.
+                <br><br>
+                <strong>Testin ortasında her şey mi çöktü? <code>AT+QIACT?</code> yalan söyler</strong> —— PDP kaydığında
+                yine de IP döndürür; ancak <code>AT+CGACT?</code> ile çapraz karşılaştırınca görünür. Toparlanma:
+                Deact PDP → <code>AT+CGACT=0,&lt;kayılan numara&gt;</code> → Act PDP → Ping ile doğrulayın.
+            </div>
+
+            <h4>Bağlantı açma: OK yalnızca "komut alındı" demektir</h4>
+            <p><strong>Open TCP</strong>'ye basın, parametre kartına sunucu ile portu yazın
+            (<code>AT+QIOPEN=1,0,"TCP","sunucu",port,0,0</code>; context 1, connectID 0 ve
+            buffer modu sabitlenmiştir). <strong>OK yalnızca komutun alındığını gösterir</strong>; sonuç URC'den okunur:
+            <code>+QIOPEN: 0,&lt;err&gt;</code> —— 0 = başarı, en fazla 150 saniye;
+            <strong>563 = connectID hâlâ açık</strong>, önce Close Sock'a basın.
+            <strong>All Socks</strong> (<code>AT+QISTATE</code>) tüm socket'leri listeler;
+            state 2 = bağlı.</p>
+
+            <h4>Veri gönderme: üç yol</h4>
+            <table>
+                <tr><th>Düğme</th><th>Açıklama</th></tr>
+                <tr><td><strong>Send Text</strong><br><code>AT+QISEND=0,&lt;len&gt;</code></td>
+                    <td>Sabit uzunluklu iki aşamalı: <code>&gt;</code> beklenir, sonra gövde gönderilir; uzunluk kendiliğinden hesaplanır,
+                        <strong>Ctrl+Z gerekmez</strong>. Düz metin için ilk tercih; üst sınır 1460 bytes,
+                        <code>\n \r \t \xHH</code> kaçışları desteklenir</td></tr>
+                <tr><td><strong>Send Var üçlü düğme</strong><br><code>AT+QISEND=0</code></td>
+                    <td>Değişken uzunluklu: veri moduna girer ve almaya devam eder; Ctrl+Z (0x1A) görünce gönderir ——
+                        parça parça yazılabilir, bir sonraki paragrafa bakın</td></tr>
+                <tr><td><strong>Send Hex</strong><br><code>AT+QISENDEX=0,"hex"</code></td>
+                    <td>Tek satırlık, veri moduna girmez. Her baytı gönderebilir (0x00 dahil);
+                        hex üst sınırı 512 karakter = gerçekte 256 bytes</td></tr>
+            </table>
+            <p><strong>Gönder (sürdür)</strong>: ilk basış veri moduna girer, sonraki her basış bir parça ekler
+            (zaten veri modundayken komut yeniden gönderilmez; gönderilirse veri sayılır); <strong>gönderince kendiliğinden bitir</strong>
+            parçayı ekleyip Ctrl+Z'yi tamamlar, tek parça gönderirken en hızlısıdır; <strong>bitir (Ctrl+Z)</strong> birikmiş içeriği
+            tek seferde gönderir. Veri modundayken terminal bunu işaretler; vazgeçmek için
+            <strong>ESC Cancel</strong>'a basın (0x1B, iki aşamalı komut takıldığında kaçış tuşu).
+            ⚠ Veri 0x1A içeremez (erken bitirme sayılır); denetim karakterleri için Send Hex kullanın.</p>
+            <div class="tip">
+                <strong>SEND OK karşı tarafın aldığı anlamına gelmez</strong>; yalnızca verinin modüle teslim edildiğini gösterir.
+                <strong>Check ACK</strong>'e basıp (<code>AT+QISEND=0,0</code>) gönderilen / ACK'lenen miktara bakın;
+                <strong>ancak acked sayılır</strong>.
+            </div>
+
+            <h4>Veri alma: kendiliğinden görünmez, Read Data'ya basılır</h4>
+            <p>Buffer modunda gelen veri terminalde <strong>kendiliğinden görünmez</strong>: modül yalnızca
+            <code>+QIURC: "recv",0</code> bildirimi gönderir; <strong>Read Data</strong>'ya basıp
+            (<code>AT+QIRD=0,1500</code>) veriyi çekmek ve <strong><code>+QIRD: 0</code> dönene kadar
+            tekrar tekrar okumak</strong> gerekir —— tamamen boşaltılmazsa bir sonraki bildirim gelmez.
+            <strong>Unread Len</strong> (<code>AT+QIRD=0,0</code>) toplam alınan / okunan / okunmamış miktarı sorgular.
+            Alışveriş bitince <strong>Close Sock</strong>'a basın (<code>AT+QICLOSE=0</code>, en fazla 10 saniye).
+            ⚠ <strong>recv bildirimi hiç mi gelmiyor?</strong> Hardware sayfasında
+            <code>AT+QURCCFG="urcport"</code> yanıtının <code>uart1</code> olup olmadığına bakın ——
+            fabrika değeri USB portudur, URC'lerin hepsi oraya gider.</p>
+
+            <h4>Yerleşik karşı uç tcpbin.com'un iki huyu</h4>
+            <p>Open TCP'nin varsayılan karşı ucu ücretsiz echo sunucusu <code>tcpbin.com:4242</code>'dir;
+            ölçümle görülen iki huyu:</p>
+            <ul>
+                <li><strong>Satır satır echo, sonda satır sonu (0A) ister</strong>: 0A'sız Hello gönderilince 6 saniye
+                    yanıt gelmedi; 0A eklenince 0.1 saniyede geldi. Send Text sonuna <code>\n</code>,
+                    Send Hex sonuna <code>0A</code> ekleyin.</li>
+                <li><strong>15 saniye boşta kalma zaman aşımı</strong>: boşta kalınca bağlantı kesilir ve
+                    <code>+QIURC: "closed",0</code> alınır. Bunun QIRD ile ilgisi yoktur (o yalnızca yerel tamponu okur,
+                    ağa çıkmaz). Bağlantıyı yaşatmak için her 10 saniyede bir veri gönderin. closed alındıktan sonra socket closing durumunda kalır;
+                    yeniden kullanmadan önce <strong>mutlaka Close Sock'a basın</strong>, yoksa QIOPEN 563 döndürür.</li>
+            </ul>
+
+            <h4>Tanılama üçlüsü: Ping / DNS Lookup / NTP Sync</h4>
+            <table>
+                <tr><th>Düğme (hepsi önce Act PDP ister)</th><th>Davranış ve ölçüm</th></tr>
+                <tr><td><strong>Ping</strong><br><code>AT+QPING</code></td>
+                    <td>timeout 4 saniye ×4 sabittir. Ölçümde 8.8.8.8 tümüyle geçti, RTT 160–270 ms.
+                        ⚠ Birçok sunucu ICMP'yi engeller; <strong>ping geçmemesi TCP'nin bağlanamayacağı anlamına gelmez</strong>;
+                        bağlanabilirliği doğrudan Open TCP ile deneyin</td></tr>
+                <tr><td><strong>DNS Lookup</strong><br><code>AT+QIDNSGIP</code></td>
+                    <td>Sonuç URC olarak <code>+QIURC: "dnsgip"</code> ile bildirilir (en fazla 60 saniye);
+                        ölçümde iki parça hâlinde ve birden çok IP içeriyordu</td></tr>
+                <tr><td><strong>NTP Sync</strong><br><code>AT+QNTP</code></td>
+                    <td>En fazla 125 saniye, port 123 sabittir; sonucu URC <code>+QNTP</code>'den okuyun.
+                        ⚠ <strong>Saat UTC'dir ama yerel saat dilimi etiketi taşır</strong> (+32 çeyrek = GMT+8; ölçümde fark tam
+                        8 saatti); yerel saat için <code>AT+CCLK?</code> kullanın</td></tr>
+            </table>
+
+            <h4>Hata çıktı: önce Last Error, sonra 30 saniyelik ayırt etme</h4>
+            <p>Komut ERROR dönünce <strong>hemen</strong> <strong>Last Error</strong>'a basın
+            (<code>AT+QIGETERROR</code>) —— yalnızca son hatayı tutar; bir sonraki hata üzerine yazınca artık okunamaz.
+            Quectel yığın katmanını sorgular; ağ katmanı için Network sayfasındaki <code>AT+CEER</code> kullanılır.</p>
+            <div class="warning">
+                <strong>🔴 Veri yığını dejenerasyonu —— en çok zaman yakan çukur.</strong> Belirti: tüm bağlantılar istisnasız
+                başarısız, ama öz denetimlerin hepsi "sorun yok" diyor (QIACT? IP veriyor, QIGETERROR 0 dönüyor). Ölçümde SSL'i art arda
+                yaklaşık 20 kez açıp kapatınca tetiklendi; düz TCP'nin QIOPEN'ı bile 552 döndürdü; QIDEACT + QIACT kurtaramadı,
+                <strong>yalnızca açılış prosedürünü yeniden çalıştırmak düzeltir</strong>.<br><br>
+                <strong>30 saniyelik ayırt etme yöntemi</strong>: aynı hedefe Open TCP ile vurun —— o da başarısızsa = yığının tamamı
+                bozuk, açılış prosedürünü yeniden çalıştırın; başarılıysa = sorun üst katman protokolünde, aramaya devam edin.
+            </div>
+
+            <h4>Keepalive: operatör NAT'ına dayanır, tcpbin'e dayanmaz</h4>
+            <p><strong>QICFG=?</strong> alt maddeleri ve aralıkları listeler, <strong>Keepalive?</strong> güncel değeri sorgular,
+            <strong>Keepalive On / Off</strong> açar kapar —— bu dört komutun <strong>kendisi</strong> sıfır trafiktir;
+            etkinleştirildikten sonra boşta bekleyen bir socket olduğu sürece sondaj paketleri mobil trafiğe yazılır.
+            <strong>tcpbin'in 15 saniyelik zaman aşımını engelleyemez</strong>: ölçümde açıkken bile bağlantı 15.1 saniyede kapandı ——
+            keepalive TCP katmanının boş sondajıdır, uygulama onu görmez; üstelik interval'in en küçüğü 25 saniyedir,
+            zaten 15'ten büyüktür. Uygulama katmanı zaman aşımına dayanmanın tek yolu gerçek veri göndermektir (örn. her 10 saniyede Send Hex ile
+            <code>0A</code>). Gerçek kullanım alanı <strong>operatör NAT'ını canlı tutmaktır</strong>
+            (IoT kartlarında NAT birkaç dakika boşta kalınca geri alınır).</p>
+            <p>Trafik hesabı (<strong>tahmindir, ölçüm değil</strong>): bir sondaj gidiş-dönüşü yaklaşık 80 bytes;
+            varsayılan idle = 30 saniye kesintisiz boşta kalış → saatte yaklaşık 9.4 KB, günde yaklaşık 225 KB,
+            <strong>ayda yaklaşık 6.8 MB</strong>; idle = 600 saniye → günde yaklaşık 11 KB.
+            1NCE gibi toplam kotalı ön ödemeli kartlarda idle büyütülmelidir. Açık socket yoksa hiç trafik harcanmaz.</p>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td><code>+QIOPEN: 0,563</code></td>
+                    <td>connectID hâlâ açık —— önce Close Sock</td></tr>
+                <tr><td><code>+QIURC: "recv"</code> alınamıyor</td>
+                    <td>① urcport uart1 değil (Hardware sayfası)
+                        ② <code>+QIRD: 0</code> görünene kadar okunmamış, bildirim bastırılıyor</td></tr>
+                <tr><td>Aniden <code>+QIURC: "closed",0</code> beliriyor</td>
+                    <td>tcpbin'in 15 saniyelik boşta kalma zaman aşımı; Close Sock'tan sonra yeniden açılabilir</td></tr>
+                <tr><td>İki aşamalı komut takıldı, AT portu yanıt vermiyor</td>
+                    <td>ESC Cancel ile kaçın; olmazsa Hardware sayfasından Reset</td></tr>
+                <tr><td>Tüm bağlantılar başarısız ama öz denetimler yemyeşil</td>
+                    <td>Veri yığını dejenerasyonu —— ayırt etme testinden sonra açılış prosedürünü yeniden çalıştırın</td></tr>
+                <tr><td>Act PDP ERROR dönüyor ya da testin ortasında her şey çöküyor</td>
+                    <td>Tek PDP kontenjanı kapılmış / PDP kayması —— "İlk adım" bölümündeki iki ayıklama kutusuna bakın</td></tr>
+            </table>
+
+            <h3 id="tab-mqtt">MQTT —— IoT mesajlaşması</h3>
+            <p><strong>Çalışma prensibi:</strong> MQTT, "broker (mesaj aracı sunucusu)" temelli bir protokoldür:
+            cihazlar birbirine doğrudan bağlanmaz; her biri broker'a bağlanır ve "konulara (topic)" mesaj yayınlar ya da abone olur.
+            EG800K'de iki katmanlıdır: önce <code>AT+QMTOPEN</code> ile "ağ bağlantısı" açılır (broker'a TCP),
+            sonra <code>AT+QMTCONN</code> ile "MQTT oturumu" açılır; abone olmak ve yayınlamak için iki katman da geçmiş olmalıdır.
+            Önce şunu ezberleyin: <strong>MQTT komutlarının sonuçları hep "önce OK, sonra URC" düzenindedir</strong> (FTP ile aynı) ——
+            <code>OK</code> yalnızca komutun alındığını gösterir; başarı ya da başarısızlık sonraki sonuç URC'sinden okunur.</p>
+            <p>Bu sayfa sabit olarak client 0 kullanır; firmware ayrıca çoklu client (0–5), SSL ve bulut platformu kimlik doğrulamasını destekler
+            (<code>=?</code> ile ölçümde doğrulandı); ileri kullanım için MQTT uygulama notuna bakın.</p>
+
+            <h4>Başlamadan önce: iki ön koşul</h4>
+            <ol>
+                <li><strong>URC UART'tan gelmeli</strong>: <code>AT+QURCCFG="urcport"</code> yanıtı
+                    <code>"uart1"</code> olmalıdır. Fabrika değeri <code>"usbat"</code>'tır; MQTT'nin sonuçlarının hepsi URC'dir ——
+                    değiştirilmezse <strong>her komut yalnızca OK döner, devamı gelmez</strong>
+                    (Basic sayfasında düğmesi var; NVRAM'e yazılır, bir kez değiştirmek yeter).</li>
+                <li><strong>PDP önce etkinleştirilmeli</strong>: önce TCP/IP sayfasında <code>AT+QIACT=1</code>'e basın
+                    (en fazla 150 saniye); açık değilse <code>+QMTOPEN</code> <strong>3 = PDP etkinleştirme başarısız</strong> döndürür.
+                    Süreç boyunca veri trafiği üretilir; tahmini yaklaşık 5 KB.</li>
+            </ol>
+
+            <h4>Nasıl test edilir: dört ücretsiz açık broker</h4>
+            <p><code>AT+QMTOPEN</code>'ın parametre kartında yerleşik bir broker açılır listesi vardır (elle yazmak da serbesttir);
+            dördü de anonime izin verir, kayıt gerekmez. Veriler Ağustos 2026 ölçümüdür (PC'den 100 mesajlık salvo, modülden ping):</p>
+            <table>
+                <tr><th>Broker</th><th>100 mesajlık salvo</th><th>Modülden ping</th><th>Not</th></tr>
+                <tr><td><strong>mqttgo.io</strong> (varsayılan)</td><td><strong>100/100</strong></td>
+                    <td><strong>190–210 ms</strong></td><td>Tayvan HiNet; 1883 düz metin / 8883 TLS</td></tr>
+                <tr><td>broker.hivemq.com</td><td>100/100</td><td>ICMP engelli</td>
+                    <td><code>AT+QPING</code> 559 dönerse telaşlanmayın —— ölçümde dördünün de TCP 1883'ü açıktı;
+                        erişilebilirliği doğrudan <code>AT+QMTOPEN</code> ile test edin</td></tr>
+                <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+                    <td>Kendi sitesi "önemli işler için kullanmayın" der; konu kirliliği en ağır olanı</td></tr>
+                <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>ICMP engelli</td>
+                    <td><strong>Yayın hız sınırı var</strong>; web Dashboard'u var</td></tr>
+            </table>
+            <p>Bu dördü de <strong>tümüyle açıktır</strong>: herkes sizin konunuza abone olabilir,
+            başkalarının mesajları da araya karışabilir —— rastgele son ekin çözdüğü sorun tam olarak budur.</p>
+
+            <h4>client ID ve konudaki rastgele son ek: her sayfa yenilemesinde değişir</h4>
+            <p>client ID ile varsayılan konu sabit yazılmamıştır: sayfa yüklenirken 6 onaltılık karakterlik bir son ek üretilir ve
+            <code>numodem-&lt;sonek&gt;</code> ile <code>test/numodem-&lt;sonek&gt;</code> oluşturulur;
+            Subscribe / Publish / Unsub üç düğmesi aynı takımı paylaşır (yoksa geri döngü tutmaz). İki gerekçesi var:</p>
+            <ul>
+                <li><strong>Ad çakışması hattan attırır</strong>: MQTT 3.1.1 §3.1.4, broker'ın önce bağlanmış olanı
+                    düşürmesini emreder —— iki kişi aynı sabit ID'yi kullanınca birbirlerini düşürürler; belirti "modül nedensiz kopuyor" gibi görünür.</li>
+                <li><strong>Sabit konu başkalarının mesajını getirir</strong>: kendi gönderdiğinizi aldığınızı sanırsınız ama değildir ——
+                    bu, hiç alamamaktan daha kötüdür; sahte bir "geçti" verir.</li>
+            </ul>
+            <div class="warning">
+                <strong>⚠ Sayfa her yenilendiğinde son ek değişir ——
+                abonelik ve yayın aynı sayfa yaşam döngüsü içinde bitirilmelidir.</strong>
+                Kaldı ki bu araçta RTS = güç; sayfayı yeniden yüklemek = modülün gücünü kesmek demektir; MQTT bağlantısı komple gider,
+                açılış prosedüründen ve <code>AT+QMTOPEN</code>'dan yeniden başlamak gerekir.
+            </div>
+
+            <h4>Tam akış: bağlan → abone ol → yayınla → kendi mesajını geri al</h4>
+            <p>En inandırıcı doğrulama <strong>geri döngüdür</strong>: abone olduktan sonra aynı konuya yayınlayıp
+            kendi mesajınızı geri almak, tüm alışveriş zincirini tek seferde sınar. Her adımda sonuç URC'sini bekleyip öyle ilerleyin:</p>
+            <ol>
+                <li><strong>Protokol sürümünü ayarlayın</strong>: Ver 3.1.1'e basın (<code>AT+QMTCFG="version",0,4</code>;
+                    3 = 3.1, 4 = 3.1.1). Version? güncel değeri sorgular (değersiz = sorgu).
+                    Keepalive parametre kartı canlı tutma aralığını ayarlar; ayarlamadan da test edilebilir.</li>
+                <li><strong>Ağı açın</strong>: Open Net'e basın (<code>AT+QMTOPEN=0,"broker",1883</code>).
+                    Önce <code>OK</code> döner; sonuç URC'den okunur: <code>+QMTOPEN: 0,&lt;result&gt;</code>
+                    (0 = başarı), en fazla 120 saniye bekleyin. Open? açık bağlantıları sorgular
+                    (bağlantı yokken boş <code>OK</code> döner; ölçümde normal).</li>
+                <li><strong>MQTT oturumu</strong>: Connect'e basın (<code>AT+QMTCONN=0,"numodem-&lt;sonek&gt;"</code>).
+                    Başarı URC'si her zaman <code>+QMTCONN: 0,0,0</code>'dır. Açık broker'lar kimlik istemez;
+                    kimlik gerektiğinde parametrelerin sonuna kendiniz <code>,"user","pass"</code> ekleyin.
+                    Conn? durumu sorgular (1 = başlangıç, 2 = bağlanıyor, 3 = bağlı, 4 = kopuyor).</li>
+                <li><strong>Abone olun</strong>: Subscribe'a basın (<code>AT+QMTSUB=0,1,"test/numodem-&lt;sonek&gt;",0</code>,
+                    msgid sabit 1). Başarı URC'si <code>+QMTSUB: 0,1,0,0</code> biçimindedir.
+                    Artık bu konunun mesajları <code>+QMTRECV</code> URC'si olarak gelir.</li>
+                <li><strong>Yayınlayın</strong>: Publish'e basın (<code>AT+QMTPUBEX</code>, iki aşamalı, bir sonraki paragrafa bakın).
+                    Başarı URC'si <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code>'dır.</li>
+                <li><strong>Geri alın</strong>: yayın hedefi zaten abone olunan konudur; hemen ardından
+                    <code>+QMTRECV</code> konuyla birlikte az önceki mesaj gövdesini getirir —— geri döngü başarılı.
+                    Latin dışı payload da kesilmez, bozulmaz.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="MQTT sekmesi">
+                <figcaption>MQTT sayfası: broker açılır listesi, bağlantı, abonelik ve yayın; varsayılan değerler rastgele son ekle gelir.</figcaption>
+            </figure>
+
+            <h4>QMTPUBEX iki aşamalı: uzunluk dolunca kendiliğinden gönderir, Ctrl+Z gerekmez</h4>
+            <p><code>AT+QMTPUBEX</code>'in son parametresi <strong>uzunluktur (bayt sayısı), mesaj içeriği değildir</strong>
+            (MQTT uygulama notu §3.3.8 dosyayı kapatır —— mesajı tek satıra gömme denemesi her zaman ERROR döndürür).
+            Doğru akış iki aşamalıdır: komutu gönder → modül <code>&gt;</code> istemini döndürür → tam N bayt gönder;
+            modül <strong>uzunluk dolunca kendiliğinden gönderir, Ctrl+Z gerekmez</strong>
+            (TCP sayfasındaki <code>AT+QISEND</code>'in veri modundan farklıdır).
+            Publish düğmesi tümüyle otomatiktir: parametre kartına mesaj içeriğini yazmanız yeter;
+            uzunluk UTF-8 bayt sayısından kendiliğinden hesaplanır (Latin dışı bir karakter 3 bayt olabilir; ölçümde iki karakterlik bir örnek → 6).</p>
+            <ul>
+                <li>Payload'lu komutlarda <strong>"komut satırına aktar" sunulmaz</strong> —— komut satırı gönderirken hep satır sonu ekler;
+                    o CR uzunluğa dahil olur ve hizayı bozar; düğmeyle gönderin.</li>
+                <li>Firmware'de ayrıca <code>AT+QMTPUB</code> vardır (veri modu türevi, Ctrl+Z ile biter) ——
+                    bu araç her zaman <code>QMTPUBEX</code> kullanır; iki takımı birden öğrenmeniz gerekmez.</li>
+            </ul>
+
+            <h4>Sonuç kodlarını yorumlamak: her komutun değer alanı farklıdır</h4>
+            <div class="warning">
+                <strong>A komutunun sonuç kodu tablosunu B komutuna uygulamayın.</strong>
+                <code>+QMTOPEN</code>'ın 3'ü "PDP etkinleştirme başarısız" demektir;
+                <code>+QMTPUBEX</code>'te 3 diye bir değer hiç yoktur.
+                <br><br>
+                En kolay yanlış okunan <code>+QMTCONN: 0,1</code>'dir ——
+                <strong>sorgu yanıtındaki "durum 1 = başlatılıyor" da olabilir, yazma sonucundaki "paket yeniden iletiliyor" da</strong>.
+                Tek satırdan ayırt edilemez; bu yüzden bu araç iki okumayı yan yana gösterir, körlemesine tahmin etmez.
+            </div>
+            <p>Tabloyu ezberlemeniz gerekmez: <code>+QMTOPEN</code>'dan <code>+QMTRECV</code> / <code>+QMTSTAT</code>'a kadar
+            tüm sonuç URC'lerine terminal alanı, MQTT uygulama notu v1.5'in yedi karşılaştırma tablosuna göre alan alan sade açıklama düşer.</p>
+
+            <h4>Çevrimdışına geçiş ve kapanış</h4>
+            <ul>
+                <li><strong>Yalnızca mesaj alımını durdurmak, bağlantıyı korumak</strong>: Unsub'a basın
+                    (<code>AT+QMTUNS=0,2,"konu"</code>, msgid sabit 2).</li>
+                <li><strong>Düzgün çevrimdışı olmak</strong>: Disconnect'e basın (<code>AT+QMTDISC=0</code>,
+                    MQTT DISCONNECT gönderir); <code>+QMTDISC: 0,0</code> döner.
+                    <strong>Sonrasında Close Net'e basmak gerekmez</strong> —— <code>AT+QMTCLOSE=0</code>,
+                    "QMTDISC başarısız oldu, ağ katmanı takıldı" durumunda zorla kapatmak içindir.</li>
+            </ul>
+            <p>Sizin basmadığınız kopmalar (atılma, keepalive zaman aşımı, ağ kesintisi) <code>+QMTSTAT</code>
+            anormal kopma URC'siyle bildirilir (örn. <code>+QMTSTAT: 0,5</code>; terminal alanı nedenini açıklar);
+            bu durumda <code>AT+QMTOPEN</code>'dan yeniden başlamak gerekir.</p>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td>Her komut OK dönüyor, sonra hiçbir şey gelmiyor</td>
+                    <td>URC'ler USB portuna gidiyor —— <code>urcport</code> fabrikada <code>usbat</code>'tır,
+                        <code>uart1</code>'e geçirin (bkz. ön koşul 1)</td></tr>
+                <tr><td><code>+QMTOPEN: 0,3</code></td>
+                    <td>PDP etkinleştirme başarısız —— önce <code>AT+QIACT=1</code> (TCP/IP sayfası), sonra yeniden deneyin</td></tr>
+                <tr><td>Abone oldum ama kendi yayınladığım mesaj gelmiyor</td>
+                    <td>Arada sayfa yenilenmiş —— son ek değişti, modül de güç kesilip yeniden açıldı.
+                        Aynı sayfa yaşam döngüsü içinde akışı baştan çalıştırın</td></tr>
+                <tr><td>Kendi göndermediğim mesajlar geliyor</td>
+                    <td>Açık broker'da konu kirliliği (en ağırı mosquitto). Varsayılan konu zaten rastgele son ekli;
+                        özel konu seçerken benzersiz ad kullanın</td></tr>
+                <tr><td>Yoğun yayında mesajların bir kısmı düşüyor</td>
+                    <td>emqx'te yayın hız sınırı var (ölçümde 100'lük salvodan yalnızca 40'ı geçti) ——
+                        mqttgo.io ya da hivemq'ya geçin (100/100, sınırsız)</td></tr>
+                <tr><td>Çok bekliyorum, sonuç URC'si gelmiyor</td>
+                    <td>Bu aile zaten yavaştır: <code>QMTOPEN</code> en fazla 120 saniye,
+                        <code>QMTCONN</code> / <code>QMTSUB</code> / <code>QMTPUBEX</code> en fazla 600 saniye
+                        (PUBEX = paket zaman aşımı 60 saniye × 10 deneme); düğme açıklamalarında yazılıdır, donma değildir</td></tr>
+            </table>
+
+            <h3 id="tab-wifi">WiFiScan —— Wi-Fi taraması ve ağ tabanlı konumlandırma</h3>
+            <p><strong>Çalışma prensibi:</strong> EG800K bir LTE modülüdür, <strong>Wi-Fi ile internete çıkamaz</strong>;
+            ama içinde "yalnızca tarayan, bağlanmayan" bir Wi-Fi alıcısı vardır: çevredeki 2.4GHz erişim noktalarının yayınladığı
+            beacon çerçevelerini edilgen biçimde alır ve her erişim noktasının MAC adresini (BSSID), RSSI'sini (sinyal gücü) ve kanalını bildirir.
+            Tarama saf RF alımıdır, <strong>sıfır veri trafiği</strong>; kendi başına koordinat üretmez ——
+            MAC + RSSI listesini buluttaki erişim noktası konum veritabanına gönderip sorgulamak gerekir; enlem-boylam ancak öyle gelir.
+            <strong>İç mekânda da çalışan, uyduya dayanmayan</strong> ağ tabanlı konumlandırma budur.
+            Bu bölümdeki tüm sayılar ve davranışlar, Ağustos 2026'da gerçek bir EG800K üzerinde ölçülmüştür.</p>
+
+            <h4>Bu sayfanın iki düğme grubu</h4>
+            <p>Üst yarı <strong>Wi-Fi Scan</strong> dört düğme (saf tarama), alt yarı
+            <strong>QuecLocator (QLBS)</strong> on üç düğme (basmadan önce ilerideki gerçekler bölümünü okuyun):</p>
+            <table>
+                <tr><th>Düğme</th><th>Komut</th><th>İşlevi ve ölçüm notu</th></tr>
+                <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>Parametre aralıklarını sorgular. Bu cihazın gerçek yanıtı
+                        <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+                <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+                    <td>Güncel parametreleri okur. Bu cihazın fabrika değeri <code>12000,1,5,5,0</code> =
+                        süre 12 saniye, 1 tur, erişim noktası üst sınırı 5, RRC zaman aşımı 5 saniye, öncelik 0</td></tr>
+                <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+                    <td>Güncel parametrelerle bir kez tarar. Sonuçlar <code>OK</code>'den sonra <strong>eşzamansız</strong> bildirilir;
+                        en fazla 13 saniye bekleyin</td></tr>
+                <tr><td>Scan (custom)</td><td>parametre kartı</td>
+                    <td>Süre (milisaniye) / tur sayısı / erişim noktası üst sınırı / RRC zaman aşımı / öncelik ayarlanıp taranır</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="WiFiScan sekmesi ve QuecLocator grubu">
+                <figcaption>WiFiScan sayfası: dört tarama düğmesi ve QuecLocator (QLBS) grubu.</figcaption>
+            </figure>
+
+            <h4>İlk tarama: nasıl basılır, ne görürsünüz</h4>
+            <ol>
+                <li><strong>Açılış prosedürünü çalıştırın</strong> (bkz. "Açılış Prosedürü" bölümü).</li>
+                <li><strong>URC'lerin UART'tan geldiğini doğrulayın</strong>: <code>AT+QURCCFG="urcport"</code> yanıtı
+                    <code>"uart1"</code> olmalıdır. Fabrika değeri <code>"usbat"</code>'tır ——
+                    tarama sonuçlarının hepsi USB portuna gider; burada yalnızca <code>OK</code> görünür,
+                    TIMEOUT bile gelmez (ayar NVRAM'e yazılır, bir kez değiştirmek yeter).</li>
+                <li><strong><code>Scan</code>'e basın</strong>: modül önce <code>OK</code> döndürür;
+                    bu "tarama başladı" demektir, <strong>sonuç değildir</strong>. Birkaç saniye içinde (en geç tarama süresi dolunca)
+                    sonuçlar satır satır gelir; her satıra otomatik açıklama düşer (MAC / RSSI / kanal).</li>
+            </ol>
+
+            <h4>Tarama sonucunu yorumlamak</h4>
+            <p>Ölçümdeki bildirim şöyle görünür (2026-08-29, 7 erişim noktası bulundu, RSSI -37 ~ -89 dBm):</p>
+            <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+            <p>Alan sırası <code>(ecn, ssid, rssi, mac, channel)</code> biçimindedir.
+            <strong>Bu cihazın firmware'i ecn ile ssid için her zaman <code>-</code> döndürür</strong> (2026-08-02 ölçümü);
+            listede "bu kimin Wi-Fi'si" görünmez ——
+            konumlandırma için tam yeterlidir; veritabanının yediği zaten MAC + RSSI'dir.
+            RSSI sezgisi: -30 ~ -50 çok yakın, -60 ~ -75 orta, -80 altı çok zayıf.</p>
+            <p>Süre içinde tek erişim noktası bile bulunamazsa <code>+QWIFISCAN:TIMEOUT</code> döner ——
+            <strong>normal bitiştir, hata değildir</strong> (iki noktadan sonra boşluk yoktur; bu aracın çözümleyicisi bunu ele alır).
+            Daha çok nokta yakalamak için: parametre kartından erişim noktası üst sınırını fabrikadaki 5'ten yükseltin (bu cihazda en çok 10),
+            tur sayısını 2-3'e çıkarın (ölçümde turlar arası sonuçlar tekilleştiriliyor).</p>
+            <div class="warning">
+                <strong>Bulunan her erişim noktası konumlandırmada kullanılamaz.</strong> 2026-08-29 ölçümünde 7 noktadan
+                4'ü "yerel yönetimli adres"ti (<code>C2:</code> / <code>62:</code> / <code>9E:</code>
+                ile başlayan; ilk baytın 0x02 biti 1 —— çoklu SSID kopyalarının sanal BSSID'si);
+                <strong>konum veritabanları bu adresleri genellikle doğrudan yok sayar</strong>; işe yarar malzeme yalnızca 3 küresel adresti.
+            </div>
+            <div class="warning">
+                <strong>Uygulama belgesi V1.2'nin parametre aralıkları bu cihaz için yanlıştır.</strong>
+                Belge tur sayısını 1-6'ya, erişim noktası üst sınırını 4-30'a genişletir; ama bu cihazın firmware'inin gerçek yanıtı hâlâ
+                <strong>tur 1-3, erişim noktası üst sınırı 4-10</strong> (2026-08-06 ölçümü).
+                <code>Support?</code> düğmesinin gerçek yanıtını esas alın; belgedeki sayıları kopyalamayın.
+            </div>
+
+            <h4>QuecLocator (QLBS) düğme grubu: basmadan önce gerçeklere bakın</h4>
+            <p>QuecLocator, Quectel'in bulut konumlandırma hizmetidir: <code>AT+QLBS</code> (<code>Locate</code>
+            düğmesi) tek komuttur; malzemeyi firmware kendisi toplar, sunucuya gönderip veritabanına baktırır, koordinat döndürür. Üç gerçek:</p>
+            <ol>
+                <li><strong>Token ister ve ücretli bir hizmettir.</strong> Resmi belge, başvurunun Quectel
+                    teknik desteğiyle iletişim kurularak yapılacağını açıkça yazar (öz kayıt yoktur). Bu cihazda token fabrikadan boştur.</li>
+                <li><strong>16 resmi EG800K belgesinin hiçbiri QuecLocator'dan söz etmez.</strong>
+                    Eldeki uygulama belgesi EC200U / EG915U içindir (sözdizimi ve hata kodları ölçümle uyuştu);
+                    bu cihazın resmi belgesi değildir.</li>
+                <li><strong>Bu proje kullanmamaya karar verdi</strong> (2026-08-29): konumlandırma mantığı firmware'e kilitlidir;
+                    hizmet kapanırsa AT komutunun tamamı geçersizleşir, sağlayıcı değiştirilemez
+                    (Quectel forumu BG95 serisinde desteğin durdurulduğunu doğruladı).
+                    Düğmeler yalnızca "ücretsiz token bulunursa elden doğrulama" için tutuldu.</li>
+            </ol>
+            <div class="warning">
+                <strong><code>+QLBS: 702</code> "sunucu zaman aşımı"dır, token sorunu değildir.</strong>
+                Bu proje 702'yi tam üç hafta "token yok" diye yanlış okudu —— gerçek şuydu: PDP önceden etkinleştirilmemişti,
+                modül sunucuya hiç ulaşamıyordu; zaman aşımı dolunca (fabrika 60 saniye) 702 dönüyordu.
+                2026-08-29 karşılaştırmalı deney (token baştan sona boş):
+                PDP kapalıyken <code>702</code>, açıkken <code>10002</code> (token yok) döndü ——
+                <strong>sunucuya Tayvan'dan ulaşılabiliyor; eksik olan yalnızca token</strong>.
+                <code>AT+QLBS</code> göndermeden önce mutlaka <code>AT+QIACT=1</code> (trafik üretir).
+            </div>
+            <p>Yedi yapılandırma alt maddesinin sorgu / ayar düğmeleri vardır; <code>Cfg?</code> (<code>AT+QLBSCFG=?</code>)
+            tüm aralıkları tek tuşla listeler (sıfır trafik). Bu cihazın fabrika değerleri ve ölçüm notları:</p>
+            <table>
+                <tr><th>Alt madde (düğme)</th><th>Fabrika değeri</th><th>Ölçüm notu</th></tr>
+                <tr><td><code>token</code> (Set Token / Token?)</td><td>boş</td>
+                    <td>Geri okunduğunda hep <code>*</code> ile maskelenir; ayarlama yolunun çalıştığı ölçüldü</td></tr>
+                <tr><td><code>server</code> (Server? / Set Server)</td>
+                    <td><code>www.queclocator.com:80</code></td><td>Konum sunucusunun adresi</td></tr>
+                <tr><td><code>timeout</code> (Timeout? / Set Timeout)</td><td>60 saniye</td>
+                    <td>702'nin beklediği zaman aşımı tam da budur; aralık 10-120</td></tr>
+                <tr><td><code>asynch</code> (Async? / Set Async)</td><td>0</td>
+                    <td>Eşzamanlı / eşzamansız geçişi</td></tr>
+                <tr><td><code>latorder</code> (LatOrder?)</td><td>0</td>
+                    <td>Enlem-boylam çıktı sırası. ⚠ Ayarda küçük harfli anahtar kullanılır, geri okuma ise deve notasyonu <code>latOrder</code></td></tr>
+                <tr><td><code>withtime</code> (WithTime?)</td><td>0</td>
+                    <td>Yanıta saat eklensin mi; geri okuma anahtarı <code>withTime</code></td></tr>
+                <tr><td><code>timeupdate</code> (TimeUpd?)</td><td>0</td>
+                    <td>Konum sonucuyla modül saati düzeltilsin mi; geri okuma anahtarı <code>timeUpdate</code></td></tr>
+            </table>
+            <p>Token gerçekten elinize geçerse: <code>Set Token</code> ile girin → <code>Token?</code>
+            ile doğrulayın (<code>*</code> görünür) → TCP/IP sayfasından PDP'yi etkinleştirin → <code>Locate</code>.</p>
+
+            <h4>Alternatif rota: token'sız ağ konumlandırma (ölçüm: 71 metre)</h4>
+            <p>Ağ tabanlı konumlandırma için QuecLocator şart değildir. Alternatif rota 2026-08-29'da uçtan uca doğrulandı:
+            modül yalnızca malzeme üretir (bu sayfadan erişim noktası taraması, <code>AT+QENG="servingcell"</code> ile baz istasyonu okuma),
+            terminal çıktısı dosyaya kaydedilip <code>tools/wifi_geolocate.py</code> ile PC'de açık veritabanlarına sorulur ——
+            <strong>modülde sıfır trafik, Quectel hizmeti gerekmez</strong>.
+            Ölçüm (aynı günkü GNSS gerçek değeriyle karşılaştırıldı): baz istasyonu sorgusunda Unwired Labs (ücretsiz kayıt) <strong>hata
+            71 metre</strong> (konumlandırma hattının kapanış sonucu), beaconDB (anahtarsız) 632 metre;
+            Wi-Fi sorgusu ise sağlayıcıya takıldı —— ücretsiz ekosistem çökmüş durumda (beaconDB'nin bu bölgede kapsaması yok,
+            Unwired Labs ücretsiz planı Wi-Fi içermiyor, Google / HERE kart bağlamayı şart koşuyor); askıya alındı.</p>
+            <div class="tip">
+                <strong>71 metre bir "tablo isabeti"dir, "ölçüm hassasiyeti" değildir.</strong>
+                Baz istasyonu konumlandırması, Cell ID ile o istasyonun kayıtlı koordinatını bulur; aynı hücre hep aynı noktayı döndürür ——
+                istasyon değişince hata kilometre düzeyine çıkabilir; hizmetin kendi bildirdiği ±1051 metre daha dürüst bir tahmindir.
+                Ayrıca Cell ID ile TAC <strong>onaltılıktır</strong>;
+                sorgudan önce ondalığa çevrilmelidir (araç bunu kendiliğinden yapar).
+            </div>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td><code>Scan</code> yalnızca <code>OK</code> dönüyor, sonuç hiç gelmiyor</td>
+                    <td>URC'ler USB portuna gidiyor —— <code>AT+QURCCFG="urcport"</code> ile sorgulayın,
+                        <code>"uart1"</code> değilse değiştirin (NVRAM'e yazılır)</td></tr>
+                <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+                    <td>Süre içinde erişim noktası bulunamadı; normal bitiştir, hata değildir. Yer değiştirin ya da süreyi uzatın</td></tr>
+                <tr><td><code>+QLBS: 702</code></td>
+                    <td>Sunucu zaman aşımı —— neredeyse hep <code>AT+QIACT=1</code> unutulmuştur, token sorunu değildir</td></tr>
+                <tr><td><code>+QLBS: 10002</code></td>
+                    <td>Token yok —— Quectel'den ücretli alınması gerekir; bu proje kullanmamaya karar verdi,
+                        yukarıdaki alternatif rotaya geçin</td></tr>
+                <tr><td><code>AT+QCELLLOC</code> kullanmak istiyorum</td>
+                    <td>Bu cihaz <strong>desteklemez</strong> (ERROR döner) —— o, EC2x serisinin komutudur</td></tr>
+            </table>
+
+            <h3 id="tab-ssl">SSL —— TLS tüneli</h3>
+            <p><strong>Çalışma prensibi:</strong> SSL sayfası, şifreli bağlantıların <strong>ortak alt katmanıdır</strong> ——
+            burada ayarlanan SSL context ve yüklenen sertifikalar, SSL raw socket'e, MQTT over SSL'e
+            ve HTTPS'e birlikte hizmet eder. Bu bölümdeki süreler ve davranışlar, Ağustos 2026'da gerçek bir EG800K üzerinde ölçülmüştür.</p>
+
+            <h4>İlk TLS bağlantısı: beş adım</h4>
+            <ol>
+                <li><strong>Açılış prosedürünü çalıştırın</strong> (bkz. "Açılış Prosedürü" bölümü), sonra
+                    <code>AT+QIACT?</code> ile veri kanalını doğrulayın —— yanıt
+                    <code>+QIACT: 1,1,…,"IP"</code> gelmelidir; gelmiyorsa önce <code>AT+QIACT=1</code>.</li>
+                <li><strong>Context'i ayarlayın</strong>: <code>sslversion</code> için 4 (tüm sürümler,
+                    en iyi uyumluluk), <code>ciphersuite</code> için 0XFFFF (tüm takımlar),
+                    <code>seclevel</code> için önce 0 —— önce tünelin geçtiğini doğrulayın; doğrulamayı sonraya bırakın.</li>
+                <li><strong>Bağlantıyı açın</strong>: <code>AT+QSSLOPEN</code>'a basın (son parametre 0), parametre kartına
+                    sunucu ile portu yazın. ⚠ <code>OK</code> yalnızca "komut alındı" demektir; sonuç URC'den beklenir:
+                    <code>+QSSLOPEN: 4,0</code> başarıdır (ölçülen el sıkışma 2.0 saniye).</li>
+                <li><strong>Veri gönderin</strong>: <code>AT+QSSLSEND</code>'e basın (iki aşamalı) ——
+                    <code>&gt;</code> görünce gövdeyi gönderin; <strong>bildirilen uzunluk dolunca kendiliğinden gönderir,
+                    Ctrl+Z gerekmez</strong> (tek paket üst sınırı 1460 bytes). Karşı taraf yanıt verince
+                    <code>+QSSLURC: "recv",4</code> gelir.</li>
+                <li><strong>Okuma ve kapatma</strong>: <code>AT+QSSLRECV</code> (tek seferde en çok 1500);
+                    <code>+QSSLRECV: 0</code> okumak "tamamen boşaltıldı" demektir, hata değildir.
+                    <code>AT+QSSLCLOSE=4</code> kapatır (varsayılan en fazla 10 saniye bekler;
+                    öbür düğme saniye belirtir, 0 = anında).</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2.0 saniye, 0 = başarı
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← 15 bytes dolunca kendiliğinden gönderilir
+SEND OK
++QSSLURC: "recv",4        ← 0.4 saniye
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>Bağlantı sürerken <code>AT+QSSLSTATE</code> ile tüm bağlantılara bakabilirsiniz (<code>=4</code>
+            tek clientID'yi sorgular; durum 2 = bağlı). Dikkat: <strong>yerel port hep 0 döner</strong> ——
+            modül davranışıdır, hata değildir.</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="SSL sekmesi">
+                <figcaption>SSL sayfası: context ayarları, UFS sertifika yükleme, bağlantı, alışveriş, kapatma.</figcaption>
+            </figure>
+
+            <h4>Üç erişim modu (<code>AT+QSSLOPEN</code> son parametresi)</h4>
+            <table>
+                <tr><th>Son parametre</th><th>Davranış</th></tr>
+                <tr><td>0 tamponlu</td><td>Veri gelince yalnızca <code>+QSSLURC: "recv",&lt;id&gt;</code> bildirir;
+                    <code>AT+QSSLRECV</code> ile kendiniz okursunuz</td></tr>
+                <tr><td>1 doğrudan itme</td><td>URC uzunluk da taşır, <strong>veri hemen alt satıra dökülür</strong>;
+                    ⚠ bu modda <code>AT+QSSLRECV</code>'in ERROR dönmesi normaldir</td></tr>
+                <tr><td>2 şeffaf</td><td>AT portu tümüyle veri kanalına dönüşür (bu sayfadaki düğmeler yalnızca 0 ile 1'i sunar)</td></tr>
+            </table>
+
+            <h4>Context ayarları tek tek</h4>
+            <p>Firmware'in hangi alt maddeleri desteklediğinden emin değilseniz önce <code>AT+QSSLCFG=?</code>'ya basın ——
+            ölçümde 17 alt madde döndü; uygulama kılavuzunun listelediğinden fazla. Sık kullanılan alt maddelerin ayar ve sorgu düğmeleri vardır;
+            ölçümde yazılan değerlerin geri okunanla birebir aynı olduğu görüldü.</p>
+            <table>
+                <tr><th>Alt madde</th><th>Fabrika</th><th>İşlevi ve ölçüm notu</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>Protokol sürümü; 4 = hepsi desteklenir</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>Şifre takımı; 0XFFFF = hepsi desteklenir</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0 = doğrulama yok, 1 = sunucu doğrulanır
+                    (önce CA sertifikası yüklenmeli), 2 = karşılıklı doğrulama (ayrıca istemci sertifikası + özel anahtar)</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>CA sertifikası yolu; biçim
+                    <code>"UFS:dosyaadı"</code>, dosya önceden UFS'te olmalı (bir sonraki bölüme bakın)</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>Sanal sunucuya / CDN'e bağlanırken açılması şart —— aynı IP'de birden çok alan adı varken SNI gönderilmezse
+                    eşleşmeyen sertifika gelir, doğrulama kesinlikle 566 ile düşer</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>Fabrika ayarında seclevel 1 açılsa bile sertifikanın geçerlilik süresi denetlenmez</strong>.
+                    Denetlemek için 0 yapın; modül saati de doğru olmalı</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>TLS el sıkışması için en uzun bekleme süresi, saniye (10–300)</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 Üç fabrika varsayılanının toplamı = sertifika hiç doğrulanmıyor</strong>
+                (seclevel 0, sni 0, ignorelocaltime 1); gerçekten doğrulamak için üçü de doğru ayarlanmalıdır.
+                Üstelik bu üç ayar ile <code>cacert</code> <strong>yeniden başlatmada korunmaz</strong>
+                (ölçümle doğrulandı); her açılışta fabrika değerine döner; UFS'teki sertifika dosyaları ise güç kesilince kaybolmaz.
+            </div>
+
+            <h4>UFS dosya grubu: sertifika modüle nasıl girer</h4>
+            <p>UFS, modülün yerleşik flash deposudur; ölçülen toplam kapasite <strong>280 KB</strong>, her dosya bir
+            4 KB blok kaplar. Sertifika önce buraya yüklenir; <code>cacert</code> ancak o zaman gösterecek dosya bulur.
+            <strong>Yükleme UART'tan gider, sıfır veri trafiği</strong>; ikili dosyalar da gönderilebilir.
+            <strong>Upload kartı</strong>: dosya seçilince ad ve boyut kendiliğinden dolar; gönderildikten sonra araç, modülden
+            <code>CONNECT</code> gelmesini bekler ve ancak o zaman ham baytları gönderir (gelmezse göndermez). Bitince
+            <strong>açıklama motoru</strong> modülün bildirdiği boyut ile checksum'ı <strong>kendiliğinden karşılaştırır</strong>:
+            ✅ = eksiksiz, ❌ = bozuk gitti; önce silin, sonra yeniden yükleyin.</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← ardından 1939 bytes gönderilir
++QFUPL: 1939,4f64         ← alınan boyut,checksum; açıklama kendiliğinden karşılaştırır ✅</pre>
+            <table>
+                <tr><th>Düğme</th><th>Amaç</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>UFS'teki tüm dosyaları ve boyutlarını listeler ——
+                    yüklemeden sonra bununla doğrulayın (sıfır trafik)</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>Kalan / toplam alanı bayt cinsinden sorgular (sıfır trafik)</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>Belirtilen dosyayı siler (<code>*</code> = hepsi);
+                    aynı adlı dosya önce silinmezse yeniden yükleme engellenir</td></tr>
+            </table>
+            <div class="tip">
+                <strong>Kılavuzun açıkça yazmadığı iki ölçüm davranışı:</strong> (1) FILE hata kodlarının biçimi tutarsızdır ——
+                aynı adla yeniden yükleme metin döndürür (<code>file already exist</code>), zaman aşımı sayı döndürür (<code>421</code>);
+                bu araç ikisini de çözer; (2) boyut alanı gerçekten büyük yazılırsa modül zaman aşımından sonra
+                <strong>aldığı kadarını yine de dosyaya kaydeder</strong> —— checksum karşılaştırması bunu yakalar.
+            </div>
+
+            <h4>Sertifika doğrulama pratiği: çift yönlü test yöntemi</h4>
+            <p>Akış: kök sertifikayı yükle → <code>cacert</code>'i ona yönelt → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → hedefin 443'üne bağlan. <strong>Yüklenecek olan, sertifika zincirinin en üstündeki kök sertifikadır</strong>
+            (badssl.com'un zinciri dört katmanlıdır; en tepedeki ISRG Root X1 yüklenir).
+            <strong>Yalnızca "kötü sertifika bağlanamıyor"u test etmek yetmez</strong> —— "hiçbir şey bağlanamıyor" da bu testi geçer.
+            Çift yönlü test gerekir: iyi sertifika bağlanabilmeli, kötü sertifika bağlanamamalı;
+            <strong>iki yön birden tutmadan sayılmaz</strong>. Ölçülen 2×5 karşılaştırma:</p>
+            <table>
+                <tr><th>Sunucu</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com (pozitif kontrol)</td><td>bağlanır</td>
+                    <td><strong>bağlanır</strong> <code>4,0</code></td></tr>
+                <tr><td>expired (süresi geçmiş)</td><td>bağlanır</td><td>ret 566</td></tr>
+                <tr><td>self-signed (kendinden imzalı)</td><td>bağlanır</td><td>ret 566</td></tr>
+                <tr><td>wrong.host (ad uyuşmazlığı)</td><td>bağlanır</td><td>ret 566</td></tr>
+                <tr><td>untrusted-root (güvenilmeyen kök)</td><td>bağlanır</td><td>ret 566</td></tr>
+            </table>
+            <p>Sınır: <strong>dört sertifika hatası da 566 döndürür; modül hangisi olduğunu ayırt etmez</strong>.
+            <code>AT+QIGETERROR</code> da yardım edemez —— o TCP/IP katmanına bakar,
+            bu durumda yalnızca <code>0,operate successfully</code> döndürür.</p>
+            <div class="tip">
+                Negatif test maddesi olarak expired'dan kaçının —— fabrika <code>ignorelocaltime</code> değeri 1'dir; sürenin geçmiş olması
+                tek başına engellenmez (yukarıdaki tabloda engellenmesinin nedeni, aynı zamanda yüklenen kökün altında olmamasıdır);
+                tek test için wrong.host kullanın. Ayrıca <strong>trafiğe dikkat</strong>: her el sıkışmada tam sertifika zinciri indirilir,
+                başarısızlıkta da ödenir; ölçümde 30 el sıkışma yaklaşık 150–200 KB tuttu.
+            </div>
+
+            <h4>🔴 Tuzak: yaklaşık 20 kez art arda açıp kapatınca veri yığını topyekûn dejenere oluyor</h4>
+            <div class="warning">
+                <strong>Belirti: tüm <code>AT+QSSLOPEN</code> denemeleri istisnasız 552 döndürür</strong>; seclevel 0 bile
+                bağlanamaz; oysa her öz denetim "sorun yok" der. <strong>30 saniyelik ayırt etme</strong>: aynı hedefe düz TCP'nin
+                <code>AT+QIOPEN</code>'ıyla vurun —— o da başarısızsa veri yığını bozulmuştur; SSL ayarlarını kurcalamayı bırakın.
+                PDP'yi yeniden başlatmak kurtarmaz; <strong>yalnızca tam açılış prosedürü düzeltir</strong>.
+                Dejenerasyon test verisini kirletir, kolayca "sertifika doğrulaması engelledi" sanılır ——
+                çift yönlü teste başlamadan önce yeniden başlatıp temizleyin.
+            </div>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>Sertifika doğrulaması başarısız. Sırasıyla bakın: <code>sni</code> açık mı (en yaygını),
+                        <code>cacert</code>'in kökü doğru mu, sertifikanın kendisi bozuk mu;
+                        bu üç ayar yeniden başlatınca sıfırlanır</td></tr>
+                <tr><td><code>OK</code> geldi, devamı gelmiyor</td>
+                    <td><code>OK</code> yalnızca alındığını gösterir; sonuç URC ile gelir; en uzun bekleme
+                        150 saniye + <code>negotiatetime</code></td></tr>
+                <tr><td>AT portu takıldı, hiçbir komuta bakmıyor</td>
+                    <td><code>AT+QSSLSEND</code> uzunluğu yanlış hesaplanmış, veri modunda takılıp komut yutuyor ——
+                        Hardware sayfasındaki ham bayt düğmesiyle ESC (0x1B) gönderip kaçın</td></tr>
+            </table>
+
+            <h3 id="tab-http">HTTP —— web istekleri</h3>
+            <p><strong>Çalışma prensibi:</strong> Modülün HTTP'si <strong>üç aşamalıdır</strong>:
+            önce URL ayarlanır (bu adımın kendisi de iki aşamalıdır), sonra istek gönderilir (GET / POST), en sonunda yanıt geri okunur.
+            Hiçbir aşamanın sonucu <code>OK</code> içinde değildir; sonradan gelen URC'dedir ——
+            bu yüzden <code>AT+QURCCFG="urcport"</code> mutlaka <code>"uart1"</code> olmalıdır (Hardware sayfasından değiştirilir);
+            yoksa sonuçların hiçbiri görünmez. Veriler 2026-08'de gerçek cihazda ölçülmüştür.</p>
+
+            <h4>Başlamadan önce: veri kanalı hazır olmalı</h4>
+            <p>Ön koşul, PDP'nin etkinleştirilmiş ve IP alınmış olmasıdır (TCP/IP sayfasındaki <code>AT+QIACT=1</code>).
+            Bu sayfanın <strong>Connect grubu</strong> yalnızca salt okunur denetimler içerir:
+            <code>AT+CPIN?</code> / <code>AT+CGATT?</code> / <code>AT+CGREG?</code> /
+            <code>AT+QIACT?</code>, <code>AT+QIDNSCFG=1</code> (DNS 0.0.0.0 = atanmamış),
+            <code>AT+QIGETERROR</code> (⚠ yalnızca son TCP/IP komutu için geçerlidir;
+            başarısızlıktan sonra <strong>hemen</strong> basın).</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> yalan söyler.</strong> Ölçümde PDP'nin yolda kayması yaşandı:
+                tüm istekler başarısız, <strong>sabit 30 saniye zaman aşımı</strong> ile hata 716,
+                ama <code>AT+QIACT?</code> yine de IP döndürüyordu. <code>AT+CGACT?</code> ile çapraz karşılaştırın;
+                tutarsızlık = kayma. Onarım: <code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;kayılan cid&gt;</code> → <code>AT+QIACT=1</code>,
+                ping geçtikten sonra devam edin.
+            </div>
+
+            <h4>İlk GET: dört adım</h4>
+            <ol>
+                <li><strong>Ön ayarlar</strong> (Config grubu, sıfır trafik): <code>contextid</code>
+                    parametre kartında 1 (kullanılacak PDP context'ine bağlar); <code>rspout/auto</code>,
+                    <code>requestheader</code>, <code>responseheader</code> üç anahtarı 0'da bırakın
+                    (gerekçe ileride); <code>AT+QHTTPCFG?</code> tüm ayarları tek seferde geri okuyup denetler,
+                    <code>AT+QHTTPCFG=?</code> ayarlanabilir maddeleri listeler.</li>
+                <li><strong>URL ayarlama (iki aşamalı)</strong>: <code>AT+QHTTPURL</code> kartında yalnızca bir
+                    "gönder (iki aşamalı)" düğmesi vardır —— URL'yi siz yazarsınız, uzunluğu program hesaplar. Akış: önce
+                    <code>AT+QHTTPURL=&lt;uzunluk&gt;,80</code> gönderilir, <code>CONNECT</code> beklenip
+                    veri moduna girilir, sonra URL baytları olduğu gibi gönderilir; <strong>hiçbir satır sonu eklenmez</strong>
+                    (CR/LF uzunluğa dahil edilirdi).
+                    <code>http://www.example.com/</code> uzunluğu tam 23'tür. Bitince
+                    <code>AT+QHTTPURL?</code> ile geri okuyun; harfi harfine aynıysa araya satır sonu karışmamıştır.</li>
+                <li><strong>İstek gönderme</strong>: <code>AT+QHTTPGET=80</code> (yanıt bekleme saniyesi).
+                    <code>OK</code> yalnızca "komut alındı" demektir; gerçek sonuç birazdan gelen URC'dir:
+                    <code>+QHTTPGET: 0,200</code>; yorumu bir sonraki paragrafta.</li>
+                <li><strong>Yanıtı okuma</strong>: <code>AT+QHTTPREAD=80</code>.
+                    <code>CONNECT</code>'ten sonrası tümüyle ham bayttır (ölçümde example.com için
+                    559 bytes), ardından <code>OK</code> gelir ——
+                    ama <strong>bitiş imi, en sonda tek başına duran <code>+QHTTPREAD: 0</code> satırıdır</strong>.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="HTTP sekmesi">
+                <figcaption>HTTP sayfası: Config / Connect / Transfer / Close dört grubu.</figcaption>
+            </figure>
+
+            <h4>+QHTTPGET yorumu: ilk alan HTTP durum kodu değildir</h4>
+            <p>GET / POST / POSTFILE'ın sonuç URC'leri hep
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code> üç alandır:
+            <code>err</code> <strong>0 = komut başarıyla yürütüldü</strong>; 0 dışı, modül katmanı hatasıdır (716, 711…);
+            <code>httprspcode</code> HTTP durum kodudur, <strong>yalnızca err=0 iken bildirilir</strong>
+            (kılavuz açıkça yazar; araçta 200 / 403 / 404 / 409 / 411 / 500 için hazır açıklamalar vardır);
+            <code>content_length</code> isteğe bağlıdır —— sunucu yanıt başlığında CONTENT-LENGTH varsa gelir;
+            sıradan GET'te çoğu kez yalnızca iki alan görünür. Dolayısıyla ölçümdeki <code>+QHTTPGET: 0,404,0</code>
+            <strong>başarısızlık değildir</strong>: komut başarılıdır; sunucu "bulunamadı" demiştir.</p>
+
+            <h4>Yanıtı okumak: AT+QHTTPREAD'in tuzağı</h4>
+            <p>Parametre, "iki veri paketi arasındaki en uzun aralık saniyesidir", toplam süre değildir.
+            <strong>Bu cihazın firmware'i yalnızca tek parametre kabul eder</strong>: uygulama belgesindeki
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> parçalı okuma biçimi ölçümde çıplak
+            <code>ERROR</code> döndürdü (<code>=?</code> sondasıyla doğrulandı); düğme kaldırıldı ——
+            parçalı almak için <code>GETEX</code> kullanın.</p>
+            <div class="warning">
+                <strong>Kilitlenme tuzağı: <code>rspout/auto</code> 1 yapılır yapılmaz READ ailesi istisnasız başarısız olur</strong>
+                (kılavuz açıkça yazar). Modülün yanıtı kendiliğinden dökmesini sağlar; bedeli READ ailesinin topyekûn ölmesidir;
+                bu yüzden bu düğmede onay penceresi vardır. READ birden hep düşmeye başlarsa önce <code>AT+QHTTPCFG?</code> bakın.
+            </div>
+
+            <h4>Parçalı alma: AT+QHTTPGETEX ile bayt bayt okuma</h4>
+            <p><code>AT+QHTTPGETEX=&lt;saniye&gt;,&lt;başlangıç konumu&gt;,&lt;uzunluk&gt;</code>
+            HTTP Range kullanır; yalnızca belirtilen parçayı çeker, trafik kazandırır. Ölçüm (uç noktanın içeriği sabit
+            <code>abcdefghijklmnop</code>): konum 0'dan 8 alınca <code>+QHTTPGET: 0,206,8</code> döndü,
+            <code>abcdefgh</code> okundu; konum 8'den 8 daha alınca <code>ijklmnop</code> okundu.
+            Yorum: <strong>durum kodu mutlaka 206 olmalıdır</strong>; <strong>200 dönüyor ve içerik her seferinde aynıysa</strong>
+            = sunucu Range desteklemiyordur; modül bozulmamıştır.
+            ⚠ Yalnızca <code>requestheader=0</code> iken çalışır.</p>
+
+            <h4>POST: iki aşama ve Content-Type</h4>
+            <p><code>AT+QHTTPPOST</code> kartı da iki aşamalıdır: body'yi siz yazarsınız, uzunluk kendiliğinden hesaplanır; önce
+            <code>AT+QHTTPPOST=&lt;uzunluk&gt;,&lt;giriş saniyesi&gt;,&lt;yanıt saniyesi&gt;</code> gönderilir,
+            <code>CONNECT</code> beklenir, sonra body gönderilir. Üç nokta:</p>
+            <ul>
+                <li><strong><code>CONNECT</code> için en fazla 125 saniye beklemek gerekebilir</strong> (kılavuz açıkça yazar) ——
+                    istem bekleme zaman aşımını 125 saniyeye kurun; MQTT'nin 5 saniyesini devralmayın.</li>
+                <li>body üst sınırı 1 MB (<code>=?</code> ölçüm aralığı 1–1024000).</li>
+                <li>Content-Type'ı önceden <code>contenttype</code> parametre kartından ayarlayın
+                    (tür kodu 0 = form-urlencoded).</li>
+            </ul>
+            <p>Ölçüm: POST <code>Message=HelloQuectel</code> (20 bytes) →
+            <code>+QHTTPPOST: 0,200,440</code>; READ'in döndürdüğü JSON, anahtar-değerin ulaştığını,
+            uzunluğun doğru hesaplandığını, Content-Type'ın işlediğini doğruladı; User-Agent, modülün kendi bildirdiği
+            <code>QUECTEL_MODULE</code> idi.</p>
+
+            <h4>Özel başlıklar ve yanıt başlıkları</h4>
+            <ul>
+                <li><code>reqheader/add</code>: tek bir özel istek başlığı ekler (kılavuzda örnek yok);
+                    sorgu düğmesi kaç tane eklendiğini gösterir; <code>reqheader/remove</code> kaldırır.</li>
+                <li><code>requestheader</code> 1 = istek başlığının tamamını kendiniz kurarsınız; GET bile iki aşamalı olur
+                    ve <code>GETEX</code> kullanılamaz. Normalde 0'da tutun.</li>
+                <li><code>responseheader</code> 1 yapılınca READ, HTTP yanıt başlıklarını da döker
+                    (ölçümde özel X-Test başlığı bile geri geldi). Test bitince 0'a alın.</li>
+                <li><code>closed/ind</code>: "session kapatıldı" URC bildirimini açar.</li>
+            </ul>
+
+            <h4>Dosya sürümü: POSTFILE ve READFILE (UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="dosyaadı",&lt;saniye&gt;</code>, modül dosya sistemindeki (UFS) dosyayı
+            body olarak POST eder; <code>AT+QHTTPREADFILE="dosyaadı",&lt;saniye&gt;</code> yanıtı
+            UFS dosyası olarak kaydeder. ⚠ Bu araç şu anda <strong>UFS'e dosya yükleyemiyor ve UFS
+            dosya içeriğini geri okuyamıyor</strong>; bu iki komut, firmware tarafındaki akışlarla birlikte kullanılmak içindir.</p>
+
+            <h4>HTTPS: doğrulamasız yol</h4>
+            <p>HTTPS = HTTP + SSL context. Connect grubunda en kısa yol hazırdır; beş düğmeye sırayla basın:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP, SSL context 1'i kullansın
+AT+QSSLCFG="sslversion",1,4        ← TLS sürümünü sunucuyla pazarlığa bırak
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← tüm şifre takımları açık
+AT+QSSLCFG="seclevel",1,0          ← sertifika doğrulaması yok (aşağıya bakın)
+AT+QSSLCFG="sni",1,1               ← SNI'yi aç (fabrika değeri 0!)</pre>
+            <p>Sonrasında URL'yi <code>https://</code> ile başlatıp her zamanki gibi GET / READ yapın ——
+            ölçümde geri okunan HTML, düz metin sürümüyle harfi harfine aynıydı.
+            <strong><code>seclevel=0</code> (doğrulamasız), bu araçta sonuna kadar yürünebilen tek yoldur</strong>
+            —— sertifika doğrulamak için önce CA sertifikası UFS'e yazılmalıdır; SSL ayrıntıları (<code>AT+QSSLCFG=?</code>
+            tüm alt maddeleri listeler, <code>negotiatetime</code> el sıkışma beklemesini ayarlar) "SSL —— TLS tüneli" bölümündedir.
+            <strong>SNI fabrikadan 0'dır</strong>: açılmazsa, IP paylaşan HTTPS siteleri eşleşmeyen sertifika alır ve
+            doğrulama anında düşer. <strong>Trafiğin aslan payı sertifika zinciridir</strong>: bir tur HTTPS GET yaklaşık 8–15 KB,
+            düz metin ise yalnızca yaklaşık 1 KB.</p>
+
+            <h4>Yönlendirme ve kapanış</h4>
+            <p><strong>Yönlendirme (kılavuzda yok, ölçümle netleştirildi)</strong>: modül 302'yi kendiliğinden izler ama
+            <strong>yalnızca mutlak yollu Location kabul eder</strong> —— göreli yol doğrudan hata 711 döndürür,
+            1 milisaniyede anında başarısız olur. <strong>Kapanış</strong>:
+            <code>AT+QHTTPSTOP</code> (Close grubu) süren isteği iptal eder ve session'ı koparır;
+            durum tuhaflaştığında ya da hata 704 (veri modu meşgul) çıktığında önce buna basıp ortalığı temizleyin.</p>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td>Hiçbir sonuç URC'si görünmüyor</td><td><code>urcport</code> <code>uart1</code> değil;
+                    Hardware sayfasından değiştirin</td></tr>
+                <tr><td>Tüm URL'ler 716, sabit 30 saniye zaman aşımı</td>
+                    <td>PDP kayması, yukarıdaki uyarıya bakın</td></tr>
+                <tr><td>Tek bir URL 716 dönüyor</td><td>Ölçümde DNS hatası da 716 döndürüyor (eski belgenin tahmin ettiği
+                    714 değil); ardından READ'in 705 dönmesi olağan zincirdir</td></tr>
+                <tr><td><code>READ</code> / <code>GETEX</code> birden başarısız olmaya başladı</td>
+                    <td><code>rspout/auto</code> ile <code>requestheader</code>
+                        ikisi de 0 olmalı (yukarıya bakın)</td></tr>
+                <tr><td><code>AT</code> bile yanıt vermiyor</td>
+                    <td>Modül asılı kaldı (ölçümde yaşandı, kılavuz anlatmaz) —— açılış prosedürünü yeniden çalıştırın</td></tr>
+            </table>
+
+            <h3 id="tab-ftp">FTP —— dosya aktarımı</h3>
+            <p><strong>Çalışma prensibi:</strong> FTP'nin <strong>iki kanalı</strong> vardır: kontrol kanalı komutları taşır,
+            veri kanalı dosya içeriğini taşır. Oturum açma, ad değiştirme, silme, boyut sorgusu yalnızca kontrol kanalından geçer;
+            LIST, yükleme, indirme ise <strong>ayrı bir veri bağlantısı açar</strong> ——
+            bu bölümdeki tuhaflıkların çoğu (art arda 615, 603) buradan doğar.
+            Bölüm boyunca geçerli Quectel genel kuralı: <strong><code>OK</code> yalnızca "komut alındı" demektir</strong>;
+            gerçek sonuç sonradan URC olarak ulaşır. Buradaki yanıtlar ve sayılar, Ağustos 2026'da gerçek bir EG800K üzerinde ölçülmüştür.</p>
+
+            <h4>Başlamadan önce: iki ön koşul</h4>
+            <ul>
+                <li><strong>PDP önce etkinleştirilmeli</strong>: bu sayfanın ilk düğmesi <code>AT+QIACT?</code> tam da bu denetimi yapar ——
+                    <code>+QIACT: 1,1,…,"IP"</code> dönerse devam edilir; yalnızca OK dönüyorsa önce TCP/IP sayfasında
+                    Act PDP'ye basın (PDP kapalıyken QFTPOPEN kesin başarısız olur).</li>
+                <li><strong>URC UART'tan gelmeli</strong>: FTP komutlarının neredeyse hepsi "önce OK, sonuç sonra URC ile" düzenindedir;
+                    <code>AT+QURCCFG="urcport"</code> <code>"uart1"</code> değilse
+                    burada yalnızca bir yığın OK görürsünüz (ayar Hardware sayfasında).</li>
+            </ul>
+
+            <h4>Oturum açma akışı: ayarla → aç → URC'yi bekle</h4>
+            <ol>
+                <li><strong>PDP context'ini bağlayın</strong>: <code>AT+QFTPCFG="contextid",1</code>
+                    (fabrikadan zaten 1; sorgu düğmesiyle geri okuyup doğrulayabilirsiniz).</li>
+                <li><strong>Kimlik bilgilerini ayarlayın</strong>: <code>AT+QFTPCFG="account","kullanıcı","parola"</code>;
+                    <strong>mutlaka QFTPOPEN'dan önce</strong> ayarlanmalıdır.</li>
+                <li><strong>Mod ve tür</strong>: <code>transmode</code> için 1
+                    (pasif; NAT arkasında her zaman bunu kullanın, FTPS için zorunlu);
+                    <code>filetype</code> için düz metin dosyada 1, ötekilerde 0.</li>
+                <li><strong>Oturum açın</strong>: <code>AT+QFTPOPEN="sunucu",21</code> anında OK döndürür (yalnızca alındı demektir);
+                    <code>+QFTPOPEN: 0,0</code> gelince oturum açılmıştır (en fazla 125 saniye).
+                    Sonra <code>AT+QFTPSTAT</code> 1 dönmelidir (boşta; 2 = aktarımda, 3 = kapanıyor).</li>
+            </ol>
+            <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK                ← yalnızca komutun alındığını gösterir
++QFTPOPEN: 0,0    ← oturumun açıldığını gösteren satır budur</pre>
+            <p>Öteki ayar maddeleri: <code>AT+QFTPCFG=?</code> tüm 10 ayarlanabilir maddeyi ve aralıklarını tek tuşla listeler (sıfır trafik).
+            <code>rsptimeout</code> (20–180, varsayılan 90 saniye) çoğu komutun en uzun yanıt süresidir;
+            veri modunda iki paket arasındaki en uzun aralık da odur. <code>ssltype</code> / <code>sslctxid</code>
+            FTPS içindir (düz FTP'de 0'da bırakın; SSL parametreleri SSL sayfasında ayarlanır);
+            <code>data_address</code> / <code>cache</code> / <code>restenable</code>
+            özel ortam ince ayarlarıdır; kullanımları düğme açıklamalarında ve kılavuzdadır.</p>
+            <div class="tip">
+                <strong>Parola maskeleme (ölçüm, kılavuzla çelişir):</strong> <code>AT+QFTPCFG="account"</code>
+                sorgusunda parola <code>*</code> ile maskelenmiş döner (kılavuz olduğu gibi basıldığını yazar). Ama kullanıcı adı yine düz metindir ve
+                <strong>ayar satırındaki parola da açık yazılıdır</strong>; ekran görüntüsü ve kayıt alırken dikkat edilecek olan ayar satırıdır.
+            </div>
+            <div class="warning">
+                <strong>🔴 <code>AT+QFTPCLOSE</code> eşzamansızdır —— <code>OK</code> kapandığı anlamına gelmez.</strong>
+                Oturumun kapandığı ancak <code>+QFTPCLOSE: 0,0</code> gelince kesinleşir; bu sırada <code>AT+QFTPSTAT</code>
+                3 döner (kapanıyor) ve gönderilen her FTP komutu <strong>istisnasız <code>+CME ERROR: 603</code></strong> (sunucu meşgul) alır.
+                <br><br>
+                Belirti son derece yanıltıcıdır: art arda 603'ler modül bozulmuş ya da sunucu engellemiş gibi görünür;
+                oysa yalnızca kapanış bitmemiştir (ölçüm günü tam da bu yüzden büyük bir tur atıldı). Bekleme üst sınırı = rsptimeout.
+                Ayrıca yalnızca FTP oturumunu kapatır; ağı kökten sıfırlamak için TCP/IP sayfasında Deact PDP'ye basın.
+            </div>
+
+            <h4>Dizin ve dosya yönetimi: sunucuyu dosya yöneticisi gibi kullanmak</h4>
+            <p>Sunucu tarafı dosya işlemlerinin tamamı (LIST / NLST / MLSD veri bağlantısı açar, ötekiler yalnızca kontrol kanalından geçer).
+            Başarı yanıtı her zaman <code>+QFTPXXX: 0,…</code> biçimindedir —— ilk sayı 0 ise başarıdır:</p>
+            <table>
+                <tr><th>Komut</th><th>Ne yapar</th><th>Başarı yanıtı (ölçüm)</th></tr>
+                <tr><td><code>AT+QFTPPWD</code></td><td>Güncel çalışma dizinini sorgular</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+                <tr><td><code>AT+QFTPCWD</code></td><td>Çalışma dizinini değiştirir; sonraki işlemler buna göredir</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPLIST</code></td><td>Tam listeyi doğrudan terminale döker (iki düğme: güncel dizin / belirtilen dizin)</td><td>İçerikten sonra <code>+QFTPLIST: 0,1175</code> (son sayı = bayt sayısı)</td></tr>
+                <tr><td><code>AT+QFTPNLST</code> / <code>AT+QFTPMLSD</code></td><td>Yalnızca dosya adları (trafik kazandırır) / MLSD standart biçimi (kolay çözümlenir)</td><td>LIST ile aynı</td></tr>
+                <tr><td><code>AT+QFTPSIZE</code></td><td>Dosya boyutunu sorgular, içeriği indirmez</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+                <tr><td><code>AT+QFTPMDTM</code></td><td>Dosya değiştirilme zamanını sorgular, içeriği indirmez</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+                <tr><td><code>AT+QFTPMKDIR</code> / <code>AT+QFTPRMDIR</code></td><td>Klasör oluşturur / siler</td><td><code>…: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPRENAME</code></td><td>Dosya ya da klasör adını değiştirir</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPDEL</code></td><td>Dosya siler</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+            </table>
+            <p>Bir hüner (ölçümde zincirin tamamı geçti): <strong>SIZE'ı varlık denetimi olarak kullanın</strong> ——
+            ad değişikliğinden sonra eski ad <code>+QFTPSIZE: 627,550</code> döndürdü, yeni ad <code>0,20</code>;
+            silmeden sonra sorgu yine <code>627,550</code> —— tek bayt indirmeden her adım doğrulandı.
+            <code>627,550</code> <strong>iki katmanlı hata kodudur</strong>: 627 = modül katmanı "FTP istenen eylemi yerine getirmedi",
+            550 = FTP protokol katmanında sunucunun "dosya ya da dizin yok" yanıtı; bu aracın açıklamaları katman katman çevirir.</p>
+
+            <h4>İndirme: içerik doğrudan terminale basılır (COM:)</h4>
+            <p><code>AT+QFTPGET="dosyaadı","COM:"</code> —— <code>CONNECT</code>'ten sonra dosya içeriği doğrudan terminale dökülür;
+            sonda <code>+QFTPGET: 0,&lt;bayt sayısı&gt;</code> (ölçümde readme.txt için 0,379).
+            Öbür düğme olan <strong>parçalı indirme</strong> başlangıç ve uzunluk parametresi de taşır ve en çok önerilen indirme yoludur:
+            önce SIZE ile boyutu öğrenin, sonra parça parça alın; tüm dosyayla trafiği patlatmaktan kaçının.
+            <code>AT+QFTPLEN</code> son PUT / GET / LIST / NLST işleminin gerçekte kaç bayt aktardığını sorgular.</p>
+
+            <h4>Yükleme: iki aşamalı, bildirilen uzunluk dolunca kendiliğinden biter</h4>
+            <p><code>AT+QFTPPUT="dosyaadı","COM:",0,&lt;uzunluk&gt;,1</code> iki aşamalı bir komuttur:
+            <code>CONNECT</code> beklenir (veri moduna girilir), sonra <strong>tam olarak</strong> bildirilen uzunluk kadar bayt gönderilir;
+            modül sayı dolunca veri modundan kendiliğinden çıkar; Ctrl+Z göndermek gerekmez. Bu araç uzunluğu kendisi hesaplar; içeriği parametre kartına yapıştırmanız yeter.</p>
+            <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT                        ← veri moduna girildi
+NuModem-P6-FTP-test\n          ← tam 20 bytes gönderilir
+OK
++QFTPPUT: 0,20                 ← sunucu 20 bytes aldı</pre>
+            <p>Bu 20 bytes, ölçüm sırasında bilgisayar tarafından Python ftplib ile geri çekilip bayt bayt karşılaştırıldı —— birebir aynıydı.
+            <strong>UFS aktarma biçimi</strong>: kılavuz, dosya adının <code>"UFS:xxx"</code> yazılmasını ve
+            modülün yerleşik deposu üzerinden aktarmayı da destekler; ayrıntılar FTPS uygulama notundadır. Bilgisayardaki dosyayı önce UFS'e koymak için
+            SSL sayfasındaki "UFS dosyaları" grubunun Upload düğmesini kullanın (<code>AT+QFUPL</code>; UART'tan gider, sıfır trafik,
+            checksum kendiliğinden karşılaştırılır).</p>
+            <div class="warning">
+                <strong>⚠ <code>+++</code> FTP için "iptal"dir, "duraklatma" değildir.</strong>
+                Kılavuz (FTPS AN v1.5 p13), kaçıştan sonra <code>ATO</code> ile veri moduna dönülüp aktarıma devam edilebileceğini yazar;
+                <strong>ölçümde tutmadı</strong> (iki denemede sonuç aynı): kaçıştan sonra <code>AT+QFTPSTAT</code>
+                1 döndürdü (boşta), 2 değil (aktarımda); <code>ATO</code> ise <code>NO CARRIER</code> ——
+                aktarım tümüyle iptal edilmiştir, dönülecek bağlantı yoktur. Dolayısıyla <code>+++</code> yalnızca kontrolden çıkan
+                veri modundan kaçmak içindir; büyük dosya indirmesini duraklatmak için kullanılamaz.
+                <br><br>
+                Doğru gönderim: <strong>öncesinde ve sonrasında 1'er saniye sessizlik, ham bayt olarak, CR eklemeden</strong> (eklenirse işlemez) ——
+                bu sayfadaki <code>+++</code> düğmesi bu kurala göre gönderir; <code>ATO</code> düğmesi kılavuzdaki anlamıyla tutuldu.
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="FTP sekmesi">
+                <figcaption>FTP sayfası: oturum ayarları, dizin ve dosya yönetimi, yükleme-indirme.</figcaption>
+            </figure>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td>Art arda <code>+CME ERROR: 603</code></td>
+                    <td>① QFTPCLOSE sonrası hâlâ kapanıyor (QFTPSTAT 3 dönüyor) —— <code>+QFTPCLOSE: 0,0</code> bekleyin;
+                        ② daha önce 615 yaşandı —— <strong>615'ten sonra tüm FTP komutları istisnasız 603 döner</strong>, düzgün kapatılana kadar</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>Veri bağlantısı açılamadı: <strong>kontrol kanalı sağlam, veri kanalı topyekûn ölü</strong>
+                        (SIZE yanıt veriyor; PUT / GET / LIST hepsi düşüyor). Çoğunlukla sunucu tarafı sorunudur ——
+                        dlptest iki ayrı ağ yolundan da başarısız oldu, rebex baştan sona sıfır hata verdi;
+                        okuma için rebex, yazma için dlptest kullanın ve işi tek seferde bitirin</td></tr>
+                <tr><td><code>627,550</code></td>
+                    <td>Dosya ya da dizin yok —— ad ya da yol yanlış yazılmış; önce QFTPPWD / QFTPLIST ile nerede olduğunuzu doğrulayın</td></tr>
+                <tr><td>Yeniden başlatmadan sonra ilk PUT bile 615</td>
+                    <td>Veri yığını dejenerasyonu: QFTPCLOSE de PDP'yi yeniden başlatmak da kurtarmaz;
+                        <strong>yalnızca tam açılış prosedürü düzeltir</strong>. Ayırt etme: TCP/IP sayfasındaki
+                        <code>AT+QIOPEN</code> ile aynı hedefe vurun —— o da başarısızsa yığının tamamı bozuktur; FTP ayarlarını kurcalamayı bırakın</td></tr>
+                <tr><td>Komut OK döndü, sonra hiçbir şey olmadı</td>
+                    <td>Sonuç URC'leri USB portuna gitti —— <code>AT+QURCCFG="urcport"</code>
+                        uart1 mi diye bakın</td></tr>
+                <tr><td><code>AT+QFTPOPEN</code> doğrudan başarısız</td>
+                    <td>PDP etkin değil —— önce bu sayfadaki <code>AT+QIACT?</code>'a basın; IP yoksa TCP/IP sayfasında Act PDP</td></tr>
+            </table>
+
+            </section>
+
+        <section id="method">
+            <h2><span class="icon">🧪</span> Test Yöntemi</h2>
+
+            <p>Bu bölüm "yanlış sonuca varmadan nasıl test edilir" konusunu anlatır. Hepsi bizzat tökezleyerek öğrenildi.</p>
+
+            <h3>OK neredeyse hiçbir zaman "tamamlandı" demek değildir</h3>
+            <p>Quectel türü modüllerde ortak bir kalıp vardır: <strong>önce komutun alındığını bildiren <code>OK</code> döner,
+            gerçek sonuç URC ile gelir</strong>. Bu sınıfa girenler:
+            <code>QIOPEN</code>, <code>QSSLOPEN</code>, <code>QMTOPEN</code>,
+            <code>QFTPOPEN</code>, <strong>ve en kolay gözden kaçan <code>QFTPCLOSE</code></strong>.
+            <code>OK</code>'i tamamlandı sanıp hemen bir sonraki işleme geçmek, bu projede en çok boşa yol yürütmüş nedendir.</p>
+
+            <h3>Kontrol grubu yoksa sonuç çıkarmayın</h3>
+            <p>İki örnek:</p>
+            <ul>
+                <li><strong>Sertifika doğrulaması</strong>: yalnızca "bozuk sertifikaya bağlanılamıyor" testi yapılırsa, "hiçbir şeye bağlanılamıyor" da bu testi geçer.
+                    Aynı anda iyi sertifikaya bağlanılabildiğini de kanıtlamak gerekir.</li>
+                <li><strong>AGNSS hızlandırma</strong>: 7-2 "soğuk başlangıç TTFF" zaten 7-4'ün kontrol grubudur.
+                    İç mekânda uydu sinyali yokken iki taraf da konum bulamaz, test yalnızca "ikisi de başarısız" sonucunu verir.</li>
+            </ul>
+
+            <h3>Her test turunun sonunda bir sağlık kontrolü çalıştırın</h3>
+            <p>Modül zamanla bozulur. Bağlantı yaklaşık 20 kez arka arkaya açılıp kapatıldıktan sonra
+            "kontrol kanalı hâlâ canlı, veri kanalı tamamen ölü" diye bir duruma girer ——
+            üstelik <code>QSSLSTATE</code> boştur, <code>QIACT?</code> IP gösterir,
+            <code>QIGETERROR</code> 0 döner, yani <strong>her şey tamamen normal görünür</strong>.</p>
+            <p>Bu durum test verisini kirletir. Ölçümlerde bizzat yaşandı: bozulma sırasında bazı sunuculara "doğrulama kapalıyken" de bağlanılamadı
+            ve bu neredeyse sertifika doğrulamasının sonucu sanıldı. <strong>Her turun sonunda bilinen çalışan bir hedefle bir kez doğrulayın</strong>,
+            veri ancak o zaman güvenilirdir.</p>
+            <div class="tip">
+                <strong>Ayırt etme yöntemi: aynı hedefe saf TCP ile <code>AT+QIOPEN</code> gönderin.</strong>
+                O da başarısız olursa sorun SSL / FTP katmanında değildir, tüm veri yığını bozulmuştur.
+                <br>
+                Toparlanma yöntemi: <strong>yalnızca eksiksiz açılış prosedürü işe yarar</strong>.
+                <code>QIDEACT</code> + <code>QIACT</code> kurtarmaz.
+            </div>
+
+            <h3>Sıfır veriyle yoklama: <code>AT+Q...=?</code></h3>
+            <p>Test biçimi (<code>=?</code>) <strong>internete çıkmaz, para harcamaz</strong>
+            ve bu yazılım sürümünün gerçekten desteklediği parametre aralığını döner ——
+            uygulama notundan daha güvenilirdir, çünkü doküman bütün bir seri için ortaktır.
+            Bu proje Wi-Fi taramasının parametre aralığının kılavuzla uyuşmadığını tam olarak bu yöntemle yakaladı.</p>
+
+            <h3>"Gerçekten doğru aktarıldı" doğrulaması üçüncü bir taraftan geri okunarak yapılır</h3>
+            <p><code>+QFTPPUT: 0,20</code> yalnızca modülün 20 bayt gönderdiğini kendi beyan etmesidir.
+            Ölçümde dosya bilgisayardan başka bir FTP istemcisiyle geri çekilip bayt bayt karşılaştırıldı ——
+            ancak böyle hem "modül yanlış saydı" hem "sunucu bozuk kaydetti" ihtimalleri aynı anda elenir.</p>
+
+            <h3>Veri kullanımı</h3>
+            <p><code>AT+QGDCNT?</code> "gönderilen,alınan" olmak üzere iki bayt sayısı döner.
+            ⚠ <strong>Bu sayaç NV'ye yazılmaz, modül her yeniden başladığında sıfırlanır</strong>;
+            <code>AT+QAUGDCNT</code> kümülatif bir sayaç değildir, "otomatik kaydetme aralığı" ayarıdır (0 = devre dışı).
+            Aşamalar arası toplam almak için <strong>her aşamayı anında kaydetmeniz</strong> gerekir, sonradan telafi edilemez.</p>
+            <p>Referans rakamlar: TLS el sıkışması sezgisel tahminden çok daha pahalıdır,
+            <strong>her el sıkışmada tüm sertifika zinciri indirilir ve başarısız el sıkışmaların da bedeli ödenir</strong>.
+            Ölçümde 11 el sıkışma TX 15.3 KB / RX 59.6 KB harcadı.</p>
+        </section>
+
+        <section id="faq">
+            <h2><span class="icon">❓</span> Sık Sorulan Sorular</h2>
+
+            <h3>S: Bağlan'a bastım ama listede hiç port yok</h3>
+            <p>Üç şeyi kontrol edin: (1) <code>file://</code> ile mi açtınız —— Web Serial engellenir;
+            (2) USB-UART sürücüsü kurulu mu; (3) tarayıcı Chrome / Edge / Opera mı.</p>
+
+            <h3>S: Komutlar gidiyor ama modülden hiç yanıt gelmiyor</h3>
+            <p>Yüzde doksan <strong>açılış prosedürünü çalıştırmamışsınızdır</strong>. Seri porta bağlandığınız anda RTS yeniden yukarı çekilir
+            ve bu kartta RTS ters mantıklı bir güç anahtarıdır —— yani bağlanmak gücü kesmek demektir.
+            Hardware sekmesine geçip bir kez Power / Reset yapın ve <code>RDY</code>'yi bekleyin.</p>
+            <p>İkinci olasılık <strong>satır sonunun LF'ye ayarlanmış olmasıdır</strong>. EG800K yalnızca CR kabul eder.</p>
+
+            <h3>S: Komutlar OK dönüyor ama hiç URC gelmiyor</h3>
+            <p><code>AT+QURCCFG="urcport"</code> gönderin. Fabrika değeri <code>usbat</code>'tır,
+            URC'lerin hepsi USB portuna gitmektedir. <code>uart1</code> yapın; bu komut NVRAM'e yazar, bir kez ayarlamak yeter.</p>
+
+            <h3>S: Terminal takıldı, ne yazarsam yazayım tepki yok</h3>
+            <p>Büyük ihtimalle <strong>veri modundasınız</strong> —— iki aşamalı bir komutta uzunluk yanlış hesaplanmıştır,
+            modül hâlâ bayt sayısını doldurmanızı bekliyordur.
+            Hardware sekmesindeki ham bayt düğmesiyle <strong>ESC (0x1B)</strong> göndererek kurtulun.
+            FTP'nin veri modunda ise <code>+++</code> göndermelisiniz (öncesi ve sonrası 1 saniye sessizlik, CR eklenmez).</p>
+
+            <h3>S: Sürekli <code>+CME ERROR: 603</code> dönüyor</h3>
+            <p>Az önce <code>AT+QFTPCLOSE</code> gönderdiyseniz, <strong>kapanma henüz tamamlanmamıştır</strong>.
+            <code>+QFTPCLOSE: 0,0</code> gelene kadar bekleyip devam edin.</p>
+
+            <h3>S: Tüm bağlantılar başarısız ama <code>AT+QIACT?</code> hâlâ IP gösteriyor</h3>
+            <p>Modülün veri yığını bozulmuştur. Saf TCP ile <code>AT+QIOPEN</code> kullanıp bilinen çalışan bir hedefe bağlanarak doğrulayın ——
+            o da başarısız olursa <strong>eksiksiz açılış prosedürünü yeniden çalıştırın</strong>.
+            <code>QIDEACT</code> + <code>QIACT</code> kurtarmaz.</p>
+
+            <h3>S: Echo sunucusuna veri gönderdim ama yankı gelmiyor</h3>
+            <p>Payload'ın sonunda <code>\n</code> var mı bakın. Birçok echo servisi <strong>satır satır</strong> çalışır,
+            satır sonu yoksa geri göndermez. Alana doğrudan <code>\n</code> iki karakterini yazmanız yeter;
+            araç göndermeden önce bunu gerçek satır sonuna çevirir ve uzunluğu da buna göre doğru hesaplar.</p>
+
+            <h3>S: GNSS bir türlü konum bulamıyor</h3>
+            <p>Önce <code>AT+QGPSGNMEA="GSV"</code> ile uydu var mı bakın.
+            İç mekânda genelde tek uydu bile alınmaz; o zaman sorun ayarlarda değildir, <strong>gökyüzü görüşü yoktur</strong>.</p>
+
+            <h3>S: Dil veya temayı nasıl değiştiririm?</h3>
+            <p>Sağ üstten. 18 dil, açık ve koyu iki tema; seçimler hatırlanır.
+            <strong>AT komutlarının açıklamaları ve notları da çevrilir</strong>, yalnızca arayüz değil.</p>
+
+            <h3>S: Bu araç gizliden gizliye veri kullanır mı?</h3>
+            <p>Hayır. Saf ön yüzden oluşan tek bir HTML dosyasıdır, arka ucu yoktur.
+            Mobil veri harcayan tek şey <strong>sizin bizzat bastığınız veri komutlarıdır</strong>
+            ve o düğmelerin açıklamalarında bu açıkça yazar. Sorgu türü ve <code>=?</code> test türü komutlar internete hiç çıkmaz.</p>
+        </section>
+
+        <footer class="footer">
+            <p>NuModem EG800 —— <a href="https://github.com/Nuxtack">Nuxtack</a> tarafından geliştirilmiştir</p>
+            <p>Bu kılavuzdaki tüm davranış açıklamaları, 2026 Ağustos'ta fiziksel EG800K
+            (yazılım sürümü <code>EG800KCNGCR07A06M04</code>) üzerinde yapılan ölçümlerden gelmektedir.</p>
+        </footer>
+    </main>
+
+    <a href="#" class="back-to-top" aria-label="Başa dön">↑</a>

@@ -1,0 +1,154 @@
+<h3 id="tab-gnss">GNSS —— 衛星定位</h3>
+            <p><strong>工作原理：</strong>GNSS 是<strong>獨立於行動網路</strong>的功能 ——
+            不需要 SIM 卡有網、不需要 PDP、不耗流量（AGNSS 除外，見下）。
+            開啟後模組自己接收衛星訊號，你用 <code>AT+QGPSLOC</code> 輪詢定位結果。
+            本節所有秒數與行為都是 2026 年 8 月對實體 EG800K 的實測值。</p>
+
+            <h4>開始之前：天線決定一切</h4>
+            <p>定位失敗的第一大原因不是指令下錯，是<strong>天線收不到訊號</strong>。
+            實測對比：室內、天線不佳時，模組能列出 38 顆衛星的位置卻<strong>一顆都聽不到</strong>
+            （SNR 全部 00）；換上<strong>主動式（active）GNSS 天線</strong>並放到窗邊後，
+            冷啟動 95 秒內就定位成功。</p>
+            <div class="warning">
+                <strong>室內測不了 GNSS，怎麼等都沒用。</strong>沒有天空視野時
+                <code>$GNGGA</code> 會回「使用衛星 00 顆、定位品質 0」，
+                <code>AT+QGPSLOC</code> 永遠回錯誤 516。
+                請把天線移到窗邊或戶外再開始 —— 這不是耐心問題，是物理問題。
+            </div>
+
+            <h4>第一次定位：五個步驟</h4>
+            <ol>
+                <li><strong>跑開機儀式</strong>（見〈開機儀式〉一節）。
+                    ⚠ 每次重新整理頁面都等於斷電，GNSS 的開啟狀態與收到一半的星曆全部歸零，
+                    要從這一步重來。</li>
+                <li><strong>確認 URC 走 UART</strong>：<code>AT+QURCCFG="urcport"</code> 要回
+                    <code>"uart1"</code>。出廠值是 <code>"usbat"</code>，不改的話很多結果訊息
+                    會被送去 USB 埠，這裡什麼都看不到（設定寫 NVRAM，改一次就好）。</li>
+                <li><strong>開 GNSS</strong>：按 <code>AT+QGPS=1</code>。
+                    幾秒內會看到 <code>+QGPS: "firmware",0,0</code>（GNSS 韌體載入成功）。
+                    已經開著再按會回 <code>+CME ERROR: 504</code>，無害。</li>
+                <li><strong>看收訊</strong>：按 <code>AT+QGPSGNMEA="GSV"</code> 讀可見衛星。
+                    終端區會自動打開<strong>衛星</strong>頁簽，畫出訊號柱狀圖與天空圖 ——
+                    判讀方式見下段。</li>
+                <li><strong>輪詢定位</strong>：每 5–10 秒按一次 <code>AT+QGPSLOC=2</code>。
+                    回 <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code>（錯誤 516）代表還沒定到，
+                    <strong>繼續等就好</strong>。成功時會回座標，
+                    終端區自動打開<strong>地圖</strong>頁簽並把位置畫上去。</li>
+            </ol>
+            <figure class="shot narrow">
+                <img src="img/07-gnss.png" alt="GNSS 頁簽">
+                <figcaption>GNSS 頁：開關、NMEA 讀取、定位查詢、AGNSS 加速。</figcaption>
+            </figure>
+
+            <h4>判讀衛星頁：「看得到」不等於「聽得到」</h4>
+            <p>GSV 每顆衛星有四個數字：編號、仰角、方位角、<strong>SNR（訊號雜訊比，dB-Hz）</strong>。
+            前三個只是「它應該在天上哪裡」，<strong>只有 SNR 才代表真的收到訊號</strong>。</p>
+            <table>
+                <tr><th>SNR</th><th>意義</th></tr>
+                <tr><td>（空）或 00</td><td>完全沒收到 —— 只知道它在哪，聽不到它</td></tr>
+                <tr><td>14–28</td><td>邊緣：解調星曆常出錯重來，定位又慢又不穩</td></tr>
+                <tr><td>30 以上</td><td>可穩定解調；<strong>多數衛星到這個水準，定位就快了</strong></td></tr>
+                <tr><td>40 以上</td><td>開闊天空＋好天線的水準</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/20-sat-view.png" alt="衛星頁：SNR 柱狀圖與天空圖">
+                <figcaption>定位成功時的衛星頁：31/41 顆有訊號，四個星座（GPS／QZSS／GLONASS／BDS）
+                的 SNR 柱狀圖與天空圖。柱子多數超過 20、部分達 40，就是「聽得到」的樣子。</figcaption>
+            </figure>
+
+            <h4>為什麼要等：冷啟動的物理限制與實測時間</h4>
+            <p>定位需要每顆衛星的精確軌道（星曆），而星曆藏在衛星以
+            <strong>50 bps</strong> 廣播的訊號裡 —— 一顆要連續正確解調約 18–30 秒，
+            錯一個位元就重來，還得湊滿至少 4 顆。這就是「冷啟動」慢的原因。
+            本機實測（同一地點、主動式天線、量測解析度 ±5 秒）：</p>
+            <table>
+                <tr><th>情境</th><th>首次定位時間（實測）</th></tr>
+                <tr><td>冷啟動（無任何輔助）</td><td><strong>95 秒</strong></td></tr>
+                <tr><td>冷啟動＋AGNSS</td><td><strong>52 秒</strong>（另外約 20 秒就先回一筆粗略位置）</td></tr>
+                <tr><td>AGNSS＋近期星曆殘留（日常重複使用）</td><td><strong>25 秒</strong></td></tr>
+            </table>
+            <div class="tip">
+                <strong>測試期間不要重新整理頁面。</strong>本工具的硬體設計是 RTS＝電源，
+                重載頁面＝斷電＝星曆全丟，一切從冷啟動重來。
+                要暫停就按 <code>AT+QGPSEND</code>，別斷電。
+            </div>
+
+            <h4>AGNSS 加速：完整流程</h4>
+            <p><strong>原理：</strong>AGNSS 把星曆改成從網路下載（每次約 32–34 KB），
+            跳過 50 bps 慢速解調。它<strong>不能無中生有衛星訊號</strong> ——
+            室內照樣定不到位，它省的只有「等星曆」的時間。</p>
+            <p>兩個最容易漏掉的前提，漏掉任何一個 AGNSS 就<strong>靜靜地完全不動作，不會報錯</strong>：</p>
+            <table>
+                <tr><th>前提</th><th>指令</th><th>陷阱</th></tr>
+                <tr><td>AGNSS 已啟用</td><td><code>AT+QAGPS=1</code></td>
+                    <td>⚠ <strong>重開機才生效</strong>（寫 NVRAM，設一次就好）</td></tr>
+                <tr><td>PDP 已啟用</td><td><code>AT+QIACT=1</code></td>
+                    <td>⚠ 每次開機都要重下。<strong><code>AT+CGATT?</code> 回 1 不算數</strong> ——
+                        附著只是網路層註冊；要 <code>AT+QIACT?</code> 回得出
+                        <code>+QIACT: 1,1,…,"IP"</code> 才有資料通道</td></tr>
+            </table>
+            <p>完整順序（每次開機後）：</p>
+            <pre>AT+QIACT=1          ← 開資料通道（最長等 150 秒；產生流量）
+AT+QIACT?           ← 必須看到 +QIACT: 1,1,…,"IP"
+AT+QGPS=1           ← 開 GNSS；AGNSS 會在此時自動下載輔助資料
+AT+QGPSLOC=2        ← 每 5–10 秒輪詢</pre>
+            <p><strong>怎麼確認 AGNSS 真的在動？</strong>本機韌體<strong>不會</strong>發
+            <code>+QGPS: "agps"</code> 之類的提示（實測確認），要看旁證，三選一即可：</p>
+            <ol>
+                <li><code>AT+QGDCNT?</code> 在 <code>AT+QGPS=1</code> 前後查兩次，
+                    收方向多了約 30 KB ＝ 輔助資料下載了</li>
+                <li>GSV 在幾秒內就列出<strong>大量衛星的位置</strong>（SNR 可能還是 00）——
+                    位置是下載來的，自己解調不可能這麼快</li>
+                <li><code>$GNGGA</code> 的時間欄位有值（時間也是輔助資料的一部分）</li>
+            </ol>
+            <div class="warning">
+                <strong>偽定位陷阱：零顆衛星的座標不是定位。</strong>
+                AGNSS 啟動約 20 秒後，<code>AT+QGPSLOC</code> 可能回出一筆座標，
+                但仔細看：<code>HDOP 0.00 / alt 0.0 / nsat 00</code> ——
+                那是輔助資料裡的<strong>參考位置注入</strong>，不是量測結果，誤差可能很大。
+                <br><br>
+                <strong>真定位的判準：使用衛星數 &gt; 0、定位模式 ≥ 2、HDOP &gt; 0。</strong>
+                寫自動化或產品邏輯時，不能只看「有沒有回座標」。
+            </div>
+
+            <h4>apflash：斷電重開也能快（有條件）</h4>
+            <p><code>AT+QGPSCFG="apflash"</code> 出廠即為 1：每次定位成功會把星曆存進
+            flash，下次開機自動匯入 —— 一小時內斷電重開就從冷啟動變快速熱啟動，
+            <strong>零流量</strong>。兩個限制：星曆約一小時就過期；
+            以及<strong>要先成功定位過一次</strong>，flash 裡才有東西可匯入 ——
+            從來沒定位成功的模組，apflash 幫不上忙。</p>
+
+            <h4>定位成功之後：地圖頁</h4>
+            <p>每次 <code>AT+QGPSLOC</code> 成功，位置就畫進地圖頁：
+            藍色標記是最新位置、青色線是移動軌跡、每個軌跡點滑鼠移上去有當地時間與高度。
+            摘要列顯示座標／高度／HDOP／衛星數，時間自動依經度換算當地時區。</p>
+            <figure class="shot">
+                <img src="img/21-map-track.png" alt="地圖頁：定位軌跡">
+                <figcaption>定位成功後的地圖頁：標記＝最新位置、青色線＝軌跡；
+                頂端摘要列有座標、高度、HDOP、使用衛星數與當地時間。</figcaption>
+            </figure>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td><code>+CME ERROR: 505</code></td>
+                    <td>GNSS 還沒開 —— 先 <code>AT+QGPS=1</code>。
+                        每次重開機（含重載頁面）都要重開</td></tr>
+                <tr><td><code>+CME ERROR: 504</code></td><td>GNSS 已經開著，重複開而已，無害</td></tr>
+                <tr><td>錯誤 516（NOT_FIXED_NOW）</td>
+                    <td>還沒定到位。GSV 有訊號（SNR ≥ 30）就繼續等；
+                        全部 00 就是天線／環境問題，等再久也沒用</td></tr>
+                <tr><td>拿不到連續 NMEA 流</td>
+                    <td>出廠 <code>outport</code> 是 <code>usbnmea</code>，連續流走 USB 埠。
+                        AT 口用 <code>AT+QGPSGNMEA</code> 逐句抓即可（需先
+                        <code>nmeasrc,1</code>，本頁按鈕已備）</td></tr>
+                <tr><td><code>AT+QGPSDEL</code> 想強制冷啟動</td>
+                    <td>⚠ 別用 —— 本機韌體 <code>=?</code> 回 <code>(0-2)</code>
+                        但三個參數<strong>全部拒收</strong>（INVALID_PARA），官方文件也沒收錄。
+                        要冷啟動：<code>apflash,0</code> ＋ 斷電重開（測完記得改回 1）</td></tr>
+                <tr><td>換了設定沒生效</td>
+                    <td><code>QAGPS</code> 重開機才生效；<code>gnssconfig</code>（星座組合）
+                        也是。改完要跑一次開機儀式</td></tr>
+            </table>
+
+

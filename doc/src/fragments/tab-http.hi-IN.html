@@ -1,0 +1,152 @@
+<h3 id="tab-http">HTTP —— वेब अनुरोध</h3>
+            <p><strong>कार्य-सिद्धांत:</strong> मॉड्यूल का HTTP <strong>तीन-चरण</strong> वाला है:
+            पहले URL सेट करें (यह क़दम खुद फिर दो-चरण है), फिर अनुरोध भेजें (GET / POST), आख़िर में जवाब पढ़ें।
+            हर चरण का परिणाम <code>OK</code> में नहीं, बाद में आने वाले URC में होता है ——
+            इसलिए <code>AT+QURCCFG="urcport"</code> का <code>"uart1"</code> होना अनिवार्य है (Hardware पेज से बदल सकते हैं),
+            वरना एक भी परिणाम नहीं दिखेगा। आँकड़े सब 2026-08 के असली मशीन-माप हैं।</p>
+
+            <h4>शुरू करने से पहले: पहले डेटा चैनल हो</h4>
+            <p>पूर्व-शर्त: PDP सक्रिय है और IP मिल चुका है (TCP/IP पेज का <code>AT+QIACT=1</code>)।
+            इस पेज के <strong>Connect समूह</strong> में सिर्फ़ केवल-पठन जाँचें हैं:
+            <code>AT+CPIN?</code> / <code>AT+CGATT?</code> / <code>AT+CGREG?</code> /
+            <code>AT+QIACT?</code>, <code>AT+QIDNSCFG=1</code> (DNS 0.0.0.0 = बँटा ही नहीं),
+            <code>AT+QIGETERROR</code> (⚠ सिर्फ़ आख़िरी TCP/IP कमांड के लिए मान्य;
+            विफलता के बाद <strong>तुरंत</strong> दबाएँ)।</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> झूठ बोलता है।</strong> माप में PDP का बीच में खिसकना मिला:
+                सारे अनुरोध विफल, <strong>बँधा 30 सेकंड टाइमआउट</strong> और एरर 716,
+                पर <code>AT+QIACT?</code> फिर भी IP लौटाता रहा। <code>AT+CGACT?</code> से क्रॉस-चेक करें;
+                मेल न खाए तो खिसक चुका है। सुधार: <code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;खिसका cid&gt;</code> → <code>AT+QIACT=1</code>,
+                ping पास होने पर ही आगे बढ़ें।
+            </div>
+
+            <h4>पहला GET: चार चरण</h4>
+            <ol>
+                <li><strong>पूर्व-सेटिंग</strong> (Config समूह, शून्य डेटा खर्च): <code>contextid</code>
+                    पैरामीटर कार्ड में 1 सेट करें (इस्तेमाल होने वाला PDP context बाँधना); <code>rspout/auto</code>,
+                    <code>requestheader</code>, <code>responseheader</code> तीनों स्विच 0 पर रखें
+                    (वजह आगे); <code>AT+QHTTPCFG?</code> एक बार में सारी सेटिंग पढ़कर मिलान,
+                    <code>AT+QHTTPCFG=?</code> सेट करने योग्य मदों की सूची।</li>
+                <li><strong>URL सेट करना (दो-चरण)</strong>: <code>AT+QHTTPURL</code> कार्ड में सिर्फ़ एक
+                    "भेजें (दो-चरण)" बटन है —— आप URL भरें, लंबाई प्रोग्राम अपने आप गिनता है। प्रवाह: पहले
+                    <code>AT+QHTTPURL=&lt;लंबाई&gt;,80</code> भेजें, <code>CONNECT</code> का इंतज़ार कर
+                    डेटा मोड में घुसें, फिर URL के बाइट ज्यों के त्यों भेजें, <strong>कोई लाइन-अंत नहीं जोड़ें</strong>
+                    (CR/LF लंबाई में गिन लिया जाएगा)।
+                    <code>http://www.example.com/</code> की लंबाई ठीक 23 है। भेजकर
+                    <code>AT+QHTTPURL?</code> से वापस पढ़ें; अक्षर-दर-अक्षर एक जैसा = लाइन-अंत नहीं घुसा।</li>
+                <li><strong>अनुरोध भेजना</strong>: <code>AT+QHTTPGET=80</code> (जवाब-प्रतीक्षा के सेकंड)।
+                    <code>OK</code> सिर्फ़ "कमांड स्वीकार"; असली परिणाम बाद का URC
+                    <code>+QHTTPGET: 0,200</code> है — पढ़ना अगले परिच्छेद में।</li>
+                <li><strong>जवाब पढ़ना</strong>: <code>AT+QHTTPREAD=80</code>।
+                    <code>CONNECT</code> के बाद सब कच्चे बाइट हैं (माप में example.com के लिए
+                    559 bytes), फिर <code>OK</code> ——
+                    पर <strong>अंत में अलग पंक्ति का <code>+QHTTPREAD: 0</code> ही समाप्ति-चिह्न है</strong>।</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="HTTP टैब">
+                <figcaption>HTTP पेज: Config / Connect / Transfer / Close चार समूह।</figcaption>
+            </figure>
+
+            <h4>+QHTTPGET पढ़ना: पहला कॉलम HTTP स्टेटस-कोड नहीं है</h4>
+            <p>GET / POST / POSTFILE के परिणाम-URC सब
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code> तीन कॉलम के हैं:
+            <code>err</code> <strong>0 = कमांड सफलतापूर्वक चला</strong>, ग़ैर-0 मॉड्यूल-परत की त्रुटि है (716, 711…);
+            <code>httprspcode</code> HTTP स्टेटस-कोड है, <strong>सिर्फ़ err=0 पर ही रिपोर्ट होता है</strong>
+            (मैनुअल में साफ़ लिखा; टूल में 200 / 403 / 404 / 409 / 411 / 500 के तुलना-नोट बने हैं);
+            <code>content_length</code> वैकल्पिक है —— सर्वर के जवाब-हेडर में CONTENT-LENGTH हो तभी आता है;
+            साधारण GET में अक्सर दो ही कॉलम होते हैं। इसलिए माप का <code>+QHTTPGET: 0,404,0</code>
+            <strong>विफलता नहीं है</strong>: कमांड सफल रहा; सर्वर ने कहा "नहीं मिला"।</p>
+
+            <h4>जवाब पढ़ना: AT+QHTTPREAD के जाल</h4>
+            <p>पैरामीटर "दो डेटा-पैकेटों के बीच का अधिकतम अंतराल, सेकंड में" है, कुल अवधि नहीं।
+            <strong>इस मशीन का फ़र्मवेयर सिर्फ़ एक पैरामीटर लेता है</strong>: एप्लिकेशन दस्तावेज़ की
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> टुकड़ों में पढ़ने की विधि पर माप में नंगा
+            <code>ERROR</code> मिला (<code>=?</code> जाँच से पुष्ट); वह बटन हटा दिया गया है ——
+            टुकड़ों में पाने के लिए <code>GETEX</code> लें।</p>
+            <div class="warning">
+                <strong>इंटरलॉक-जाल: <code>rspout/auto</code> 1 सेट होते ही READ-परिवार हर बार विफल</strong>
+                (मैनुअल में साफ़ लिखा)। वह मॉड्यूल से जवाब अपने आप उगलवाता है; क़ीमत है READ-परिवार का पूरा सफ़ाया —
+                इसीलिए इस बटन पर पुष्टि-संवाद लगा है। READ अचानक सब गिरने लगें तो पहले <code>AT+QHTTPCFG?</code> देखें।
+            </div>
+
+            <h4>टुकड़ों में पाना: AT+QHTTPGETEX से byte-दर-byte पढ़ना</h4>
+            <p><code>AT+QHTTPGETEX=&lt;सेकंड&gt;,&lt;आरंभिक ऑफ़सेट&gt;,&lt;लंबाई&gt;</code>
+            HTTP Range से सिर्फ़ चुना टुकड़ा लाता है, डेटा बचाता है। माप (एंडपॉइंट की सामग्री स्थिर
+            <code>abcdefghijklmnop</code>): ऑफ़सेट 0 से 8 लेने पर <code>+QHTTPGET: 0,206,8</code>,
+            पढ़ा <code>abcdefgh</code>; ऑफ़सेट 8 से फिर 8 लेने पर <code>ijklmnop</code>।
+            पढ़ना: <strong>स्टेटस-कोड 206 होना अनिवार्य</strong>; <strong>200 आए और हर बार सामग्री एक जैसी</strong>
+            = सर्वर Range सपोर्ट नहीं करता, मॉड्यूल ख़राब नहीं है।
+            ⚠ सिर्फ़ <code>requestheader=0</code> पर चलता है।</p>
+
+            <h4>POST: दो-चरण और Content-Type</h4>
+            <p><code>AT+QHTTPPOST</code> कार्ड भी दो-चरण है: आप body भरें, लंबाई अपने आप गिनी जाती है; पहले
+            <code>AT+QHTTPPOST=&lt;लंबाई&gt;,&lt;इनपुट सेकंड&gt;,&lt;जवाब सेकंड&gt;</code> जाता है,
+            <code>CONNECT</code> के बाद body। तीन बातें:</p>
+            <ul>
+                <li><strong><code>CONNECT</code> का इंतज़ार अधिकतम 125 सेकंड तक हो सकता है</strong> (मैनुअल में साफ़ लिखा) ——
+                    प्रॉम्प्ट-प्रतीक्षा का टाइमआउट पूरा 125 सेकंड रखें, MQTT वाले 5 सेकंड न उतारें।</li>
+                <li>body की ऊपरी सीमा 1 MB (<code>=?</code> से माप में सीमा 1–1024000)।</li>
+                <li>Content-Type पहले <code>contenttype</code> पैरामीटर कार्ड से सेट करें
+                    (प्रकार-कोड 0 = form-urlencoded)।</li>
+            </ul>
+            <p>माप: POST <code>Message=HelloQuectel</code> (20 bytes) पर जवाब
+            <code>+QHTTPPOST: 0,200,440</code>; READ से मिला JSON सत्यापित करता है कि कुंजी-मान पहुँचे,
+            लंबाई सही गिनी गई, Content-Type लगा; User-Agent मॉड्यूल का अपना बताया
+            <code>QUECTEL_MODULE</code> है।</p>
+
+            <h4>कस्टम हेडर और जवाब-हेडर</h4>
+            <ul>
+                <li><code>reqheader/add</code>: एक कस्टम अनुरोध-हेडर जोड़ता है (मैनुअल में उदाहरण नहीं);
+                    क्वेरी बटन से देखा जा सकता है कि अभी कितने जुड़े हैं; <code>reqheader/remove</code> हटाता है।</li>
+                <li><code>requestheader</code> 1 सेट करना = पूरा अनुरोध-हेडर खुद रचना; GET तक दो-चरण बन जाता है,
+                    और <code>GETEX</code> नहीं चलता। सामान्यतः 0 रखें।</li>
+                <li><code>responseheader</code> 1 करने पर READ के साथ HTTP जवाब-हेडर भी उगले जाते हैं
+                    (माप में कस्टम X-Test तक वापस आया)। परीक्षण के बाद 0 पर लौटाएँ।</li>
+                <li><code>closed/ind</code>: "session बंद हुआ" की URC रिपोर्टिंग चालू करता है।</li>
+            </ul>
+
+            <h4>फ़ाइल-रूप: POSTFILE और READFILE (UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="फ़ाइलनाम",&lt;सेकंड&gt;</code> मॉड्यूल के फ़ाइल-सिस्टम (UFS) की फ़ाइल को
+            body बनाकर POST करता है; <code>AT+QHTTPREADFILE="फ़ाइलनाम",&lt;सेकंड&gt;</code> जवाब को
+            UFS फ़ाइल में सहेजता है। ⚠ यह टूल फ़िलहाल <strong>न UFS पर फ़ाइल अपलोड कर सकता है, न UFS
+            फ़ाइल की सामग्री वापस पढ़ सकता है</strong>; ये दोनों कमांड फ़र्मवेयर-पक्ष के प्रवाह के साथ जोड़कर इस्तेमाल के लिए हैं।</p>
+
+            <h4>HTTPS: बिना-सत्यापन रास्ता</h4>
+            <p>HTTPS = HTTP + SSL context। Connect समूह में सबसे छोटा रास्ता तैयार है; पाँच बटन क्रम से दबाएँ:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP को SSL context 1 सौंपें
+AT+QSSLCFG="sslversion",1,4        ← TLS संस्करण सर्वर की सौदेबाज़ी पर छोड़ें
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← सिफर सुइट सब खुले
+AT+QSSLCFG="seclevel",1,0          ← प्रमाणपत्र नहीं जाँचना (नीचे देखें)
+AT+QSSLCFG="sni",1,1               ← SNI चालू (फ़ैक्ट्री में 0 है!)</pre>
+            <p>इसके बाद URL <code>https://</code> से शुरू कर सामान्य GET / READ ——
+            माप में पढ़ा HTML सादे-पाठ रूप से अक्षर-दर-अक्षर एक जैसा था।
+            <strong><code>seclevel=0</code> (प्रमाणपत्र नहीं जाँचना) ही इस टूल में अंत तक चलने वाला इकलौता रास्ता है</strong>
+            —— प्रमाणपत्र जँचवाना हो तो पहले CA प्रमाणपत्र UFS में लिखना होगा; SSL के ब्यौरे (<code>AT+QSSLCFG=?</code>
+            से सारी उप-मदें, <code>negotiatetime</code> से हैंडशेक-प्रतीक्षा के सेकंड) "SSL —— TLS चैनल" अनुभाग में।
+            <strong>SNI फ़ैक्ट्री में 0 है</strong>: न खोला तो साझा IP वाली HTTPS साइटें बेमेल प्रमाणपत्र देती हैं,
+            सत्यापन होते ही गिरता है। <strong>प्रमाणपत्र-शृंखला डेटा की सबसे बड़ी खपत है</strong>: एक HTTPS GET चक्र लगभग 8–15 KB,
+            सादा-पाठ सिर्फ़ लगभग 1 KB।</p>
+
+            <h4>रीडायरेक्ट और समेटना</h4>
+            <p><strong>रीडायरेक्ट (मैनुअल में नहीं लिखा, माप से स्पष्ट)</strong>: मॉड्यूल 302 का अपने आप पीछा करता है, पर
+            <strong>सिर्फ़ निरपेक्ष पथ वाला Location लेता है</strong> —— सापेक्ष पथ पर सीधे एरर 711,
+            1 मिलीसेकंड में तुरंत विफल। <strong>समेटना</strong>:
+            <code>AT+QHTTPSTOP</code> (Close समूह) चालू अनुरोध रद्द कर session काट देता है;
+            अवस्था अटपटी लगे, या एरर 704 (डेटा मोड घिरा हुआ) दिखे, तो पहले यही दबाकर सफ़ाई करें।</p>
+
+            <h4>समस्या निवारण</h4>
+            <table>
+                <tr><th>लक्षण</th><th>कारण और समाधान</th></tr>
+                <tr><td>कोई परिणाम-URC नहीं दिखता</td><td><code>urcport</code> <code>uart1</code> नहीं है,
+                    Hardware पेज पर बदलें</td></tr>
+                <tr><td>सारे URL पर 716, बँधा 30 सेकंड टाइमआउट</td>
+                    <td>PDP खिसक गया, ऊपर की चेतावनी देखें</td></tr>
+                <tr><td>अकेले किसी URL पर 716</td><td>माप में DNS-विफलता भी 716 है (पुराने दस्तावेज़ का अंदाज़ा
+                    714 नहीं); उसके बाद READ का 705 सामान्य कड़ी-प्रतिक्रिया है</td></tr>
+                <tr><td><code>READ</code> / <code>GETEX</code> अचानक विफल</td>
+                    <td><code>rspout/auto</code> और <code>requestheader</code>
+                        दोनों 0 होने चाहिए (ऊपर देखें)</td></tr>
+                <tr><td><code>AT</code> तक का कोई जवाब नहीं</td>
+                    <td>मॉड्यूल अटक गया (माप में मिला, मैनुअल में वर्णन नहीं) —— बूट प्रक्रिया दोबारा चलाएँ</td></tr>
+            </table>

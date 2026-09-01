@@ -1,0 +1,156 @@
+<h3 id="tab-gnss">GNSS — Penentududukan satelit</h3>
+            <p><strong>Prinsip kerja:</strong> GNSS ialah fungsi yang <strong>bebas daripada rangkaian mudah alih</strong> —
+            tidak memerlukan SIM yang ada rangkaian, tidak memerlukan PDP dan tidak menggunakan kuota data (kecuali AGNSS, lihat di bawah).
+            Selepas dihidupkan, modul menerima isyarat satelit dengan sendirinya, dan anda meninjau hasil penentududukan dengan <code>AT+QGPSLOC</code>.
+            Semua tempoh saat dan tingkah laku dalam bahagian ini ialah nilai ujian sebenar pada EG800K fizikal pada Ogos 2026.</p>
+
+            <h4>Sebelum bermula: antena menentukan segala-galanya</h4>
+            <p>Punca utama kegagalan penentududukan bukanlah arahan yang tersilap, tetapi
+            <strong>antena yang tidak menerima isyarat</strong>.
+            Perbandingan ujian sebenar: di dalam bangunan dengan antena yang lemah, modul mampu menyenaraikan kedudukan 38 satelit
+            tetapi <strong>tidak mendengar satu pun</strong>
+            (SNR semuanya 00); selepas menukar kepada <strong>antena GNSS aktif (active)</strong> dan meletakkannya di tepi tingkap,
+            mula sejuk berjaya menentukan kedudukan dalam masa 95 saat.</p>
+            <div class="warning">
+                <strong>GNSS tidak boleh diuji di dalam bangunan — berapa lama pun ditunggu tiada gunanya.</strong> Apabila tiada pandangan langit,
+                <code>$GNGGA</code> memulangkan "satelit digunakan 00, kualiti penentududukan 0",
+                dan <code>AT+QGPSLOC</code> selama-lamanya memulangkan ralat 516.
+                Pindahkan antena ke tepi tingkap atau ke luar bangunan sebelum bermula — ini bukan masalah kesabaran, ini masalah fizik.
+            </div>
+
+            <h4>Penentududukan kali pertama: lima langkah</h4>
+            <ol>
+                <li><strong>Jalankan ritual but</strong> (lihat bahagian "Ritual But").
+                    ⚠ Setiap kali halaman dimuat semula ia bersamaan kuasa putus: status hidup GNSS dan efemeris yang separuh diterima semuanya lenyap,
+                    dan anda perlu bermula semula dari langkah ini.</li>
+                <li><strong>Sahkan URC melalui UART</strong>: <code>AT+QURCCFG="urcport"</code> mesti memulangkan
+                    <code>"uart1"</code>. Nilai kilang ialah <code>"usbat"</code>; jika tidak diubah, banyak mesej keputusan
+                    akan dihantar ke port USB dan langsung tidak kelihatan di sini (tetapan ditulis ke NVRAM, ubah sekali sahaja sudah cukup).</li>
+                <li><strong>Hidupkan GNSS</strong>: tekan <code>AT+QGPS=1</code>.
+                    Dalam beberapa saat anda akan nampak <code>+QGPS: "firmware",0,0</code> (perisian tegar GNSS berjaya dimuatkan).
+                    Menekannya semula ketika sudah hidup memulangkan <code>+CME ERROR: 504</code>, tidak berbahaya.</li>
+                <li><strong>Semak penerimaan isyarat</strong>: tekan <code>AT+QGPSGNMEA="GSV"</code> untuk membaca satelit yang kelihatan.
+                    Kawasan terminal akan membuka tab <strong>satelit</strong> secara automatik dan melukis carta palang isyarat serta paparan langit —
+                    cara membacanya diterangkan dalam bahagian seterusnya.</li>
+                <li><strong>Tinjau penentududukan</strong>: tekan <code>AT+QGPSLOC=2</code> setiap 5–10 saat.
+                    Balasan <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> (ralat 516) bermakna kedudukan belum diperoleh,
+                    <strong>teruskan menunggu sahaja</strong>. Apabila berjaya ia memulangkan koordinat,
+                    dan kawasan terminal membuka tab <strong>peta</strong> secara automatik lalu melukis kedudukan itu di atasnya.</li>
+            </ol>
+            <figure class="shot narrow">
+                <img src="img/07-gnss.png" alt="Tab GNSS">
+                <figcaption>Halaman GNSS: suis, bacaan NMEA, pertanyaan kedudukan, pecutan AGNSS.</figcaption>
+            </figure>
+
+            <h4>Membaca tab satelit: "kelihatan" tidak bermakna "kedengaran"</h4>
+            <p>GSV memberikan empat nombor bagi setiap satelit: nombor ID, sudut dongak, azimut dan <strong>SNR (nisbah isyarat kepada hingar, dB-Hz)</strong>.
+            Tiga yang pertama hanya menyatakan "di mana ia sepatutnya berada di langit"; <strong>hanya SNR yang membuktikan isyarat benar-benar diterima</strong>.</p>
+            <table>
+                <tr><th>SNR</th><th>Maksud</th></tr>
+                <tr><td>(kosong) atau 00</td><td>Langsung tiada isyarat diterima — anda tahu di mana ia berada, tetapi tidak mendengarnya</td></tr>
+                <tr><td>14–28</td><td>Tahap pinggir: penyahmodulatan efemeris kerap silap dan diulang; penentududukan lambat lagi tidak stabil</td></tr>
+                <tr><td>30 ke atas</td><td>Penyahmodulatan stabil; <strong>apabila kebanyakan satelit mencapai tahap ini, penentududukan menjadi pantas</strong></td></tr>
+                <tr><td>40 ke atas</td><td>Tahap langit terbuka berserta antena yang baik</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/20-sat-view.png" alt="Tab satelit: carta palang SNR dan paparan langit">
+                <figcaption>Tab satelit ketika penentududukan berjaya: 31/41 satelit mempunyai isyarat, carta palang SNR dan paparan langit
+                bagi empat buruj (GPS/QZSS/GLONASS/BDS). Kebanyakan palang melebihi 20 dan sebahagiannya mencapai 40 — itulah rupa "kedengaran".</figcaption>
+            </figure>
+
+            <h4>Mengapa perlu menunggu: had fizik mula sejuk dan masa ujian sebenar</h4>
+            <p>Penentududukan memerlukan orbit tepat setiap satelit (efemeris), dan efemeris tersembunyi dalam isyarat yang disiarkan satelit pada
+            <strong>50 bps</strong> — satu satelit memerlukan kira-kira 18–30 saat penyahmodulatan berterusan tanpa silap,
+            satu bit yang silap bermakna bermula semula, dan sekurang-kurangnya 4 satelit diperlukan. Itulah sebabnya "mula sejuk" lambat.
+            Ujian sebenar pada unit ini (lokasi sama, antena aktif, resolusi ukuran ±5 saat):</p>
+            <table>
+                <tr><th>Situasi</th><th>Masa penentududukan pertama (ujian sebenar)</th></tr>
+                <tr><td>Mula sejuk (tanpa sebarang bantuan)</td><td><strong>95 saat</strong></td></tr>
+                <tr><td>Mula sejuk + AGNSS</td><td><strong>52 saat</strong> (dan satu kedudukan kasar sudah dipulangkan selepas kira-kira 20 saat)</td></tr>
+                <tr><td>AGNSS + baki efemeris terkini (penggunaan berulang harian)</td><td><strong>25 saat</strong></td></tr>
+            </table>
+            <div class="tip">
+                <strong>Jangan muat semula halaman semasa menguji.</strong> Reka bentuk perkakasan alat ini menjadikan RTS = kuasa,
+                muat semula halaman = kuasa putus = semua efemeris hilang, dan segala-galanya bermula semula daripada mula sejuk.
+                Untuk berhenti seketika, tekan <code>AT+QGPSEND</code>; jangan putuskan kuasa.
+            </div>
+
+            <h4>Pecutan AGNSS: prosedur lengkap</h4>
+            <p><strong>Prinsip:</strong> AGNSS menukar efemeris kepada muat turun rangkaian (kira-kira 32–34 KB setiap kali),
+            melangkau penyahmodulatan perlahan 50 bps. Ia <strong>tidak boleh mencipta isyarat satelit daripada tiada</strong> —
+            di dalam bangunan kedudukan tetap tidak dapat ditentukan; yang dijimatkannya hanyalah masa "menunggu efemeris".</p>
+            <p>Dua prasyarat inilah yang paling mudah terlepas; tertinggal mana-mana satu pun membuatkan AGNSS <strong>diam membisu tanpa sebarang tindakan, tanpa sebarang ralat</strong>:</p>
+            <table>
+                <tr><th>Prasyarat</th><th>Arahan</th><th>Perangkap</th></tr>
+                <tr><td>AGNSS diaktifkan</td><td><code>AT+QAGPS=1</code></td>
+                    <td>⚠ <strong>Berkuat kuasa hanya selepas but semula</strong> (ditulis ke NVRAM; tetapkan sekali sahaja sudah cukup)</td></tr>
+                <tr><td>PDP diaktifkan</td><td><code>AT+QIACT=1</code></td>
+                    <td>⚠ Perlu dihantar semula setiap kali but. <strong><code>AT+CGATT?</code> memulangkan 1 tidak dikira</strong> —
+                        attach hanyalah pendaftaran lapisan rangkaian; hanya apabila <code>AT+QIACT?</code> dapat memulangkan
+                        <code>+QIACT: 1,1,…,"IP"</code> barulah saluran data wujud</td></tr>
+            </table>
+            <p>Urutan lengkap (selepas setiap kali but):</p>
+            <pre>AT+QIACT=1          ← buka saluran data (tunggu paling lama 150 saat; menggunakan kuota data)
+AT+QIACT?           ← mesti nampak +QIACT: 1,1,…,"IP"
+AT+QGPS=1           ← hidupkan GNSS; AGNSS memuat turun data bantuan secara automatik pada ketika ini
+AT+QGPSLOC=2        ← tinjau setiap 5–10 saat</pre>
+            <p><strong>Bagaimana mengesahkan AGNSS benar-benar berfungsi?</strong> Perisian tegar unit ini <strong>tidak</strong> mengeluarkan
+            sebarang pemberitahuan seperti <code>+QGPS: "agps"</code> (disahkan melalui ujian sebenar); anda perlu melihat bukti sampingan — mana-mana satu daripada tiga ini sudah memadai:</p>
+            <ol>
+                <li>Semak <code>AT+QGDCNT?</code> dua kali, sebelum dan selepas <code>AT+QGPS=1</code>;
+                    arah terima bertambah kira-kira 30 KB = data bantuan telah dimuat turun</li>
+                <li>GSV menyenaraikan <strong>kedudukan sejumlah besar satelit</strong> dalam beberapa saat sahaja (SNR mungkin masih 00) —
+                    kedudukan itu dimuat turun; penyahmodulatan sendiri mustahil sepantas itu</li>
+                <li>Medan masa <code>$GNGGA</code> mempunyai nilai (masa juga sebahagian daripada data bantuan)</li>
+            </ol>
+            <div class="warning">
+                <strong>Perangkap penentududukan palsu: koordinat dengan sifar satelit bukanlah penentududukan.</strong>
+                Kira-kira 20 saat selepas AGNSS bermula, <code>AT+QGPSLOC</code> mungkin memulangkan satu set koordinat,
+                tetapi perhatikan betul-betul: <code>HDOP 0.00 / alt 0.0 / nsat 00</code> —
+                itu ialah <strong>suntikan kedudukan rujukan</strong> daripada data bantuan, bukan hasil ukuran, dan boleh tersasar jauh.
+                <br><br>
+                <strong>Kriteria penentududukan sebenar: bilangan satelit digunakan &gt; 0, mod penentududukan ≥ 2, HDOP &gt; 0.</strong>
+                Semasa menulis logik automasi atau produk, jangan hanya melihat "ada atau tiada koordinat dipulangkan".
+            </div>
+
+            <h4>apflash: pantas walaupun selepas kuasa diputus dan dihidupkan semula (bersyarat)</h4>
+            <p><code>AT+QGPSCFG="apflash"</code> bernilai 1 dari kilang: setiap penentududukan yang berjaya menyimpan efemeris ke dalam
+            flash, dan but seterusnya mengimportnya secara automatik — jika kuasa diputus dan dihidupkan semula dalam tempoh sejam, mula sejuk bertukar menjadi mula panas yang pantas,
+            dengan <strong>sifar kuota data</strong>. Dua had: efemeris luput dalam kira-kira sejam;
+            dan <strong>penentududukan mesti pernah berjaya sekurang-kurangnya sekali</strong> barulah flash mempunyai sesuatu untuk diimport —
+            pada modul yang tidak pernah berjaya menentukan kedudukan, apflash tidak dapat membantu.</p>
+
+            <h4>Selepas penentududukan berjaya: tab peta</h4>
+            <p>Setiap kali <code>AT+QGPSLOC</code> berjaya, kedudukan dilukis pada tab peta:
+            penanda biru ialah kedudukan terkini, garis sian ialah jejak pergerakan, dan meletakkan tetikus di atas mana-mana titik jejak memaparkan waktu tempatan serta altitud.
+            Bar ringkasan memaparkan koordinat / altitud / HDOP / bilangan satelit, dengan masa ditukar secara automatik kepada zon waktu tempatan mengikut longitud.</p>
+            <figure class="shot">
+                <img src="img/21-map-track.png" alt="Tab peta: jejak penentududukan">
+                <figcaption>Tab peta selepas penentududukan berjaya: penanda = kedudukan terkini, garis sian = jejak;
+                bar ringkasan di bahagian atas memaparkan koordinat, altitud, HDOP, bilangan satelit digunakan dan waktu tempatan.</figcaption>
+            </figure>
+
+            <h4>Penyelesaian masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Punca dan penyelesaian</th></tr>
+                <tr><td><code>+CME ERROR: 505</code></td>
+                    <td>GNSS belum dihidupkan — hantar <code>AT+QGPS=1</code> dahulu.
+                        Setiap kali but semula (termasuk muat semula halaman) ia perlu dihidupkan semula</td></tr>
+                <tr><td><code>+CME ERROR: 504</code></td><td>GNSS sudah pun hidup; anda cuma menghidupkannya dua kali. Tidak berbahaya</td></tr>
+                <tr><td>Ralat 516 (NOT_FIXED_NOW)</td>
+                    <td>Kedudukan belum diperoleh. Jika GSV menunjukkan isyarat (SNR ≥ 30), teruskan menunggu;
+                        jika semuanya 00, itu masalah antena/persekitaran — berapa lama pun ditunggu tiada gunanya</td></tr>
+                <tr><td>Tiada aliran NMEA berterusan</td>
+                    <td><code>outport</code> kilang ialah <code>usbnmea</code>; aliran berterusan pergi ke port USB.
+                        Pada port AT, ambil sahaja ayat demi ayat dengan <code>AT+QGPSGNMEA</code> (perlu
+                        <code>nmeasrc,1</code> dahulu; butang pada halaman ini sudah menyediakannya)</td></tr>
+                <tr><td><code>AT+QGPSDEL</code> untuk memaksa mula sejuk</td>
+                    <td>⚠ Jangan guna — perisian tegar unit ini menjawab <code>=?</code> dengan <code>(0-2)</code>
+                        tetapi <strong>menolak ketiga-tiga parameter</strong> (INVALID_PARA), dan manual rasmi juga tidak mendokumenkannya.
+                        Untuk mula sejuk sebenar: <code>apflash,0</code> + putus dan hidupkan semula kuasa (jangan lupa menukarnya semula kepada 1 selepas ujian)</td></tr>
+                <tr><td>Tetapan yang diubah tidak berkuat kuasa</td>
+                    <td><code>QAGPS</code> berkuat kuasa hanya selepas but semula; begitu juga <code>gnssconfig</code> (gabungan buruj).
+                        Selepas mengubahnya, jalankan ritual but sekali</td></tr>
+            </table>
+
+

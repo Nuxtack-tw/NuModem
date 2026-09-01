@@ -1,0 +1,149 @@
+<h3 id="tab-network">Network —— registo, operadora, rádio</h3>
+            <p><strong>Princípio de funcionamento:</strong> para qualquer função de dados funcionar, é preciso <strong>estar registado na rede móvel</strong>
+            e ter <strong>o canal de dados PDP pronto</strong> —— esta página é o painel de instrumentos e os interruptores da entrada na rede,
+            e é aqui que começa todo o diagnóstico de «não consigo ligar à rede». Todos os valores desta secção foram medidos em agosto de 2026 num EG800K físico.</p>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Separador Network">
+                <figcaption>Os cinco grupos de botões da página Network: consulta de registo, Signal URC, PDP, diagnóstico, controlo de rádio.</figcaption>
+            </figure>
+
+            <h4>Antes de começar: mande primeiro os URC para a UART</h4>
+            <p>O EG800K vem de fábrica a enviar as mensagens espontâneas (URC) para <code>usbat</code> (a porta AT do USB),
+            e esta ferramenta trabalha pela UART —— <strong>não se recebe nem um URC</strong>: reportes de sinal,
+            resultados TCP/MQTT/scan Wi-Fi, tudo em silêncio; o sintoma é <strong>«os comandos respondem todos OK, mas não há mensagens»</strong>.</p>
+            <div class="warning">
+                <strong>É esta a causa número um de «os URC desapareceram todos».</strong>
+                Vá ao separador Hardware, consulte com <code>AT+QURCCFG="urcport"</code>
+                e, se não for <code>"uart1"</code>, mude com o botão de comutação —— a definição grava em NVRAM: muda-se uma vez e sobrevive aos rearranques.
+            </div>
+
+            <h4>Primeiro passo: confirmar o estado de registo</h4>
+            <p>Depois de ver o <code>RDY</code> do ritual de arranque, prima primeiro <code>AT+CEREG?</code> (num módulo 4G é o mais fiável).
+            Os três botões de registo correspondem a três domínios: <code>CEREG</code> = LTE/EPS, <code>CREG</code> = domínio de comutação de circuitos,
+            <code>CGREG</code> = domínio de comutação de pacotes; o segundo número (stat) interpreta-se da mesma forma:</p>
+            <table>
+                <tr><th>stat</th><th>Significado</th><th>O que fazer</th></tr>
+                <tr><td>0</td><td>Ainda não registado</td><td>Comum logo após o arranque; espere uns segundos e volte a consultar</td></tr>
+                <tr><td>1</td><td>Registado (rede própria)</td><td>Normal, siga em frente</td></tr>
+                <tr><td>2</td><td>A procurar</td><td>Espere</td></tr>
+                <tr><td>3</td><td>Rejeitado pela rede</td><td>Verifique SIM/tarifário; veja a razão com o CEER</td></tr>
+                <tr><td>5</td><td>Registado (roaming)</td><td><strong>O estado normal desta unidade</strong>, ver abaixo</td></tr>
+            </table>
+            <div class="tip">
+                <strong>stat=5 não é avaria.</strong> Em teste, as três consultas de registo devolveram <code>0,5</code>:
+                o SIM é um cartão IoT da 1NCE (cartão de roaming internacional, MCC 901), que conta como «roaming» em qualquer país;
+                onde vir 5, leia 1.
+            </div>
+            <p>Registado mas sem acesso à rede? Prima a seguir <code>AT+CGATT?</code> para consultar o attach ao domínio de pacotes;
+            se necessário, faça o attach manual com <code>AT+CGATT=1</code>; falhando, veja a razão com <code>AT+CEER</code>
+            (uma camada diferente do <code>QIGETERROR</code> da página TCP/IP).
+            O CGATT bloqueia até <strong>140 segundos</strong>: não o prima em rajada.</p>
+
+            <h4>Em que operadora e em que banda está agora</h4>
+            <p><code>AT+COPS?</code> consulta a operadora onde está registado (o 7 no fim = LTE).
+            <strong>Armadilha: o nome da operadora pode ser uma string vazia</strong> —— em teste veio <code>+COPS: 0,0,"",7</code>,
+            e não é avaria. Para ver a operadora, prima antes <code>AT+QNWINFO</code> (tecnologia/operadora/banda/canal):</p>
+            <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+            <p>46692 = Chunghwa Telecom, Band 8; sem serviço devolve <code>NO SERVICE</code>.
+            Este cartão de roaming escolhe a rede sozinho: em dias diferentes mediu-se a Chunghwa Telecom em Band 8 e a FarEasTone (466-01) em Band 3,
+            e mudar de operadora e de banda é normal. O <code>AT+COPS=?</code> procura todas as operadoras em volta:
+            <strong>bloqueia até 300 segundos e interrompe os serviços em curso</strong>; prima só quando tiver a certeza de que precisa.</p>
+
+            <h4>Força e qualidade do sinal: o CSQ é só um valor grosseiro</h4>
+            <p><code>AT+CSQ</code> devolve rssi e ber: rssi 0–31 corresponde a -113 a -51 dBm,
+            99 = indetetável (comum logo após o arranque; espere uns segundos). Medido: rssi 18–24 (-77 a -65 dBm, bom);
+            <strong>o ber fica sempre em 99, sem valor de referência</strong>. Os três verdadeiros indicadores de qualidade do LTE,
+            <strong>RSRP (força) / RSRQ (qualidade) / SINR (relação sinal-ruído; baixo = interferido)</strong>,
+            só se obtêm com o grupo Signal URC (<code>AT+QINDCFG="sqi"</code> sem valor = consultar o interruptor):</p>
+            <table>
+                <tr><th>Botão</th><th>Comando</th><th>Função</th></tr>
+                <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+                    <td>Liga o reporte de RSRP/RSRQ/SINR —— <strong>indispensável em testes de antena e de posicionamento</strong>.
+                        Só emite quando o sinal «muda»; se nada acontecer, tape a antena ou tire-a e volte a pô-la; a definição não sobrevive ao rearranque</td></tr>
+                <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+                    <td>Reporta assim que o sinal muda, em vez de martelar o CSQ</td></tr>
+                <tr><td>URC Off/On</td><td><code>AT+QINDCFG="all",0/1</code></td>
+                    <td>Silenciar num clique quando o ecrã fica inundado —— lembre-se de voltar a ligar depois</td></tr>
+            </table>
+
+            <h4>Canal PDP: camada 3GPP vs página TCP/IP</h4>
+            <p>O PDP context é o «canal de dados» atribuído pela rede móvel; sem ele não há IP. Este grupo são consultas só de leitura da camada padrão 3GPP:
+            <code>AT+CGDCONT?</code> lista contexts e APN, <code>AT+CGACT?</code> lista o estado de ativação
+            (bloqueia até 150 segundos; ⚠ na forma de escrita a ordem dos parâmetros é a inversa), <code>AT+CGPADDR</code>
+            lista os IP obtidos. Os <code>QIACT?</code>/<code>QICSGP</code> da página TCP/IP são
+            <strong>a pilha própria da Quectel, não a mesma camada</strong> —— comparar lado a lado permite ver de que lado está a avaria:
+            aqui há IP e lá não = a rede deu, mas a pilha não arrancou. Esta unidade ativa o PDP e obtém IP automaticamente ao arrancar.</p>
+            <p><code>AT+QGDCNT?</code> consulta o tráfego acumulado (o primeiro número é o <strong>enviado</strong>, o segundo o recebido) ——
+            obrigatório para medir tráfego num cartão de roaming. ⚠ <strong>O teste desmente a dica do botão sobre «acumular entre arranques»</strong>:
+            por omissão o contador não é gravado em NV e um corte de alimentação (incluindo recarregar a página) põe-no a zero —— anote na hora,
+            ou grave em NV com <code>AT+QGDCNT=1</code>.</p>
+
+            <h4>Diagnóstico na prática: este cartão só permite um único PDP</h4>
+            <p>Na página TCP/IP, <code>AT+QIACT=1</code> responde ERROR (<code>572,operation not
+            allowed</code>)? O guião fixo deste cartão: depois do arranque, a camada 3GPP <strong>já ativou sozinha um PDP</strong>,
+            mas <strong>o número do context flutua</strong> (em teste viram-se 1 e 9); abrir um segundo devolve
+            <code>+CME ERROR: 100</code> ⇒ a rede só permite um PDP; e o contextID do <code>QIACT</code>
+            só vai de 1 a 8: quando o PDP calha no 9, a pilha da Quectel nem lhe consegue tocar.
+            Solução em dois passos (uma vez depois de cada arranque):</p>
+            <pre>AT+CGACT?             ← ver qual é o cid (o número flutua; não se pode saltar)
+AT+CGACT=0,&lt;esse cid&gt;   ← a camada 3GPP liberta a vaga
+AT+QIACT=1            ← página TCP/IP; devolver +QIACT: 1,1,1,"10.187.7.8" é sucesso</pre>
+            <p>Definir o APN com <code>QICSGP</code> é dispensável neste cartão —— em teste o módulo sincroniza sozinho o APN atribuído pela rede
+            (<code>iot.1nce.net</code>); só é necessário com cartões de APN empresarial com utilizador e password.</p>
+            <div class="warning">
+                <strong>A meio dos testes começa tudo a expirar? Suspeite primeiro da deriva do PDP.</strong>
+                Em teste, com os HTTP a falharem todos em série (erro 716, timeout fixo de 30 segundos), o <code>AT+QIACT?</code>
+                continuava a devolver um IP —— nesse momento ele engana, e há que cruzar com o <code>AT+CGACT?</code>
+                (medido: 1,0 e 9,1 = derivou para o 9).
+                Solução: <code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;cid da deriva&gt;</code> →
+                <code>AT+QIACT=1</code>, e valide com um ping.
+            </div>
+
+            <h4>Níveis de funcionalidade CFUN e controlo de rádio</h4>
+            <p>O grupo RF Control inteiro altera o estado do módulo; são todos botões de moldura vermelha que pedem confirmação.
+            Antes de agir, veja o nível atual com <code>AT+CFUN?</code>:</p>
+            <table>
+                <tr><th>Comando</th><th>Nível</th><th>Significado</th></tr>
+                <tr><td><code>AT+CFUN=1</code></td><td>Funcionalidade plena</td>
+                    <td>Rádio todo ligado; <strong>para recuperar, prima sempre este</strong></td></tr>
+                <tr><td><code>AT+CFUN=4</code></td><td>Modo de avião</td>
+                    <td>Emissão e receção desligadas, SIM ainda ativo —— o ponto de partida para testar a «reentrada na rede»</td></tr>
+                <tr><td><code>AT+CFUN=0</code></td><td>Mínimo</td>
+                    <td>O SIM também é desativado; o manual diz apenas Minimum functionality, sem detalhes</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>Reinício por software</td>
+                    <td>Reinicia o módulo inteiro. ⚠ A porta AT fica inoperante por instantes; espere de novo pelo <code>RDY</code></td></tr>
+            </table>
+            <p>O CFUN bloqueia até 15 segundos. <strong>Se o SIM tiver PIN, depois de voltar a CFUN=1 é preciso reintroduzir o PIN
+            para haver registo.</strong> O <code>AT+CGATT=0</code> (PS Detach) sai do domínio de pacotes ——
+            <strong>derruba todas as ligações TCP/MQTT</strong>; use-o só para testar o «re-attach».</p>
+
+            <h4>Avançado: ler a informação da célula com QENG (entrada na linha de comandos)</h4>
+            <p>Esta página não tem botão para isto —— digite na linha de comandos <code>AT+QENG="servingcell"</code>
+            para ler os parâmetros da célula servidora; campos-chave medidos:</p>
+            <table>
+                <tr><th>Campo</th><th>Valor medido</th><th>Interpretação</th></tr>
+                <tr><td>MCC/MNC</td><td>466/01</td><td>Taiwan/FarEasTone</td></tr>
+                <tr><td>Cell ID/TAC</td><td><code>ABCDE02</code>/<code>1234</code> (hex)</td>
+                    <td>Em decimal 180149762/4660; eNodeB = ECI≫8 = 703710, setor = 2</td></tr>
+                <tr><td>PCID/EARFCN</td><td>144/1550</td>
+                    <td>Identificador físico da célula (<strong>não é globalmente único</strong>)/Band 3</td></tr>
+                <tr><td>RSRP/RSRQ/RSSI/SINR</td><td>-113/-18/-92/-1</td>
+                    <td>RSRP abaixo de -100 conta como fraco; SINR -1 dB = qualidade má</td></tr>
+            </table>
+            <div class="warning">
+                <strong>O Cell ID e o TAC vêm em hexadecimal; antes de consultar bases de dados há que converter para decimal.</strong>
+                O OpenCelliD e afins só aceitam decimal; atirar-lhes <code>ABCDE02</code> tal e qual só devolve «registo inexistente».
+                Além disso, o <code>AT+QENG="neighbourcell"</code> devolve apenas o PCID,
+                <strong>sem Cell ID global</strong> (limitação do padrão LTE).
+            </div>
+
+            <h4>Resolução de problemas</h4>
+            <table>
+                <tr><th>Sintoma</th><th>Causa e solução</th></tr>
+                <tr><td>Os comandos respondem todos OK, mas as mensagens espontâneas nunca aparecem</td>
+                    <td>O urcport está em usbat (valor de fábrica) —— mude para uart1 no separador Hardware</td></tr>
+                <tr><td><code>QIACT=1</code> responde ERROR (572)</td>
+                    <td>A vaga única de PDP está ocupada —— siga o diagnóstico em dois passos acima</td></tr>
+                <tr><td>Pedidos consecutivos expiram todos num timeout fixo de 30 segundos</td>
+                    <td>Deriva do PDP —— cruze com <code>AT+CGACT?</code>; não confie só no <code>QIACT?</code></td></tr>
+            </table>

@@ -1,0 +1,21 @@
+<h3 id="tab-basic">Basic —— SIM、診斷、PDP 唯讀檢查</h3>
+            <p><strong>工作原理：</strong>動任何資料功能之前，先確認 SIM 就緒、模組初始化完成、
+            PDP 承載已經起來。這一頁<strong>刻意只放查詢</strong> ——
+            會改狀態的 PDP 指令全部集中在 TCP/IP 頁。</p>
+            <table>
+                <tr><th>指令</th><th>用途</th><th>怎麼測</th></tr>
+                <tr><td><code>AT+CPIN?</code></td><td>SIM 是否在等 PIN</td>
+                    <td>要看到 <code>+CPIN: READY</code>。⚠ READY 只代表「當下沒在等密碼」，
+                        不等於這張卡不需要 PIN</td></tr>
+                <tr><td><code>AT+QINISTAT</code></td><td>初始化進度位元遮罩</td>
+                    <td>7 ＝ 全部完成。開機後太早下指令會失敗，可以用這條確認</td></tr>
+                <tr><td><code>AT+CMEE=2</code></td><td>錯誤訊息改文字</td><td>開機後必下，session-only</td></tr>
+                <tr><td><code>AT+CEER</code></td><td>上一次失敗的原因</td>
+                    <td>指令回 ERROR 之後馬上下，能拿到比較具體的說法</td></tr>
+                <tr><td><code>AT&amp;F</code></td><td>回原廠預設</td>
+                    <td>會把複誦設回開啟。<strong>不影響鮑率</strong></td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Basic 頁簽">
+                <figcaption>Basic 頁：SIM 狀態、診斷、PDP 唯讀檢查。</figcaption>
+            </figure>

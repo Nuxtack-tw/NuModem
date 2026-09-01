@@ -1,0 +1,153 @@
+<h3 id="tab-http">HTTP —— คำขอเว็บ</h3>
+            <p><strong>หลักการทำงาน:</strong> HTTP ของโมดูลเป็นแบบ<strong>สามขั้น</strong>:
+            ตั้ง URL ก่อน (ขั้นนี้เองก็เป็นสองขั้นย่อยอีกที) แล้วยิงคำขอ (GET/POST) สุดท้ายจึงอ่านคำตอบกลับมา
+            ผลลัพธ์ของแต่ละขั้นไม่ได้อยู่ใน <code>OK</code> แต่มาทีหลังเป็น URC ——
+            ดังนั้น <code>AT+QURCCFG="urcport"</code> ต้องเป็น <code>"uart1"</code> (แก้ได้ที่หน้า Hardware)
+            ไม่อย่างนั้นจะไม่เห็นผลลัพธ์สักอย่าง ตัวเลขทั้งหมดเป็นค่าวัดจริงกับเครื่องจริงเมื่อ 2026-08</p>
+
+            <h4>ก่อนเริ่ม: ต้องมีช่องทางข้อมูลก่อน</h4>
+            <p>เงื่อนไขคือ PDP เปิดใช้งานแล้วและได้ IP มาแล้ว (<code>AT+QIACT=1</code> ที่หน้า TCP/IP)
+            <strong>กลุ่ม Connect</strong> ของหน้านี้มีแต่การตรวจสอบแบบอ่านอย่างเดียว:
+            <code>AT+CPIN?</code> / <code>AT+CGATT?</code> / <code>AT+CGREG?</code> /
+            <code>AT+QIACT?</code>, <code>AT+QIDNSCFG=1</code> (DNS 0.0.0.0 = ไม่ได้รับค่ามา),
+            <code>AT+QIGETERROR</code> (⚠ มีผลกับคำสั่ง TCP/IP ตัวสุดท้ายเท่านั้น
+            ล้มเหลวแล้วต้องกด<strong>ทันที</strong>)</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> โกหกได้</strong> ทดสอบจริงเคยเจอ PDP หลุดกลางคัน:
+                คำขอล้มเหลวทั้งหมด <strong>หมดเวลาที่ 30 วินาทีเป๊ะ</strong> แล้วตอบข้อผิดพลาด 716
+                แต่ <code>AT+QIACT?</code> ยังตอบ IP มาเหมือนเดิม ใช้ <code>AT+CGACT?</code> เทียบไขว้
+                ไม่ตรงกันคือหลุดแล้ว วิธีแก้: <code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;cid ที่หลุด&gt;</code> → <code>AT+QIACT=1</code>
+                ping ผ่านแล้วค่อยทำต่อ
+            </div>
+
+            <h4>GET ครั้งแรก: สี่ขั้นตอน</h4>
+            <ol>
+                <li><strong>ตั้งค่าเบื้องต้น</strong> (กลุ่ม Config ไม่กินปริมาณข้อมูล): การ์ดพารามิเตอร์
+                    <code>contextid</code> ตั้ง 1 (ผูกกับ PDP context ที่จะใช้); สวิตช์สามตัว
+                    <code>rspout/auto</code>, <code>requestheader</code>, <code>responseheader</code>
+                    คงไว้ที่ 0 (เหตุผลอยู่ด้านล่าง); <code>AT+QHTTPCFG?</code> อ่านการตั้งค่าทั้งหมดกลับมาตรวจทีเดียว
+                    <code>AT+QHTTPCFG=?</code> แสดงรายการที่ตั้งได้</li>
+                <li><strong>ตั้ง URL (สองขั้น)</strong>: การ์ด <code>AT+QHTTPURL</code> มีปุ่มเดียวคือ
+                    "ส่ง (สองขั้น)" —— คุณกรอก URL ส่วนความยาวโปรแกรมคำนวณให้เอง ลำดับ: ส่ง
+                    <code>AT+QHTTPURL=&lt;ความยาว&gt;,80</code> ก่อน รอ <code>CONNECT</code>
+                    เข้าโหมดข้อมูล แล้วส่งไบต์ของ URL ออกไปตามเดิม <strong>ห้ามเติมตัวจบบรรทัดใด ๆ</strong>
+                    (CR/LF จะถูกนับรวมเข้าไปในความยาว)
+                    <code>http://www.example.com/</code> ยาวพอดี 23 ส่งเสร็จกด
+                    <code>AT+QHTTPURL?</code> อ่านกลับมา ตรงกันทุกตัวอักษร = ตัวจบบรรทัดไม่ได้ปนเข้าไป</li>
+                <li><strong>ยิงคำขอ</strong>: <code>AT+QHTTPGET=80</code> (จำนวนวินาทีที่รอคำตอบ)
+                    <code>OK</code> แปลว่าแค่ "รับคำสั่งไว้" ผลลัพธ์จริงคือ URC ที่มาทีหลัง
+                    <code>+QHTTPGET: 0,200</code> การอ่านค่าดูหัวข้อถัดไป</li>
+                <li><strong>อ่านคำตอบ</strong>: <code>AT+QHTTPREAD=80</code>
+                    หลัง <code>CONNECT</code> เป็นไบต์ดิบทั้งหมด (ทดสอบจริง example.com ได้
+                    559 bytes) ตามด้วย <code>OK</code> ——
+                    แต่<strong>บรรทัดเดี่ยวสุดท้าย <code>+QHTTPREAD: 0</code> ต่างหากคือเครื่องหมายจบ</strong></li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="แท็บ HTTP">
+                <figcaption>หน้า HTTP: สี่กลุ่ม Config / Connect / Transfer / Close</figcaption>
+            </figure>
+
+            <h4>อ่านค่า +QHTTPGET: ช่องแรกไม่ใช่รหัสสถานะ HTTP</h4>
+            <p>URC ผลลัพธ์ของ GET/POST/POSTFILE เป็นสามช่องเหมือนกันหมด
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code>:
+            <code>err</code> <strong>0 = คำสั่งทำงานสำเร็จ</strong> ไม่ใช่ 0 คือข้อผิดพลาดระดับโมดูล (716, 711…);
+            <code>httprspcode</code> คือรหัสสถานะ HTTP <strong>รายงานเฉพาะตอน err=0 เท่านั้น</strong>
+            (คู่มือระบุไว้ชัด; เครื่องมือมีคำอธิบายเทียบ 200/403/404/409/411/500 มาให้ในตัว);
+            <code>content_length</code> เป็นตัวเลือก —— มีก็ต่อเมื่อส่วนหัวคำตอบของเซิร์ฟเวอร์มี CONTENT-LENGTH
+            GET ทั่วไปมักมีแค่สองช่อง ดังนั้น <code>+QHTTPGET: 0,404,0</code> ที่วัดได้จริง
+            <strong>ไม่ใช่ความล้มเหลว</strong>: คำสั่งสำเร็จแล้ว เซิร์ฟเวอร์ต่างหากที่บอกว่าหาไม่เจอ</p>
+
+            <h4>อ่านคำตอบ: กับดักของ AT+QHTTPREAD</h4>
+            <p>พารามิเตอร์คือ "จำนวนวินาทีสูงสุดระหว่างข้อมูลสองแพ็กเก็ต" ไม่ใช่เวลารวม
+            <strong>เฟิร์มแวร์ของเครื่องนี้รับพารามิเตอร์เดียวเท่านั้น</strong>: วิธีอ่านแบบแบ่งช่วง
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> ในคู่มือประยุกต์ ทดสอบจริงตอบ
+            <code>ERROR</code> เปล่า ๆ (<code>=?</code> ยืนยันแล้ว) ปุ่มถูกถอดออกไปแล้ว ——
+            การดึงกลับแบบแบ่งช่วงให้ใช้ <code>GETEX</code> แทน</p>
+            <div class="warning">
+                <strong>กับดักล็อกกันเอง: <code>rspout/auto</code> ตั้ง 1 เมื่อไร กลุ่ม READ ล้มเหลวหมด</strong>
+                (คู่มือระบุไว้ชัด) มันทำให้โมดูลพ่นคำตอบออกมาเอง ราคาที่จ่ายคือ READ ตายเรียบ
+                ปุ่มนี้จึงมีกล่องยืนยัน READ พังหมดกะทันหันเมื่อไร ให้ตรวจ <code>AT+QHTTPCFG?</code> ก่อน
+            </div>
+
+            <h4>ดึงกลับแบบแบ่งช่วง: AT+QHTTPGETEX อ่านทีละ byte</h4>
+            <p><code>AT+QHTTPGETEX=&lt;วินาที&gt;,&lt;ออฟเซตเริ่มต้น&gt;,&lt;ความยาว&gt;</code>
+            เดิน HTTP Range ดึงเฉพาะช่วงที่ระบุ ประหยัดปริมาณข้อมูล ทดสอบจริง (เนื้อหาของ endpoint คงที่เป็น
+            <code>abcdefghijklmnop</code>): ออฟเซต 0 ดึง 8 ตอบ <code>+QHTTPGET: 0,206,8</code>
+            อ่านได้ <code>abcdefgh</code>; ออฟเซต 8 ดึงอีก 8 อ่านได้ <code>ijklmnop</code>
+            การอ่านค่า: <strong>รหัสสถานะต้องเป็น 206</strong>; ถ้าตอบ <strong>200 แล้วเนื้อหาเหมือนเดิมทุกครั้ง</strong>
+            = เซิร์ฟเวอร์ไม่รองรับ Range ไม่ใช่โมดูลเสีย
+            ⚠ สั่งได้เฉพาะตอน <code>requestheader=0</code> เท่านั้น</p>
+
+            <h4>POST: สองขั้นกับ Content-Type</h4>
+            <p>การ์ด <code>AT+QHTTPPOST</code> ก็เป็นสองขั้นเช่นกัน: คุณกรอก body ส่วนความยาวคำนวณให้อัตโนมัติ
+            ส่ง <code>AT+QHTTPPOST=&lt;ความยาว&gt;,&lt;วินาทีป้อนข้อมูล&gt;,&lt;วินาทีรอคำตอบ&gt;</code> ก่อน
+            รอ <code>CONNECT</code> แล้วค่อยส่ง body สามเรื่องที่ต้องรู้:</p>
+            <ul>
+                <li><strong><code>CONNECT</code> อาจต้องรอนานถึง 125 วินาที</strong> (คู่มือระบุไว้ชัด) ——
+                    เวลาหมดอายุของการรอพรอมต์ต้องตั้งให้ถึง 125 วินาที อย่าเอา 5 วินาทีของ MQTT มาใช้ต่อ</li>
+                <li>เพดาน body 1 MB (<code>=?</code> ทดสอบจริงได้ช่วง 1–1024000)</li>
+                <li>Content-Type ตั้งด้วยการ์ดพารามิเตอร์ <code>contenttype</code> ให้เรียบร้อยก่อน
+                    (รหัสชนิด 0 = form-urlencoded)</li>
+            </ul>
+            <p>ทดสอบจริง: POST <code>Message=HelloQuectel</code> (20 bytes) ตอบ
+            <code>+QHTTPPOST: 0,200,440</code>; JSON ที่ READ ได้กลับมายืนยันได้ว่าคู่คีย์-ค่าไปถึงจริง
+            ความยาวคำนวณถูก และ Content-Type มีผล ส่วน User-Agent คือชื่อที่โมดูลรายงานตัวเอง
+            <code>QUECTEL_MODULE</code></p>
+
+            <h4>ส่วนหัวที่กำหนดเองและส่วนหัวคำตอบ</h4>
+            <ul>
+                <li><code>reqheader/add</code>: เพิ่มส่วนหัวคำขอที่กำหนดเองทีละรายการ (คู่มือไม่ได้ให้ตัวอย่างมา);
+                    ปุ่มถามใช้ดูได้ว่าตอนนี้เพิ่มไปกี่รายการ; <code>reqheader/remove</code> ใช้ลบ</li>
+                <li><code>requestheader</code> ตั้ง 1 = ประกอบส่วนหัวคำขอทั้งชุดเอง ขนาด GET ยังกลายเป็นสองขั้น
+                    แถม <code>GETEX</code> ใช้ไม่ได้ ปกติคงไว้ที่ 0</li>
+                <li><code>responseheader</code> ตั้ง 1 แล้ว READ จะพ่นส่วนหัวคำตอบ HTTP ออกมาด้วย
+                    (ทดสอบจริงแม้แต่ X-Test ที่กำหนดเองก็ได้กลับมา) ทดสอบเสร็จให้กลับไปเป็น 0</li>
+                <li><code>closed/ind</code>: เปิดการรายงาน URC ของ "session ถูกปิด"</li>
+            </ul>
+
+            <h4>เวอร์ชันไฟล์: POSTFILE กับ READFILE (UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="ชื่อไฟล์",&lt;วินาที&gt;</code> ใช้ไฟล์ในระบบไฟล์ของโมดูล (UFS)
+            เป็น body ส่ง POST; <code>AT+QHTTPREADFILE="ชื่อไฟล์",&lt;วินาที&gt;</code> เก็บคำตอบเป็นไฟล์
+            ใน UFS ⚠ เครื่องมือนี้ตอนนี้<strong>ยังอัปโหลดไฟล์เข้า UFS ก่อนไม่ได้ และอ่านเนื้อหาไฟล์
+            ใน UFS กลับมาก็ไม่ได้</strong> สองคำสั่งนี้เตรียมไว้ให้ใช้ร่วมกับกระบวนการฝั่งเฟิร์มแวร์</p>
+
+            <h4>HTTPS: เส้นทางที่ไม่ตรวจสอบใบรับรอง</h4>
+            <p>HTTPS = HTTP + SSL context กลุ่ม Connect เตรียมเส้นทางที่สั้นที่สุดไว้แล้ว กดห้าปุ่มตามลำดับ:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP ระบุให้ใช้ SSL context 1
+AT+QSSLCFG="sslversion",1,4        ← เวอร์ชัน TLS ปล่อยให้เซิร์ฟเวอร์เจรจา
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← ชุดเข้ารหัสเปิดหมด
+AT+QSSLCFG="seclevel",1,0          ← ไม่ตรวจสอบใบรับรอง (ดูด้านล่าง)
+AT+QSSLCFG="sni",1,1               ← เปิด SNI (ค่าโรงงานคือ 0!)</pre>
+            <p>จากนั้นเปลี่ยน URL ให้ขึ้นต้นด้วย <code>https://</code> แล้ว GET/READ ตามปกติ ——
+            ทดสอบจริงอ่าน HTML กลับมาได้ตรงกับเวอร์ชันไม่เข้ารหัสทุกตัวอักษร
+            <strong><code>seclevel=0</code> (ไม่ตรวจสอบใบรับรอง) คือเส้นทางเดียวที่เครื่องมือนี้เดินได้จนจบ</strong>
+            —— จะตรวจสอบใบรับรองต้องเขียนใบรับรอง CA ลง UFS ก่อน; รายละเอียด SSL (<code>AT+QSSLCFG=?</code>
+            แสดงรายการย่อยทั้งหมด, <code>negotiatetime</code> ปรับจำนวนวินาทีรอ handshake)
+            ดูหัวข้อ "SSL —— ช่องทาง TLS"
+            <strong>SNI ค่าโรงงานคือ 0</strong>: ไม่เปิดแล้วเว็บ HTTPS ที่ใช้ IP ร่วมกันจะให้ใบรับรองที่ไม่ตรงมา
+            ตรวจเมื่อไรก็พังเมื่อนั้น <strong>เชนใบรับรองคือตัวกินปริมาณข้อมูลหลัก</strong>:
+            HTTPS GET หนึ่งรอบราว 8–15 KB แบบไม่เข้ารหัสแค่ราว 1 KB</p>
+
+            <h4>การเปลี่ยนเส้นทางและการเก็บงาน</h4>
+            <p><strong>การเปลี่ยนเส้นทาง (คู่มือไม่ได้เขียนไว้ ทดสอบจริงจนกระจ่าง)</strong>: โมดูลตาม 302 ให้อัตโนมัติ แต่
+            <strong>รับเฉพาะ Location ที่เป็นเส้นทางสัมบูรณ์</strong> —— เส้นทางสัมพัทธ์ตอบข้อผิดพลาด 711
+            ล้มเหลวทันทีใน 1 มิลลิวินาที <strong>การเก็บงาน</strong>:
+            <code>AT+QHTTPSTOP</code> (กลุ่ม Close) ยกเลิกคำขอที่กำลังทำอยู่และตัด session;
+            สถานะดูแปลก ๆ หรือเจอข้อผิดพลาด 704 (โหมดข้อมูลถูกยึด) ให้กดปุ่มนี้เก็บกวาดให้สะอาดก่อน</p>
+
+            <h4>การแก้ปัญหา</h4>
+            <table>
+                <tr><th>อาการ</th><th>สาเหตุและวิธีแก้</th></tr>
+                <tr><td>ไม่เห็น URC ผลลัพธ์เลยสักตัว</td><td><code>urcport</code> ไม่ได้เป็น <code>uart1</code>
+                    ไปแก้ที่หน้า Hardware</td></tr>
+                <tr><td>URL ทุกตัวได้ 716 หมดเวลาที่ 30 วินาทีเป๊ะ</td>
+                    <td>PDP หลุด ดูคำเตือนด้านบน</td></tr>
+                <tr><td>URL ตัวเดียวตอบ 716</td><td>ทดสอบจริง DNS ล้มเหลวก็เป็น 716 เหมือนกัน (ไม่ใช่ 714
+                    อย่างที่เอกสารเก่าเดา); ตามด้วย READ ตอบ 705 เป็นลูกโซ่ปกติ</td></tr>
+                <tr><td><code>READ</code> / <code>GETEX</code> ล้มเหลวกะทันหัน</td>
+                    <td><code>rspout/auto</code> กับ <code>requestheader</code>
+                        ต้องเป็น 0 ทั้งคู่ (ดูด้านบน)</td></tr>
+                <tr><td><code>AT</code> ไม่ตอบอะไรเลย</td>
+                    <td>โมดูลค้าง (เจอในการทดสอบจริง คู่มือไม่ได้บรรยายไว้) —— รันพิธีกรรมเปิดเครื่องใหม่</td></tr>
+            </table>

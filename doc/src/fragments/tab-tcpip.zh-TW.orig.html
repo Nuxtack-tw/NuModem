@@ -1,0 +1,35 @@
+<h3 id="tab-tcpip">TCP/IP —— 資料連線的根</h3>
+            <p><strong>工作原理：</strong>這一頁是所有資料協定的地基。
+            <strong>PDP context 只在這一頁啟用與停用</strong>，
+            SSL / HTTP / MQTT / FTP 各頁都只放唯讀查詢 ——
+            因為同一條指令若兩頁各放一份，改一邊就會漏一邊。</p>
+            <p>標準流程：</p>
+            <pre>AT+QICSGP=1,1,"APN","","",1   ← 設 APN（多數情況不用，模組會自動配）
+AT+QIACT=1                    ← 啟用 PDP，最長阻塞 150 秒
+AT+QIACT?                     ← 確認拿到 IP
+AT+QIOPEN=1,0,"TCP","主機",埠,0,0   ← 開 socket
+AT+QISEND=0,&lt;長度&gt;             ← 兩段式送資料
+AT+QIRD=0,1500                ← 讀回資料
+AT+QICLOSE=0                  ← 關閉</pre>
+            <table>
+                <tr><th>指令</th><th>要注意的事</th></tr>
+                <tr><td><code>AT+QIACT=1</code></td>
+                    <td>最長 150 秒。<strong>成功後一定要用 <code>AT+QIACT?</code> 確認真的拿到 IP</strong></td></tr>
+                <tr><td><code>AT+QIOPEN</code></td>
+                    <td><code>OK</code> 只代表指令收下，成敗看 <code>+QIOPEN: &lt;id&gt;,&lt;err&gt;</code> URC。
+                        <strong>563 ＝ 該 connectID 還開著</strong>，要先 <code>AT+QICLOSE</code></td></tr>
+                <tr><td><code>AT+QISEND=0,&lt;len&gt;</code></td>
+                    <td>定長式，模組數滿就送，<strong>不必 Ctrl+Z</strong></td></tr>
+                <tr><td><code>AT+QISEND=0</code></td>
+                    <td>不定長式，要用 Ctrl+Z（0x1A）結束。
+                        本工具有「送出 / 送出後自動結束 / 結束」三顆按鈕支援連續發送</td></tr>
+                <tr><td><code>AT+QIRD=0,1500</code></td>
+                    <td>讀到 <code>+QIRD: 0</code> 代表緩衝空了</td></tr>
+                <tr><td><code>AT+QPING</code></td>
+                    <td>⚠ 很多伺服器擋 ICMP，ping 不通<strong>不代表 TCP 連不上</strong>。
+                        判斷連通性請直接用 <code>AT+QIOPEN</code></td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/03-tcpip.png" alt="TCP/IP 頁簽">
+                <figcaption>TCP/IP 頁：PDP 管理、socket 收送、診斷工具。</figcaption>
+            </figure>

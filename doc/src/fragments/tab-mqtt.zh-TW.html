@@ -1,0 +1,148 @@
+<h3 id="tab-mqtt">MQTT —— 物聯網訊息</h3>
+            <p><strong>工作原理：</strong>MQTT 是「broker（訊息中介伺服器）」式的協定：
+            裝置不直接互連，各自連上 broker，對「主題（topic）」發布或訂閱訊息。
+            在 EG800K 上它是兩層的：先 <code>AT+QMTOPEN</code> 開「網路連線」（TCP 連到 broker），
+            再 <code>AT+QMTCONN</code> 做「MQTT 登入」，兩層都通了才能訂閱與發布。
+            先記住：<strong>MQTT 指令的結果全是「先 OK 再 URC」模式</strong>（與 FTP 相同）——
+            <code>OK</code> 只代表指令收下，成敗看之後的結果 URC。</p>
+            <p>本頁固定用 client 0；韌體另支援多 client（0–5）、SSL 與雲平台認證
+            （<code>=?</code> 實測確認），進階用法見 MQTT 應用筆記。</p>
+
+            <h4>開始之前：兩個前提</h4>
+            <ol>
+                <li><strong>URC 要走 UART</strong>：<code>AT+QURCCFG="urcport"</code> 必須回
+                    <code>"uart1"</code>。出廠值是 <code>"usbat"</code>，而 MQTT 的結果全是 URC ——
+                    不改的話<strong>每個指令都只回 OK、沒有下文</strong>
+                    （Basic 頁有按鈕；寫 NVRAM，改一次就好）。</li>
+                <li><strong>PDP 要先啟用</strong>：先在 TCP/IP 頁按 <code>AT+QIACT=1</code>
+                    （最長 150 秒）；沒開則 <code>+QMTOPEN</code> 回 <strong>3＝PDP 啟用失敗</strong>。
+                    全程產生數據流量，預估約 5 KB。</li>
+            </ol>
+
+            <h4>怎麼測：四個免費公開 broker</h4>
+            <p><code>AT+QMTOPEN</code> 的參數卡內建 broker 下拉選單（保留自由打字），
+            四家都允許匿名、不必註冊。數據為 2026 年 8 月實測（PC 端爆量 100 則、模組端 ping）：</p>
+            <table>
+                <tr><th>Broker</th><th>爆量 100 則</th><th>模組端 ping</th><th>備註</th></tr>
+                <tr><td><strong>mqttgo.io</strong>（預設）</td><td><strong>100/100</strong></td>
+                    <td><strong>190–210 ms</strong></td><td>台灣 HiNet；1883 明文／8883 TLS</td></tr>
+                <tr><td>broker.hivemq.com</td><td>100/100</td><td>擋 ICMP</td>
+                    <td><code>AT+QPING</code> 回 559 別慌 —— 實測四家 TCP 1883 全通，
+                        可達性直接用 <code>AT+QMTOPEN</code> 測</td></tr>
+                <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+                    <td>官網自稱勿用於重要用途；主題污染最嚴重</td></tr>
+                <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>擋 ICMP</td>
+                    <td><strong>有發布速率限制</strong>；有網頁 Dashboard</td></tr>
+            </table>
+            <p>這四家都<strong>完全公開</strong>：任何人都能訂閱你的主題、
+            別人的訊息也可能混進來 —— 這正是隨機尾碼要解決的問題。</p>
+
+            <h4>client ID 與主題的隨機尾碼：每次重新整理就換一組</h4>
+            <p>client ID 與預設主題不是寫死的：頁面載入時自動產生 6 個十六進位字元的尾碼，
+            組成 <code>numodem-&lt;尾碼&gt;</code> 與 <code>test/numodem-&lt;尾碼&gt;</code>，
+            Subscribe／Publish／Unsub 三顆按鈕共用同一組（否則自迴路對不起來）。理由有二：</p>
+            <ul>
+                <li><strong>撞名會被踢線</strong>：MQTT 3.1.1 §3.1.4 規定 broker 要把先連上的那個
+                    踢下線 —— 兩個人同用固定 ID 就會互踢，症狀看起來像「模組莫名斷線」。</li>
+                <li><strong>固定主題會收到別人的訊息</strong>：你以為收到的是自己發的，其實不是 ——
+                    這比收不到更糟，因為它給出假的通過。</li>
+            </ul>
+            <div class="warning">
+                <strong>⚠ 每次重新整理頁面，尾碼就換一組 ——
+                訂閱與發布必須在同一次頁面生命週期內完成。</strong>
+                何況本工具 RTS＝電源，重載頁面＝模組斷電，MQTT 連線整組消失，
+                要從開機儀式與 <code>AT+QMTOPEN</code> 重來。
+            </div>
+
+            <h4>完整動線：連線 → 訂閱 → 發布 → 收回自己的訊息</h4>
+            <p>最有說服力的驗證是<strong>自迴路</strong>：訂閱後發布到同一個主題、
+            自己收回自己的訊息，一次驗完整條收發鏈路。每步等到結果 URC 再往下：</p>
+            <ol>
+                <li><strong>設協定版本</strong>：按 Ver 3.1.1（<code>AT+QMTCFG="version",0,4</code>；
+                    3＝3.1、4＝3.1.1）。按 Version? 可查目前值（不帶值＝查詢）。
+                    Keepalive 參數卡可調保活間隔，不調也能測。</li>
+                <li><strong>開網路</strong>：按 Open Net（<code>AT+QMTOPEN=0,"broker",1883</code>）。
+                    先回 <code>OK</code>，成敗看 URC <code>+QMTOPEN: 0,&lt;result&gt;</code>
+                    （0＝成功），最長等 120 秒。按 Open? 可查已開的連線
+                    （無連線時回空 <code>OK</code>，實測正常）。</li>
+                <li><strong>MQTT 登入</strong>：按 Connect（<code>AT+QMTCONN=0,"numodem-&lt;尾碼&gt;"</code>）。
+                    成功 URC 固定是 <code>+QMTCONN: 0,0,0</code>。公開 broker 免帳密；
+                    需要帳密時在參數後自行加 <code>,"user","pass"</code>。
+                    按 Conn? 查狀態（1＝初始、2＝連線中、3＝已連線、4＝斷線中）。</li>
+                <li><strong>訂閱</strong>：按 Subscribe（<code>AT+QMTSUB=0,1,"test/numodem-&lt;尾碼&gt;",0</code>，
+                    msgid 固定 1）。成功 URC 形如 <code>+QMTSUB: 0,1,0,0</code>。
+                    此後這個主題的訊息都以 <code>+QMTRECV</code> URC 進來。</li>
+                <li><strong>發布</strong>：按 Publish（<code>AT+QMTPUBEX</code>，兩段式，見下段）。
+                    成功 URC 為 <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code>。</li>
+                <li><strong>收回來</strong>：發布目標就是訂閱中的主題，緊接著會看到
+                    <code>+QMTRECV</code> 帶著主題與剛剛的訊息本文 —— 自迴路成功。
+                    中文 payload 也不截斷、不亂碼。</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="MQTT 頁簽">
+                <figcaption>MQTT 頁：broker 下拉選單、連線、訂閱與發布；預設值已帶隨機尾碼。</figcaption>
+            </figure>
+
+            <h4>QMTPUBEX 兩段式：數滿長度自動送，不用 Ctrl+Z</h4>
+            <p><code>AT+QMTPUBEX</code> 的末參數是<strong>長度（位元組數），不是訊息內容</strong>
+            （MQTT 應用筆記 §3.3.8 結案 —— 塞訊息的單行送法必定回 ERROR）。
+            正確流程是兩段式：送指令 → 模組回提示符 <code>&gt;</code> → 送出剛好 N 位元組，
+            模組<strong>數滿長度就自動送出，不需要 Ctrl+Z</strong>
+            （與 TCP 頁 <code>AT+QISEND</code> 的資料模式不同）。
+            按 Publish 全自動：只要在參數卡填訊息內容，
+            長度由 UTF-8 位元組數自動計算（中文一字 3 位元組，實測「測試」→ 6）。</p>
+            <ul>
+                <li>payload 型指令<strong>不提供「填入命令列」</strong> —— 命令列送出一律加行尾，
+                    那個 CR 會被算進長度而錯位，請用按鈕送。</li>
+                <li>韌體另有 <code>AT+QMTPUB</code>（資料模式變體，要 Ctrl+Z 收尾）——
+                    本工具一律改用 <code>QMTPUBEX</code>，不必兩套都學。</li>
+            </ul>
+
+            <h4>判讀結果碼：每個指令的值域都不一樣</h4>
+            <div class="warning">
+                <strong>不要把 A 指令的結果碼表套到 B 指令上。</strong>
+                <code>+QMTOPEN</code> 的 3 是「PDP 啟用失敗」，
+                <code>+QMTPUBEX</code> 根本沒有 3 這個值。
+                <br><br>
+                最容易誤讀的是 <code>+QMTCONN: 0,1</code> ——
+                它<strong>可能是查詢回應的「狀態 1＝初始化中」，也可能是寫入結果的「封包重傳中」</strong>。
+                單看一行分不出來，所以本工具把兩種讀法並陳，不硬猜。
+            </div>
+            <p>你不必背表：從 <code>+QMTOPEN</code> 到 <code>+QMTRECV</code>／<code>+QMTSTAT</code>
+            的全部結果 URC，終端區都會依 MQTT 應用筆記 v1.5 的七張對照表逐欄加上白話註解。</p>
+
+            <h4>離線與收尾</h4>
+            <ul>
+                <li><strong>只想停止收訊、連線留著</strong>：按 Unsub
+                    （<code>AT+QMTUNS=0,2,"主題"</code>，msgid 固定 2）。</li>
+                <li><strong>正常離線</strong>：按 Disconnect（<code>AT+QMTDISC=0</code>，
+                    送 MQTT DISCONNECT），回 <code>+QMTDISC: 0,0</code>。
+                    <strong>之後不必再按 Close Net</strong> —— <code>AT+QMTCLOSE=0</code>
+                    是給「QMTDISC 失敗、網路層卡住」時強制關閉用的。</li>
+            </ul>
+            <p>不是你按的斷線（被踢、keepalive 逾時、斷網）會以 <code>+QMTSTAT</code>
+            異常斷線 URC 回報（例：<code>+QMTSTAT: 0,5</code>，終端區會註解原因），
+            此時要從 <code>AT+QMTOPEN</code> 重來。</p>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td>每個指令都回 OK，然後就沒下文</td>
+                    <td>URC 被送去 USB 埠 —— <code>urcport</code> 出廠是 <code>usbat</code>，
+                        切成 <code>uart1</code>（見前提 1）</td></tr>
+                <tr><td><code>+QMTOPEN: 0,3</code></td>
+                    <td>PDP 啟用失敗 —— 先 <code>AT+QIACT=1</code>（TCP/IP 頁）再重來</td></tr>
+                <tr><td>訂閱了卻收不到自己發的訊息</td>
+                    <td>中途重新整理過頁面 —— 尾碼換組、模組也斷電重開。
+                        同一次頁面生命週期內重跑一輪動線</td></tr>
+                <tr><td>收到不是自己發的訊息</td>
+                    <td>公開 broker 主題污染（mosquitto 最嚴重）。預設主題已帶隨機尾碼；
+                        自訂主題取獨特名字</td></tr>
+                <tr><td>大量發布時訊息掉了一部分</td>
+                    <td>emqx 有發布速率限制（實測爆量 100 只到 40）——
+                        換 mqttgo.io 或 hivemq（100/100 無限流）</td></tr>
+                <tr><td>等很久都沒有結果 URC</td>
+                    <td>這家族本來就慢：<code>QMTOPEN</code> 最長 120 秒、
+                        <code>QMTCONN</code>／<code>QMTSUB</code>／<code>QMTPUBEX</code> 最長 600 秒
+                        （PUBEX＝封包逾時 60 秒 × 重試 10），按鈕說明已標示，不是當掉</td></tr>
+            </table>

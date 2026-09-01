@@ -1,0 +1,2010 @@
+
+ <header class="header">
+ <h1>📡 Hướng dẫn sử dụng NuModem EG800</h1>
+ <p class="subtitle">Điều khiển modem 4G bằng trình duyệt —— lệnh AT, chú giải thời gian thực, 18 ngôn ngữ</p>
+ <span class="version">V26.0.76</span>
+ </header>
+
+ <nav class="nav">
+ <div class="nav-inner">
+ <a href="#intro">Giới thiệu</a>
+ <a href="#requirements">Yêu cầu</a>
+ <a href="#quickstart">Bắt đầu nhanh</a>
+ <a href="#boot">Nghi thức khởi động</a>
+ <a href="#terminal">Terminal</a>
+ <a href="#signals">Thanh tín hiệu</a>
+ <a href="#panel">Bảng AT</a>
+ <a href="#tabs">Mười tab</a>
+ <a href="#method">Phương pháp kiểm thử</a>
+ <a href="#faq">FAQ</a>
+ </div>
+ </nav>
+
+ <main class="container">
+
+ <section id="intro">
+ <h2><span class="icon">🎯</span> Giới thiệu</h2>
+ <p>NuModem EG800 là một bảng điều khiển modem 4G gói gọn trong <strong>một tệp HTML duy nhất</strong>. Nó dùng
+ Web Serial API của trình duyệt để gửi thẳng lệnh AT tới module Quectel <strong>EG800K</strong>,
+ không cần cài đặt thứ gì, không cần phần mềm nào ngoài driver, cũng không có máy chủ backend.</p>
+
+ <p>Nó khác gì một terminal cổng serial thông thường? Khác ở chỗ <strong>nó hiểu lệnh AT</strong>.
+ Mỗi lệnh bạn gửi đi, mỗi dòng module trả về đều được kèm ngay một câu giải thích bằng tiếng người ——
+ kể cả những mã lỗi chỉ toàn con số.</p>
+
+ <div class="info-box">
+ <div class="info-box-title">Tài liệu này bao gồm những gì</div>
+ Từ lúc mở trang web, cắm module, chạy nghi thức khởi động, một mạch tới
+ <strong>nguyên lý hoạt động</strong> và <strong>cách kiểm thử</strong> của từng nhóm lệnh AT
+ trong mười tab chức năng. Mọi mô tả hành vi đều đến từ đo thực tế trên
+ EG800K vật lý vào tháng 8 năm 2026, không phải chép lại sổ tay ——
+ <strong>chỗ nào sổ tay viết sai thì tài liệu này nói thẳng</strong>.
+ </div>
+
+ <figure class="shot">
+ <img src="img/02-hardware-boot.png" alt="Màn hình chính NuModem: bảng lệnh AT bên trái, terminal có chú giải bên phải">
+ <figcaption>Màn hình chính. Bên trái là bảng lệnh AT, bên phải là terminal ——
+ phần <code>//</code> sau mỗi dòng chính là chú giải thời gian thực.</figcaption>
+ </figure>
+ <h3>Ngôn ngữ và giao diện</h3>
+ <figure class="shot">
+ <img src="img/08-language-menu.png" alt="Menu ngôn ngữ ở góc trên bên phải: 18 ngôn ngữ">
+ <figcaption>Menu ngôn ngữ ở góc trên bên phải: 18 ngôn ngữ. Văn bản giao diện và chú giải lệnh AT đổi cùng lúc.</figcaption>
+ </figure>
+ <figure class="shot">
+ <img src="img/09-theme-light.png" alt="Giao diện sáng">
+ <figcaption>Giao diện sáng. Một cú nhấp ở góc trên bên phải; lựa chọn được lưu trong trình duyệt và giữ nguyên cho lần sau.</figcaption>
+ </figure>
+ </section>
+
+ <section id="requirements">
+ <h2><span class="icon">💻</span> Yêu cầu hệ thống</h2>
+
+ <h3>Trình duyệt</h3>
+ <p>NuModem dựng trên <strong>Web Serial API</strong>, và API này chỉ có ở
+ các trình duyệt dòng Chromium.</p>
+ <table>
+ <tr><th>Trình duyệt</th><th>Phiên bản</th><th>Trạng thái</th></tr>
+ <tr><td>Google Chrome</td><td>89 trở lên</td><td>✅ Khuyến nghị</td></tr>
+ <tr><td>Microsoft Edge</td><td>89 trở lên</td><td>✅ Hỗ trợ</td></tr>
+ <tr><td>Opera</td><td>75 trở lên</td><td>✅ Hỗ trợ</td></tr>
+ <tr><td>Firefox</td><td>—</td><td>❌ Không có Web Serial API</td></tr>
+ <tr><td>Safari</td><td>—</td><td>❌ Không có Web Serial API</td></tr>
+ </table>
+
+ <div class="warning">
+ <strong>Mở trực tiếp bằng <code>file://</code> vẫn dùng được</strong> — Chromium coi tệp
+ cục bộ là nguồn an toàn nên Web Serial không bị chặn. Tải về, nháy đúp
+ <code>NuModem_EG800.html</code> là kết nối được; phục vụ qua <code>https://</code>
+ hoặc <code>http://localhost</code> cũng tốt như vậy.
+ Khác biệt duy nhất là dưới <code>file://</code> thì <code>fetch()</code> bị CORS chặn —
+ nhưng các tệp dịch được nạp bằng thẻ <code>&lt;script&gt;</code>,
+ nên cả 18 ngôn ngữ vẫn hoạt động.
+ </div>
+
+ <h3>Phần cứng</h3>
+ <table>
+ <tr><th>Hạng mục</th><th>Mô tả</th></tr>
+ <tr><td>Module</td><td>Dòng Quectel EG800K (toàn bộ đo thực tế trong tài liệu này chạy trên firmware
+ <code>EG800KCNGCR07A06M04</code>)</td></tr>
+ <tr><td>Giao tiếp</td><td>Cầu USB-UART. Bản đo thực tế dùng CH343 (<code>1A86:55D3</code>)</td></tr>
+ <tr><td>Baud rate</td><td><strong>115200</strong></td></tr>
+ <tr><td>Ký tự kết thúc dòng</td><td><strong>CR</strong> (gửi LF thì module không phản hồi gì cả)</td></tr>
+ <tr><td>Thẻ SIM</td><td>Chỉ cần khi dùng chức năng dữ liệu. Bản đo thực tế dùng thẻ IoT 1NCE, APN cấp tự động</td></tr>
+ </table>
+ <p>Bo mạch điều khiển phải <strong>điều khiển được nguồn module bằng RTS</strong> và
+ <strong>điều khiển được chân Reset bằng DTR</strong>,
+ thì mới chạy được nghi thức khởi động (xem <a href="#boot">nghi thức khởi động</a>).</p>
+ </section>
+
+ <section id="quickstart">
+ <h2><span class="icon">🚀</span> Bắt đầu nhanh</h2>
+
+ <h3>Bước 1 —— Mở NuModem</h3>
+ <p>Mở <code>NuModem_EG800.html</code> bằng Chrome hoặc Edge — nháy đúp là đủ, không cần dựng máy chủ.</p>
+
+ <h3>Bước 2 —— Kết nối module</h3>
+ <p>Bấm <strong>Kết nối</strong> ở góc trên bên trái. Trình duyệt sẽ bật cửa sổ chọn cổng, hãy chọn cầu USB-UART của bạn.
+ Mũi tên bên phải mở ra danh sách thả xuống, cho phép chọn thẳng cổng đã cấp quyền trước đó.</p>
+ <div class="tip">
+ Sau khi đã cấp quyền một lần, các lần sau mở trang rồi bấm "Kết nối" là nối thẳng, không hỏi lại nữa.
+ Nếu bạn có nhiều thiết bị serial, chọn bằng danh sách thả xuống sẽ nhanh hơn.
+ </div>
+
+ <h3>Bước 3 —— Xác nhận baud rate</h3>
+ <p>Danh sách baud rate ở phía trên mặc định <strong>115200</strong>, EG800K xuất xưởng đúng giá trị này, thường không cần đổi.</p>
+
+ <h3>Bước 4 —— Chạy nghi thức khởi động</h3>
+ <p><strong>Bước này không được bỏ qua.</strong> Ngay khoảnh khắc trình duyệt mở cổng serial, RTS sẽ bị kéo lên lại,
+ mà RTS trên bo mạch này là công tắc nguồn logic âm —— nghĩa là
+ <strong>vừa kết nối xong thì module cũng vừa bị cắt điện</strong>.
+ Các bước chi tiết xem mục kế tiếp.</p>
+
+ <div class="warning">
+ Triệu chứng điển hình nhất khi bỏ qua nghi thức khởi động là: <strong>lệnh bạn gửi đi đều thấy trên terminal, nhưng tuyệt nhiên không có phản hồi nào</strong>.
+ Đó không phải sai baud rate, cũng không phải đấu ngược dây, mà là module căn bản chưa được cấp điện.
+ </div>
+ </section>
+
+ <section id="boot">
+ <h2><span class="icon">🔌</span> Nghi thức khởi động (mục quan trọng nhất)</h2>
+
+ <p>EG800K không phải cắm điện là chạy. Bo mạch điều khiển này nối hai tín hiệu ra của RS-232 vào chân điều khiển của module:</p>
+
+ <table>
+ <tr><th>Tín hiệu</th><th>Nối tới đâu</th><th>Logic</th></tr>
+ <tr><td><strong>RTS</strong></td><td>Công tắc nguồn module</td>
+ <td><strong>Logic âm</strong>: RTS <strong>OFF = có điện</strong>, RTS ON = mất điện</td></tr>
+ <tr><td><strong>DTR</strong></td><td>Chân Reset của module</td>
+ <td>DTR <strong>ON = Reset kéo lên</strong> (cho phép khởi động), OFF = Reset kéo xuống</td></tr>
+ </table>
+
+ <h3>Quy trình chuẩn</h3>
+ <p>Chuyển sang tab <strong>Hardware</strong>, ở đó có hai nút chuyên dụng:</p>
+ <ol>
+ <li><strong>Power</strong> —— cho RTS đi trọn một vòng ON → OFF.
+ Nút sáng xanh nghĩa là nguồn đã bật (tức RTS đang ở OFF).
+ <br>⚠ Đặt thẳng về OFF không đảm bảo có điện, <strong>nhất định phải ON trước rồi mới OFF</strong>.</li>
+ <li>Dừng một giây.</li>
+ <li><strong>Reset</strong> —— đây là nút kiểu "giữ mới có tác dụng":
+ khi nhấn xuống DTR kéo về OFF, khi thả ra trở lại ON. Giữ khoảng 300 mili giây.</li>
+ <li>Chờ terminal hiện <code>RDY</code>. Đo thực tế thì trong vài giây là có.</li>
+ </ol>
+
+ <p>Bạn cũng có thể bấm thẳng <code>RTS</code> / <code>DTR</code> trên thanh tín hiệu, hiệu quả y hệt,
+ chỉ là phải tự đếm thứ tự.</p>
+
+ <h3>Làm sao biết khởi động thành công</h3>
+ <p>Terminal phải lần lượt nhả ra những dòng này:</p>
+ <pre>RDY ← Module khởi động xong
++CFUN: 1 ← Đã bật sóng RF
++CPIN: READY ← SIM sẵn sàng
++QUSIM: 1
++QIND: SMS DONE ← Khởi tạo SMS xong
++QIND: PB DONE ← Khởi tạo danh bạ xong</pre>
+ <p>Sau đó gửi một lệnh <code>ATI</code> để kiểm chứng, phải trả về ba dòng hãng / model / phiên bản firmware kèm <code>OK</code>.</p>
+
+ <div class="important">
+ <strong>⚠ Mỗi lần tải lại trang đều phải chạy lại nghi thức khởi động.</strong>
+ Tải lại trang sẽ mở lại cổng serial, mà mở lại cổng serial thì RTS lại được assert ——
+ tức là module lại bị cắt điện thêm một lần nữa. Đây là nguyên nhân số một khiến người ta tưởng nhầm "module hỏng rồi".
+ </div>
+
+ <h3>Hai lệnh nên gửi ngay sau khi khởi động</h3>
+ <table>
+ <tr><th>Lệnh</th><th>Tại sao</th></tr>
+ <tr><td><code>ATE1</code></td>
+ <td>Bật echo. Module sẽ dội nguyên văn lệnh nó nhận được về lại,
+ nhờ vậy trên terminal có thể đối chiếu "cái bạn gửi" với "cái module thực sự nhận", gõ sai là thấy ngay.</td></tr>
+ <tr><td><code>AT+CMEE=2</code></td>
+ <td>Đổi thông báo lỗi sang dạng chữ. Không bật thì lỗi chỉ là một chữ <code>ERROR</code> khô khốc;
+ bật rồi mới thấy được thông báo đọc được như <code>+CME ERROR: SIM not inserted</code>.</td></tr>
+ </table>
+ <p><strong>Cả hai lệnh này đều chỉ có hiệu lực trong session</strong>, module khởi động lại là phải gửi lại.</p>
+
+ <div class="warning">
+ <strong>🔴 Khi không nhận được URC nào, thứ đầu tiên phải kiểm tra là <code>AT+QURCCFG="urcport"</code>.</strong>
+ Module xuất xưởng đẩy URC (thông báo chủ động) ra <strong>cổng USB AT</strong>,
+ công cụ này đi đường UART nên không nhận được dòng nào —— triệu chứng là "lệnh nào cũng trả OK nhưng chẳng có thông báo tiếp theo",
+ định vị GNSS, dữ liệu TCP đến, tin nhắn MQTT, kết quả quét Wi-Fi im lặng toàn bộ.
+ Cách xử lý: <code>AT+QURCCFG="urcport","uart1"</code>, lệnh này ghi vào NVRAM, có hiệu lực xuyên qua các lần khởi động lại.
+ </div>
+ </section>
+
+ <section id="terminal">
+ <h2><span class="icon">📟</span> Terminal</h2>
+
+ <p>Nửa bên phải chính là terminal. Điểm khác biệt lớn nhất so với terminal serial thông thường là <strong>mỗi dòng đều có chú giải</strong>.</p>
+
+ <h3>Bốn màu</h3>
+ <table>
+ <tr><th>Màu</th><th>Đại diện cho</th></tr>
+ <tr><td><strong>TX</strong></td><td>Dữ liệu bạn gửi đi</td></tr>
+ <tr><td><strong>RX</strong></td><td>Dữ liệu module trả về</td></tr>
+ <tr><td><strong>SYS</strong></td><td>Thông báo hệ thống của chính công cụ (kết nối, thay đổi tín hiệu, ra vào data mode)</td></tr>
+ <tr><td><strong>CMT</strong></td><td>Chú giải —— tức những dòng giải thích bắt đầu bằng <code>//</code></td></tr>
+ </table>
+ <p>Cả bốn màu đều đổi được, bấm vào ô màu là mở bảng chọn màu.</p>
+
+ <h3>Bộ máy chú giải</h3>
+ <p>Đây là lõi của NuModem. Nó làm hai việc:</p>
+ <ul>
+ <li><strong>Giải thích lệnh bạn gửi đi</strong> —— ví dụ gửi
+ <code>AT+QSSLSEND=4,18</code>, bên cạnh sẽ ghi "gửi độ dài cố định 18 byte cho clientID 4:
+ sau khi module trả dấu nhắc <code>&gt;</code> thì phải gửi 'đúng chính xác' đủ 18 byte mới phát đi, không cần gửi Ctrl+Z".</li>
+ <li><strong>Giải mã phản hồi của module</strong> —— nhất là những mã thuần số.
+ Ví dụ <code>+QFTPSIZE: 627,550</code> sẽ được tách thành hai tầng:
+ "Lỗi 627: FTP không thực hiện hành động được yêu cầu; máy chủ trả về 550: hành động không thực hiện: tệp hoặc thư mục không tồn tại".</li>
+ </ul>
+
+ <div class="tip">
+ Chú giải bám theo <strong>tham số bạn thực sự điền</strong>. Cùng một nút mà điền giá trị khác nhau thì
+ con số trong chú giải cũng đổi theo —— nó không phải một đoạn mô tả cố định.
+ </div>
+
+ <h3>Ký tự kết thúc dòng</h3>
+ <p>Bên phải ô nhập có thể chọn ký tự kết thúc dòng. <strong>EG800K bắt buộc dùng CR</strong>,
+ chọn LF thì module hoàn toàn không phản hồi. Đây là thiết lập dễ vấp nhất.</p>
+
+ <h3>Khác</h3>
+ <ul>
+ <li>Phía dưới hiển thị <strong>số byte RX / TX</strong> tích lũy và tên cổng hiện tại.</li>
+ <li>Góc trên bên phải là một hàng nút: bật/tắt chú giải, ký tự kết thúc dòng, dấu thời gian, tự động cuộn, xóa.</li>
+ <li>Khu terminal còn có hai tab <strong>trạng thái vệ tinh</strong> và <strong>bản đồ</strong>,
+ có nội dung sau khi định vị GNSS thành công.</li>
+ </ul>
+ </section>
+
+ <section id="signals">
+ <h2><span class="icon">🚦</span> Thanh tín hiệu RS-232</h2>
+
+ <p>Sau khi kết nối, phía dưới thanh tiêu đề sẽ hiện ra cả một hàng đèn tín hiệu, chia làm hai nhóm.</p>
+
+ <h3>LOCAL (OUT) —— đầu ra của bạn, bấm được</h3>
+ <table>
+ <tr><th>Tín hiệu</th><th>Công dụng trên bo mạch này</th></tr>
+ <tr><td><strong>BRK</strong></td><td>Tín hiệu Break</td></tr>
+ <tr><td><strong>RTS</strong></td><td><strong>Nguồn module</strong> (logic âm, OFF = có điện)</td></tr>
+ <tr><td><strong>DTR</strong></td><td><strong>Reset module</strong> (ON = Reset kéo lên)</td></tr>
+ </table>
+
+ <h3>REMOTE (IN) —— đầu ra của module, chỉ đọc</h3>
+ <p><code>DCD</code> / <code>DSR</code> / <code>CTS</code> / <code>RI</code>,
+ cộng thêm hai chỉ báo <code>ACT</code> (có dữ liệu đang chạy) và <code>ERR</code> (lỗi khung/parity).</p>
+
+ <div class="warning">
+ <strong>Web Serial không đọc ngược lại được trạng thái tín hiệu do chính nó gửi ra.</strong>
+ Nên ba đèn LOCAL hiển thị "giá trị mà công cụ cho rằng nó đã gửi ra", không phải đọc lại thực tế từ phần cứng.
+ Muốn chắc chắn thao tác đã có hiệu lực, xem thông báo hệ thống trên terminal (kiểu <code>RTS → ON</code>) sẽ chuẩn hơn.
+ </div>
+ </section>
+
+ <section id="panel">
+ <h2><span class="icon">🎛️</span> Bảng lệnh AT vận hành thế nào</h2>
+
+ <p>Nửa bên trái là mười tab, hơn hai trăm nút. Trước khi xem từng tab, hãy hiểu mấy cơ chế dùng chung dưới đây,
+ về sau tab nào cũng dùng tới.</p>
+
+ <h3>Hai loại nút</h3>
+ <table>
+ <tr><th>Kiểu dáng</th><th>Hành vi</th></tr>
+ <tr><td>Nút thường</td><td>Bấm là <strong>gửi thẳng</strong></td></tr>
+ <tr><td>Khung nét đứt</td><td>Có tham số phải điền. Điền xong có thể "Gửi",
+ hoặc "Điền vào dòng lệnh" để thả lệnh đã ghép sẵn xuống ô nhập bên dưới rồi tự sửa tiếp</td></tr>
+ </table>
+
+
+ <figure class="shot narrow">
+ <img src="img/13-btn-kinds.png" alt="Nút thường gửi ngay khi bấm; thẻ viền đứt nét cần điền tham số trước — sau đó bạn có thể gửi, hoặc đẩy lệnh đã ghép vào dòng lệnh để tự sửa.">
+ <figcaption>Nút thường <strong>gửi ngay khi bấm</strong>; thẻ viền đứt nét cần điền tham số trước — sau đó bạn có thể gửi, hoặc đẩy lệnh đã ghép vào dòng lệnh để tự sửa.</figcaption>
+ </figure>
+ <h3>Trường tham số</h3>
+ <p>Mỗi trường đều có mô tả riêng (rê chuột lên là hiện), ghi phạm vi <strong>đo thực tế trên máy này</strong>,
+ không phải chép từ sổ tay. Ví dụ "số vòng" của quét Wi-Fi ghi là 1-3,
+ bởi vì <code>AT+QWIFISCAN=?</code> thực tế trả đúng phạm vi đó —— con số 1-6 trong tài liệu ứng dụng là sai.</p>
+
+
+ <figure class="shot narrow">
+ <img src="img/14-params.png" alt="Các ô tham số. Mỗi ô hiện chú giải riêng khi rê chuột, và phạm vi là đo thực tế trên máy này: &quot;số vòng&quot; ghi 1-3, &quot;giới hạn BSSID&quot; ghi 4-10 — đó là những gì AT+QWIFISCAN=? thực sự trả về, không phải chép từ tài liệu ứng dụng. Số 1 và 10 điền sẵn chỉ là giá trị mặc định.">
+ <figcaption>Các ô tham số. Mỗi ô hiện chú giải riêng khi rê chuột, và phạm vi là <strong>đo thực tế trên máy này</strong>: "số vòng" ghi 1-3, "giới hạn BSSID" ghi 4-10 — đó là những gì <code>AT+QWIFISCAN=?</code> thực sự trả về, không phải chép từ tài liệu ứng dụng. Số 1 và 10 điền sẵn chỉ là giá trị mặc định.</figcaption>
+ </figure>
+ <h3>Gửi dữ liệu hai giai đoạn</h3>
+ <p>Một số lệnh không phải gửi một dòng là xong. Luồng của chúng là:</p>
+ <pre>Gửi lệnh → module trả về &gt; hoặc CONNECT → gửi đúng N byte → module trả về kết quả</pre>
+ <p>Loại nút này có một trường "nội dung dữ liệu" riêng, <strong>độ dài sẽ được tính tự động và điền vào lệnh</strong>,
+ bạn không phải tự đếm. Thuộc nhóm này có
+ <code>AT+QISEND</code>, <code>AT+QSSLSEND</code>, <code>AT+QMTPUBEX</code>,
+ <code>AT+QHTTPURL</code>, <code>AT+QHTTPPOST</code>, <code>AT+QFTPPUT</code>.</p>
+
+ <div class="warning">
+ <strong>Tính sai độ dài thì hậu quả rất khó coi.</strong> Module sẽ chờ mãi cho tới khi nhận đủ số byte bạn khai báo,
+ trong lúc đó cổng AT nằm ở "data mode" —— mọi thứ bạn gõ sau đó đều bị nuốt vào làm dữ liệu.
+ <br><br>
+ Cách thoát thân: <strong>dùng nút gửi byte thô ở tab Hardware để gửi một ESC (0x1B)</strong>.
+ Không cần ngắt kết nối, cũng không cần khởi động lại module.
+ </div>
+
+
+ <figure class="shot narrow">
+ <img src="img/15-two-stage.png" alt="Gửi hai giai đoạn. Số 6 trong AT+QISEND=0,6 do công cụ tự tính; bạn chỉ điền ô nội dung dữ liệu.">
+ <figcaption>Gửi hai giai đoạn. <strong>Số 6 trong <code>AT+QISEND=0,6</code> do công cụ tự tính</strong>; bạn chỉ điền ô nội dung dữ liệu.</figcaption>
+ </figure>
+ <h3>Chuỗi escape</h3>
+ <p>Trường nội dung dữ liệu là ô văn bản một dòng, không gõ được ký tự điều khiển như xuống dòng hay Tab.
+ Vì thế các trường này hỗ trợ chuỗi escape:</p>
+ <table>
+ <tr><th>Cách viết</th><th>Byte được gửi</th></tr>
+ <tr><td><code>\n</code></td><td>0x0A xuống dòng</td></tr>
+ <tr><td><code>\r</code></td><td>0x0D về đầu dòng</td></tr>
+ <tr><td><code>\t</code></td><td>0x09 Tab</td></tr>
+ <tr><td><code>\0</code></td><td>0x00 NUL</td></tr>
+ <tr><td><code>\xHH</code></td><td>Byte bất kỳ, HH là hệ mười sáu</td></tr>
+ <tr><td><code>\\</code></td><td>Chính dấu gạch chéo ngược</td></tr>
+ </table>
+ <p><strong>Việc giải mã diễn ra trước khi gửi, và độ dài cũng tính theo số byte sau khi giải mã.</strong>
+ Ví dụ <code>hello\n</code> trong trường là 7 ký tự, nhưng gửi đi là 6 byte,
+ nên độ dài điền vào lệnh sẽ là 6.</p>
+
+ <div class="tip">
+ <strong>Tại sao chuyện này quan trọng:</strong> rất nhiều máy chủ thử nghiệm dội lại <strong>theo từng dòng</strong>
+ (gửi gì trả nấy, nhưng phải thấy ký tự xuống dòng mới hành động).
+ Payload kết thúc mà không có <code>\n</code> thì bạn sẽ không bao giờ nhận được phản hồi ——
+ và trông sẽ y như "kết nối hỏng rồi".
+ </div>
+
+
+ <figure class="shot narrow">
+ <img src="img/16-escapes.png" alt="Chuỗi thoát. Ô chứa 10 ký tự A\tB\x21\n, giải mã ra chỉ 5 byte — nên lệnh đổi thành AT+QISEND=0,5.">
+ <figcaption>Chuỗi thoát. Ô chứa 10 ký tự <code>A\tB\x21\n</code>, giải mã ra chỉ <strong>5 byte</strong> — nên lệnh đổi thành <code>AT+QISEND=0,5</code>.</figcaption>
+ </figure>
+ <h3>Nhãn timeout</h3>
+ <p>Một số lệnh AT chặn rất lâu. Nhãn ⏱ trên nút chính là thời gian chờ tối đa mà sổ tay ghi,
+ ví dụ <code>AT+QIACT=1</code> tối đa 150 giây, <code>AT+COPS=?</code> tối đa 300 giây.
+ <strong>Thấy lâu không phản hồi thì hãy xem nhãn này trước</strong>, đa phần chỉ là chưa tới giờ thôi.</p>
+
+
+ <figure class="shot narrow">
+ <img src="img/17-timeout.png" alt="Dấu ⏱ là thời gian chờ tối đa theo sổ tay. AT+COPS=? mất tới 300 giây — hãy nhìn đây trước khi tưởng là không có phản hồi; thường chỉ là chưa tới giờ.">
+ <figcaption>Dấu ⏱ là thời gian chờ tối đa theo sổ tay. <code>AT+COPS=?</code> mất tới 300 giây — hãy nhìn đây trước khi tưởng là không có phản hồi; thường chỉ là chưa tới giờ.</figcaption>
+ </figure>
+ <h3>Hộp thoại xác nhận</h3>
+ <p>Chỉ những thao tác làm kẹt cổng AT trong data mode, hoặc không thể đảo ngược (xóa tệp ở xa, khởi động lại mềm module, đổi baud rate)
+ mới bật hộp xác nhận. <strong>Riêng chuyện "sẽ tốn lưu lượng" thì không chặn bạn</strong> ——
+ loại nhắc nhở đó được đặt trong phần mô tả của nút.</p>
+
+
+ <figure class="shot narrow">
+ <img src="img/18-confirm.png" alt="Chỉ những cái viền đỏ mới hỏi lại. Đổi tên (viền xanh) gửi thẳng; xoá (viền đỏ) sẽ hỏi bạn một lần.">
+ <figcaption><strong>Chỉ những cái viền đỏ mới hỏi lại.</strong> Đổi tên (viền xanh) gửi thẳng; xoá (viền đỏ) sẽ hỏi bạn một lần.</figcaption>
+ </figure>
+ <h3>Công tắc phía máy tính</h3>
+ <p>Một số ít nút có kèm ô đánh dấu nhỏ bên dưới, đó là <strong>hành vi phía công cụ</strong> chứ không phải lệnh AT.
+ Ví dụ mục "tự động đóng khi phát hiện <code>+QIURC: "closed",0</code>" nằm dưới <code>AT+QICLOSE=0</code>.
+ Các tùy chọn này lưu trong trình duyệt, lần sau mở vẫn còn.</p>
+ 
+ <figure class="shot narrow">
+ <img src="img/19-auto-opt.png" alt="Ô đánh dấu nhỏ bên dưới nút là hành vi phía công cụ, không phải lệnh AT. Nó được lưu trong trình duyệt và vẫn còn ở lần mở sau.">
+ <figcaption>Ô đánh dấu nhỏ bên dưới nút là <strong>hành vi phía công cụ</strong>, không phải lệnh AT. Nó được lưu trong trình duyệt và vẫn còn ở lần mở sau.</figcaption>
+ </figure>
+</section>
+
+ <section id="tabs">
+ <h2><span class="icon">🗂️</span> Mười tab</h2>
+
+ <p>Thứ tự các tab là có chủ đích: <strong>từ trái sang phải đại khái chính là thứ tự bạn nên thao tác</strong>.
+ Hardware khởi động → Basic xác nhận module còn sống → Network xác nhận lên mạng được →
+ năm tab phía sau mới là các giao thức dữ liệu.</p>
+
+ <h3 id="tab-hardware">Hardware —— khởi động và cổng serial</h3>
+ <p><strong>Nguyên lý hoạt động:</strong> trang này là nền móng của toàn bộ công cụ:
+ Control là hai nút của nghi thức khởi động (Power / Reset), Module là nhận diện sản phẩm,
+ Serial là thiết lập UART, Power là chế độ tiết kiệm điện, URC quản cổng xuất của các thông báo chủ động từ module,
+ ngoài ra còn một hàng <strong>nút byte thô</strong> (Ctrl+Z / ESC / +++) làm cửa thoát hiểm cho data mode.
+ Mọi tab khác đều đứng trên hai tiền đề: <strong>module đã khởi động đúng nghi thức</strong>,
+ <strong>URC đi đường uart1</strong> —— cả hai việc này đều hoàn tất tại trang này.
+ Hành vi và con số trong mục này đều là đo thực tế trên EG800K vật lý vào tháng 8 năm 2026.</p>
+
+ <h4>Vì sao phải có nghi thức khởi động: RTS = nguồn điện, DTR = Reset</h4>
+ <p>Board điều khiển đi kèm công cụ này đem hai tín hiệu bắt tay RS-232 dùng vào việc khác, đây là chìa khóa để hiểu cả trang:</p>
+ <table>
+ <tr><th>Tín hiệu</th><th>Thực tế nối vào</th><th>Logic</th></tr>
+ <tr><td><strong>RTS</strong></td><td>Công tắc nguồn của module</td>
+ <td><strong>Logic âm</strong>: RTS OFF = cấp điện, RTS ON = ngắt điện</td></tr>
+ <tr><td><strong>DTR</strong></td><td>Chân Reset của module</td>
+ <td>DTR ON = Reset kéo lên cao (có thể chạy), DTR OFF = Reset kéo xuống thấp</td></tr>
+ </table>
+ <p>Đặc tính mạch điện (đã xác nhận bằng đo thực tế): lần kết nối đầu tiên, RTS phải
+ <strong>ON trước rồi mới OFF</strong> thì nguồn mới thực sự được bật —— đặt thẳng OFF không bảo đảm có điện;
+ DTR cũng phải đi qua <strong>ON→OFF→ON</strong> thì Reset mới thực sự được kéo lên cao.
+ Ngắt điện (RTS ON) là cắt cứng, module <strong>không gửi bất kỳ lời chào tạm biệt nào</strong>.</p>
+ <div class="warning">
+ <strong>Tải lại trang = ngắt điện.</strong> Khi trình duyệt mở lại cổng serial, RTS sẽ bị kéo lên lại,
+ module mất điện ngay —— sau khi tự động kết nối lại xong, <strong>bắt buộc phải chạy lại nghi thức khởi động</strong>.
+ Đo thực tế từng dính: bỏ qua nghi thức mà gửi thẳng 17 lệnh, tất cả một đi không trở lại (chỉ có dòng TX, RX bằng không).
+ Bất kỳ tình huống "vừa nãy còn ngon lành, giờ im bặt toàn bộ" nào, hãy nghĩ đến chuyện này trước tiên.
+ </div>
+
+ <h4>Nút Power và Reset: bấm thế nào, sẽ thấy gì</h4>
+ <p>Hai nút này chính là hiện thân của hai tín hiệu trong bảng trên, <strong>liên động hai chiều</strong>
+ với đèn chỉ báo RTS / DTR trên thanh tín hiệu (khi chưa kết nối thì bị làm mờ, không bấm được).
+ Web Serial không đọc lại được trạng thái thực của tín hiệu đầu ra,
+ thanh tín hiệu hiển thị giá trị mà công cụ này cho rằng mình đã gửi.</p>
+ <ol>
+ <li><strong>Power</strong> (kiểu chuyển trạng thái): sáng xanh lục = nguồn ON (= RTS OFF).
+ Nghi thức khởi động cần RTS đi qua ON→OFF: nếu nút đang sáng, hãy bấm tắt rồi bấm bật.</li>
+ <li><strong>Reset</strong> (momentary): bấm xuống = DTR OFF, thả ra = DTR ON,
+ một lần bấm-thả là một lần Reset (trình tự chuẩn dừng 0.3 giây ở giữa).</li>
+ <li><strong>Chờ RDY</strong>: trong vài giây, terminal sẽ hiện lời chào khởi động của module <code>RDY</code>.</li>
+ <li><strong>Kiểm chứng bằng ATI</strong>: phải trả về <code>Quectel</code> / <code>EG800K</code> /
+ <code>Revision: …</code> / <code>OK</code>. Trả ra được = UART lẫn module đều sống.</li>
+ </ol>
+ <div class="tip">
+ Sau khi khởi động, nên xác nhận echo (ATE) đang bật trước (xuất xưởng mặc định bật), rồi gõ <code>AT+CMEE=2</code> ——
+ không bật thì chỉ thấy mỗi chữ <code>ERROR</code> khô khốc, bật rồi mới có
+ dòng chữ đọc được kiểu <code>+CME ERROR: …</code>. Cả hai đều là session-only, module mỗi lần khởi động lại đều phải gõ lại.
+ </div>
+
+ <h4>Module: năm nút nhận diện</h4>
+ <table>
+ <tr><th>Nút</th><th>Lệnh</th><th>Sẽ thấy gì</th></tr>
+ <tr><td>Info</td><td><code>ATI</code></td>
+ <td>Hãng / model / phiên bản firmware ba trong một —— lệnh đầu tiên sau khi khởi động chính là nó</td></tr>
+ <tr><td>Vendor / Model / FW Ver</td>
+ <td><code>AT+GMI</code> / <code>AT+GMM</code> / <code>AT+GMR</code></td>
+ <td>Tách ba dòng của ATI ra tra riêng từng cái (lần lượt tương đương CGMI / CGMM / CGMR).
+ Phiên bản firmware máy này đo thực tế là <code>EG800KCNGCR07A06M04</code></td></tr>
+ <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+ <td>IMEI của module (15 chữ số). Không tốn lưu lượng, gửi lúc nào cũng được</td></tr>
+ </table>
+
+ <h4>Serial: AT&amp;V đọc tham số, IPR đổi baud rate</h4>
+ <p><strong>AT Params (<code>AT&amp;V</code>)</strong>: liệt kê giá trị hiện tại của mọi tham số AT một chữ cái.
+ Những lệnh một chữ cái như <code>ATE</code> / <code>ATQ</code> / <code>ATV</code> <strong>không có dạng truy vấn riêng,
+ chỉ lệnh này mới đọc ra được</strong>. Máy này đo thực tế <code>E:1 Q:0 V:1 S3:13 S4:10</code> ——
+ echo bật, mã kết quả ở dạng chữ, kết thúc dòng = CR (ASCII 13), chính là tiền đề để công cụ này phân tích phản hồi.</p>
+ <p><strong>Baud? (<code>AT+IPR?</code>)</strong>: tra baud rate hiện tại của UART, xuất xưởng 115200.<br>
+ <strong>Baud List (<code>AT+IPR=?</code>)</strong>: trả về hai danh sách ——
+ danh sách trước là các baud rate dò tự động được, danh sách sau là chỉ dùng ở chế độ cố định. Sau khi chạy nút này,
+ menu thả xuống của Set Baud sẽ đổi thành danh sách máy này thực tế báo về. Đo thực tế danh sách thứ hai của máy này liệt kê tới tận
+ <strong>1000000 bps —— bảng ở §3.4 của sổ tay không có giá trị này</strong>.</p>
+ <p><strong>Set Baud (<code>AT+IPR={rate};&amp;W</code>, thẻ tham số)</strong>:
+ bấm vào sẽ bật hộp xác nhận trước —— đây là nút dễ tự khóa mình ngoài cửa nhất cả trang.</p>
+ <div class="warning">
+ <strong>Bẫy ba tầng khi đổi baud rate (đo thực tế xác nhận đủ cả ba):</strong><br>
+ ① <code>OK</code> vừa trả về là <strong>có hiệu lực ngay lập tức</strong>,
+ từ khoảnh khắc kế tiếp công cụ này và module ông nói gà bà nói vịt;<br>
+ ② <code>AT&amp;F</code> (khôi phục xuất xưởng) <strong>không</strong> đổi baud rate về lại —— đừng trông cậy nó cứu bạn;<br>
+ ③ Không thêm <code>&amp;W</code> thì không lưu —— mà kết nối lại = ngắt điện, module sẽ tỉnh dậy ở baud rate cũ,
+ còn thiết lập cổng của bạn lại đứng ở baud rate mới, <strong>mất liên lạc kép</strong>.
+ Vì vậy công cụ này ép dùng cách viết gộp <code>;&amp;W</code>.<br>
+ Bốn bước khôi phục (hộp xác nhận cũng sẽ nhắc): ngắt kết nối → đổi baud rate ở khu kết nối → nối lại → chạy lại nghi thức khởi động.
+ </div>
+
+ <h4>Power: QSCLK tiết kiệm điện</h4>
+ <p><strong>Sleep? (<code>AT+QSCLK?</code>)</strong>: tra xem module có được phép đi ngủ hay không.
+ Máy này đo thực tế xuất xưởng là <code>0</code> = tắt, module luôn thức.
+ Trang này chỉ cung cấp nút truy vấn: module đã ngủ sẽ <strong>ngừng phản hồi AT</strong>, cách đánh thức trong sổ tay là kéo DTR xuống thấp ——
+ nhưng DTR trên board này đã bị nối đi làm chân Reset (xem đầu mục này). Nếu bạn tự bật chế độ ngủ ở dòng lệnh rồi gọi không dậy,
+ chạy lại nghi thức khởi động (ngắt điện bật lại) là thoát; chi tiết xem application note chính thức về chế độ tiết kiệm điện.</p>
+
+ <h4>URC: không nhận được thông báo thì ghé đây đầu tiên</h4>
+ <p><strong>URC (Unsolicited Result Code, mã kết quả không do yêu cầu)</strong> là thông báo module
+ "tự nhả ra mà chẳng ai hỏi", không phải phản hồi của bất kỳ lệnh nào —— <code>RDY</code> lúc khởi động, dữ liệu TCP đến, tin nhắn MQTT,
+ kết quả quét Wi-Fi, thông báo nạp firmware GNSS đều thuộc loại này. Cổng xuất của nó
+ <strong>xuất xưởng mặc định là cổng USB (usbat)</strong> —— công cụ này đi đường UART nên không nhận được cái nào,
+ triệu chứng cực kỳ điển hình: <strong>lệnh nào cũng trả OK, riêng thông báo thì chờ mãi không thấy</strong>.</p>
+ <table>
+ <tr><th>Nút</th><th>Lệnh</th><th>Công dụng</th></tr>
+ <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+ <td>Tra xem URC hiện đang gửi đi đâu —— khi không nhận được URC, <strong>lệnh đầu tiên hãy tra nó</strong>;
+ phải trả về <code>"uart1"</code> mới nhận được</td></tr>
+ <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+ <td>Máy này hỗ trợ những cổng xuất nào. Đo thực tế trả về <code>("usbat","usbmodem","uart1")</code>,
+ <strong>không có "all" mà sổ tay nhắc tới</strong> (sổ tay có chú thích một số model không hỗ trợ)</td></tr>
+ <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+ <td>Chuyển sang UART chính. Ghi vào NVRAM, giữ nguyên qua các lần khởi động lại, <strong>đổi một lần là xong</strong></td></tr>
+ <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+ <td>Công tắc tổng của URC, nguyên nhân lớn còn lại của chuyện "không nhận được URC".
+ Đo thực tế máy này xuất xưởng đã là 1 (bật), vấn đề hầu như đều nằm ở cổng xuất</td></tr>
+ </table>
+
+ <h4>Nút byte thô: cửa thoát hiểm của data mode</h4>
+ <p>Không ít lệnh là <strong>hai giai đoạn</strong>: gửi lệnh trước, chờ module trả dấu nhắc <code>&gt;</code>,
+ rồi mới gửi phần nội dung. Đã vào <strong>data mode</strong> kiểu này thì mỗi ký tự bạn gõ đều bị module nuốt vào làm dữ liệu ——
+ kể cả lệnh AT bạn định gõ. Khi tính sai độ dài, đổi ý giữa chừng, lệnh bị kẹt, phím thường không cứu nổi,
+ phải nhờ hàng nút gửi từng byte thô này:</p>
+ <table>
+ <tr><th>Nút</th><th>Gửi ra</th><th>Khi nào dùng</th></tr>
+ <tr><td>Ctrl+Z</td><td>0x1A</td>
+ <td><strong>Ký tự kết thúc</strong> của data mode: thực sự gửi phần nội dung đã gom đi</td></tr>
+ <tr><td>ESC</td><td>0x1B</td>
+ <td><strong>Hủy</strong> data mode, vứt bỏ nội dung đã gom.
+ Phím thoát thân số một khi lệnh hai giai đoạn bị kẹt, cổng AT không phản hồi nữa (sổ tay §2.3.8)</td></tr>
+ <tr><td>+++</td><td>Ba dấu + (byte thô)</td>
+ <td>Thoát khỏi <strong>data mode trong suốt</strong> (như truyền COM: của FTP) về lại chế độ AT.
+ Luật rất cứng: <strong>trước sau đều im lặng 1 giây, tuyệt đối không kèm CR/LF</strong> ——
+ đo thực tế thêm CR là mất tác dụng, phải gửi bằng nút này, không gõ ở dòng lệnh được</td></tr>
+ </table>
+ <div class="warning">
+ <strong>Đo thực tế lật ngược sổ tay: +++ là "chấm dứt", không phải "tạm dừng".</strong>
+ Application note FTPS v1.5 trang 13 nói sau +++ có thể dùng <code>ATO</code> quay lại data mode truyền tiếp,
+ trên máy thật <code>ATO</code> chỉ trả <code>NO CARRIER</code>, phiên truyền đã bị chấm dứt rồi.
+ Hãy coi +++ như phanh khẩn cấp, đừng mong phanh xong còn chạy tiếp được.
+ </div>
+
+ <h4>Khắc phục sự cố</h4>
+ <table>
+ <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+ <tr><td>Không lệnh nào có phản hồi</td>
+ <td>Lần lượt kiểm ba nghi phạm: ① chưa chạy nghi thức khởi động (đã tải lại trang thì chắc chắn là nó);
+ ② kết thúc dòng đặt thành LF —— module <strong>chỉ nhận CR</strong>, LF hoàn toàn không phản hồi;
+ ③ baud rate lệch nhau (xem bốn bước khôi phục)</td></tr>
+ <tr><td>Bấm Reset rồi mà chờ mãi không thấy RDY</td>
+ <td>Xem nút Power có sáng không trước đã —— module không có điện thì bấm Reset bao nhiêu lần cũng vô ích;
+ lần kết nối đầu tiên nguồn phải đi qua ON→OFF</td></tr>
+ <tr><td>Lệnh nào cũng trả OK, riêng URC thì không tới</td>
+ <td>Tám phần là urcport vẫn ở usbat xuất xưởng: bấm URC Port? để tra, URC → UART để đổi;
+ vẫn không được thì kiểm công tắc tổng URC Switch</td></tr>
+ <tr><td>Cổng AT bỗng dưng "nuốt lệnh", gõ gì cũng không phản hồi</td>
+ <td>Kẹt trong data mode, chữ gõ vào bị thu làm dữ liệu hết —— bấm ESC để thoát thân</td></tr>
+ </table>
+
+ <h3 id="tab-basic">Basic —— SIM, chẩn đoán và trạng thái cơ bản</h3>
+ <p><strong>Nguyên lý hoạt động:</strong> trang này là điểm xuất phát sau mỗi lần kết nối. Chạy xong nghi thức khởi động, terminal hiện
+ <code>RDY</code> rồi, hãy đến đây làm ba việc: đổi thông báo lỗi sang định dạng đọc hiểu được,
+ xác nhận SIM sẵn sàng, nhận diện xem thẻ này là ai. Cả trang ngoài <code>AT&amp;F</code> và mở khóa PIN / PUK ra,
+ toàn bộ là truy vấn chỉ đọc —— bấm không làm thay đổi trạng thái module;
+ các lệnh động chạm đến trạng thái kết nối tập trung ở những tab khác như Network, TCP/IP.
+ Mọi mẫu trong mục này đều là giá trị đo thực tế tháng 8 năm 2026 trên EG800K vật lý
+ (firmware EG800KCNGCR07A06M04).</p>
+
+ <h4>Sau khi khởi động: RDY không có nghĩa là SIM sẵn sàng</h4>
+ <p><code>RDY</code> là URC module chủ động gửi ra khi khởi động xong.
+ Nó chỉ nói lên giao diện AT đã sống, <strong>thẻ SIM vẫn còn đang thong thả khởi tạo phía sau</strong>.
+ Đo thực tế: <code>RDY</code> vừa hiện mà gửi ngay lệnh liên quan SIM sẽ nhận
+ <code>+CME ERROR: 14</code> (SIM busy) thậm chí <code>+CME ERROR: 13</code> (SIM failure);
+ <strong>chờ khoảng 6 giây</strong> rồi gửi thì mọi thứ bình thường.</p>
+ <div class="warning">
+ <strong>Khi viết script tự động hóa, đừng lấy RDY làm tín hiệu "có thể bắt tay vào việc".</strong>
+ Cách đúng, chọn một trong hai: sau RDY chừa cố định khoảng 6 giây đệm;
+ hoặc hỏi vòng <code>AT+QINISTAT</code>, chờ bit 1 (CPIN sẵn sàng) sáng lên rồi mới tiếp tục.
+ </div>
+
+ <h4>Echo (ATE): "module dội lại" và "terminal tự hiển thị" là hai chuyện khác nhau</h4>
+ <p>Echo là <strong>module</strong> gửi trả nguyên văn các ký tự bạn đưa sang (<code>ATE1</code> bật,
+ <code>ATE0</code> tắt); còn local echo của terminal là <strong>phía công cụ</strong> tự in chữ bạn gõ
+ lên màn hình trước. Hai công tắc độc lập với nhau: cả hai cùng bật thì mỗi chữ sẽ hiện hai lần.</p>
+ <ul>
+ <li><strong>Nút gạt echo</strong> của trang này chuyển trạng thái echo của module bằng một phím.
+ Khởi động mặc định là <strong>bật</strong> (đo thực tế tham số AT <code>E:1</code> làm chứng).</li>
+ <li>Trạng thái hiển thị trên nút không phải nhớ suông —— công cụ <strong>tự hiệu chỉnh theo phản hồi thực tế</strong>
+ (nhận được dòng echo là coi như đang bật); bạn gõ tay <code>ATE0</code> / <code>ATE1</code> /
+ <code>AT&amp;F</code> ở dòng lệnh thì trạng thái nút cũng đồng bộ theo, không bị lệch nhịp.</li>
+ <li>Chuyển trạng thái là session-only: module khởi động lại là về mặc định. Muốn ghi vào mặc định khởi động phải gõ thêm
+ <code>AT&amp;W</code> (trang này không làm nút đó, cần thì gõ tay ở dòng lệnh).</li>
+ </ul>
+
+ <h4>Biến thông báo lỗi thành thứ đọc hiểu được (CMEE)</h4>
+ <table>
+ <tr><th>Nút</th><th>Tác dụng</th></tr>
+ <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+ <td>Mã lỗi đổi sang mô tả bằng chữ. Ví dụ thực: khi GNSS chưa định vị, chế độ số trả
+ <code>+CME ERROR: 516</code>, chế độ chữ trả
+ <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> —— cái sau không cần tra bảng cũng biết chuyện gì xảy ra.
+ <strong>Công cụ này đặc biệt khuyên bấm nút này ngay sau nghi thức khởi động</strong></td></tr>
+ <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+ <td>Mã lỗi dùng số —— công cụ sẽ tự tra bảng dịch con số thành chú giải đọc hiểu được</td></tr>
+ </table>
+ <div class="tip">
+ Cả hai thiết lập đều là <strong>session-only</strong>: modem khởi động lại là mất
+ (tải lại trang = RTS ngắt điện = khởi động lại, cũng tính). Ngoài ra đo thực tế phát hiện: kể cả đã bật
+ <code>CMEE=2</code>, một số ít hệ con (như lỗi FILE của hệ thống tệp) vẫn trộn lẫn chữ và số,
+ viết chương trình phân tích thì cả hai dạng đều phải đón.
+ </div>
+
+ <h4>AT&amp;F: về mặc định xuất xưởng —— phạm vi ảnh hưởng</h4>
+ <p>Nút <strong>Factory Reset</strong> đặt lại thiết lập AT về giá trị xuất xưởng,
+ là bước đầu tiên khi tiếp nhận một module đã bị chỉnh lung tung. Đây là nút duy nhất của trang này bấm vào sẽ bật hộp xác nhận trước.
+ Phạm vi ảnh hưởng đã xác nhận bằng đo thực tế: <strong>sẽ đặt echo về bật</strong>
+ (trạng thái nút gạt echo tự động bám theo), <strong>không ảnh hưởng baud rate</strong>;
+ các mục thiết lập còn lại có bị khôi phục hay không, xem mục <code>AT&amp;F</code> trong sổ tay đối chiếu từng dòng.</p>
+
+ <figure class="shot">
+ <img src="img/12-basic.png" alt="Tab Basic">
+ <figcaption>Ba cụm nút của trang Basic: Echo (echo và định dạng lỗi),
+ SIM (truy vấn và mở khóa PIN / PUK), Status (đồng hồ, điện áp, giờ mạng).</figcaption>
+ </figure>
+
+ <h4>Bộ ba truy vấn SIM: có trong máy không, có chờ mật khẩu không, khởi tạo tới đâu</h4>
+ <table>
+ <tr><th>Nút</th><th>Câu hỏi đặt ra</th><th>Cách đọc kết quả</th></tr>
+ <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+ <td>Thẻ có cắm chắc không</td>
+ <td>Phản hồi có hai cột: cột đầu là công tắc URC cắm/rút, <strong>cột thứ hai mới là trạng thái thẻ</strong>, đừng nhìn nhầm cột.
+ Nút này trên máy này có tiền sử báo sai, xem cảnh báo bên dưới</td></tr>
+ <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+ <td>Thẻ có đang chờ mật khẩu không</td>
+ <td><code>+CPIN: READY</code> = "hiện không chờ bất kỳ mật khẩu nào".
+ ⚠ <strong>Không có nghĩa là thẻ này không cần PIN</strong> —— thẻ đã đặt PIN sau khi mở khóa cũng trả READY.
+ Không có thẻ thì trả <code>+CME ERROR: 10</code></td></tr>
+ <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+ <td>Tiến độ khởi tạo</td>
+ <td>Mặt nạ bit: 1 = CPIN sẵn sàng, 2 = SMS, 4 = danh bạ, 7 = xong toàn bộ.
+ Máy này đo thực tế sau khi khởi động ổn định đọc được <strong>3</strong> (bit danh bạ không được đặt) ——
+ phán đoán "làm việc được chưa" nhìn bit 1 là đủ, <strong>đừng chờ chết ở số 7</strong></td></tr>
+ </table>
+ <div class="warning">
+ <strong>Card In? trên máy này biết nói dối.</strong> Đo thực tế <code>AT+QSIMSTAT?</code> trả
+ <code>0,0</code> (thẻ đã bị rút), nhưng cùng thời điểm CPIN READY, mạng đã attach, đã lấy được IP ——
+ thẻ rõ ràng vẫn ổn. Suy đoán là board điều khiển không nối chân dò SIM_DET (hoặc <code>AT+QSIMDET</code> chưa bật),
+ giá trị đọc luôn là "chưa cắm". <strong>Muốn phán đoán thẻ có trong máy không, lấy <code>AT+CPIN?</code> hoặc
+ <code>AT+QINISTAT</code> làm chuẩn.</strong>
+ </div>
+
+ <h4>Thẻ này là ai: IMSI và ICCID</h4>
+ <p>Nút <strong>IMSI</strong> (<code>AT+CIMI</code>) trả về một chuỗi số trần,
+ là mã nhận dạng thuê bao của thẻ này trên mạng di động. Máy này đo thực tế <code>901405117661468</code>:
+ ba số đầu (MCC) là <strong>901 = dải số thẻ chuyển vùng quốc tế</strong> ——
+ thẻ trong máy này là thẻ IoT của 1NCE, điều đó cũng giải thích vì sao <code>AT+CEREG?</code>
+ cứ trả <code>0,5</code> (đã đăng ký, <strong>chuyển vùng</strong>): không phải tín hiệu bất thường,
+ mà là trạng thái thường trực của loại thẻ này. Trước khi chạy kiểm thử dữ liệu hãy nhận diện thẻ chuyển vùng, để ý cước lưu lượng.</p>
+ <p>Nút <strong>ICCID</strong> (<code>AT+QCCID</code>) tra số serial của thẻ,
+ đo thực tế trả <code>+QCCID: 89882280666176614687</code>.
+ ⚠ <strong>Trong sổ tay không có lệnh <code>AT+CCID</code></strong> ——
+ lệnh thường gặp trong các hướng dẫn của module hãng khác ở đây không dùng được, phải dùng <code>AT+QCCID</code> riêng của Quectel.</p>
+
+ <h4>Mở khóa PIN: tra số lần còn lại trước, rồi mới ra tay</h4>
+ <ol>
+ <li><strong>Bấm PIN Left trước</strong> (<code>AT+QPINC?</code>) xem số lần thử còn lại ——
+ phạm vi sổ tay đưa ra: PIN còn 0–3 lần, PUK còn 0–10 lần.
+ Ra tay trước hết phải biết mình còn mấy viên đạn.</li>
+ <li>Khi thẻ đang chờ PIN, bấm <strong>Enter PIN</strong>: sẽ mở <strong>thẻ tham số</strong> trước
+ cho bạn điền PIN rồi mới gửi (mẫu lệnh <code>AT+CPIN="{pin}"</code>, chờ tối đa 5 giây).</li>
+ <li>Khi PIN hết lượt, thẻ chuyển sang đòi PUK thì bấm <strong>Unlock PUK</strong>:
+ sổ tay quy định <strong>PUK phải gửi cùng PIN mới</strong>
+ (<code>AT+CPIN="{puk}","{newpin}"</code>), cũng đi qua thẻ tham số, chờ tối đa 5 giây.</li>
+ </ol>
+ <div class="warning">
+ Mỗi lần gửi sai là mất một lần; khi PUK cạn đáy thì <strong>dừng tay đi tìm nhà mạng</strong>,
+ đừng đoán mò mà đốt sạch số lần còn lại.
+ </div>
+
+ <h4>Ba nút trạng thái: đồng hồ, điện áp, giờ mạng</h4>
+ <table>
+ <tr><th>Nút</th><th>Xem gì</th><th>Đo thực tế và cách đọc</th></tr>
+ <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+ <td>Đồng hồ RTC của module</td>
+ <td><code>+CCLK: "26/08/01,00:55:32+32"</code>.
+ Cột múi giờ <code>+32</code> có đơn vị là "khắc" (15 phút): 32 x 15 phút = UTC+8.
+ Máy này đo thực tế RTC đã được mạng chỉnh giờ, thời gian lẫn múi giờ đều đúng</td></tr>
+ <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+ <td>Điện áp cấp nguồn</td>
+ <td>Một số firmware không hỗ trợ, trả ERROR là bình thường; firmware máy này có hỗ trợ,
+ đo thực tế <code>+CBC: 0,0,4264</code> —— cột cuối là điện áp (mV), tức 4.264 V</td></tr>
+ <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+ <td>Giờ địa phương hiện tại suy ra từ đồng bộ mạng</td>
+ <td>Đo thực tế <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>.
+ Khác biệt so với Clock nằm ở <strong>nguồn gốc</strong>: CCLK đọc RTC của chính module,
+ QLTS lấy thẳng giờ mạng; định dạng năm cũng khác (RTC hai chữ số, QLTS bốn chữ số), phân tích đừng lẫn lộn</td></tr>
+ </table>
+
+ <h4>Khắc phục sự cố</h4>
+ <table>
+ <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+ <tr><td>RDY vừa hiện đã tra SIM, trả lỗi 14 hoặc 13</td>
+ <td>SIM còn đang khởi tạo (14 = SIM busy; 13 = SIM failure cũng từng xuất hiện ở giai đoạn này).
+ Chờ khoảng 6 giây gửi lại là bình thường, đừng vội kết luận thẻ hỏng</td></tr>
+ <tr><td>Card In? nói thẻ bị rút, các chức năng khác lại đều bình thường</td>
+ <td>Vấn đề chân dò SIM_DET (ca đo thực tế trên máy này), không phải vấn đề của thẻ.
+ Chuyển sang xem <code>AT+CPIN?</code> / <code>AT+QINISTAT</code></td></tr>
+ <tr><td>Mỗi chữ trên màn hình hiện hai lần</td>
+ <td>Echo của module và local echo của terminal cùng bật —— bấm nút gạt echo một cái là xong</td></tr>
+ <tr><td>Lỗi chỉ trả về con số lạnh lùng</td>
+ <td>Chưa bật CMEE. Bấm Verbose Err; nó là session-only,
+ sau mỗi lần nghi thức khởi động đều phải bấm lại</td></tr>
+ <tr><td>Lệnh gửi đi hoàn toàn không có phản hồi</td>
+ <td>Mở lại port sẽ assert RTS lần nữa = ngắt điện, module thực ra đã khởi động lại.
+ Bắt buộc chạy lại trọn vẹn nghi thức khởi động, bỏ qua là tất cả đều không phản hồi</td></tr>
+ </table>
+
+ <h3 id="tab-network">Network —— đăng ký, nhà mạng, RF</h3>
+ <p><strong>Nguyên lý hoạt động:</strong> mọi chức năng dữ liệu muốn dùng được, tiền đề là <strong>đã đăng ký vào mạng di động</strong>
+ và <strong>kênh dữ liệu PDP đã sẵn sàng</strong> —— trang này chính là bảng đồng hồ và công tắc của việc vào mạng,
+ mọi cuộc truy lùng "không lên mạng được" đều bắt đầu từ đây. Số liệu trong mục này đều là đo thực tế trên EG800K vật lý tháng 8 năm 2026.</p>
+ <figure class="shot">
+ <img src="img/10-network.png" alt="Tab Network">
+ <figcaption>Năm cụm nút của trang Network: truy vấn đăng ký, Signal URC, PDP, chẩn đoán, điều khiển RF.</figcaption>
+ </figure>
+
+ <h4>Trước khi bắt đầu: chuyển URC sang UART đã</h4>
+ <p>EG800K xuất xưởng gửi các thông báo chủ động (URC) tới <code>usbat</code> (cổng AT trên USB),
+ công cụ này đi đường UART —— <strong>mọi URC đều không nhận được lấy một cái</strong>: báo cáo tín hiệu,
+ kết quả TCP / MQTT / quét Wi-Fi im lặng toàn bộ, triệu chứng là <strong>"lệnh nào cũng trả OK, riêng thông báo thì không thấy"</strong>.</p>
+ <div class="warning">
+ <strong>Thủ phạm số một của "URC biến mất sạch" chính là nó.</strong>
+ Sang tab Hardware bấm <code>AT+QURCCFG="urcport"</code> để tra,
+ không phải <code>"uart1"</code> thì dùng nút chuyển để đổi —— thiết lập ghi NVRAM, đổi một lần là có hiệu lực xuyên qua các lần khởi động lại.
+ </div>
+
+ <h4>Bước một: xác nhận trạng thái đăng ký</h4>
+ <p>Nghi thức khởi động thấy <code>RDY</code> xong, bấm <code>AT+CEREG?</code> trước (module 4G nhìn lệnh này là chuẩn nhất).
+ Ba nút đăng ký ứng với ba miền mạng: <code>CEREG</code> = LTE/EPS, <code>CREG</code> = miền chuyển mạch kênh,
+ <code>CGREG</code> = miền chuyển mạch gói, con số thứ hai (stat) đọc giống nhau:</p>
+ <table>
+ <tr><th>stat</th><th>Ý nghĩa</th><th>Làm gì</th></tr>
+ <tr><td>0</td><td>Chưa đăng ký</td><td>Vừa khởi động thì thường gặp, chờ vài giây tra lại</td></tr>
+ <tr><td>1</td><td>Đã đăng ký (mạng nhà)</td><td>Bình thường, đi tiếp</td></tr>
+ <tr><td>2</td><td>Đang tìm mạng</td><td>Chờ</td></tr>
+ <tr><td>3</td><td>Bị mạng từ chối</td><td>Kiểm SIM / gói cước, CEER xem nguyên nhân</td></tr>
+ <tr><td>5</td><td>Đã đăng ký (chuyển vùng)</td><td><strong>Trạng thái bình thường của máy này</strong>, xem bên dưới</td></tr>
+ </table>
+ <div class="tip">
+ <strong>stat=5 không phải hỏng hóc.</strong> Đo thực tế cả ba lệnh tra đăng ký đều trả <code>0,5</code>:
+ SIM là thẻ IoT của 1NCE (thẻ chuyển vùng quốc tế MCC 901), ở nước nào cũng tính là "chuyển vùng",
+ thấy 5 cứ coi như 1 mà dùng.
+ </div>
+ <p>Đăng ký thành công mà vẫn không lên mạng được, tiếp theo bấm <code>AT+CGATT?</code> tra attach miền gói;
+ khi cần bấm <code>AT+CGATT=1</code> attach thủ công, thất bại thì dùng <code>AT+CEER</code>
+ tra nguyên nhân (khác tầng với <code>QIGETERROR</code> của trang TCP/IP).
+ CGATT chặn tối đa <strong>140 giây</strong>, đừng bấm liên hồi.</p>
+
+ <h4>Hiện đang treo trên nhà mạng nào, băng tần nào</h4>
+ <p><code>AT+COPS?</code> tra nhà mạng hiện đã đăng nhập (số cuối 7 = LTE).
+ <strong>Bẫy: tên nhà mạng có thể là chuỗi rỗng</strong> —— đo thực tế trả <code>+COPS: 0,0,"",7</code>,
+ không phải hỏng. Muốn xem nhà mạng thì bấm <code>AT+QNWINFO</code> (chuẩn mạng / nhà mạng / băng tần / kênh):</p>
+ <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+ <p>46692 = Chunghwa Telecom, Band 8; không có dịch vụ thì trả <code>NO SERVICE</code>.
+ Thẻ chuyển vùng này tự chọn mạng: các ngày đo thực tế khác nhau từng treo trên Chunghwa Telecom Band 8 và FarEasTone (466-01) Band 3,
+ đổi nhà mạng đổi băng tần đều bình thường. <code>AT+COPS=?</code> quét mọi nhà mạng xung quanh:
+ <strong>chặn tối đa 300 giây và sẽ cắt ngang các phiên đang chạy</strong>, chắc chắn cần hãy bấm.</p>
+
+ <h4>Cường độ và chất lượng tín hiệu: CSQ chỉ là giá trị thô</h4>
+ <p><code>AT+CSQ</code> trả rssi và ber: rssi 0–31 ứng với -113 đến -51 dBm,
+ 99 = không dò được (vừa khởi động thường gặp, chờ vài giây). Đo thực tế rssi 18–24 (-77 đến -65 dBm, tốt);
+ <strong>ber luôn là 99, không có giá trị tham khảo</strong>. Bộ ba chất lượng thật sự của LTE
+ <strong>RSRP (cường độ) / RSRQ (chất lượng) / SINR (tỷ số tín hiệu trên nhiễu, thấp = đang bị can nhiễu)</strong>
+ chỉ cụm Signal URC mới lấy được (<code>AT+QINDCFG="sqi"</code> không kèm giá trị = tra công tắc):</p>
+ <table>
+ <tr><th>Nút</th><th>Lệnh</th><th>Tác dụng</th></tr>
+ <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+ <td>Bật báo cáo RSRP / RSRQ / SINR —— <strong>đồ nghề bắt buộc khi thử ăng-ten và vị trí đặt</strong>.
+ Chỉ đẩy khi tín hiệu "có thay đổi", không thấy động tĩnh thì bọc kín hoặc rút cắm ăng-ten; thiết lập không giữ qua khởi động lại</td></tr>
+ <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+ <td>Tín hiệu vừa đổi là báo ngay, thay cho việc bấm CSQ điên cuồng</td></tr>
+ <tr><td>URC Off/On</td><td><code>AT+QINDCFG="all",0/1</code></td>
+ <td>Bị dội thông báo ngập màn hình thì một phím tắt tiếng —— nhớ bật lại sau đó</td></tr>
+ </table>
+
+ <h4>Kênh PDP: tầng 3GPP vs trang TCP/IP</h4>
+ <p>PDP context = "kênh dữ liệu" do mạng di động cấp phát, có nó mới có IP. Cụm này là truy vấn chỉ đọc ở tầng chuẩn 3GPP:
+ <code>AT+CGDCONT?</code> liệt kê context và APN, <code>AT+CGACT?</code> liệt kê trạng thái kích hoạt
+ (chặn tối đa 150 giây; ⚠ dạng ghi thì thứ tự tham số ngược lại), <code>AT+CGPADDR</code>
+ liệt kê IP đã lấy được. <code>QIACT?</code> / <code>QICSGP</code> của trang TCP/IP là
+ <strong>stack riêng của Quectel, không cùng một tầng</strong> —— so sánh song song sẽ phân biệt được phía hỏng:
+ bên này có IP, bên kia không có = mạng đã cấp nhưng stack chưa khởi động. Máy này khởi động là tự kích hoạt PDP lấy IP.</p>
+ <p><code>AT+QGDCNT?</code> tra lưu lượng tích lũy (số đầu là <strong>gửi đi</strong>, số sau là nhận về),
+ thẻ chuyển vùng đo lưu lượng nhất định phải dùng. ⚠ <strong>Đo thực tế lật ngược dòng gợi ý trên nút "tích lũy xuyên khởi động"</strong>:
+ bộ đếm mặc định không lưu NV, cứ ngắt điện (kể cả tải lại trang) là về không —— phải ghi lại tại chỗ,
+ hoặc <code>AT+QGDCNT=1</code> lưu vào NV.</p>
+
+ <h4>Thực chiến gỡ lỗi: thẻ này chỉ cho phép một PDP duy nhất</h4>
+ <p>Trang TCP/IP bấm <code>AT+QIACT=1</code> lại trả ERROR (<code>572,operation not
+ allowed</code>)? Kịch bản cố định của thẻ này: sau khi khởi động, tầng 3GPP đã <strong>tự kích hoạt một PDP</strong>,
+ nhưng <strong>số hiệu context sẽ trôi nổi</strong> (đo thực tế từng thấy 1 và 9); mở thêm cái thứ hai thì trả
+ <code>+CME ERROR: 100</code> ⇒ mạng chỉ cho phép một PDP duy nhất; mà phạm vi
+ contextID của <code>QIACT</code> chỉ có 1–8, PDP bị mở ở số 9 thì stack Quectel căn bản không chạm tới được.
+ Cách giải hai bước (mỗi lần khởi động làm một lần):</p>
+ <pre>AT+CGACT? ← Xem là cid nào (số hiệu trôi nổi, không bỏ bước này được)
+AT+CGACT=0,&lt;cid đó&gt; ← Tầng 3GPP nhường chỗ ra
+AT+QIACT=1 ← Trang TCP/IP; trả +QIACT: 1,1,1,"10.187.7.8" là thành công</pre>
+ <p><code>QICSGP</code> đặt APN với thẻ này có thể bỏ qua —— đo thực tế module tự đồng bộ APN mạng cấp xuống
+ (<code>iot.1nce.net</code>); chỉ thẻ APN doanh nghiệp cần tài khoản mật khẩu mới bắt buộc.</p>
+ <div class="warning">
+ <strong>Đo được nửa chừng bỗng dưng mọi thứ hết giờ chờ? Nghi PDP trôi trước tiên.</strong>
+ Đo thực tế khi HTTP thất bại liên tục toàn bộ (lỗi 716, hết giờ cố định 30 giây) thì <code>AT+QIACT?</code>
+ vẫn trả IP như thường —— lúc này nó biết lừa người, phải đối chiếu chéo với <code>AT+CGACT?</code>
+ (đo thực tế: 1,0 và 9,1 = trôi sang 9).
+ Cách giải: <code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;cid bị trôi&gt;</code> →
+ <code>AT+QIACT=1</code>, rồi ping kiểm chứng.
+ </div>
+
+ <h4>Mức chức năng CFUN và điều khiển RF</h4>
+ <p>Cả cụm RF Control đều làm thay đổi trạng thái module, toàn là nút viền đỏ bấm sẽ hỏi xác nhận trước.
+ Bấm <code>AT+CFUN?</code> xem mức hiện tại rồi hãy ra tay:</p>
+ <table>
+ <tr><th>Lệnh</th><th>Mức</th><th>Ý nghĩa</th></tr>
+ <tr><td><code>AT+CFUN=1</code></td><td>Đầy đủ chức năng</td>
+ <td>RF mở hết; <strong>muốn khôi phục thì luôn bấm nút này</strong></td></tr>
+ <tr><td><code>AT+CFUN=4</code></td><td>Máy bay</td>
+ <td>Thu phát tắt hết, SIM vẫn còn —— điểm xuất phát để thử "vào mạng lại"</td></tr>
+ <tr><td><code>AT+CFUN=0</code></td><td>Tối thiểu</td>
+ <td>SIM cũng bị tắt; sổ tay chỉ ghi Minimum functionality, không liệt kê chi tiết</td></tr>
+ <tr><td><code>AT+CFUN=1,1</code></td><td>Khởi động lại mềm</td>
+ <td>Khởi động lại cả module. ⚠ Cổng AT mất tác dụng trong chốc lát, phải chờ lại <code>RDY</code></td></tr>
+ </table>
+ <p>CFUN chặn tối đa 15 giây. <strong>SIM nếu có khóa PIN, chuyển về CFUN=1 xong phải nhập lại PIN
+ mới đăng ký được.</strong> <code>AT+CGATT=0</code> (PS Detach) rời khỏi miền gói ——
+ <strong>sẽ đánh sập mọi kết nối TCP / MQTT</strong>, chỉ dùng khi thử "attach lại".</p>
+
+ <h4>Nâng cao: QENG đọc thông tin trạm gốc (gõ ở dòng lệnh)</h4>
+ <p>Trang này không có nút —— gõ ở dòng lệnh <code>AT+QENG="servingcell"</code>
+ đọc tham số trạm gốc đang phục vụ, các cột then chốt đo thực tế:</p>
+ <table>
+ <tr><th>Cột</th><th>Giá trị đo thực tế</th><th>Cách đọc</th></tr>
+ <tr><td>MCC / MNC</td><td>466 / 01</td><td>Đài Loan / FarEasTone</td></tr>
+ <tr><td>Cell ID / TAC</td><td><code>ABCDE02</code> / <code>1234</code> (hex)</td>
+ <td>Thập phân 180149762 / 4660; eNodeB = ECI≫8 = 703710, sector = 2</td></tr>
+ <tr><td>PCID / EARFCN</td><td>144 / 1550</td>
+ <td>Nhận dạng cell vật lý (<strong>không duy nhất toàn cầu</strong>) / Band 3</td></tr>
+ <tr><td>RSRP / RSRQ / RSSI / SINR</td><td>-113 / -18 / -92 / -1</td>
+ <td>RSRP dưới -100 tính là kém; SINR -1 dB = chất lượng tồi</td></tr>
+ </table>
+ <div class="warning">
+ <strong>Cell ID và TAC là thập lục phân, trước khi tra cơ sở dữ liệu phải đổi sang thập phân.</strong>
+ Các cơ sở dữ liệu như OpenCelliD chỉ ăn thập phân, ném thẳng <code>ABCDE02</code> vào chỉ nhận về "không có bản ghi".
+ Ngoài ra <code>AT+QENG="neighbourcell"</code> chỉ trả PCID,
+ <strong>không có Cell ID toàn cầu</strong> (giới hạn của chuẩn LTE).
+ </div>
+
+ <h4>Khắc phục sự cố</h4>
+ <table>
+ <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+ <tr><td>Lệnh nào cũng trả OK, thông báo chủ động không hiện cái nào</td>
+ <td>urcport đang ở usbat (giá trị xuất xưởng) —— sang tab Hardware chuyển uart1</td></tr>
+ <tr><td><code>QIACT=1</code> trả ERROR (572)</td>
+ <td>Suất PDP duy nhất bị chiếm mất —— đi theo hai bước gỡ lỗi bên trên</td></tr>
+ <tr><td>Các yêu cầu liên tiếp toàn bộ hết giờ cố định 30 giây</td>
+ <td>PDP trôi —— <code>AT+CGACT?</code> đối chiếu chéo, đừng chỉ tin <code>QIACT?</code></td></tr>
+ </table>
+
+ <h3 id="tab-gnss">GNSS —— định vị vệ tinh</h3>
+ <p><strong>Nguyên lý hoạt động:</strong> GNSS là chức năng <strong>độc lập với mạng di động</strong> ——
+ không cần SIM có mạng, không cần PDP, không tốn lưu lượng (trừ AGNSS, xem bên dưới).
+ Bật lên rồi thì module tự thu tín hiệu vệ tinh, bạn dùng <code>AT+QGPSLOC</code> hỏi vòng kết quả định vị.
+ Mọi con số giây và hành vi trong mục này đều là giá trị đo thực tế trên EG800K vật lý vào tháng 8 năm 2026.</p>
+
+ <h4>Trước khi bắt đầu: ăng-ten quyết định tất cả</h4>
+ <p>Nguyên nhân số một khiến định vị thất bại không phải là gõ sai lệnh, mà là <strong>ăng-ten không thu được tín hiệu</strong>.
+ Đo thực tế đối chứng: trong nhà, ăng-ten kém, module liệt kê được vị trí của 38 vệ tinh nhưng <strong>không nghe thấy nổi một vệ tinh nào</strong>
+ (SNR toàn bộ 00); đổi sang <strong>ăng-ten GNSS chủ động (active)</strong> và đặt ra cạnh cửa sổ thì
+ khởi động lạnh định vị thành công trong vòng 95 giây.</p>
+ <div class="warning">
+ <strong>Trong nhà không đo được GNSS, chờ kiểu gì cũng vô ích.</strong> Khi không có tầm nhìn bầu trời,
+ <code>$GNGGA</code> sẽ trả về "dùng 00 vệ tinh, chất lượng định vị 0",
+ còn <code>AT+QGPSLOC</code> mãi mãi trả lỗi 516.
+ Hãy đưa ăng-ten ra cạnh cửa sổ hoặc ngoài trời rồi hãy bắt đầu —— đây không phải vấn đề kiên nhẫn, mà là vấn đề vật lý.
+ </div>
+
+ <h4>Lần định vị đầu tiên: năm bước</h4>
+ <ol>
+ <li><strong>Chạy nghi thức khởi động</strong> (xem phần "Nghi thức khởi động").
+ ⚠ Mỗi lần tải lại trang đều tương đương cắt điện, trạng thái bật GNSS lẫn phần lịch thiên văn thu dở dang đều về số không,
+ phải làm lại từ bước này.</li>
+ <li><strong>Xác nhận URC đi đường UART</strong>: <code>AT+QURCCFG="urcport"</code> phải trả về
+ <code>"uart1"</code>. Giá trị xuất xưởng là <code>"usbat"</code>, không đổi thì rất nhiều thông báo kết quả
+ sẽ bị đẩy sang cổng USB, ở đây chẳng thấy gì cả (thiết lập ghi vào NVRAM, đổi một lần là xong).</li>
+ <li><strong>Bật GNSS</strong>: bấm <code>AT+QGPS=1</code>.
+ Trong vài giây sẽ thấy <code>+QGPS: "firmware",0,0</code> (firmware GNSS nạp thành công).
+ Đang bật rồi mà bấm nữa thì trả <code>+CME ERROR: 504</code>, vô hại.</li>
+ <li><strong>Xem thu tín hiệu</strong>: bấm <code>AT+QGPSGNMEA="GSV"</code> để đọc các vệ tinh nhìn thấy được.
+ Khu terminal sẽ tự động mở tab <strong>vệ tinh</strong>, vẽ biểu đồ cột tín hiệu và biểu đồ bầu trời ——
+ cách đọc hiểu xem đoạn dưới.</li>
+ <li><strong>Hỏi vòng định vị</strong>: cứ mỗi 5–10 giây bấm <code>AT+QGPSLOC=2</code> một lần.
+ Trả về <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> (lỗi 516) nghĩa là chưa định vị được,
+ <strong>cứ tiếp tục chờ là được</strong>. Khi thành công sẽ trả về tọa độ,
+ khu terminal tự động mở tab <strong>bản đồ</strong> và vẽ vị trí lên đó.</li>
+ </ol>
+ <figure class="shot narrow">
+ <img src="img/07-gnss.png" alt="Tab GNSS">
+ <figcaption>Tab GNSS: bật/tắt, đọc NMEA, truy vấn vị trí, tăng tốc AGNSS.</figcaption>
+ </figure>
+
+ <h4>Đọc hiểu tab vệ tinh: "nhìn thấy" không đồng nghĩa với "nghe thấy"</h4>
+ <p>GSV cho mỗi vệ tinh bốn con số: số hiệu, góc ngẩng, góc phương vị, <strong>SNR (tỷ số tín hiệu trên nhiễu, dB-Hz)</strong>.
+ Ba con số đầu chỉ nói "nó đáng lẽ nằm ở đâu trên trời", <strong>chỉ có SNR mới chứng tỏ thực sự thu được tín hiệu</strong>.</p>
+ <table>
+ <tr><th>SNR</th><th>Ý nghĩa</th></tr>
+ <tr><td>(trống) hoặc 00</td><td>Hoàn toàn không thu được —— chỉ biết nó ở đâu, không nghe thấy nó</td></tr>
+ <tr><td>14–28</td><td>Ngưỡng ranh giới: giải điều chế lịch thiên văn hay lỗi phải làm lại, định vị vừa chậm vừa thiếu ổn định</td></tr>
+ <tr><td>Từ 30 trở lên</td><td>Giải điều chế ổn định được; <strong>đa số vệ tinh đạt mức này thì định vị sẽ nhanh</strong></td></tr>
+ <tr><td>Từ 40 trở lên</td><td>Mức của bầu trời thoáng đãng + ăng-ten tốt</td></tr>
+ </table>
+ <figure class="shot">
+ <img src="img/20-sat-view.png" alt="Tab vệ tinh: biểu đồ cột SNR và biểu đồ bầu trời">
+ <figcaption>Tab vệ tinh khi định vị thành công: 31/41 vệ tinh có tín hiệu, biểu đồ cột SNR và biểu đồ bầu trời
+ của bốn chòm vệ tinh (GPS/QZSS/GLONASS/BDS). Đa số cột vượt 20, một số đạt 40 —— "nghe thấy" trông chính là như vậy.</figcaption>
+ </figure>
+
+ <h4>Vì sao phải chờ: giới hạn vật lý của khởi động lạnh và thời gian đo thực tế</h4>
+ <p>Định vị cần quỹ đạo chính xác của từng vệ tinh (lịch thiên văn), mà lịch thiên văn lại nằm trong tín hiệu vệ tinh phát quảng bá ở tốc độ
+ <strong>50 bps</strong> —— mỗi vệ tinh phải giải điều chế đúng liên tục khoảng 18–30 giây,
+ sai một bit là làm lại, và còn phải gom đủ ít nhất 4 vệ tinh. Đó chính là lý do "khởi động lạnh" chậm.
+ Đo thực tế trên máy này (cùng một địa điểm, ăng-ten chủ động, độ phân giải phép đo ±5 giây):</p>
+ <table>
+ <tr><th>Tình huống</th><th>Thời gian định vị lần đầu (đo thực tế)</th></tr>
+ <tr><td>Khởi động lạnh (không có hỗ trợ nào)</td><td><strong>95 giây</strong></td></tr>
+ <tr><td>Khởi động lạnh + AGNSS</td><td><strong>52 giây</strong> (và chỉ khoảng 20 giây đã trả về trước một vị trí thô)</td></tr>
+ <tr><td>AGNSS + lịch thiên văn gần đây còn sót lại (dùng lặp lại hằng ngày)</td><td><strong>25 giây</strong></td></tr>
+ </table>
+ <div class="tip">
+ <strong>Trong lúc thử nghiệm đừng tải lại trang.</strong> Thiết kế phần cứng của công cụ này là RTS = nguồn điện,
+ tải lại trang = cắt điện = mất sạch lịch thiên văn, mọi thứ làm lại từ khởi động lạnh.
+ Muốn tạm dừng thì bấm <code>AT+QGPSEND</code>, đừng cắt điện.
+ </div>
+
+ <h4>Tăng tốc AGNSS: quy trình đầy đủ</h4>
+ <p><strong>Nguyên lý:</strong> AGNSS chuyển sang tải lịch thiên văn từ mạng (mỗi lần khoảng 32–34 KB),
+ bỏ qua bước giải điều chế chậm chạp 50 bps. Nó <strong>không thể biến không thành có tín hiệu vệ tinh</strong> ——
+ trong nhà vẫn không định vị nổi, thứ nó tiết kiệm chỉ là khoảng thời gian "chờ lịch thiên văn".</p>
+ <p>Hai tiền đề dễ bị bỏ sót nhất, thiếu bất kỳ cái nào thì AGNSS sẽ <strong>lặng lẽ hoàn toàn không hoạt động, không hề báo lỗi</strong>:</p>
+ <table>
+ <tr><th>Tiền đề</th><th>Lệnh</th><th>Bẫy</th></tr>
+ <tr><td>AGNSS đã bật</td><td><code>AT+QAGPS=1</code></td>
+ <td>⚠ <strong>Phải khởi động lại mới có hiệu lực</strong> (ghi vào NVRAM, đặt một lần là xong)</td></tr>
+ <tr><td>PDP đã kích hoạt</td><td><code>AT+QIACT=1</code></td>
+ <td>⚠ Mỗi lần khởi động đều phải gửi lại. <strong><code>AT+CGATT?</code> trả về 1 không tính</strong> ——
+ attach chỉ là đăng ký ở tầng mạng; phải <code>AT+QIACT?</code> trả ra được
+ <code>+QIACT: 1,1,…,"IP"</code> mới có kênh dữ liệu</td></tr>
+ </table>
+ <p>Trình tự đầy đủ (sau mỗi lần khởi động):</p>
+ <pre>AT+QIACT=1 ← Mở kênh dữ liệu (chờ tối đa 150 giây; phát sinh lưu lượng)
+AT+QIACT? ← Phải thấy +QIACT: 1,1,…,"IP"
+AT+QGPS=1 ← Bật GNSS; AGNSS sẽ tự động tải dữ liệu hỗ trợ ngay lúc này
+AT+QGPSLOC=2 ← Hỏi vòng mỗi 5–10 giây</pre>
+ <p><strong>Làm sao xác nhận AGNSS thực sự đang chạy?</strong> Firmware trên máy này <strong>không</strong> phát
+ thông báo kiểu <code>+QGPS: "agps"</code> (đã xác nhận bằng đo thực tế), phải nhìn bằng chứng gián tiếp, chọn một trong ba cách là đủ:</p>
+ <ol>
+ <li><code>AT+QGDCNT?</code> truy vấn hai lần trước và sau <code>AT+QGPS=1</code>,
+ chiều nhận tăng thêm khoảng 30 KB = dữ liệu hỗ trợ đã được tải về</li>
+ <li>GSV chỉ trong vài giây đã liệt kê được <strong>vị trí của rất nhiều vệ tinh</strong> (SNR có thể vẫn là 00) ——
+ vị trí đó là tải về, tự giải điều chế không thể nhanh đến vậy</li>
+ <li>Trường thời gian của <code>$GNGGA</code> có giá trị (thời gian cũng là một phần của dữ liệu hỗ trợ)</li>
+ </ol>
+ <div class="warning">
+ <strong>Bẫy định vị giả: tọa độ với số vệ tinh bằng không thì không phải là định vị.</strong>
+ Khoảng 20 giây sau khi AGNSS khởi động, <code>AT+QGPSLOC</code> có thể trả ra một bộ tọa độ,
+ nhưng nhìn kỹ: <code>HDOP 0.00 / alt 0.0 / nsat 00</code> ——
+ đó là <strong>tiêm vị trí tham chiếu</strong> nằm sẵn trong dữ liệu hỗ trợ, không phải kết quả đo, sai số có thể rất lớn.
+ <br><br>
+ <strong>Tiêu chí của định vị thật: số vệ tinh sử dụng &gt; 0, chế độ định vị ≥ 2, HDOP &gt; 0.</strong>
+ Khi viết logic tự động hóa hoặc sản phẩm, không thể chỉ nhìn "có trả về tọa độ hay không".
+ </div>
+
+ <h4>apflash: cắt điện bật lại vẫn nhanh (có điều kiện)</h4>
+ <p><code>AT+QGPSCFG="apflash"</code> xuất xưởng đã là 1: mỗi lần định vị thành công sẽ lưu lịch thiên văn vào
+ flash, lần khởi động sau tự động nạp vào —— cắt điện bật lại trong vòng một giờ thì từ khởi động lạnh biến thành khởi động nóng nhanh,
+ <strong>không tốn lưu lượng</strong>. Hai giới hạn: lịch thiên văn hết hạn sau khoảng một giờ;
+ và <strong>phải từng định vị thành công ít nhất một lần</strong> thì trong flash mới có thứ để nạp ——
+ module chưa bao giờ định vị thành công thì apflash không giúp gì được.</p>
+
+ <h4>Sau khi định vị thành công: tab bản đồ</h4>
+ <p>Mỗi lần <code>AT+QGPSLOC</code> thành công, vị trí sẽ được vẽ vào tab bản đồ:
+ điểm đánh dấu màu xanh dương là vị trí mới nhất, đường màu lục lam là quỹ đạo di chuyển, rê chuột lên mỗi điểm quỹ đạo sẽ hiện giờ địa phương và cao độ.
+ Thanh tóm tắt hiển thị tọa độ / cao độ / HDOP / số vệ tinh, thời gian tự động quy đổi sang múi giờ địa phương theo kinh độ.</p>
+ <figure class="shot">
+ <img src="img/21-map-track.png" alt="Tab bản đồ: quỹ đạo định vị">
+ <figcaption>Tab bản đồ sau khi định vị thành công: điểm đánh dấu = vị trí mới nhất, đường lục lam = quỹ đạo;
+ thanh tóm tắt trên cùng có tọa độ, cao độ, HDOP, số vệ tinh sử dụng và giờ địa phương.</figcaption>
+ </figure>
+
+ <h4>Khắc phục sự cố</h4>
+ <table>
+ <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+ <tr><td><code>+CME ERROR: 505</code></td>
+ <td>GNSS chưa bật —— hãy <code>AT+QGPS=1</code> trước.
+ Mỗi lần khởi động lại (kể cả tải lại trang) đều phải bật lại</td></tr>
+ <tr><td><code>+CME ERROR: 504</code></td><td>GNSS đang bật sẵn, chỉ là bật trùng thôi, vô hại</td></tr>
+ <tr><td>Lỗi 516 (NOT_FIXED_NOW)</td>
+ <td>Chưa định vị được. GSV có tín hiệu (SNR ≥ 30) thì cứ tiếp tục chờ;
+ toàn bộ 00 thì là vấn đề ăng-ten / môi trường, chờ bao lâu cũng vô ích</td></tr>
+ <tr><td>Không lấy được luồng NMEA liên tục</td>
+ <td>Xuất xưởng <code>outport</code> là <code>usbnmea</code>, luồng liên tục đi cổng USB.
+ Cổng AT thì bắt từng câu bằng <code>AT+QGPSGNMEA</code> là được (cần
+ <code>nmeasrc,1</code> trước, nút trên tab này đã chuẩn bị sẵn)</td></tr>
+ <tr><td><code>AT+QGPSDEL</code> muốn ép khởi động lạnh</td>
+ <td>⚠ Đừng dùng —— firmware máy này <code>=?</code> trả về <code>(0-2)</code>
+ nhưng cả ba tham số đều <strong>bị từ chối hết</strong> (INVALID_PARA), tài liệu chính thức cũng không ghi nhận.
+ Muốn khởi động lạnh: <code>apflash,0</code> + cắt điện bật lại (đo xong nhớ đổi về 1)</td></tr>
+ <tr><td>Đổi thiết lập rồi mà không thấy hiệu lực</td>
+ <td><code>QAGPS</code> phải khởi động lại mới có hiệu lực; <code>gnssconfig</code> (tổ hợp chòm vệ tinh)
+ cũng vậy. Đổi xong phải chạy lại một lượt nghi thức khởi động</td></tr>
+ </table>
+
+ <h3 id="tab-tcpip">TCP/IP —— gốc rễ của kết nối dữ liệu</h3>
+ <p><strong>Nguyên lý hoạt động:</strong> trang này là nền móng của mọi giao thức dữ liệu. <strong>PDP context
+ (kênh dữ liệu do mạng di động cấp phát) chỉ được kích hoạt và hủy kích hoạt ở trang này</strong>, các trang SSL / HTTP / MQTT / FTP
+ chỉ đặt truy vấn chỉ đọc, tránh cùng một lệnh mà hai nơi giẫm chân nhau.
+ Các bẫy và con số giây trong mục này đều là đo thực tế trên máy thật tháng 8 năm 2026.</p>
+ <figure class="shot">
+ <img src="img/03-tcpip.png" alt="Tab TCP/IP">
+ <figcaption>Trang TCP/IP: PDP, thu phát socket và công cụ chẩn đoán.</figcaption>
+ </figure>
+
+ <h4>Bước một: kích hoạt PDP (QICSGP / QIACT / QIDEACT)</h4>
+ <p>Bấm <strong>Act PDP</strong> (<code>AT+QIACT=1</code>): chặn tối đa 150 giây,
+ trong lúc đó đừng gõ lệnh khác, từ đây bắt đầu phát sinh lưu lượng (chuyển vùng chú ý cước phí). Thành công rồi <strong>nhất định phải bấm
+ Query IP</strong> (<code>AT+QIACT?</code>) xác nhận trả về <code>+QIACT: 1,1,1,"địa chỉ IP"</code>
+ —— chưa kích hoạt thì chỉ trả OK. Thu dây thì bấm <strong>Deact PDP</strong> (<code>AT+QIDEACT=1</code>,
+ tối đa 40 giây), sẽ đóng cưỡng bức mọi kết nối bên dưới nó. <strong>Set APN</strong>
+ (<code>AT+QICSGP</code>) bình thường không cần bấm —— module tự đồng bộ APN mạng cấp
+ (đo thực tế thẻ 1NCE khởi động đọc lại đã là <code>iot.1nce.net</code>), APN doanh nghiệp cần tài khoản mật khẩu mới cần.</p>
+ <div class="warning">
+ <strong>Act PDP trả ERROR, Last Error 572? Thẻ này chỉ cho phép một đường PDP.</strong>
+ Lúc khởi động mạng đã tự kích hoạt một cái và <strong>số hiệu trôi nổi</strong> (đo thực tế từng thấy 9 và 1),
+ <code>AT+QIACT</code> chỉ chạm được 1–8. Cách giải: trang Network <code>AT+CGACT?</code>
+ tra số hiệu → <code>AT+CGACT=0,&lt;số hiệu&gt;</code> nhường chỗ → bấm lại Act PDP.
+ <br><br>
+ <strong>Đo nửa chừng sập hết? <code>AT+QIACT?</code> biết lừa người</strong> —— khi PDP trôi,
+ nó vẫn trả IP như thường, phải đối chiếu chéo với <code>AT+CGACT?</code> mới nhìn ra. Khôi phục:
+ Deact PDP → <code>AT+CGACT=0,&lt;số hiệu bị trôi&gt;</code> → Act PDP → Ping kiểm chứng.
+ </div>
+
+ <h4>Mở kết nối: OK chỉ có nghĩa là "lệnh đã được nhận"</h4>
+ <p>Bấm <strong>Open TCP</strong>, thẻ tham số điền máy chủ và cổng
+ (<code>AT+QIOPEN=1,0,"TCP","máy chủ",cổng,0,0</code>; context 1, connectID 0,
+ chế độ buffer đã cố định). <strong>OK chỉ có nghĩa là lệnh đã được nhận</strong>, thành bại nhìn URC
+ <code>+QIOPEN: 0,&lt;err&gt;</code>: 0 = thành công, tối đa 150 giây;
+ <strong>563 = connectID còn đang mở</strong>, bấm Close Sock trước.
+ <strong>All Socks</strong> (<code>AT+QISTATE</code>) liệt kê mọi socket,
+ state 2 = đã nối được.</p>
+
+ <h4>Gửi dữ liệu: ba cách</h4>
+ <table>
+ <tr><th>Nút</th><th>Giải thích</th></tr>
+ <tr><td><strong>Send Text</strong><br><code>AT+QISEND=0,&lt;len&gt;</code></td>
+ <td>Hai giai đoạn độ dài cố định: chờ <code>&gt;</code> rồi gửi nội dung, độ dài tự tính,
+ <strong>miễn Ctrl+Z</strong>. Lựa chọn số một cho văn bản thuần; trần 1460 bytes,
+ hỗ trợ ký tự thoát <code>\n \r \t \xHH</code></td></tr>
+ <tr><td><strong>Bộ ba nút Send Var</strong><br><code>AT+QISEND=0</code></td>
+ <td>Kiểu độ dài biến thiên: vào data mode thu liên tục, gặp Ctrl+Z (0x1A) mới gửi đi ——
+ có thể ghi thành nhiều đợt, xem đoạn dưới</td></tr>
+ <tr><td><strong>Send Hex</strong><br><code>AT+QISENDEX=0,"hex"</code></td>
+ <td>Kiểu một dòng, không vào data mode. Gửi được byte bất kỳ (kể cả 0x00);
+ trần hex 512 ký tự = thực tế 256 bytes</td></tr>
+ </table>
+ <p><strong>Gửi (ghi tiếp)</strong>: lần bấm đầu vào data mode, các lần sau mỗi lần bấm nối thêm một đoạn
+ (đang ở data mode thì không gửi lại lệnh, gửi lại sẽ biến thành dữ liệu); <strong>gửi xong tự kết thúc</strong>:
+ nối thêm rồi bù Ctrl+Z, chỉ gửi một đoạn thì cách này nhanh nhất; <strong>kết thúc (Ctrl+Z)</strong>: đẩy toàn bộ nội dung đã gom
+ đi một lượt. Khi vào data mode terminal sẽ đánh dấu; muốn bỏ thì bấm
+ <strong>ESC Cancel</strong> (0x1B, phím thoát thân khi lệnh hai giai đoạn bị kẹt).
+ ⚠ Dữ liệu không được chứa 0x1A (sẽ bị coi là kết thúc sớm), ký tự điều khiển hãy chuyển sang Send Hex.</p>
+ <div class="tip">
+ <strong>SEND OK không có nghĩa là bên kia đã nhận</strong>, chỉ nói lên dữ liệu đã giao cho module. Bấm
+ <strong>Check ACK</strong> (<code>AT+QISEND=0,0</code>) tra đã gửi / đã ACK,
+ <strong>nhìn acked mới tính</strong>.
+ </div>
+
+ <h4>Nhận dữ liệu: không tự hiện ra, phải bấm Read Data</h4>
+ <p>Ở chế độ buffer, dữ liệu nhận được <strong>không</strong> tự hiện trên terminal: module chỉ phát
+ thông báo <code>+QIURC: "recv",0</code>, phải bấm <strong>Read Data</strong>
+ (<code>AT+QIRD=0,1500</code>) lấy ra, và <strong>đọc lặp lại cho tới khi trả <code>+QIRD: 0</code>
+ mới thôi</strong> —— chưa đọc cạn thì sẽ không có thông báo lần sau.
+ <strong>Unread Len</strong> (<code>AT+QIRD=0,0</code>) tra tổng nhận / đã đọc / chưa đọc.
+ Thu phát xong bấm <strong>Close Sock</strong> (<code>AT+QICLOSE=0</code>, tối đa 10 giây).
+ ⚠ <strong>Hoàn toàn không nhận được thông báo recv?</strong> Trang Hardware tra
+ <code>AT+QURCCFG="urcport"</code> xem có phải <code>uart1</code> không ——
+ giá trị xuất xưởng là cổng USB, URC chạy hết sang bên đó.</p>
+
+ <h4>Hai cái tính khí của đối tác cài sẵn tcpbin.com</h4>
+ <p>Open TCP mặc định nối tới máy chủ echo miễn phí <code>tcpbin.com:4242</code>,
+ hai tính khí đo thực tế:</p>
+ <ul>
+ <li><strong>Echo theo từng dòng, cuối phải có xuống dòng (0A)</strong>: gửi Hello không kèm 0A chờ 6 giây
+ không phản hồi, bù 0A vào thì 0.1 giây nhận được ngay. Send Text thêm <code>\n</code> vào cuối,
+ Send Hex thêm <code>0A</code> vào đuôi.</li>
+ <li><strong>Hết giờ sau 15 giây rảnh rỗi</strong>: rảnh là bị cắt kết nối và nhận
+ <code>+QIURC: "closed",0</code>. Chuyện này không liên quan QIRD (nó chỉ đọc bộ đệm cục bộ,
+ không chạm mạng). Muốn giữ kết nối thì trong vòng mỗi 10 giây gửi dữ liệu một lần. Nhận closed xong socket đứng ở closing,
+ <strong>bắt buộc bấm Close Sock trước</strong> mới dùng lại được, không thì QIOPEN trả 563.</li>
+ </ul>
+
+ <h4>Bộ ba chẩn đoán: Ping / DNS Lookup / NTP Sync</h4>
+ <table>
+ <tr><th>Nút (đều phải Act PDP trước)</th><th>Hành vi và đo thực tế</th></tr>
+ <tr><td><strong>Ping</strong><br><code>AT+QPING</code></td>
+ <td>timeout 4 giây x4 đã cố định. Đo thực tế 8.8.8.8 thông hết, RTT 160–270 ms.
+ ⚠ Rất nhiều máy chủ chặn ICMP, <strong>ping không thông không có nghĩa là TCP không nối được</strong>,
+ muốn thử độ thông thì Open TCP thẳng</td></tr>
+ <tr><td><strong>DNS Lookup</strong><br><code>AT+QIDNSGIP</code></td>
+ <td>Kết quả báo về bằng URC <code>+QIURC: "dnsgip"</code> (tối đa 60 giây),
+ đo thực tế chia hai đợt, chứa nhiều IP</td></tr>
+ <tr><td><strong>NTP Sync</strong><br><code>AT+QNTP</code></td>
+ <td>Tối đa 125 giây, cổng 123 đã cố định, kết quả nhìn URC <code>+QNTP</code>.
+ ⚠ <strong>Thời gian là UTC nhưng lại mang nhãn múi giờ địa phương</strong> (+32 khắc = GMT+8, đo thực tế lệch đúng
+ 8 tiếng); xem giờ địa phương dùng <code>AT+CCLK?</code></td></tr>
+ </table>
+
+ <h4>Gặp lỗi: bấm Last Error trước, rồi làm phép phân định 30 giây</h4>
+ <p>Lệnh trả ERROR thì <strong>lập tức</strong> bấm <strong>Last Error</strong>
+ (<code>AT+QIGETERROR</code>) —— chỉ giữ lại đúng một lỗi cuối, bị lỗi kế tiếp đè lên là tra không ra nữa.
+ Nó tra tầng stack Quectel; tầng mạng dùng <code>AT+CEER</code> của trang Network.</p>
+ <div class="warning">
+ <strong>🔴 Stack dữ liệu thoái hóa —— cái hố tốn thời gian nhất.</strong> Triệu chứng: mọi kết nối đều
+ thất bại, nhưng tự kiểm tra toàn nói ổn (QIACT? có IP, QIGETERROR trả 0). Đo thực tế mở đóng SSL liên tục
+ khoảng 20 lần thì kích hoạt, đến QIOPEN của TCP thuần cũng trả 552; QIDEACT + QIACT không cứu nổi,
+ <strong>chỉ có chạy lại nghi thức khởi động mới phục hồi</strong>.<br><br>
+ <strong>Phép phân định 30 giây</strong>: dùng Open TCP đánh vào cùng một đích —— cũng thất bại = cả stack
+ hỏng rồi, chạy lại nghi thức khởi động; thành công = vấn đề nằm ở giao thức tầng trên, tra tiếp.
+ </div>
+
+ <h4>Keepalive: đỡ được NAT nhà mạng, không đỡ được tcpbin</h4>
+ <p><strong>QICFG=?</strong> liệt kê mục con và phạm vi, <strong>Keepalive?</strong> tra giá trị hiện tại,
+ <strong>Keepalive On/Off</strong> bật tắt —— bốn lệnh này <strong>bản thân</strong> không tốn lưu lượng;
+ bật xong chỉ cần còn socket nằm rảnh, gói thăm dò sẽ tính vào lưu lượng di động.
+ <strong>Nó không đỡ nổi hết giờ 15 giây của tcpbin</strong>: đo thực tế bật rồi vẫn bị đóng ở giây 15.1 ——
+ keepalive là thăm dò rỗng ở tầng TCP, ứng dụng không nhìn thấy; hơn nữa interval nhỏ nhất 25 giây,
+ vốn dĩ đã lớn hơn 15. Muốn chống hết giờ tầng ứng dụng chỉ còn cách gửi dữ liệu thật (như mỗi 10 giây Send Hex gửi
+ <code>0A</code>). Công dụng thật của nó là <strong>giữ sống NAT nhà mạng</strong>
+ (NAT của thẻ IoT rảnh vài phút là bị thu hồi).</p>
+ <p>Sổ lưu lượng (<strong>suy tính, không phải đo thực tế</strong>): một lượt thăm dò khứ hồi khoảng 80 bytes;
+ mặc định idle = 30 giây rảnh liên tục → mỗi giờ khoảng 9.4 KB, một ngày khoảng 225 KB,
+ <strong>một tháng khoảng 6.8 MB</strong>; idle = 600 giây → một ngày khoảng 11 KB.
+ Thẻ trả trước theo tổng dung lượng kiểu 1NCE phải vặn idle lên to. Không có socket nào mở thì hoàn toàn không tốn lưu lượng.</p>
+
+ <h4>Khắc phục sự cố</h4>
+ <table>
+ <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+ <tr><td><code>+QIOPEN: 0,563</code></td>
+ <td>connectID còn đang mở —— Close Sock trước</td></tr>
+ <tr><td>Không nhận được <code>+QIURC: "recv"</code></td>
+ <td>① urcport không phải uart1 (trang Hardware)
+ ② chưa đọc tới <code>+QIRD: 0</code>, thông báo bị kìm lại</td></tr>
+ <tr><td>Bỗng hiện <code>+QIURC: "closed",0</code></td>
+ <td>tcpbin hết giờ 15 giây rảnh rỗi; Close Sock xong mở lại được</td></tr>
+ <tr><td>Hai giai đoạn bị kẹt, cổng AT không phản hồi</td>
+ <td>Bấm ESC Cancel thoát thân; vẫn không được thì Reset ở trang Hardware</td></tr>
+ <tr><td>Kết nối thất bại toàn bộ nhưng tự kiểm tra toàn xanh</td>
+ <td>Stack dữ liệu thoái hóa —— phân định xong chạy lại nghi thức khởi động</td></tr>
+ <tr><td>Act PDP trả ERROR, hoặc đo nửa chừng sập hết</td>
+ <td>Suất PDP duy nhất bị chiếm / PDP trôi —— xem hai khung gỡ lỗi ở "Bước một"</td></tr>
+ </table>
+
+ <h3 id="tab-mqtt">MQTT —— tin nhắn IoT</h3>
+ <p><strong>Nguyên lý hoạt động:</strong> MQTT là giao thức kiểu "broker (máy chủ trung gian tin nhắn)":
+ các thiết bị không nối thẳng với nhau, mà ai nấy nối lên broker, publish hoặc subscribe tin nhắn theo "chủ đề (topic)".
+ Trên EG800K nó có hai tầng: trước tiên <code>AT+QMTOPEN</code> mở "kết nối mạng" (TCP nối tới broker),
+ rồi <code>AT+QMTCONN</code> làm "đăng nhập MQTT", hai tầng đều thông mới subscribe và publish được.
+ Nhớ trước điều này: <strong>kết quả của các lệnh MQTT toàn bộ theo kiểu "OK trước, URC sau"</strong> (giống FTP) ——
+ <code>OK</code> chỉ có nghĩa là lệnh đã được nhận, thành bại nhìn URC kết quả phía sau.</p>
+ <p>Trang này cố định dùng client 0; firmware còn hỗ trợ nhiều client (0–5), SSL và xác thực nền tảng đám mây
+ (<code>=?</code> đã xác nhận bằng đo thực tế), cách dùng nâng cao xem application note MQTT.</p>
+
+ <h4>Trước khi bắt đầu: hai tiền đề</h4>
+ <ol>
+ <li><strong>URC phải đi đường UART</strong>: <code>AT+QURCCFG="urcport"</code> phải trả về
+ <code>"uart1"</code>. Giá trị xuất xưởng là <code>"usbat"</code>, mà kết quả MQTT toàn là URC ——
+ không đổi thì <strong>lệnh nào cũng chỉ trả OK, không có hồi sau</strong>
+ (trang Basic có nút; ghi NVRAM, đổi một lần là xong).</li>
+ <li><strong>PDP phải kích hoạt trước</strong>: sang trang TCP/IP bấm <code>AT+QIACT=1</code> trước
+ (tối đa 150 giây); chưa mở thì <code>+QMTOPEN</code> trả <strong>3 = kích hoạt PDP thất bại</strong>.
+ Toàn trình phát sinh lưu lượng dữ liệu, ước chừng khoảng 5 KB.</li>
+ </ol>
+
+ <h4>Thử ở đâu: bốn broker công khai miễn phí</h4>
+ <p>Thẻ tham số của <code>AT+QMTOPEN</code> cài sẵn menu thả xuống chọn broker (vẫn cho gõ tự do),
+ cả bốn nhà đều cho phép ẩn danh, không cần đăng ký. Số liệu đo thực tế tháng 8 năm 2026 (phía PC bắn dồn 100 tin, phía module ping):</p>
+ <table>
+ <tr><th>Broker</th><th>Bắn dồn 100 tin</th><th>Ping từ module</th><th>Ghi chú</th></tr>
+ <tr><td><strong>mqttgo.io</strong> (mặc định)</td><td><strong>100/100</strong></td>
+ <td><strong>190–210 ms</strong></td><td>HiNet Đài Loan; 1883 rõ chữ / 8883 TLS</td></tr>
+ <tr><td>broker.hivemq.com</td><td>100/100</td><td>Chặn ICMP</td>
+ <td><code>AT+QPING</code> trả 559 đừng hoảng —— đo thực tế TCP 1883 của cả bốn nhà thông hết,
+ độ với tới cứ thử thẳng bằng <code>AT+QMTOPEN</code></td></tr>
+ <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+ <td>Trang chủ tự nhận đừng dùng vào việc quan trọng; ô nhiễm chủ đề nặng nhất</td></tr>
+ <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>Chặn ICMP</td>
+ <td><strong>Có giới hạn tốc độ publish</strong>; có Dashboard trên web</td></tr>
+ </table>
+ <p>Cả bốn nhà đều <strong>công khai hoàn toàn</strong>: ai cũng subscribe được chủ đề của bạn,
+ tin nhắn của người khác cũng có thể lẫn vào —— đây chính là vấn đề mà hậu tố ngẫu nhiên sinh ra để giải quyết.</p>
+
+ <h4>Hậu tố ngẫu nhiên của client ID và chủ đề: mỗi lần tải lại trang là đổi một bộ</h4>
+ <p>client ID và chủ đề mặc định không viết chết: lúc trang được tải sẽ tự sinh hậu tố 6 ký tự thập lục phân,
+ ghép thành <code>numodem-&lt;hậu tố&gt;</code> và <code>test/numodem-&lt;hậu tố&gt;</code>,
+ ba nút Subscribe / Publish / Unsub dùng chung một bộ (không thì loopback không khớp nhau). Có hai lý do:</p>
+ <ul>
+ <li><strong>Trùng tên là bị đá văng</strong>: MQTT 3.1.1 §3.1.4 quy định broker phải đá kẻ nối trước
+ xuống —— hai người cùng dùng một ID cố định là đá nhau qua lại, triệu chứng nhìn như "module tự dưng rớt mạng".</li>
+ <li><strong>Chủ đề cố định sẽ nhận tin nhắn của người khác</strong>: bạn tưởng nhận được là của mình phát, thực ra không phải ——
+ chuyện này còn tệ hơn không nhận được, vì nó cho một kết quả đạt giả.</li>
+ </ul>
+ <div class="warning">
+ <strong>⚠ Mỗi lần tải lại trang, hậu tố đổi một bộ ——
+ subscribe và publish phải hoàn tất trong cùng một vòng đời trang.</strong>
+ Huống hồ công cụ này RTS = nguồn điện, tải lại trang = module mất điện, kết nối MQTT bay sạch cả cụm,
+ phải làm lại từ nghi thức khởi động và <code>AT+QMTOPEN</code>.
+ </div>
+
+ <h4>Đường đi đầy đủ: kết nối → subscribe → publish → nhận lại tin của chính mình</h4>
+ <p>Phép kiểm chứng thuyết phục nhất là <strong>loopback tự thân</strong>: subscribe xong publish vào cùng một chủ đề,
+ tự nhận lại tin nhắn của chính mình, một lượt kiểm trọn chuỗi thu phát. Mỗi bước chờ URC kết quả rồi mới đi tiếp:</p>
+ <ol>
+ <li><strong>Đặt phiên bản giao thức</strong>: bấm Ver 3.1.1 (<code>AT+QMTCFG="version",0,4</code>;
+ 3 = 3.1, 4 = 3.1.1). Bấm Version? tra giá trị hiện tại (không kèm giá trị = truy vấn).
+ Thẻ tham số Keepalive chỉnh được khoảng giữ sống, không chỉnh cũng thử được.</li>
+ <li><strong>Mở mạng</strong>: bấm Open Net (<code>AT+QMTOPEN=0,"broker",1883</code>).
+ Trả <code>OK</code> trước, thành bại nhìn URC <code>+QMTOPEN: 0,&lt;result&gt;</code>
+ (0 = thành công), chờ tối đa 120 giây. Bấm Open? tra các kết nối đã mở
+ (không có kết nối thì trả <code>OK</code> rỗng, đo thực tế là bình thường).</li>
+ <li><strong>Đăng nhập MQTT</strong>: bấm Connect (<code>AT+QMTCONN=0,"numodem-&lt;hậu tố&gt;"</code>).
+ URC thành công cố định là <code>+QMTCONN: 0,0,0</code>. Broker công khai miễn tài khoản mật khẩu;
+ khi cần thì tự thêm <code>,"user","pass"</code> vào sau tham số.
+ Bấm Conn? tra trạng thái (1 = khởi tạo, 2 = đang nối, 3 = đã nối, 4 = đang ngắt).</li>
+ <li><strong>Subscribe</strong>: bấm Subscribe (<code>AT+QMTSUB=0,1,"test/numodem-&lt;hậu tố&gt;",0</code>,
+ msgid cố định 1). URC thành công dạng <code>+QMTSUB: 0,1,0,0</code>.
+ Từ đó tin nhắn của chủ đề này đều đi vào bằng URC <code>+QMTRECV</code>.</li>
+ <li><strong>Publish</strong>: bấm Publish (<code>AT+QMTPUBEX</code>, hai giai đoạn, xem đoạn dưới).
+ URC thành công là <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code>.</li>
+ <li><strong>Nhận lại</strong>: đích publish chính là chủ đề đang subscribe, ngay sau đó sẽ thấy
+ <code>+QMTRECV</code> mang theo chủ đề và phần nội dung tin vừa gửi —— loopback thành công.
+ Payload nhiều byte như chữ Hán cũng không bị cắt cụt, không vỡ mã.</li>
+ </ol>
+ <figure class="shot">
+ <img src="img/04-mqtt.png" alt="Tab MQTT">
+ <figcaption>Trang MQTT: menu thả xuống chọn broker, kết nối, subscribe và publish; giá trị mặc định đã kèm hậu tố ngẫu nhiên.</figcaption>
+ </figure>
+
+ <h4>QMTPUBEX hai giai đoạn: đếm đủ độ dài là tự gửi, không cần Ctrl+Z</h4>
+ <p>Tham số cuối của <code>AT+QMTPUBEX</code> là <strong>độ dài (số byte), không phải nội dung tin nhắn</strong>
+ (application note MQTT §3.3.8 chốt hạ —— cách gửi một dòng nhét thẳng tin nhắn chắc chắn trả ERROR).
+ Quy trình đúng là hai giai đoạn: gửi lệnh → module trả dấu nhắc <code>&gt;</code> → gửi vừa đúng N byte,
+ module <strong>đếm đủ độ dài là tự động gửi đi, không cần Ctrl+Z</strong>
+ (khác với data mode của <code>AT+QISEND</code> trang TCP).
+ Bấm Publish là tự động hết: chỉ cần điền nội dung tin vào thẻ tham số,
+ độ dài tự tính theo số byte UTF-8 (chữ Hán mỗi chữ 3 byte, đo thực tế <code>測試</code> → 6).</p>
+ <ul>
+ <li>Các lệnh kiểu payload <strong>không cung cấp "điền vào dòng lệnh"</strong> —— gửi từ dòng lệnh luôn kèm ký tự cuối dòng,
+ cái CR đó bị tính vào độ dài làm lệch vị trí, hãy gửi bằng nút.</li>
+ <li>Firmware còn có <code>AT+QMTPUB</code> (biến thể data mode, phải Ctrl+Z chốt đuôi) ——
+ công cụ này nhất loạt dùng <code>QMTPUBEX</code>, không cần học cả hai bộ.</li>
+ </ul>
+
+ <h4>Đọc mã kết quả: miền giá trị của mỗi lệnh mỗi khác</h4>
+ <div class="warning">
+ <strong>Đừng đem bảng mã kết quả của lệnh A áp lên lệnh B.</strong>
+ Số 3 của <code>+QMTOPEN</code> là "kích hoạt PDP thất bại",
+ còn <code>+QMTPUBEX</code> căn bản không có giá trị 3.
+ <br><br>
+ Dễ đọc nhầm nhất là <code>+QMTCONN: 0,1</code> ——
+ nó <strong>có thể là phản hồi truy vấn "trạng thái 1 = đang khởi tạo", cũng có thể là kết quả ghi "gói tin đang truyền lại"</strong>.
+ Nhìn một dòng đơn lẻ không phân biệt nổi, nên công cụ này bày cả hai cách đọc cạnh nhau, không đoán bừa.
+ </div>
+ <p>Bạn không phải học thuộc bảng: toàn bộ URC kết quả từ <code>+QMTOPEN</code> đến <code>+QMTRECV</code> / <code>+QMTSTAT</code>,
+ khu terminal đều chú giải từng cột bằng lời dễ hiểu theo bảy bảng đối chiếu của application note MQTT v1.5.</p>
+
+ <h4>Ngắt kết nối và thu dọn</h4>
+ <ul>
+ <li><strong>Chỉ muốn ngừng nhận tin, giữ lại kết nối</strong>: bấm Unsub
+ (<code>AT+QMTUNS=0,2,"chủ đề"</code>, msgid cố định 2).</li>
+ <li><strong>Ngắt kết nối tử tế</strong>: bấm Disconnect (<code>AT+QMTDISC=0</code>,
+ gửi MQTT DISCONNECT), trả <code>+QMTDISC: 0,0</code>.
+ <strong>Sau đó không cần bấm Close Net nữa</strong> —— <code>AT+QMTCLOSE=0</code>
+ là để đóng cưỡng bức khi "QMTDISC thất bại, tầng mạng bị kẹt".</li>
+ </ul>
+ <p>Ngắt kết nối không do bạn bấm (bị đá, keepalive hết giờ, rớt mạng) sẽ được báo bằng URC ngắt bất thường <code>+QMTSTAT</code>
+ (ví dụ: <code>+QMTSTAT: 0,5</code>, khu terminal sẽ chú giải nguyên nhân),
+ lúc đó phải làm lại từ <code>AT+QMTOPEN</code>.</p>
+
+ <h4>Khắc phục sự cố</h4>
+ <table>
+ <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+ <tr><td>Lệnh nào cũng trả OK, rồi không có hồi sau</td>
+ <td>URC bị gửi sang cổng USB —— <code>urcport</code> xuất xưởng là <code>usbat</code>,
+ chuyển thành <code>uart1</code> (xem tiền đề 1)</td></tr>
+ <tr><td><code>+QMTOPEN: 0,3</code></td>
+ <td>Kích hoạt PDP thất bại —— <code>AT+QIACT=1</code> trước (trang TCP/IP) rồi làm lại</td></tr>
+ <tr><td>Subscribe rồi mà không nhận được tin do chính mình phát</td>
+ <td>Giữa chừng đã tải lại trang —— hậu tố đổi bộ, module cũng mất điện khởi động lại.
+ Chạy lại trọn một lượt đường đi trong cùng một vòng đời trang</td></tr>
+ <tr><td>Nhận được tin không phải mình phát</td>
+ <td>Ô nhiễm chủ đề trên broker công khai (mosquitto nặng nhất). Chủ đề mặc định đã kèm hậu tố ngẫu nhiên;
+ chủ đề tự đặt thì lấy tên độc nhất</td></tr>
+ <tr><td>Publish số lượng lớn bị rơi mất một phần tin</td>
+ <td>emqx có giới hạn tốc độ publish (đo thực tế bắn dồn 100 chỉ tới 40) ——
+ đổi sang mqttgo.io hoặc hivemq (100/100 không bóp luồng)</td></tr>
+ <tr><td>Chờ rất lâu không có URC kết quả</td>
+ <td>Họ lệnh này vốn dĩ chậm: <code>QMTOPEN</code> tối đa 120 giây,
+ <code>QMTCONN</code> / <code>QMTSUB</code> / <code>QMTPUBEX</code> tối đa 600 giây
+ (PUBEX = gói hết giờ 60 giây x thử lại 10), phần giải thích trên nút đã ghi rõ, không phải treo máy</td></tr>
+ </table>
+
+ <h3 id="tab-wifi">WiFiScan —— quét Wi-Fi và định vị qua mạng</h3>
+ <p><strong>Nguyên lý hoạt động:</strong> EG800K là module LTE, <strong>không có khả năng lên mạng bằng Wi-Fi</strong>,
+ nhưng cài sẵn một bộ thu Wi-Fi "chỉ quét không nối": thu thụ động các khung beacon
+ mà những điểm phát 2.4GHz xung quanh quảng bá, báo về địa chỉ MAC (BSSID), RSSI (cường độ tín hiệu) và kênh của từng điểm phát.
+ Quét là thu RF thuần túy, <strong>không tốn một byte lưu lượng dữ liệu</strong>; bản thân nó không sinh ra tọa độ ——
+ phải đem danh sách MAC + RSSI gửi lên cơ sở dữ liệu vị trí điểm phát trên đám mây tra cứu mới đổi ra được kinh vĩ độ;
+ đó chính là định vị qua mạng kiểu <strong>trong nhà vẫn dùng được, không dựa vào vệ tinh</strong>.
+ Mọi con số và hành vi trong mục này đều là giá trị đo thực tế trên EG800K vật lý tháng 8 năm 2026.</p>
+
+ <h4>Hai cụm nút của trang này</h4>
+ <p>Nửa trên <strong>Wi-Fi Scan</strong> bốn nút (quét thuần túy), nửa dưới
+ <strong>QuecLocator (QLBS)</strong> mười ba nút (đọc đoạn sự thật phía sau rồi hãy bấm):</p>
+ <table>
+ <tr><th>Nút</th><th>Lệnh</th><th>Tác dụng và điểm chính đo thực tế</th></tr>
+ <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+ <td>Tra phạm vi tham số. Máy này thực trả
+ <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+ <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+ <td>Đọc tham số hiện tại. Máy này xuất xưởng <code>12000,1,5,5,0</code> =
+ hạn giờ 12 giây, 1 vòng, trần điểm phát 5, RRC hết giờ 5 giây, ưu tiên 0</td></tr>
+ <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+ <td>Quét một lượt bằng tham số hiện tại. Kết quả báo về <strong>bất đồng bộ</strong> sau <code>OK</code>,
+ chờ tối đa 13 giây</td></tr>
+ <tr><td>Scan (custom)</td><td>Thẻ tham số</td>
+ <td>Tự đặt hạn giờ (mili giây) / số vòng / trần điểm phát / RRC hết giờ / ưu tiên rồi quét</td></tr>
+ </table>
+ <figure class="shot">
+ <img src="img/01-wifiscan-qlbs.png" alt="Tab WiFiScan và cụm QuecLocator">
+ <figcaption>Trang WiFiScan: bốn nút quét và cụm QuecLocator (QLBS).</figcaption>
+ </figure>
+
+ <h4>Lần quét đầu tiên: bấm thế nào, sẽ thấy gì</h4>
+ <ol>
+ <li><strong>Chạy nghi thức khởi động</strong> (xem phần "Nghi thức khởi động").</li>
+ <li><strong>Xác nhận URC đi đường UART</strong>: <code>AT+QURCCFG="urcport"</code> phải trả
+ <code>"uart1"</code>. Giá trị xuất xưởng là <code>"usbat"</code> ——
+ kết quả quét bị gửi hết sang cổng USB, ở đây chỉ thấy mỗi <code>OK</code>,
+ đến TIMEOUT cũng chờ không thấy (thiết lập ghi NVRAM, đổi một lần là xong).</li>
+ <li><strong>Bấm <code>Scan</code></strong>: module trả <code>OK</code> trước,
+ nghĩa là "bắt đầu quét", <strong>không phải kết quả</strong>. Trong vài giây (dài nhất tới hạn giờ quét)
+ kết quả báo về từng dòng một, mỗi dòng kèm chú giải tự động (MAC / RSSI / kênh).</li>
+ </ol>
+
+ <h4>Đọc kết quả quét</h4>
+ <p>Báo cáo đo thực tế trông thế này (2026-08-29, quét được 7 điểm phát, RSSI -37 ~ -89 dBm):</p>
+ <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+ <p>Thứ tự các cột là <code>(ecn, ssid, rssi, mac, channel)</code>.
+ <strong>Firmware máy này cố định trả <code>-</code> cho ecn và ssid</strong> (đo thực tế 2026-08-02),
+ danh sách không nhìn ra "Wi-Fi này của nhà ai" ——
+ với định vị thì vừa vặn đủ dùng, cơ sở dữ liệu vốn dĩ chỉ ăn MAC + RSSI.
+ Trực giác RSSI: -30 ~ -50 rất gần, -60 ~ -75 tầm tầm, dưới -80 rất yếu.</p>
+ <p>Trong hạn giờ không quét được điểm phát nào thì trả <code>+QWIFISCAN:TIMEOUT</code> ——
+ <strong>kết thúc bình thường, không phải lỗi</strong> (sau dấu hai chấm không có khoảng trắng, phần phân tích của công cụ đã xử lý).
+ Muốn quét được nhiều hơn: dùng thẻ tham số nâng trần điểm phát từ 5 xuất xưởng lên (máy này tối đa 10),
+ số vòng chỉnh lên 2-3 (đo thực tế kết quả giữa các vòng có khử trùng lặp).</p>
+ <div class="warning">
+ <strong>Không phải điểm phát nào quét được cũng đem đi định vị được.</strong> Đo thực tế 2026-08-29 trong 7 cái có
+ 4 cái là "địa chỉ quản trị cục bộ" (bắt đầu bằng <code>C2:</code> / <code>62:</code> / <code>9E:</code>,
+ bit 0x02 của byte đầu bằng 1 —— BSSID ảo của phân thân đa SSID),
+ <strong>cơ sở dữ liệu định vị thường bỏ qua thẳng loại địa chỉ này</strong>, nguyên liệu dùng được thực tế chỉ còn 3 địa chỉ toàn cầu.
+ </div>
+ <div class="warning">
+ <strong>Phạm vi tham số trong tài liệu ứng dụng V1.2 là sai đối với máy này.</strong>
+ Tài liệu nới số vòng lên 1-6, trần điểm phát lên 4-30, nhưng phạm vi firmware máy này thực trả vẫn là
+ <strong>số vòng 1-3, trần điểm phát 4-10</strong> (đo thực tế 2026-08-06).
+ Lấy kết quả thực trả của <code>Support?</code> làm chuẩn, đừng chép nguyên con số trong tài liệu.
+ </div>
+
+ <h4>Cụm nút QuecLocator (QLBS): trước khi bấm hãy nhìn sự thật</h4>
+ <p>QuecLocator là dịch vụ định vị đám mây của Quectel: <code>AT+QLBS</code> (nút <code>Locate</code>)
+ một lệnh duy nhất, firmware tự gom nguyên liệu, gửi lên máy chủ tra kho, trả về tọa độ. Ba hiện thực:</p>
+ <ol>
+ <li><strong>Cần token, và là dịch vụ thu phí.</strong> Tài liệu chính thức ghi rõ phải liên hệ hỗ trợ kỹ thuật
+ Quectel để xin (không có tự đăng ký). Token máy này xuất xưởng rỗng.</li>
+ <li><strong>16 tài liệu chính thức của EG800K không tài liệu nào nhắc tới QuecLocator.</strong>
+ Tài liệu ứng dụng đang có là của EC200U / EG915U (cú pháp và mã lỗi đo thực tế trùng khớp),
+ không phải tài liệu chính thức của máy này.</li>
+ <li><strong>Dự án này đã quyết không dùng</strong> (2026-08-29): logic định vị khóa trong firmware,
+ dịch vụ mà dẹp tiệm thì cả dòng lệnh AT mất tác dụng luôn, không thay được nhà cung cấp
+ (diễn đàn Quectel đã xác thực dòng BG95 ngừng hỗ trợ).
+ Nút vẫn giữ lại, chỉ để "nếu xin được token miễn phí thì tiện tay kiểm chứng".</li>
+ </ol>
+ <div class="warning">
+ <strong><code>+QLBS: 702</code> là "máy chủ hết giờ chờ", không phải vấn đề token.</strong>
+ Dự án này từng phán nhầm 702 thành "thiếu token" suốt ba tuần —— sự thật là lúc đó quên kích hoạt
+ PDP trước, module căn bản không nối được máy chủ, chờ cạn hạn giờ (xuất xưởng 60 giây) thì trả 702.
+ Thí nghiệm đối chứng 2026-08-29 (token rỗng toàn trình):
+ PDP chưa kích hoạt trả <code>702</code>; kích hoạt xong trả <code>10002</code> (token không tồn tại) ——
+ <strong>máy chủ từ Đài Loan là nối thông được, thứ thiếu chỉ có token</strong>.
+ Trước khi gõ <code>AT+QLBS</code> nhất định phải <code>AT+QIACT=1</code> trước (sẽ phát sinh lưu lượng).
+ </div>
+ <p>Bảy mục thiết lập con đều có nút tra / đặt, <code>Cfg?</code> (<code>AT+QLBSCFG=?</code>)
+ một phím liệt kê toàn bộ phạm vi (không tốn lưu lượng). Giá trị xuất xưởng máy này và điểm chính đo thực tế:</p>
+ <table>
+ <tr><th>Mục con (nút)</th><th>Giá trị xuất xưởng</th><th>Điểm chính đo thực tế</th></tr>
+ <tr><td><code>token</code> (Set Token / Token?)</td><td>Rỗng</td>
+ <td>Đọc lại luôn bị che thành <code>*</code>; đường đặt giá trị đo thực tế là thông</td></tr>
+ <tr><td><code>server</code> (Server? / Set Server)</td>
+ <td><code>www.queclocator.com:80</code></td><td>Địa chỉ máy chủ định vị</td></tr>
+ <tr><td><code>timeout</code> (Timeout? / Set Timeout)</td><td>60 giây</td>
+ <td>Chính là cái hạn giờ mà 702 ngồi chờ, phạm vi 10-120</td></tr>
+ <tr><td><code>asynch</code> (Async? / Set Async)</td><td>0</td>
+ <td>Chuyển đồng bộ / bất đồng bộ</td></tr>
+ <tr><td><code>latorder</code> (LatOrder?)</td><td>0</td>
+ <td>Thứ tự xuất vĩ kinh độ. ⚠ Đặt thì dùng khóa chữ thường, đọc lại lại là camelCase <code>latOrder</code></td></tr>
+ <tr><td><code>withtime</code> (WithTime?)</td><td>0</td>
+ <td>Phản hồi có kèm thời gian không; tên khóa đọc lại <code>withTime</code></td></tr>
+ <tr><td><code>timeupdate</code> (TimeUpd?)</td><td>0</td>
+ <td>Có dùng kết quả định vị hiệu chỉnh đồng hồ module không; tên khóa đọc lại <code>timeUpdate</code></td></tr>
+ </table>
+ <p>Thật sự có token trong tay: <code>Set Token</code> điền vào → <code>Token?</code>
+ xác nhận (hiển thị <code>*</code>) → trang TCP/IP kích hoạt PDP → <code>Locate</code>.</p>
+
+ <h4>Lối đi thay thế: định vị qua mạng miễn token (đo thực tế 71 mét)</h4>
+ <p>Định vị qua mạng không nhất thiết dựa QuecLocator. Lối thay thế đã thông suốt đầu-cuối ngày 2026-08-29:
+ module chỉ xuất nguyên liệu (trang này quét điểm phát, <code>AT+QENG="servingcell"</code> đọc trạm gốc),
+ lưu output của terminal ra tệp rồi giao cho <code>tools/wifi_geolocate.py</code> tra cơ sở dữ liệu công khai ở phía PC ——
+ <strong>module không tốn lưu lượng, miễn dịch vụ Quectel</strong>.
+ Đo thực tế (đối chiếu với giá trị thật GNSS cùng ngày): tra bảng trạm gốc bằng Unwired Labs (đăng ký miễn phí) <strong>sai số
+ 71 mét</strong> (kết luận chốt sổ của nhánh định vị này), bằng beaconDB (miễn khóa) 632 mét;
+ còn tra bảng Wi-Fi thì kẹt ở nhà cung cấp —— hệ sinh thái miễn phí đã sụp (beaconDB vùng này không phủ,
+ gói miễn phí Unwired Labs không gồm Wi-Fi, Google / HERE đòi ràng buộc thẻ), tạm gác.</p>
+ <div class="tip">
+ <strong>71 mét là "tra bảng trúng", không phải "độ chính xác đo lường".</strong>
+ Định vị trạm gốc là dùng Cell ID tra tọa độ đăng ký của trạm đó, cùng một cell mãi mãi trả cùng một điểm ——
+ đổi sang trạm khác sai số có thể lên mức kilômét; con số ±1051 mét dịch vụ tự báo mới là ước lượng thành thật.
+ Ngoài ra Cell ID và TAC là <strong>thập lục phân</strong>,
+ trước khi tra bảng phải đổi sang thập phân (công cụ đã xử lý sẵn).
+ </div>
+
+ <h4>Khắc phục sự cố</h4>
+ <table>
+ <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+ <tr><td>Bấm <code>Scan</code> chỉ trả <code>OK</code>, kết quả mãi không hiện</td>
+ <td>URC bị gửi sang cổng USB —— tra <code>AT+QURCCFG="urcport"</code>,
+ không phải <code>"uart1"</code> thì đổi (ghi NVRAM)</td></tr>
+ <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+ <td>Trong hạn giờ không quét được điểm phát nào, kết thúc bình thường không phải lỗi. Đổi chỗ hoặc kéo dài hạn giờ</td></tr>
+ <tr><td><code>+QLBS: 702</code></td>
+ <td>Máy chủ hết giờ chờ —— hầu như đều do quên <code>AT+QIACT=1</code>, không phải vấn đề token</td></tr>
+ <tr><td><code>+QLBS: 10002</code></td>
+ <td>Token không tồn tại —— phải trả phí xin Quectel; dự án này đã quyết không dùng,
+ chuyển sang lối thay thế bên trên</td></tr>
+ <tr><td>Muốn dùng <code>AT+QCELLLOC</code></td>
+ <td>Máy này <strong>không hỗ trợ</strong> (trả ERROR) —— đó là lệnh của dòng EC2x</td></tr>
+ </table>
+
+ <h3 id="tab-ssl">SSL —— kênh TLS</h3>
+ <p><strong>Nguyên lý hoạt động:</strong> trang SSL là <strong>tầng đáy dùng chung</strong> của kết nối mã hóa ——
+ SSL context đặt ở đây cùng chứng chỉ đã tải lên, phục vụ đồng thời cho SSL raw socket, MQTT over SSL
+ và HTTPS. Các con số giây và hành vi trong mục này đều là giá trị đo thực tế trên EG800K vật lý tháng 8 năm 2026.</p>
+
+ <h4>Lần kết nối TLS đầu tiên: năm bước</h4>
+ <ol>
+ <li><strong>Chạy nghi thức khởi động</strong> (xem phần "Nghi thức khởi động"), rồi bấm
+ <code>AT+QIACT?</code> xác nhận kênh dữ liệu —— phải trả ra được
+ <code>+QIACT: 1,1,…,"IP"</code>, không có thì <code>AT+QIACT=1</code> trước.</li>
+ <li><strong>Đặt context</strong>: <code>sslversion</code> điền 4 (mọi phiên bản,
+ tương thích tốt nhất), <code>ciphersuite</code> điền 0XFFFF (mọi bộ mã),
+ <code>seclevel</code> điền 0 trước đã —— xác nhận kênh thông cái đã, xác thực để lại phía sau.</li>
+ <li><strong>Mở kết nối</strong>: bấm <code>AT+QSSLOPEN</code> (số cuối 0), thẻ tham số điền
+ máy chủ và cổng. ⚠ <code>OK</code> chỉ có nghĩa là "lệnh đã được nhận", thành bại phải chờ URC:
+ <code>+QSSLOPEN: 4,0</code> mới là thành công (đo thực tế bắt tay 2.0 giây).</li>
+ <li><strong>Gửi dữ liệu</strong>: bấm <code>AT+QSSLSEND</code> (hai giai đoạn) ——
+ hiện <code>&gt;</code> rồi gửi nội dung, <strong>đếm đủ độ dài đã khai là tự động gửi đi,
+ miễn Ctrl+Z</strong> (trần mỗi gói 1460 bytes). Bên kia trả lời sẽ hiện
+ <code>+QSSLURC: "recv",4</code>.</li>
+ <li><strong>Đọc về và đóng</strong>: <code>AT+QSSLRECV</code> (trần mỗi lần 1500)
+ đọc tới <code>+QSSLRECV: 0</code> nghĩa là đã nhận cạn, không phải lỗi.
+ <code>AT+QSSLCLOSE=4</code> đóng lại (mặc định chờ tối đa 10 giây;
+ nút còn lại chỉ định được số giây, 0 = ngay lập tức).</li>
+ </ol>
+ <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0 ← 2.0 giây, 0 = thành công
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL ← Đếm đủ 15 bytes tự động gửi đi
+SEND OK
++QSSLURC: "recv",4 ← 0.4 giây
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+ <p>Trong lúc kết nối có thể bấm <code>AT+QSSLSTATE</code> xem mọi kết nối (<code>=4</code>
+ tra một clientID đơn lẻ, trạng thái 2 = đã nối). Lưu ý <strong>cổng cục bộ luôn trả 0</strong> ——
+ hành vi của module, không phải lỗi.</p>
+ <figure class="shot">
+ <img src="img/05-ssl.png" alt="Tab SSL">
+ <figcaption>Trang SSL: thiết lập context, tải chứng chỉ lên UFS, kết nối, thu phát, đóng.</figcaption>
+ </figure>
+
+ <h4>Ba chế độ truy cập (số cuối của <code>AT+QSSLOPEN</code>)</h4>
+ <table>
+ <tr><th>Số cuối</th><th>Hành vi</th></tr>
+ <tr><td>0 buffer</td><td>Nhận được dữ liệu chỉ phát <code>+QSSLURC: "recv",&lt;id&gt;</code>,
+ tự gõ <code>AT+QSSLRECV</code> để đọc</td></tr>
+ <tr><td>1 đẩy thẳng</td><td>URC kèm thêm độ dài, <strong>dữ liệu nhả thẳng ở dòng kế</strong>;
+ ⚠ ở chế độ này <code>AT+QSSLRECV</code> trả ERROR là bình thường</td></tr>
+ <tr><td>2 xuyên suốt</td><td>Cổng AT biến hẳn thành kênh dữ liệu (nút của trang này chỉ chuẩn bị 0 và 1)</td></tr>
+ </table>
+
+ <h4>Thiết lập context từng mục</h4>
+ <p>Không chắc firmware hỗ trợ những mục con nào thì bấm <code>AT+QSSLCFG=?</code> trước ——
+ đo thực tế trả 17 mục con, nhiều hơn danh sách trong sổ tay ứng dụng. Các mục thường dùng đều có hai nút đặt và tra,
+ đo thực tế ghi xong đọc lại trùng khớp hoàn toàn.</p>
+ <table>
+ <tr><th>Mục con</th><th>Xuất xưởng</th><th>Tác dụng và điểm chính đo thực tế</th></tr>
+ <tr><td><code>sslversion</code></td><td>—</td><td>Phiên bản giao thức; 4 = hỗ trợ tất cả</td></tr>
+ <tr><td><code>ciphersuite</code></td><td>—</td><td>Bộ mã hóa; 0XFFFF = hỗ trợ tất cả</td></tr>
+ <tr><td><code>seclevel</code></td><td>0</td><td>0 = không xác thực, 1 = xác thực máy chủ
+ (phải tải chứng chỉ CA lên trước), 2 = xác thực hai chiều (còn cần chứng chỉ client + khóa riêng)</td></tr>
+ <tr><td><code>cacert</code></td><td>—</td><td>Đường dẫn chứng chỉ CA, định dạng
+ <code>"UFS:tên tệp"</code>, tệp phải đã nằm trong UFS (xem mục dưới)</td></tr>
+ <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+ <td>Nối virtual host / CDN bắt buộc bật —— cùng một IP treo nhiều tên miền mà không gửi SNI
+ thì nhận về chứng chỉ không khớp, xác thực chắc chắn thua với 566</td></tr>
+ <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+ <td><strong>Ở trạng thái xuất xưởng, kể cả bật seclevel 1 cũng không kiểm tra hạn hiệu lực của chứng chỉ</strong>.
+ Muốn kiểm thì đặt 0, và đồng hồ module phải đúng giờ</td></tr>
+ <tr><td><code>negotiatetime</code></td><td>300</td>
+ <td>Số giây chờ tối đa của bắt tay TLS (10–300)</td></tr>
+ </table>
+ <div class="warning">
+ <strong>🔴 Ba giá trị mặc định xuất xưởng cộng lại = hoàn toàn không xác thực chứng chỉ</strong>
+ (seclevel 0, sni 0, ignorelocaltime 1), muốn xác thực thật thì cả ba đều phải đặt đúng.
+ Hơn nữa ba thiết lập này cùng <code>cacert</code> <strong>không lưu qua các lần khởi động lại</strong>
+ (đã xác nhận bằng đo thực tế), mỗi lần khởi động là về giá trị xuất xưởng; còn tệp chứng chỉ trong UFS thì mất điện không mất.
+ </div>
+
+ <h4>Cụm tệp UFS: chứng chỉ vào module bằng cách nào</h4>
+ <p>UFS là bộ nhớ flash cài sẵn trong module, đo thực tế tổng dung lượng <strong>280 KB</strong>, mỗi tệp chiếm một
+ khối 4 KB. Chứng chỉ phải tải lên đây trước, <code>cacert</code> mới có tệp để trỏ.
+ <strong>Tải lên đi đường UART, không tốn một byte lưu lượng dữ liệu</strong>, tệp nhị phân cũng gửi vào được.
+ <strong>Thẻ Upload</strong>: chọn tệp xong tên và kích thước tự điền, gửi đi rồi công cụ chờ module trả
+ <code>CONNECT</code> mới gửi các byte thô (không chờ được thì không gửi). Khi hoàn tất,
+ <strong>bộ máy chú giải tự đối chiếu</strong> kích thước và checksum module báo về:
+ ✅ = nguyên vẹn không lỗi, ❌ = truyền hỏng rồi, xóa trước rồi truyền lại.</p>
+ <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT ← Tiếp đó gửi đi 1939 bytes
++QFUPL: 1939,4f64 ← Kích thước thực nhận,checksum, chú giải tự đối chiếu ✅</pre>
+ <table>
+ <tr><th>Nút</th><th>Công dụng</th></tr>
+ <tr><td><code>AT+QFLST</code></td><td>Liệt kê toàn bộ tệp trong UFS kèm kích thước ——
+ tải lên xong dùng nó kiểm chứng (không tốn lưu lượng)</td></tr>
+ <tr><td><code>AT+QFLDS="UFS"</code></td><td>Tra dung lượng còn trống / tổng, đơn vị bytes (không tốn lưu lượng)</td></tr>
+ <tr><td><code>AT+QFDEL</code></td><td>Xóa tệp chỉ định (<code>*</code> = tất cả);
+ tệp trùng tên không xóa trước thì truyền lại sẽ bị chặn</td></tr>
+ </table>
+ <div class="tip">
+ <strong>Hai hành vi đo thực tế sổ tay không nói rõ:</strong> (1) dạng mã lỗi FILE không nhất quán ——
+ truyền lại trùng tên trả chữ <code>file already exist</code>, hết giờ trả số <code>421</code>,
+ công cụ này đọc hiểu được cả hai; (2) cột kích thước điền to hơn thực tế, module hết giờ xong
+ <strong>vẫn cứ lưu phần nội dung thực nhận thành tệp</strong> —— phép đối chiếu checksum sẽ tóm ra.
+ </div>
+
+ <h4>Thực chiến xác thực chứng chỉ: phép kiểm thử theo cặp</h4>
+ <p>Quy trình: tải chứng chỉ gốc lên → <code>cacert</code> trỏ vào nó → <code>seclevel</code> 1 →
+ <code>sni</code> 1 → nối cổng 443 của đích. <strong>Thứ cần tải lên là chứng chỉ gốc trên cùng của chuỗi chứng chỉ</strong>
+ (chuỗi của badssl.com có bốn tầng, tải cái đỉnh nhất ISRG Root X1).
+ <strong>Chỉ thử "chứng chỉ hỏng không nối được" là chưa đủ</strong> —— "cái gì cũng không nối được" cũng qua bài.
+ Phải kiểm thử theo cặp: chứng chỉ tốt nối được, chứng chỉ hỏng không nối được,
+ <strong>cả hai chiều đều đứng vững mới tính</strong>. Đo thực tế đối chứng 2x5:</p>
+ <table>
+ <tr><th>Máy chủ</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+ <tr><td>badssl.com (đối chứng dương)</td><td>Nối được</td>
+ <td><strong>Nối được</strong> <code>4,0</code></td></tr>
+ <tr><td>expired (hết hạn)</td><td>Nối được</td><td>Từ chối 566</td></tr>
+ <tr><td>self-signed (tự ký)</td><td>Nối được</td><td>Từ chối 566</td></tr>
+ <tr><td>wrong.host (tên máy chủ không khớp)</td><td>Nối được</td><td>Từ chối 566</td></tr>
+ <tr><td>untrusted-root (gốc không tin cậy)</td><td>Nối được</td><td>Từ chối 566</td></tr>
+ </table>
+ <p>Giới hạn: <strong>bốn loại lỗi chứng chỉ đều trả 566, module không phân biệt</strong> là loại nào.
+ <code>AT+QIGETERROR</code> cũng chẳng giúp được —— nó quản tầng TCP/IP,
+ lúc này chỉ trả <code>0,operate successfully</code>.</p>
+ <div class="tip">
+ Bài thử chiều âm hãy né expired —— xuất xưởng <code>ignorelocaltime</code> là 1, bản thân chuyện hết hạn
+ không bị chặn (ở bảng trên nó bị chặn là vì đồng thời không nằm dưới cái gốc đã tải lên), thử đơn lẻ thì dùng wrong.host.
+ Ngoài ra <strong>để ý lưu lượng</strong>: mỗi lần bắt tay đều tải về trọn chuỗi chứng chỉ, thất bại vẫn trả tiền,
+ đo thực tế 30 lần bắt tay khoảng 150–200 KB.
+ </div>
+
+ <h4>🔴 Bẫy: mở đóng liên tục khoảng 20 lần, cả stack dữ liệu thoái hóa</h4>
+ <div class="warning">
+ <strong>Triệu chứng: mọi <code>AT+QSSLOPEN</code> nhất loạt trả 552</strong>, đến seclevel 0
+ cũng không nối được, mà từng mục tự kiểm tra đều nói ổn. <strong>Phép phân định 30 giây</strong>: dùng
+ <code>AT+QIOPEN</code> của TCP thuần đánh vào cùng một đích —— cũng thất bại thì là stack dữ liệu hỏng rồi, đừng tra
+ thiết lập SSL nữa. Khởi động lại PDP không cứu được, <strong>chỉ có nghi thức khởi động trọn vẹn mới phục hồi</strong>.
+ Thoái hóa sẽ làm bẩn dữ liệu kiểm thử, dễ phán nhầm thành "bị xác thực chứng chỉ chặn" ——
+ trước khi làm kiểm thử theo cặp hãy khởi động lại cho sạch sẽ.
+ </div>
+
+ <h4>Khắc phục sự cố</h4>
+ <table>
+ <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+ <tr><td><code>+QSSLOPEN: 4,566</code></td>
+ <td>Xác thực chứng chỉ thất bại. Lần lượt kiểm: <code>sni</code> bật chưa (thường gặp nhất),
+ cái gốc của <code>cacert</code> đúng không, bản thân chứng chỉ hỏng;
+ ba thiết lập cứ khởi động lại là về số không</td></tr>
+ <tr><td>Sau <code>OK</code> không có hồi sau</td>
+ <td><code>OK</code> chỉ có nghĩa là đã nhận, kết quả đi đường URC, chờ lâu nhất tới
+ 150 giây + <code>negotiatetime</code></td></tr>
+ <tr><td>Cổng AT kẹt cứng không đoái hoài lệnh nào</td>
+ <td><code>AT+QSSLSEND</code> tính sai độ dài, kẹt trong data mode nuốt lệnh ——
+ dùng nút byte thô của trang Hardware gửi ESC (0x1B) thoát thân</td></tr>
+ </table>
+
+ <h3 id="tab-http">HTTP —— yêu cầu web</h3>
+ <p><strong>Nguyên lý hoạt động:</strong> HTTP của module là <strong>ba chặng</strong>:
+ đặt URL trước (bản thân bước này lại là hai giai đoạn), rồi phát yêu cầu (GET / POST), cuối cùng đọc phản hồi về.
+ Kết quả của mỗi chặng đều không nằm trong <code>OK</code>, mà là URC đến sau đó ——
+ vì vậy <code>AT+QURCCFG="urcport"</code> bắt buộc phải là <code>"uart1"</code> (trang Hardware đổi được),
+ không thì kết quả chẳng thấy được cái nào. Số liệu đều là đo thực tế trên máy thật 2026-08.</p>
+
+ <h4>Trước khi bắt đầu: phải có kênh dữ liệu đã</h4>
+ <p>Tiền đề là PDP đã kích hoạt và lấy được IP (<code>AT+QIACT=1</code> của trang TCP/IP).
+ <strong>Cụm Connect</strong> của trang này chỉ đặt các phép kiểm chỉ đọc:
+ <code>AT+CPIN?</code> / <code>AT+CGATT?</code> / <code>AT+CGREG?</code> /
+ <code>AT+QIACT?</code>, <code>AT+QIDNSCFG=1</code> (DNS 0.0.0.0 = chưa được cấp),
+ <code>AT+QIGETERROR</code> (⚠ chỉ có hiệu lực với lệnh TCP/IP cuối cùng,
+ thất bại xong phải bấm <strong>ngay lập tức</strong>).</p>
+ <div class="warning">
+ <strong><code>AT+QIACT?</code> biết lừa người.</strong> Đo thực tế từng gặp PDP trôi giữa chừng:
+ mọi yêu cầu thất bại toàn bộ, <strong>hết giờ cố định 30 giây</strong> trả lỗi 716,
+ <code>AT+QIACT?</code> vẫn trả IP như thường. Dùng <code>AT+CGACT?</code> đối chiếu chéo,
+ không khớp nhau nghĩa là trôi rồi. Cách sửa: <code>AT+QIDEACT=1</code> →
+ <code>AT+CGACT=0,&lt;cid bị trôi&gt;</code> → <code>AT+QIACT=1</code>,
+ ping thông rồi hãy tiếp tục.
+ </div>
+
+ <h4>Lần GET đầu tiên: bốn bước</h4>
+ <ol>
+ <li><strong>Thiết lập trước</strong> (cụm Config, không tốn lưu lượng): thẻ tham số <code>contextid</code>
+ đặt 1 (ràng buộc PDP context sẽ đi); ba công tắc <code>rspout/auto</code>,
+ <code>requestheader</code>, <code>responseheader</code> giữ nguyên 0
+ (lý do xem phía sau); <code>AT+QHTTPCFG?</code> đọc lại toàn bộ thiết lập một lượt để rà soát,
+ <code>AT+QHTTPCFG=?</code> liệt kê các mục đặt được.</li>
+ <li><strong>Đặt URL (hai giai đoạn)</strong>: thẻ <code>AT+QHTTPURL</code> chỉ có một nút
+ "gửi (hai giai đoạn)" —— bạn điền URL, độ dài do chương trình tự tính. Quy trình: gửi
+ <code>AT+QHTTPURL=&lt;độ dài&gt;,80</code> trước, chờ <code>CONNECT</code>
+ vào data mode, rồi gửi nguyên xi các byte của URL, <strong>không thêm bất kỳ ký tự cuối dòng nào</strong>
+ (CR/LF sẽ bị tính vào độ dài).
+ <code>http://www.example.com/</code> độ dài đúng là 23. Gửi xong bấm
+ <code>AT+QHTTPURL?</code> đọc lại, giống từng chữ = không có ký tự cuối dòng lẫn vào.</li>
+ <li><strong>Phát yêu cầu</strong>: <code>AT+QHTTPGET=80</code> (số giây chờ phản hồi).
+ <code>OK</code> chỉ có nghĩa là "đã nhận lệnh", kết quả thật là URC đến sau
+ <code>+QHTTPGET: 0,200</code>, cách đọc xem đoạn dưới.</li>
+ <li><strong>Đọc phản hồi</strong>: <code>AT+QHTTPREAD=80</code>.
+ Sau <code>CONNECT</code> toàn là byte thô (đo thực tế example.com là
+ 559 bytes), tiếp đến <code>OK</code> ——
+ nhưng <strong>dòng <code>+QHTTPREAD: 0</code> đứng riêng ở cuối mới là dấu kết thúc</strong>.</li>
+ </ol>
+ <figure class="shot">
+ <img src="img/11-http.png" alt="Tab HTTP">
+ <figcaption>Trang HTTP: bốn cụm Config / Connect / Transfer / Close.</figcaption>
+ </figure>
+
+ <h4>Đọc +QHTTPGET: cột đầu không phải mã trạng thái HTTP</h4>
+ <p>URC kết quả của GET / POST / POSTFILE đều có ba cột
+ <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code>:
+ <code>err</code> <strong>0 = lệnh thực thi thành công</strong>, khác 0 là lỗi tầng module (716, 711…);
+ <code>httprspcode</code> là mã trạng thái HTTP, <strong>chỉ được báo khi err=0</strong>
+ (sổ tay ghi rõ; công cụ cài sẵn chú giải đối chiếu 200 / 403 / 404 / 409 / 411 / 500);
+ <code>content_length</code> tùy chọn —— header phản hồi của máy chủ có CONTENT-LENGTH mới có,
+ GET thông thường hay chỉ có hai cột. Cho nên <code>+QHTTPGET: 0,404,0</code> đo thực tế
+ <strong>không phải thất bại</strong>: lệnh thành công rồi, là máy chủ nói không tìm thấy.</p>
+
+ <h4>Đọc phản hồi: cái bẫy của AT+QHTTPREAD</h4>
+ <p>Tham số là "số giây cách quãng tối đa giữa hai gói dữ liệu", không phải tổng thời lượng.
+ <strong>Firmware máy này chỉ ăn một tham số</strong>: cách đọc chia đoạn
+ <code>=&lt;wait&gt;,&lt;read_len&gt;</code> trong tài liệu ứng dụng đo thực tế trả
+ <code>ERROR</code> trần trụi (thăm dò <code>=?</code> xác thực), nút đã gỡ bỏ ——
+ muốn lấy về theo đoạn thì chuyển sang <code>GETEX</code>.</p>
+ <div class="warning">
+ <strong>Bẫy khóa lẫn nhau: <code>rspout/auto</code> hễ đặt 1, họ READ nhất loạt thất bại</strong>
+ (sổ tay ghi rõ). Nó cho module tự nhả phản hồi, cái giá là họ READ chết sạch,
+ nên nút này có hộp thoại xác nhận. READ bỗng dưng sập hết, tra <code>AT+QHTTPCFG?</code> trước.
+ </div>
+
+ <h4>Lấy về theo đoạn: AT+QHTTPGETEX đọc từng byte</h4>
+ <p><code>AT+QHTTPGETEX=&lt;giây&gt;,&lt;vị trí bắt đầu&gt;,&lt;độ dài&gt;</code>
+ đi đường HTTP Range chỉ vớt đúng mảnh chỉ định, tiết kiệm lưu lượng. Đo thực tế (nội dung điểm cuối cố định là
+ <code>abcdefghijklmnop</code>): vị trí 0 lấy 8 trả <code>+QHTTPGET: 0,206,8</code>,
+ đọc ra <code>abcdefgh</code>; vị trí 8 lấy tiếp 8 đọc ra <code>ijklmnop</code>.
+ Cách đọc: <strong>mã trạng thái phải là 206</strong>; trả <strong>200 và lần nào nội dung cũng y hệt</strong>
+ = máy chủ không hỗ trợ Range, không phải module hỏng.
+ ⚠ Chỉ chạy được khi <code>requestheader=0</code>.</p>
+
+ <h4>POST: hai giai đoạn và Content-Type</h4>
+ <p>Thẻ <code>AT+QHTTPPOST</code> cũng là hai giai đoạn: bạn điền body, độ dài tự tính, gửi trước
+ <code>AT+QHTTPPOST=&lt;độ dài&gt;,&lt;giây nhập&gt;,&lt;giây phản hồi&gt;</code>,
+ chờ <code>CONNECT</code> rồi gửi body. Ba chuyện:</p>
+ <ul>
+ <li><strong><code>CONNECT</code> phải chờ tối đa tới 125 giây</strong> (sổ tay ghi rõ) ——
+ hạn chờ dấu nhắc phải đặt đủ 125 giây, đừng dùng lại 5 giây của MQTT.</li>
+ <li>Trần body 1 MB (phạm vi đo thực tế của <code>=?</code> là 1–1024000).</li>
+ <li>Content-Type đặt sẵn bằng thẻ tham số <code>contenttype</code>
+ (mã kiểu 0 = form-urlencoded).</li>
+ </ul>
+ <p>Đo thực tế: POST <code>Message=HelloQuectel</code> (20 bytes) trả
+ <code>+QHTTPPOST: 0,200,440</code>; JSON mà READ trả về kiểm chứng được cặp khóa-giá trị đã tới nơi,
+ độ dài tính đúng, Content-Type có hiệu lực, User-Agent là
+ <code>QUECTEL_MODULE</code> do module tự khai.</p>
+
+ <h4>Header tự đặt và header phản hồi</h4>
+ <ul>
+ <li><code>reqheader/add</code>: thêm một dòng header yêu cầu tự đặt (sổ tay không kèm ví dụ);
+ nút truy vấn tra được hiện đã thêm mấy dòng; <code>reqheader/remove</code> gỡ bỏ.</li>
+ <li><code>requestheader</code> đặt 1 = cả bộ header yêu cầu tự ghép lấy, đến GET cũng biến thành hai giai đoạn,
+ và <code>GETEX</code> không dùng được. Bình thường giữ 0.</li>
+ <li><code>responseheader</code> đặt 1 thì READ nhả kèm luôn header phản hồi HTTP
+ (đo thực tế đến X-Test tự đặt cũng mang về được). Thử xong đổi lại 0.</li>
+ <li><code>closed/ind</code>: bật báo URC "session bị đóng".</li>
+ </ul>
+
+ <h4>Bản tệp: POSTFILE và READFILE (UFS)</h4>
+ <p><code>AT+QHTTPPOSTFILE="tên tệp",&lt;giây&gt;</code> lấy tệp trong hệ thống tệp của module (UFS)
+ làm body gửi POST; <code>AT+QHTTPREADFILE="tên tệp",&lt;giây&gt;</code> lưu phản hồi thành
+ tệp UFS. ⚠ Công cụ này hiện <strong>chưa tải được tệp lên UFS, cũng chưa đọc lại được nội dung tệp
+ UFS</strong>, hai lệnh này để phối hợp với quy trình phía firmware.</p>
+
+ <h4>HTTPS: lối đi miễn xác thực</h4>
+ <p>HTTPS = HTTP + SSL context. Cụm Connect chuẩn bị sẵn lối ngắn nhất, năm nút bấm theo thứ tự:</p>
+ <pre>AT+QHTTPCFG="sslctxid",1 ← HTTP chỉ định dùng SSL context 1
+AT+QSSLCFG="sslversion",1,4 ← Phiên bản TLS giao cho máy chủ thương lượng
+AT+QSSLCFG="ciphersuite",1,0XFFFF ← Bộ mã hóa mở hết
+AT+QSSLCFG="seclevel",1,0 ← Không xác thực chứng chỉ (xem dưới)
+AT+QSSLCFG="sni",1,1 ← Bật SNI (xuất xưởng là 0!)</pre>
+ <p>Sau đó URL đổi sang đầu <code>https://</code> rồi GET / READ như thường ——
+ đo thực tế HTML đọc về giống từng chữ với bản rõ chữ.
+ <strong><code>seclevel=0</code> (không xác thực chứng chỉ) là lối duy nhất công cụ này đi trọn được</strong>
+ —— muốn xác thực chứng chỉ phải ghi chứng chỉ CA vào UFS trước; chi tiết SSL (<code>AT+QSSLCFG=?</code>
+ liệt kê mọi mục con, <code>negotiatetime</code> chỉnh số giây chờ bắt tay) xem mục "SSL —— kênh TLS".
+ <strong>SNI xuất xưởng là 0</strong>: không bật, trang HTTPS dùng chung IP nhận về chứng chỉ không khớp,
+ vừa xác thực là thua. <strong>Chuỗi chứng chỉ là khoản lưu lượng to đầu</strong>: một lượt HTTPS GET khoảng 8–15 KB,
+ bản rõ chữ chỉ khoảng 1 KB.</p>
+
+ <h4>Chuyển hướng và thu dọn</h4>
+ <p><strong>Chuyển hướng (sổ tay không ghi, đo thực tế làm rõ)</strong>: module tự bám theo 302, nhưng
+ <strong>chỉ ăn Location dạng đường dẫn tuyệt đối</strong> —— đường dẫn tương đối trả thẳng lỗi 711,
+ thất bại tức thì trong 1 mili giây. <strong>Thu dọn</strong>:
+ <code>AT+QHTTPSTOP</code> (cụm Close) hủy yêu cầu đang chạy và ngắt session;
+ trạng thái là lạ, hoặc hiện lỗi 704 (data mode bị chiếm) thì bấm nút này dọn sạch trước.</p>
+
+ <h4>Khắc phục sự cố</h4>
+ <table>
+ <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+ <tr><td>Không thấy URC kết quả nào</td><td><code>urcport</code> không phải <code>uart1</code>,
+ sang trang Hardware đổi</td></tr>
+ <tr><td>Mọi URL đều 716, hết giờ cố định 30 giây</td>
+ <td>PDP trôi, xem cảnh báo bên trên</td></tr>
+ <tr><td>Một URL đơn lẻ trả 716</td><td>Đo thực tế DNS thất bại cũng là 716 (không phải
+ 714 như tài liệu cũ đoán); READ tiếp theo trả 705 là dây chuyền bình thường</td></tr>
+ <tr><td><code>READ</code> / <code>GETEX</code> bỗng dưng thất bại</td>
+ <td><code>rspout/auto</code> và <code>requestheader</code>
+ đều phải là 0 (xem bên trên)</td></tr>
+ <tr><td><code>AT</code> đều không phản hồi</td>
+ <td>Module treo cứng (đo thực tế từng gặp, sổ tay không mô tả) —— chạy lại nghi thức khởi động</td></tr>
+ </table>
+
+ <h3 id="tab-ftp">FTP —— truyền tệp</h3>
+ <p><strong>Nguyên lý hoạt động:</strong> FTP có <strong>hai kênh</strong>: kênh điều khiển chạy lệnh,
+ kênh dữ liệu chạy nội dung tệp. Đăng nhập, đổi tên, xóa, tra kích thước chỉ đi kênh điều khiển;
+ LIST, tải lên, tải xuống phải <strong>mở thêm một kết nối dữ liệu riêng</strong> ——
+ quá nửa số hiện tượng kỳ quái trong mục này (615, 603 bắn liên hồi) đều từ đó mà ra.
+ Nguyên tắc chung Quectel xuyên suốt cả mục: <strong><code>OK</code> chỉ có nghĩa là "lệnh đã được nhận"</strong>,
+ kết quả thật đến sau bằng URC. Các phản hồi và con số trong mục này đều là giá trị đo thực tế trên EG800K vật lý tháng 8 năm 2026.</p>
+
+ <h4>Trước khi bắt đầu: hai tiền đề</h4>
+ <ul>
+ <li><strong>PDP phải kích hoạt trước</strong>: nút đầu tiên của trang này <code>AT+QIACT?</code> chính là làm phép kiểm này ——
+ trả ra được <code>+QIACT: 1,1,…,"IP"</code> mới đi tiếp được, chỉ trả OK thì sang trang TCP/IP bấm
+ Act PDP trước (PDP chưa kích hoạt thì QFTPOPEN chắc chắn thất bại).</li>
+ <li><strong>URC phải đi đường UART</strong>: lệnh FTP hầu như toàn kiểu "OK trước, kết quả đến sau bằng URC",
+ <code>AT+QURCCFG="urcport"</code> mà không phải <code>"uart1"</code> thì
+ ở đây chỉ thấy một đống OK (cách đặt xem trang Hardware).</li>
+ </ul>
+
+ <h4>Đường đăng nhập: thiết lập → mở → chờ URC</h4>
+ <ol>
+ <li><strong>Ràng buộc PDP context</strong>: <code>AT+QFTPCFG="contextid",1</code>
+ (xuất xưởng đã là 1, nút truy vấn đọc lại xác nhận được).</li>
+ <li><strong>Đặt tài khoản mật khẩu</strong>: <code>AT+QFTPCFG="account","tài khoản","mật khẩu"</code>,
+ <strong>phải đặt xong trước QFTPOPEN</strong>.</li>
+ <li><strong>Chế độ và kiểu</strong>: <code>transmode</code> đặt 1
+ (passive; đứng sau NAT nhất loạt dùng nó, FTPS bắt buộc);
+ <code>filetype</code> tệp văn bản thuần dùng 1, còn lại dùng 0.</li>
+ <li><strong>Đăng nhập</strong>: <code>AT+QFTPOPEN="máy chủ",21</code> trả OK ngay lập tức (chỉ là đã nhận),
+ chờ <code>+QFTPOPEN: 0,0</code> mới là đăng nhập thành công (tối đa 125 giây).
+ Bấm tiếp <code>AT+QFTPSTAT</code> phải trả 1 (rảnh; 2 = đang truyền, 3 = đang đóng).</li>
+ </ol>
+ <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK ← Chỉ có nghĩa là lệnh đã được nhận
++QFTPOPEN: 0,0 ← Dòng này mới là đăng nhập thành công</pre>
+ <p>Các mục thiết lập còn lại: <code>AT+QFTPCFG=?</code> một phím liệt kê đủ 10 mục đặt được kèm phạm vi (không tốn lưu lượng).
+ <code>rsptimeout</code> (20–180, mặc định 90 giây) là thời gian phản hồi tối đa của đa số lệnh,
+ cũng là cách quãng tối đa giữa hai gói dữ liệu trong data mode; <code>ssltype</code> / <code>sslctxid</code> dành cho
+ FTPS (FTP thuần giữ 0, tham số SSL đặt ở trang SSL);
+ <code>data_address</code> / <code>cache</code> / <code>restenable</code>
+ là tinh chỉnh cho môi trường đặc thù, công dụng xem giải thích trên từng nút và sổ tay.</p>
+ <div class="tip">
+ <strong>Che mật khẩu (đo thực tế, khác với sổ tay):</strong> truy vấn <code>AT+QFTPCFG="account"</code>
+ khi đọc lại thì mật khẩu bị che thành <code>*</code> (sổ tay nói in nguyên xi). Nhưng tài khoản vẫn là chữ rõ,
+ <strong>mật khẩu ở dòng đặt giá trị cũng là chữ rõ</strong>, chụp màn hình quay phim phải để ý dòng đặt giá trị.
+ </div>
+ <div class="warning">
+ <strong>🔴 <code>AT+QFTPCLOSE</code> là bất đồng bộ —— <code>OK</code> không có nghĩa là đã đóng xong.</strong>
+ Phải chờ <code>+QFTPCLOSE: 0,0</code> mới tính là đăng xuất hoàn tất; trong lúc đó <code>AT+QFTPSTAT</code>
+ trả 3 (đang đóng), gõ bất kỳ lệnh FTP nào <strong>đều trả <code>+CME ERROR: 603</code></strong> (máy chủ bận).
+ <br><br>
+ Triệu chứng cực kỳ dễ đánh lừa: một tràng 603 nhìn như module hỏng hoặc bị máy chủ phong tỏa,
+ thực ra chỉ là chưa đóng xong (đo thực tế hôm đó đã vì thế mà đi vòng một vòng lớn). Trần chờ = rsptimeout.
+ Ngoài ra nó chỉ đăng xuất FTP; muốn reset mạng triệt để, sang trang TCP/IP bấm Deact PDP.
+ </div>
+
+ <h4>Quản lý thư mục và tệp: dùng máy chủ như trình quản lý tệp</h4>
+ <p>Trọn bộ thao tác tệp phía máy chủ (LIST / NLST / MLSD phải mở kết nối dữ liệu, còn lại chỉ đi kênh điều khiển).
+ Phản hồi thành công luôn là <code>+QFTPXXX: 0,…</code> —— con số đầu tiên 0 chính là thành công:</p>
+ <table>
+ <tr><th>Lệnh</th><th>Làm gì</th><th>Phản hồi thành công (đo thực tế)</th></tr>
+ <tr><td><code>AT+QFTPPWD</code></td><td>Tra thư mục làm việc hiện tại</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+ <tr><td><code>AT+QFTPCWD</code></td><td>Chuyển thư mục làm việc, các thao tác sau lấy đây làm gốc</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+ <tr><td><code>AT+QFTPLIST</code></td><td>Danh sách đầy đủ nhả thẳng ra terminal (hai nút: thư mục hiện tại / thư mục chỉ định)</td><td>Sau nội dung là <code>+QFTPLIST: 0,1175</code> (số đuôi = số byte)</td></tr>
+ <tr><td><code>AT+QFTPNLST</code> / <code>AT+QFTPMLSD</code></td><td>Chỉ liệt kê tên tệp (tiết kiệm lưu lượng) / định dạng chuẩn MLSD (dễ phân tích)</td><td>Giống LIST</td></tr>
+ <tr><td><code>AT+QFTPSIZE</code></td><td>Tra kích thước tệp, không tải nội dung</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+ <tr><td><code>AT+QFTPMDTM</code></td><td>Tra thời điểm sửa tệp, không tải nội dung</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+ <tr><td><code>AT+QFTPMKDIR</code> / <code>AT+QFTPRMDIR</code></td><td>Tạo / xóa thư mục</td><td><code>…: 0,0</code></td></tr>
+ <tr><td><code>AT+QFTPRENAME</code></td><td>Đổi tên tệp hoặc thư mục</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+ <tr><td><code>AT+QFTPDEL</code></td><td>Xóa tệp</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+ </table>
+ <p>Chiêu thức (đo thực tế cả chuỗi đều qua): <strong>lấy SIZE làm phép kiểm tồn tại</strong> ——
+ đổi tên xong tra tên cũ trả <code>+QFTPSIZE: 627,550</code>, tên mới trả <code>0,20</code>;
+ xóa xong tra lại lại là <code>627,550</code>, không tải nửa byte nào mà kiểm chứng được từng bước.
+ <code>627,550</code> là <strong>mã lỗi hai tầng</strong>: 627 = tầng module "FTP không thực hiện động tác được yêu cầu",
+ 550 = tầng giao thức FTP máy chủ đáp "tệp hoặc thư mục không tồn tại", chú giải của công cụ này sẽ dịch tách tầng.</p>
+
+ <h4>Tải xuống: nội dung in thẳng ra terminal (COM:)</h4>
+ <p><code>AT+QFTPGET="tên tệp","COM:"</code> —— sau <code>CONNECT</code> nội dung tệp nhả thẳng ra terminal,
+ kết thúc bằng <code>+QFTPGET: 0,&lt;số byte&gt;</code> (đo thực tế readme.txt trả 0,379).
+ Nút <strong>tải xuống theo khối</strong> còn lại kèm thêm tham số điểm bắt đầu và độ dài, là cách tải được khuyên dùng nhất:
+ dùng SIZE tra kích thước trước, rồi lấy theo khối, tránh nguyên tệp làm nổ lưu lượng.
+ <code>AT+QFTPLEN</code> tra lần PUT / GET / LIST / NLST vừa rồi thực truyền bao nhiêu byte.</p>
+
+ <h4>Tải lên: hai giai đoạn, gửi đủ độ dài đã khai là tự kết thúc</h4>
+ <p><code>AT+QFTPPUT="tên tệp","COM:",0,&lt;độ dài&gt;,1</code> là lệnh hai giai đoạn:
+ chờ <code>CONNECT</code> (vào data mode) rồi gửi ra số byte <strong>vừa đúng</strong> bằng độ dài đã khai,
+ module đếm đủ là tự thoát data mode, không cần gửi Ctrl+Z. Công cụ này tự tính độ dài, dán nội dung vào thẻ tham số là được.</p>
+ <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT ← Vào data mode
+NuModem-P6-FTP-test\n ← Gửi đúng 20 bytes
+OK
++QFTPPUT: 0,20 ← Máy chủ nhận được 20 bytes</pre>
+ <p>20 bytes này lúc đo thực tế đã cố ý dùng Python ftplib phía máy tính kéo về so từng byte —— trùng khớp hoàn toàn.
+ <strong>Hình thức trung chuyển qua UFS</strong>: sổ tay còn hỗ trợ viết tên tệp thành <code>"UFS:xxx"</code>,
+ trung chuyển qua vùng lưu trữ cài sẵn của module, chi tiết xem application note FTPS; muốn đưa tệp từ máy tính vào UFS trước,
+ dùng nút Upload của cụm "tệp UFS" trang SSL (<code>AT+QFUPL</code>, đi đường UART không tốn lưu lượng,
+ tự đối chiếu checksum).</p>
+ <div class="warning">
+ <strong>⚠ <code>+++</code> với FTP là "chấm dứt" chứ không phải "tạm dừng".</strong>
+ Sổ tay (FTPS AN v1.5 p13) viết thoát xong có thể dùng <code>ATO</code> quay lại data mode truyền tiếp,
+ <strong>đo thực tế không đứng vững</strong> (thử hai lần kết quả như nhau): thoát xong <code>AT+QFTPSTAT</code>
+ trả 1 (rảnh) chứ không phải 2 (đang truyền), <code>ATO</code> trả <code>NO CARRIER</code> ——
+ phiên truyền đã bị chấm dứt trọn gói, không có kết nối nào để khôi phục. Vậy nên <code>+++</code> chỉ dùng được để thoát thân khỏi
+ data mode mất kiểm soát, không đem đi tạm dừng tải tệp lớn được.
+ <br><br>
+ Cách gõ đúng: <strong>trước sau đều im lặng 1 giây, gửi bằng byte thô, không thêm CR</strong> (thêm là mất tác dụng) ——
+ nút <code>+++</code> của trang này đã gửi đúng luật đó; nút <code>ATO</code> giữ lại theo ngữ nghĩa sổ tay.
+ </div>
+ <figure class="shot">
+ <img src="img/06-ftp.png" alt="Tab FTP">
+ <figcaption>Trang FTP: thiết lập đăng nhập, quản lý thư mục và tệp, tải lên tải xuống.</figcaption>
+ </figure>
+
+ <h4>Khắc phục sự cố</h4>
+ <table>
+ <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+ <tr><td><code>+CME ERROR: 603</code> bắn liên hồi</td>
+ <td>① Sau QFTPCLOSE còn đang đóng (QFTPSTAT trả 3) —— chờ <code>+QFTPCLOSE: 0,0</code>;
+ ② trước đó từng xảy ra 615 —— <strong>sau 615 mọi lệnh FTP nhất loạt 603</strong>, cho tới khi đóng lại tử tế</td></tr>
+ <tr><td><code>+CME ERROR: 615</code></td>
+ <td>Mở kết nối dữ liệu thất bại: <strong>kênh điều khiển bình thường, kênh dữ liệu chết sạch</strong>
+ (SIZE có phản hồi, PUT / GET / LIST đổ hết). Phần nhiều là vấn đề phía máy chủ ——
+ dlptest thử từ hai đường mạng khác nhau đều thất bại, rebex toàn trình không thất bại lần nào;
+ đọc thì dùng rebex, ghi mới dùng dlptest và làm xong trong một hơi</td></tr>
+ <tr><td><code>627,550</code></td>
+ <td>Tệp hoặc thư mục không tồn tại —— tên tệp hoặc đường dẫn gõ sai, QFTPPWD / QFTPLIST xác nhận mình đang ở đâu trước</td></tr>
+ <tr><td>Khởi động lại xong, PUT đầu tiên đã 615</td>
+ <td>Stack dữ liệu thoái hóa: QFTPCLOSE lẫn khởi động lại PDP đều không cứu nổi,
+ <strong>chỉ có nghi thức khởi động trọn vẹn mới phục hồi</strong>. Phép phân định: dùng
+ <code>AT+QIOPEN</code> trang TCP/IP đánh vào cùng một đích —— cũng thất bại = cả stack hỏng rồi, đừng tra thiết lập FTP nữa</td></tr>
+ <tr><td>Lệnh trả OK xong chẳng có gì xảy ra</td>
+ <td>URC kết quả chạy sang cổng USB rồi —— tra <code>AT+QURCCFG="urcport"</code>
+ có phải uart1 không</td></tr>
+ <tr><td><code>AT+QFTPOPEN</code> thất bại thẳng cẳng</td>
+ <td>PDP chưa kích hoạt —— bấm <code>AT+QIACT?</code> của trang này trước, không có IP thì sang trang TCP/IP Act PDP</td></tr>
+ </table>
+
+ </section>
+
+ <section id="method">
+ <h2><span class="icon">🧪</span> Phương pháp kiểm thử</h2>
+
+ <p>Mục này viết về "đo thế nào để không rút ra kết luận giả". Toàn bộ đều là bài học rút ra từ việc đã vấp thật.</p>
+
+ <h3>OK hầu như không bao giờ có nghĩa là đã xong</h3>
+ <p>Các module kiểu Quectel có một khuôn mẫu chung: <strong>trả <code>OK</code> trước để báo đã nhận lệnh,
+ kết quả thật đi bằng URC</strong>. Thuộc nhóm này có
+ <code>QIOPEN</code>, <code>QSSLOPEN</code>, <code>QMTOPEN</code>,
+ <code>QFTPOPEN</code>, <strong>và cái dễ bị bỏ sót nhất là <code>QFTPCLOSE</code></strong>.
+ Coi <code>OK</code> là đã xong rồi lao ngay sang thao tác kế tiếp chính là nguyên nhân khiến dự án này đi vòng oan nhiều nhất.</p>
+
+ <h3>Không có nhóm đối chứng thì đừng kết luận</h3>
+ <p>Hai ví dụ:</p>
+ <ul>
+ <li><strong>Xác thực chứng chỉ</strong>: khi chỉ thử "chứng chỉ hỏng thì không nối được", thì "cái gì cũng không nối được" cũng qua bài.
+ Phải chứng minh đồng thời rằng chứng chỉ tốt nối được.</li>
+ <li><strong>Tăng tốc AGNSS</strong>: bài 7-2 "TTFF khởi động lạnh" vốn dĩ là nhóm đối chứng của bài 7-4.
+ Trong nhà không có tín hiệu vệ tinh thì cả hai bên đều không định vị nổi, đo xong chỉ nhận được "cả hai đều thất bại".</li>
+ </ul>
+
+ <h3>Cuối mỗi vòng kiểm thử hãy chạy một lần kiểm tra sức khỏe</h3>
+ <p>Module sẽ xuống cấp. Sau khoảng 20 lần đóng mở kết nối liên tiếp,
+ nó rơi vào một trạng thái "kênh điều khiển còn sống, kênh dữ liệu chết sạch" ——
+ mà lúc đó <code>QSSLSTATE</code> thì rỗng, <code>QIACT?</code> thì có IP,
+ <code>QIGETERROR</code> trả 0, <strong>trông hoàn toàn bình thường</strong>.</p>
+ <p>Trạng thái này sẽ làm nhiễm bẩn dữ liệu kiểm thử. Trong quá trình đo thực tế đã từng xảy ra: trong giai đoạn xuống cấp, một số máy chủ ở chế độ "tắt xác thực" cũng không nối được,
+ suýt nữa bị quy thành kết quả của phép xác thực chứng chỉ. <strong>Trước khi kết thúc mỗi vòng hãy kiểm lại bằng một đích đến chắc chắn nối được</strong>,
+ dữ liệu mới đáng tin.</p>
+ <div class="tip">
+ <strong>Cách phân biệt: dùng <code>AT+QIOPEN</code> TCP thuần đánh vào cùng một đích.</strong>
+ Nếu nó cũng thất bại thì đó không phải vấn đề của tầng SSL / FTP, mà là cả ngăn xếp dữ liệu đã hỏng.
+ <br>
+ Cách khôi phục: <strong>chỉ nghi thức khởi động đầy đủ mới có tác dụng</strong>.
+ <code>QIDEACT</code> + <code>QIACT</code> không cứu nổi.
+ </div>
+
+ <h3>Thăm dò không tốn lưu lượng: <code>AT+Q...=?</code></h3>
+ <p>Dạng test (<code>=?</code>) <strong>không đụng mạng, không tốn tiền</strong>,
+ mà cái nó trả về là phạm vi tham số mà chính firmware này thực sự hỗ trợ ——
+ đáng tin hơn tài liệu ứng dụng, bởi tài liệu là dùng chung cho cả một dòng sản phẩm.
+ Dự án này chính nhờ chiêu đó mà phát hiện phạm vi tham số quét Wi-Fi không khớp với sổ tay.</p>
+
+ <h3>Muốn chứng minh "truyền đúng thật" thì phải đọc lại từ phía thứ ba</h3>
+ <p><code>+QFTPPUT: 0,20</code> chỉ là module tự khai rằng nó đã gửi 20 byte.
+ Bản đo thực tế là dùng một FTP client khác từ phía máy tính kéo tệp về rồi so từng byte ——
+ như vậy mới loại trừ được đồng thời hai khả năng "module tính sai" và "máy chủ lưu hỏng".</p>
+
+ <h3>Lưu lượng</h3>
+ <p><code>AT+QGDCNT?</code> trả về hai con số byte "đã gửi, đã nhận".
+ ⚠ <strong>Bộ đếm này không lưu vào NV, module cứ khởi động lại là về 0</strong>;
+ <code>AT+QAUGDCNT</code> không phải bộ đếm tích lũy, mà là thiết lập "khoảng thời gian tự động lưu" (0 = tắt).
+ Muốn cộng dồn xuyên các giai đoạn thì bắt buộc <strong>ghi lại ngay tại chỗ ở từng đoạn</strong>, xong xuôi rồi không bù lại được.</p>
+ <p>Con số tham khảo: bắt tay TLS đắt hơn cảm giác trực quan rất nhiều,
+ <strong>mỗi lần bắt tay đều phải tải về trọn chuỗi chứng chỉ, bắt tay thất bại vẫn phải trả tiền như thường</strong>.
+ Đo thực tế 11 lần bắt tay đã ngốn TX 15,3 KB / RX 59,6 KB.</p>
+ </section>
+
+ <section id="faq">
+ <h2><span class="icon">❓</span> Câu hỏi thường gặp</h2>
+
+ <h3>H: Bấm kết nối rồi mà trong danh sách chẳng có cổng nào</h3>
+ <p>Kiểm tra ba thứ: (1) có phải bạn mở bằng <code>file://</code> không —— Web Serial sẽ bị chặn;
+ (2) driver của USB-UART đã cài chưa; (3) trình duyệt có phải Chrome / Edge / Opera không.</p>
+
+ <h3>H: Lệnh gửi đi được, nhưng module tuyệt nhiên không phản hồi</h3>
+ <p>Chín phần là <strong>chưa chạy nghi thức khởi động</strong>. Ngay khoảnh khắc nối vào cổng serial thì RTS bị kéo lên lại,
+ mà RTS trên bo mạch này là công tắc nguồn logic âm —— tức là nối vào cũng đồng nghĩa với cắt điện.
+ Chuyển sang tab Hardware chạy một lượt Power / Reset, rồi chờ <code>RDY</code>.</p>
+ <p>Kế đến là <strong>ký tự kết thúc dòng bị đặt thành LF</strong>. EG800K chỉ ăn CR.</p>
+
+ <h3>H: Lệnh nào cũng trả OK, nhưng hoàn toàn không nhận được URC</h3>
+ <p>Gửi <code>AT+QURCCFG="urcport"</code>. Giá trị xuất xưởng là <code>usbat</code>,
+ URC bị đẩy hết ra cổng USB. Đổi thành <code>uart1</code>, lệnh này ghi NVRAM nên chỉ cần đặt một lần.</p>
+
+ <h3>H: Terminal bị treo, gõ gì cũng không phản ứng</h3>
+ <p>Đa phần là bạn đang kẹt trong <strong>data mode</strong> —— một lệnh hai giai đoạn nào đó bị tính sai độ dài,
+ module vẫn đang chờ bạn bù cho đủ số byte.
+ Dùng nút gửi byte thô ở tab Hardware để gửi <strong>ESC (0x1B)</strong> mà thoát thân.
+ Còn data mode của FTP thì phải gửi <code>+++</code> (im lặng 1 giây trước và sau, không thêm CR).</p>
+
+ <h3>H: Cứ trả về <code>+CME ERROR: 603</code> mãi</h3>
+ <p>Nếu bạn vừa gửi <code>AT+QFTPCLOSE</code>, thì đó là <strong>việc đóng chưa hoàn tất</strong>.
+ Chờ <code>+QFTPCLOSE: 0,0</code> hiện ra rồi hãy làm tiếp.</p>
+
+ <h3>H: Kết nối hỏng sạch, nhưng <code>AT+QIACT?</code> vẫn hiển thị có IP</h3>
+ <p>Ngăn xếp dữ liệu của module đã xuống cấp. Dùng <code>AT+QIOPEN</code> TCP thuần đánh vào một đích chắc chắn nối được để xác nhận ——
+ nếu nó cũng thất bại thì <strong>hãy chạy lại nghi thức khởi động đầy đủ</strong>.
+ <code>QIDEACT</code> + <code>QIACT</code> không cứu nổi.</p>
+
+ <h3>H: Gửi dữ liệu cho máy chủ echo mà không nhận được dội lại</h3>
+ <p>Kiểm tra xem cuối payload có <code>\n</code> không. Rất nhiều dịch vụ echo hoạt động <strong>theo từng dòng</strong>,
+ không có ký tự xuống dòng thì nó không gửi trả. Cứ gõ thẳng hai ký tự <code>\n</code> vào trường là được,
+ công cụ sẽ giải mã thành ký tự xuống dòng thật trước khi gửi, độ dài cũng được tính đúng theo.</p>
+
+ <h3>H: GNSS mãi không định vị ra được</h3>
+ <p>Trước hết dùng <code>AT+QGPSGNMEA="GSV"</code> xem có vệ tinh nào không.
+ Trong nhà thường không bắt được vệ tinh nào, vậy thì đó không phải vấn đề cấu hình, mà là <strong>không có tầm nhìn bầu trời</strong>.</p>
+
+ <h3>H: Đổi ngôn ngữ hay giao diện thế nào?</h3>
+ <p>Góc trên bên phải. Ngôn ngữ có 18 thứ tiếng, giao diện có hai bộ sáng tối, lựa chọn đều được ghi nhớ.
+ <strong>Mô tả và chú giải của lệnh AT cũng được dịch theo</strong>, không chỉ riêng phần giao diện.</p>
+
+ <h3>H: Công cụ này có lén dùng lưu lượng của tôi không?</h3>
+ <p>Không. Nó là một tệp HTML duy nhất chạy hoàn toàn ở phía trình duyệt, không có backend.
+ Thứ duy nhất sinh ra lưu lượng di động là <strong>chính những lệnh dữ liệu do bạn tự bấm</strong>,
+ và phần mô tả của các nút đó đều đã ghi rõ. Các lệnh truy vấn và lệnh test dạng <code>=?</code> hoàn toàn không đụng mạng.</p>
+ </section>
+
+ <footer class="footer">
+ <p>NuModem EG800 —— phát triển bởi <a href="https://github.com/Nuxtack">Nuxtack</a></p>
+ <p>Mọi mô tả hành vi trong tài liệu này đều đến từ đo thực tế trên EG800K vật lý
+ (firmware <code>EG800KCNGCR07A06M04</code>) vào tháng 8 năm 2026.</p>
+ </footer>
+ </main>
+
+ <a href="#" class="back-to-top" aria-label="Về đầu trang">↑</a>

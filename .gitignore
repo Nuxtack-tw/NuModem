@@ -1,0 +1,47 @@
+# Claude Code 本機個人設定
+.claude/settings.local.json
+
+# OS 產生的檔案
+.DS_Store
+Thumbs.db
+
+# 編輯器設定
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+
+# 瀏覽器自動化的產物（截圖、snapshot、console log）
+.playwright-mcp/
+
+# 開發過程的暫存：瀏覽器匯出的 i18n 原始快照、除錯截圖、一次性 dump
+# —— at_i18n_sources.json 本身要進版控（那是翻譯目錄的來源），只有暫存不要
+at_src_export.json
+*.json.bak
+manual-check.png
+sendvar.png
+v8out.txt
+p8_*.json
+
+# 版本快照：全域規則要求本機保留（回滾機制），但不進版控 ——
+# Git 本身就是版本歷史，53 份各約 500 KB 且幾乎全文相異的 HTML 壓不掉。
+# 回滾照舊：cp backup/NuModem_EG800_V<x.y.z>.html NuModem_EG800.html
+backup/
+
+# 移遠版權文件與驅動：2026-09-01 已移出專案到 ../_ref/，
+# 這條是防呆 —— 萬一有人把 ref/ 複製回來也不會誤傳
+ref/
+*.zip
+
+# 開發筆記不發佈（2026-09-01 user 裁示）——
+# MEMORY.md 是 45 KB 的專案現況、.claude/ 含開發日誌與技能檔，
+# 都是內部工作記錄，且會連帶洩漏本機目錄結構（E:/DevTmp/...）。
+# ⚠ 這些檔案仍留在本機且必須繼續維護，只是不進版控
+MEMORY.md
+.claude/
+# CLAUDE.md 同批排除：它的「技能檔索引」與「開始任務前」兩節共 7 處指向
+# .claude/ 與 MEMORY.md，那些檔不發佈，留著它只會得到一堆死連結；
+# 內文另有一處母專案的本機路徑
+CLAUDE.md

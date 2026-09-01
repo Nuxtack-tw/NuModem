@@ -1,0 +1,148 @@
+<h3 id="tab-tcpip">TCP/IP —— veri bağlantısının kökü</h3>
+            <p><strong>Çalışma prensibi:</strong> Bu sayfa tüm veri protokollerinin temelidir. <strong>PDP context
+            (mobil şebekenin tahsis ettiği veri kanalı) yalnızca bu sayfada etkinleştirilir ve kapatılır</strong>; SSL / HTTP / MQTT / FTP
+            sayfalarında yalnızca salt okunur sorgular vardır, böylece aynı komut iki yerden birbirini ezmez.
+            Bu bölümdeki tuzaklar ve süreler, Ağustos 2026'da gerçek cihazda ölçülmüştür.</p>
+            <figure class="shot">
+                <img src="img/03-tcpip.png" alt="TCP/IP sekmesi">
+                <figcaption>TCP/IP sayfası: PDP, socket alışverişi ve tanılama araçları.</figcaption>
+            </figure>
+
+            <h4>İlk adım: PDP'yi etkinleştirin (QICSGP / QIACT / QIDEACT)</h4>
+            <p><strong>Act PDP</strong>'ye basın (<code>AT+QIACT=1</code>): en fazla 150 saniye bloke eder;
+            bu sırada başka komut göndermeyin; bu andan itibaren trafik üretilir (dolaşımda ücrete dikkat). Başarıdan sonra <strong>mutlaka
+            Query IP</strong>'ye basıp (<code>AT+QIACT?</code>) yanıtın <code>+QIACT: 1,1,1,"IP adresi"</code> olduğunu doğrulayın
+            —— etkinleştirilmeden önce yalnızca OK döner. Kapatmak için <strong>Deact PDP</strong>'ye basın (<code>AT+QIDEACT=1</code>,
+            en fazla 40 saniye); altındaki tüm bağlantıları zorla kapatır. <strong>Set APN</strong>'e
+            (<code>AT+QICSGP</code>) normalde basmak gerekmez —— modül şebekenin verdiği APN'i kendiliğinden eşitler
+            (ölçümde 1NCE kartı açılışta zaten <code>iot.1nce.net</code> okundu); yalnızca kullanıcı adı/parola isteyen kurumsal APN'lerde gerekir.</p>
+            <div class="warning">
+                <strong>Act PDP ERROR döndü, Last Error 572 mi? Bu kart yalnızca tek PDP'ye izin veriyor.</strong>
+                Açılışta şebeke zaten bir tanesini kendiliğinden etkinleştirmiştir ve <strong>numarası oynaktır</strong> (ölçümde 9 da 1 de görüldü);
+                <code>AT+QIACT</code> yalnızca 1–8'e dokunabilir. Çözüm: Network sayfasında <code>AT+CGACT?</code> ile
+                numarayı bulun → <code>AT+CGACT=0,&lt;numara&gt;</code> ile kontenjanı boşaltın → sonra Act PDP'ye basın.
+                <br><br>
+                <strong>Testin ortasında her şey mi çöktü? <code>AT+QIACT?</code> yalan söyler</strong> —— PDP kaydığında
+                yine de IP döndürür; ancak <code>AT+CGACT?</code> ile çapraz karşılaştırınca görünür. Toparlanma:
+                Deact PDP → <code>AT+CGACT=0,&lt;kayılan numara&gt;</code> → Act PDP → Ping ile doğrulayın.
+            </div>
+
+            <h4>Bağlantı açma: OK yalnızca "komut alındı" demektir</h4>
+            <p><strong>Open TCP</strong>'ye basın, parametre kartına sunucu ile portu yazın
+            (<code>AT+QIOPEN=1,0,"TCP","sunucu",port,0,0</code>; context 1, connectID 0 ve
+            buffer modu sabitlenmiştir). <strong>OK yalnızca komutun alındığını gösterir</strong>; sonuç URC'den okunur:
+            <code>+QIOPEN: 0,&lt;err&gt;</code> —— 0 = başarı, en fazla 150 saniye;
+            <strong>563 = connectID hâlâ açık</strong>, önce Close Sock'a basın.
+            <strong>All Socks</strong> (<code>AT+QISTATE</code>) tüm socket'leri listeler;
+            state 2 = bağlı.</p>
+
+            <h4>Veri gönderme: üç yol</h4>
+            <table>
+                <tr><th>Düğme</th><th>Açıklama</th></tr>
+                <tr><td><strong>Send Text</strong><br><code>AT+QISEND=0,&lt;len&gt;</code></td>
+                    <td>Sabit uzunluklu iki aşamalı: <code>&gt;</code> beklenir, sonra gövde gönderilir; uzunluk kendiliğinden hesaplanır,
+                        <strong>Ctrl+Z gerekmez</strong>. Düz metin için ilk tercih; üst sınır 1460 bytes,
+                        <code>\n \r \t \xHH</code> kaçışları desteklenir</td></tr>
+                <tr><td><strong>Send Var üçlü düğme</strong><br><code>AT+QISEND=0</code></td>
+                    <td>Değişken uzunluklu: veri moduna girer ve almaya devam eder; Ctrl+Z (0x1A) görünce gönderir ——
+                        parça parça yazılabilir, bir sonraki paragrafa bakın</td></tr>
+                <tr><td><strong>Send Hex</strong><br><code>AT+QISENDEX=0,"hex"</code></td>
+                    <td>Tek satırlık, veri moduna girmez. Her baytı gönderebilir (0x00 dahil);
+                        hex üst sınırı 512 karakter = gerçekte 256 bytes</td></tr>
+            </table>
+            <p><strong>Gönder (sürdür)</strong>: ilk basış veri moduna girer, sonraki her basış bir parça ekler
+            (zaten veri modundayken komut yeniden gönderilmez; gönderilirse veri sayılır); <strong>gönderince kendiliğinden bitir</strong>
+            parçayı ekleyip Ctrl+Z'yi tamamlar, tek parça gönderirken en hızlısıdır; <strong>bitir (Ctrl+Z)</strong> birikmiş içeriği
+            tek seferde gönderir. Veri modundayken terminal bunu işaretler; vazgeçmek için
+            <strong>ESC Cancel</strong>'a basın (0x1B, iki aşamalı komut takıldığında kaçış tuşu).
+            ⚠ Veri 0x1A içeremez (erken bitirme sayılır); denetim karakterleri için Send Hex kullanın.</p>
+            <div class="tip">
+                <strong>SEND OK karşı tarafın aldığı anlamına gelmez</strong>; yalnızca verinin modüle teslim edildiğini gösterir.
+                <strong>Check ACK</strong>'e basıp (<code>AT+QISEND=0,0</code>) gönderilen / ACK'lenen miktara bakın;
+                <strong>ancak acked sayılır</strong>.
+            </div>
+
+            <h4>Veri alma: kendiliğinden görünmez, Read Data'ya basılır</h4>
+            <p>Buffer modunda gelen veri terminalde <strong>kendiliğinden görünmez</strong>: modül yalnızca
+            <code>+QIURC: "recv",0</code> bildirimi gönderir; <strong>Read Data</strong>'ya basıp
+            (<code>AT+QIRD=0,1500</code>) veriyi çekmek ve <strong><code>+QIRD: 0</code> dönene kadar
+            tekrar tekrar okumak</strong> gerekir —— tamamen boşaltılmazsa bir sonraki bildirim gelmez.
+            <strong>Unread Len</strong> (<code>AT+QIRD=0,0</code>) toplam alınan / okunan / okunmamış miktarı sorgular.
+            Alışveriş bitince <strong>Close Sock</strong>'a basın (<code>AT+QICLOSE=0</code>, en fazla 10 saniye).
+            ⚠ <strong>recv bildirimi hiç mi gelmiyor?</strong> Hardware sayfasında
+            <code>AT+QURCCFG="urcport"</code> yanıtının <code>uart1</code> olup olmadığına bakın ——
+            fabrika değeri USB portudur, URC'lerin hepsi oraya gider.</p>
+
+            <h4>Yerleşik karşı uç tcpbin.com'un iki huyu</h4>
+            <p>Open TCP'nin varsayılan karşı ucu ücretsiz echo sunucusu <code>tcpbin.com:4242</code>'dir;
+            ölçümle görülen iki huyu:</p>
+            <ul>
+                <li><strong>Satır satır echo, sonda satır sonu (0A) ister</strong>: 0A'sız Hello gönderilince 6 saniye
+                    yanıt gelmedi; 0A eklenince 0.1 saniyede geldi. Send Text sonuna <code>\n</code>,
+                    Send Hex sonuna <code>0A</code> ekleyin.</li>
+                <li><strong>15 saniye boşta kalma zaman aşımı</strong>: boşta kalınca bağlantı kesilir ve
+                    <code>+QIURC: "closed",0</code> alınır. Bunun QIRD ile ilgisi yoktur (o yalnızca yerel tamponu okur,
+                    ağa çıkmaz). Bağlantıyı yaşatmak için her 10 saniyede bir veri gönderin. closed alındıktan sonra socket closing durumunda kalır;
+                    yeniden kullanmadan önce <strong>mutlaka Close Sock'a basın</strong>, yoksa QIOPEN 563 döndürür.</li>
+            </ul>
+
+            <h4>Tanılama üçlüsü: Ping / DNS Lookup / NTP Sync</h4>
+            <table>
+                <tr><th>Düğme (hepsi önce Act PDP ister)</th><th>Davranış ve ölçüm</th></tr>
+                <tr><td><strong>Ping</strong><br><code>AT+QPING</code></td>
+                    <td>timeout 4 saniye ×4 sabittir. Ölçümde 8.8.8.8 tümüyle geçti, RTT 160–270 ms.
+                        ⚠ Birçok sunucu ICMP'yi engeller; <strong>ping geçmemesi TCP'nin bağlanamayacağı anlamına gelmez</strong>;
+                        bağlanabilirliği doğrudan Open TCP ile deneyin</td></tr>
+                <tr><td><strong>DNS Lookup</strong><br><code>AT+QIDNSGIP</code></td>
+                    <td>Sonuç URC olarak <code>+QIURC: "dnsgip"</code> ile bildirilir (en fazla 60 saniye);
+                        ölçümde iki parça hâlinde ve birden çok IP içeriyordu</td></tr>
+                <tr><td><strong>NTP Sync</strong><br><code>AT+QNTP</code></td>
+                    <td>En fazla 125 saniye, port 123 sabittir; sonucu URC <code>+QNTP</code>'den okuyun.
+                        ⚠ <strong>Saat UTC'dir ama yerel saat dilimi etiketi taşır</strong> (+32 çeyrek = GMT+8; ölçümde fark tam
+                        8 saatti); yerel saat için <code>AT+CCLK?</code> kullanın</td></tr>
+            </table>
+
+            <h4>Hata çıktı: önce Last Error, sonra 30 saniyelik ayırt etme</h4>
+            <p>Komut ERROR dönünce <strong>hemen</strong> <strong>Last Error</strong>'a basın
+            (<code>AT+QIGETERROR</code>) —— yalnızca son hatayı tutar; bir sonraki hata üzerine yazınca artık okunamaz.
+            Quectel yığın katmanını sorgular; ağ katmanı için Network sayfasındaki <code>AT+CEER</code> kullanılır.</p>
+            <div class="warning">
+                <strong>🔴 Veri yığını dejenerasyonu —— en çok zaman yakan çukur.</strong> Belirti: tüm bağlantılar istisnasız
+                başarısız, ama öz denetimlerin hepsi "sorun yok" diyor (QIACT? IP veriyor, QIGETERROR 0 dönüyor). Ölçümde SSL'i art arda
+                yaklaşık 20 kez açıp kapatınca tetiklendi; düz TCP'nin QIOPEN'ı bile 552 döndürdü; QIDEACT + QIACT kurtaramadı,
+                <strong>yalnızca açılış prosedürünü yeniden çalıştırmak düzeltir</strong>.<br><br>
+                <strong>30 saniyelik ayırt etme yöntemi</strong>: aynı hedefe Open TCP ile vurun —— o da başarısızsa = yığının tamamı
+                bozuk, açılış prosedürünü yeniden çalıştırın; başarılıysa = sorun üst katman protokolünde, aramaya devam edin.
+            </div>
+
+            <h4>Keepalive: operatör NAT'ına dayanır, tcpbin'e dayanmaz</h4>
+            <p><strong>QICFG=?</strong> alt maddeleri ve aralıkları listeler, <strong>Keepalive?</strong> güncel değeri sorgular,
+            <strong>Keepalive On / Off</strong> açar kapar —— bu dört komutun <strong>kendisi</strong> sıfır trafiktir;
+            etkinleştirildikten sonra boşta bekleyen bir socket olduğu sürece sondaj paketleri mobil trafiğe yazılır.
+            <strong>tcpbin'in 15 saniyelik zaman aşımını engelleyemez</strong>: ölçümde açıkken bile bağlantı 15.1 saniyede kapandı ——
+            keepalive TCP katmanının boş sondajıdır, uygulama onu görmez; üstelik interval'in en küçüğü 25 saniyedir,
+            zaten 15'ten büyüktür. Uygulama katmanı zaman aşımına dayanmanın tek yolu gerçek veri göndermektir (örn. her 10 saniyede Send Hex ile
+            <code>0A</code>). Gerçek kullanım alanı <strong>operatör NAT'ını canlı tutmaktır</strong>
+            (IoT kartlarında NAT birkaç dakika boşta kalınca geri alınır).</p>
+            <p>Trafik hesabı (<strong>tahmindir, ölçüm değil</strong>): bir sondaj gidiş-dönüşü yaklaşık 80 bytes;
+            varsayılan idle = 30 saniye kesintisiz boşta kalış → saatte yaklaşık 9.4 KB, günde yaklaşık 225 KB,
+            <strong>ayda yaklaşık 6.8 MB</strong>; idle = 600 saniye → günde yaklaşık 11 KB.
+            1NCE gibi toplam kotalı ön ödemeli kartlarda idle büyütülmelidir. Açık socket yoksa hiç trafik harcanmaz.</p>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td><code>+QIOPEN: 0,563</code></td>
+                    <td>connectID hâlâ açık —— önce Close Sock</td></tr>
+                <tr><td><code>+QIURC: "recv"</code> alınamıyor</td>
+                    <td>① urcport uart1 değil (Hardware sayfası)
+                        ② <code>+QIRD: 0</code> görünene kadar okunmamış, bildirim bastırılıyor</td></tr>
+                <tr><td>Aniden <code>+QIURC: "closed",0</code> beliriyor</td>
+                    <td>tcpbin'in 15 saniyelik boşta kalma zaman aşımı; Close Sock'tan sonra yeniden açılabilir</td></tr>
+                <tr><td>İki aşamalı komut takıldı, AT portu yanıt vermiyor</td>
+                    <td>ESC Cancel ile kaçın; olmazsa Hardware sayfasından Reset</td></tr>
+                <tr><td>Tüm bağlantılar başarısız ama öz denetimler yemyeşil</td>
+                    <td>Veri yığını dejenerasyonu —— ayırt etme testinden sonra açılış prosedürünü yeniden çalıştırın</td></tr>
+                <tr><td>Act PDP ERROR dönüyor ya da testin ortasında her şey çöküyor</td>
+                    <td>Tek PDP kontenjanı kapılmış / PDP kayması —— "İlk adım" bölümündeki iki ayıklama kutusuna bakın</td></tr>
+            </table>

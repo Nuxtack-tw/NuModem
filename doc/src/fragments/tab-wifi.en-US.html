@@ -1,0 +1,148 @@
+<h3 id="tab-wifi">WiFiScan — Wi-Fi scanning and network positioning</h3>
+            <p><strong>Working principle:</strong> the EG800K is an LTE module with <strong>no Wi-Fi connectivity</strong>,
+            but it carries a built-in "scan-only, never-connect" Wi-Fi receiver: it passively receives the beacon frames
+            broadcast by nearby 2.4GHz hotspots and reports each hotspot's MAC address (BSSID), RSSI (signal strength) and channel.
+            Scanning is pure RF reception at <strong>zero data cost</strong>; by itself it produces no coordinates —
+            you must send the MAC + RSSI list to a cloud hotspot-location database to trade it for latitude and longitude;
+            that is network positioning, <strong>usable indoors, no satellites needed</strong>.
+            Every number and behavior in this section was measured on a physical EG800K in August 2026.</p>
+
+            <h4>The two button groups on this page</h4>
+            <p>The upper half is <strong>Wi-Fi Scan</strong>, four buttons (pure scanning); the lower half is
+            <strong>QuecLocator (QLBS)</strong>, thirteen buttons (read the reality-check section further down before clicking):</p>
+            <table>
+                <tr><th>Button</th><th>Command</th><th>Effect and measured highlights</th></tr>
+                <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>Queries the parameter ranges. This unit actually returns
+                        <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+                <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+                    <td>Reads the current parameters. Factory on this unit: <code>12000,1,5,5,0</code> =
+                        12-second limit, 1 round, hotspot cap 5, RRC timeout 5 seconds, priority 0</td></tr>
+                <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+                    <td>Scans once with the current parameters. Results are reported <strong>asynchronously</strong> after the <code>OK</code>,
+                        waiting up to 13 seconds</td></tr>
+                <tr><td>Scan (custom)</td><td>Parameter card</td>
+                    <td>Scan after customizing time limit (ms) / rounds / hotspot cap / RRC timeout / priority</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="WiFiScan tab and QuecLocator group">
+                <figcaption>The WiFiScan page: the four scan buttons and the QuecLocator (QLBS) group.</figcaption>
+            </figure>
+
+            <h4>Your first scan: how to click, what you will see</h4>
+            <ol>
+                <li><strong>Run the power-up ritual</strong> (see the Power-Up Ritual section).</li>
+                <li><strong>Confirm URCs go to the UART</strong>: <code>AT+QURCCFG="urcport"</code> must return
+                    <code>"uart1"</code>. The factory value is <code>"usbat"</code> —
+                    all scan results get sent to the USB port, and here you see only <code>OK</code>,
+                    not even a TIMEOUT (the setting is written to NVRAM; change it once).</li>
+                <li><strong>Click <code>Scan</code></strong>: the module replies <code>OK</code> first,
+                    which means "scan started" — <strong>not the result</strong>. Within seconds (up to the scan time limit)
+                    the results are reported one line at a time, each auto-annotated (MAC / RSSI / channel).</li>
+            </ol>
+
+            <h4>Reading the scan results</h4>
+            <p>A measured report looks like this (2026-08-29, 7 hotspots found, RSSI -37 to -89 dBm):</p>
+            <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+            <p>The field order is <code>(ecn, ssid, rssi, mac, channel)</code>.
+            <strong>This unit's firmware always returns <code>-</code> for ecn and ssid</strong> (measured 2026-08-02),
+            so the list never shows "whose Wi-Fi this is" —
+            which happens to be enough for positioning: the databases eat MAC + RSSI anyway.
+            RSSI intuition: -30 to -50 very close, -60 to -75 average, below -80 very weak.</p>
+            <p>When no hotspot is found within the time limit it returns <code>+QWIFISCAN:TIMEOUT</code> —
+            <strong>a normal ending, not an error</strong> (no space after the colon; this tool's parser handles it).
+            To catch more: use the parameter card to raise the hotspot cap from the factory 5 (this unit's ceiling is 10)
+            and the rounds to 2-3 (measured: results are deduplicated across rounds).</p>
+            <div class="warning">
+                <strong>Not every hotspot you catch can be used for positioning.</strong> Measured 2026-08-29: of 7 hotspots,
+                4 were "locally administered addresses" (starting <code>C2:</code> / <code>62:</code> / <code>9E:</code>,
+                with the 0x02 bit of the first byte set to 1 — virtual BSSIDs of multi-SSID clones);
+                <strong>positioning databases usually ignore such addresses outright</strong>, leaving only the 3 global addresses as usable material.
+            </div>
+            <div class="warning">
+                <strong>Application note V1.2's parameter ranges are wrong for this unit.</strong>
+                The note widens rounds to 1-6 and the hotspot cap to 4-30, but this unit's firmware still actually returns
+                <strong>rounds 1-3, hotspot cap 4-10</strong> (measured 2026-08-06).
+                Trust what <code>Support?</code> actually returns; do not copy the note's numbers.
+            </div>
+
+            <h4>The QuecLocator (QLBS) button group: read the truth before clicking</h4>
+            <p>QuecLocator is Quectel's cloud positioning service: one <code>AT+QLBS</code> command (the <code>Locate</code>
+            button) and the firmware gathers the material itself, sends it to the server for the lookup, and returns coordinates. Three realities:</p>
+            <ol>
+                <li><strong>It needs a token, and it is a paid service.</strong> The official document explicitly says to contact Quectel
+                    technical support to apply (no self-service signup). This unit's token is empty from the factory.</li>
+                <li><strong>Not one of the 16 official EG800K documents mentions QuecLocator.</strong>
+                    The application note on hand is for EC200U / EG915U (syntax and error codes match by testing) —
+                    it is not this unit's official document.</li>
+                <li><strong>This project has ruled it out</strong> (2026-08-29): the positioning logic is locked inside the firmware —
+                    once the service folds, the whole AT command goes dead and the vendor cannot be swapped
+                    (the Quectel forum has confirmed the BG95 series lost support).
+                    The buttons remain only for "if a free token ever turns up, verify in passing".</li>
+            </ol>
+            <div class="warning">
+                <strong><code>+QLBS: 702</code> is "server timeout", not a token problem.</strong>
+                This project misread 702 as "no token" for three whole weeks — the truth was that the PDP had not been activated first,
+                so the module could not reach the server at all and returned 702 after the full timeout (factory 60 seconds).
+                Controlled experiment 2026-08-29 (token empty throughout):
+                PDP inactive returns <code>702</code>; once active it returns <code>10002</code> (token does not exist) —
+                <strong>the server is reachable from Taiwan; the only thing missing is the token</strong>.
+                Always run <code>AT+QIACT=1</code> before <code>AT+QLBS</code> (it consumes data).
+            </div>
+            <p>All seven configuration sub-items have query / set buttons, and <code>Cfg?</code> (<code>AT+QLBSCFG=?</code>)
+            lists every range in one click (zero data cost). Factory values on this unit and measured highlights:</p>
+            <table>
+                <tr><th>Sub-item (buttons)</th><th>Factory value</th><th>Measured highlights</th></tr>
+                <tr><td><code>token</code> (Set Token / Token?)</td><td>empty</td>
+                    <td>Reads back always masked as <code>*</code>; the setting path was verified to work</td></tr>
+                <tr><td><code>server</code> (Server? / Set Server)</td>
+                    <td><code>www.queclocator.com:80</code></td><td>The positioning server address</td></tr>
+                <tr><td><code>timeout</code> (Timeout? / Set Timeout)</td><td>60 seconds</td>
+                    <td>The very timeout that 702 waits out; range 10-120</td></tr>
+                <tr><td><code>asynch</code> (Async? / Set Async)</td><td>0</td>
+                    <td>Synchronous / asynchronous switch</td></tr>
+                <tr><td><code>latorder</code> (LatOrder?)</td><td>0</td>
+                    <td>Latitude/longitude output order. ⚠ Set with the lowercase key, but it reads back camel-cased as <code>latOrder</code></td></tr>
+                <tr><td><code>withtime</code> (WithTime?)</td><td>0</td>
+                    <td>Whether the response carries a time; reads back as <code>withTime</code></td></tr>
+                <tr><td><code>timeupdate</code> (TimeUpd?)</td><td>0</td>
+                    <td>Whether the fix result corrects the module clock; reads back as <code>timeUpdate</code></td></tr>
+            </table>
+            <p>If you actually get a token: fill it in with <code>Set Token</code> → confirm with <code>Token?</code>
+            (shown as <code>*</code>) → activate the PDP on the TCP/IP page → <code>Locate</code>.</p>
+
+            <h4>The alternative route: token-free network positioning (71 meters measured)</h4>
+            <p>Network positioning does not have to go through QuecLocator. The alternative route was proven end to end on 2026-08-29:
+            the module only produces the material (scan hotspots on this page, read the serving cell with <code>AT+QENG="servingcell"</code>),
+            you save the terminal output to a file and hand it to <code>tools/wifi_geolocate.py</code>, which queries public databases on the PC —
+            <strong>zero data cost on the module, no Quectel service</strong>.
+            Measured (against the same day's GNSS ground truth): cell-tower lookup via Unwired Labs (free signup) was off by
+            <strong>71 meters</strong> (the closing conclusion of this positioning thread); via beaconDB (no key needed), 632 meters;
+            Wi-Fi lookup is stuck on the supplier side — the free ecosystem has collapsed (beaconDB has no coverage in this area,
+            Unwired Labs' free plan excludes Wi-Fi, Google / HERE require a credit card) — shelved.</p>
+            <div class="tip">
+                <strong>71 meters is a "lookup hit", not "measurement accuracy".</strong>
+                Cell-tower positioning looks up the registered coordinates of that tower by Cell ID, so the same cell always returns the same point —
+                switch towers and the error can jump to kilometer scale; the service's own reported ±1051 meters is the honest estimate.
+                Also, Cell ID and TAC are <strong>hexadecimal</strong> and must be converted to decimal before the lookup
+                (the tool handles this automatically).
+            </div>
+
+            <h4>Troubleshooting</h4>
+            <table>
+                <tr><th>Symptom</th><th>Cause and fix</th></tr>
+                <tr><td>Clicking <code>Scan</code> only returns <code>OK</code>; results never appear</td>
+                    <td>URCs are going to the USB port — query with <code>AT+QURCCFG="urcport"</code>;
+                        if it is not <code>"uart1"</code>, change it (written to NVRAM)</td></tr>
+                <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+                    <td>No hotspot found within the time limit; a normal ending, not an error. Move location or extend the limit</td></tr>
+                <tr><td><code>+QLBS: 702</code></td>
+                    <td>Server timeout — almost always a forgotten <code>AT+QIACT=1</code>, not a token problem</td></tr>
+                <tr><td><code>+QLBS: 10002</code></td>
+                    <td>The token does not exist — it must be bought from Quectel; this project has ruled it out,
+                        take the alternative route above</td></tr>
+                <tr><td>Wanting to use <code>AT+QCELLLOC</code></td>
+                    <td><strong>Not supported</strong> on this unit (returns ERROR) — that is an EC2x-series command</td></tr>
+            </table>

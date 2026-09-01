@@ -1,0 +1,159 @@
+<h3 id="tab-basic">Basic —— SIM, diagnostica e stato di base</h3>
+            <p><strong>Principio di funzionamento:</strong> questa pagina è il punto di partenza dopo ogni connessione. Finito il rituale di accensione,
+            quando nel terminale compare <code>RDY</code>, vieni qui a fare tre cose: portare i messaggi di errore in un formato comprensibile,
+            verificare che la SIM sia pronta e riconoscere di chi è la carta. Tranne <code>AT&amp;F</code> e lo sblocco PIN/PUK,
+            l'intera pagina è fatta di interrogazioni in sola lettura —— premerle non cambia lo stato del modulo;
+            i comandi che toccano lo stato della connessione sono concentrati nelle altre schede (Network, TCP/IP, ecc.).
+            Tutti i campioni di questa sezione sono valori misurati ad agosto 2026 su un EG800K reale
+            (firmware EG800KCNGCR07A06M04).</p>
+
+            <h4>Dopo l'accensione: RDY non significa SIM pronta</h4>
+            <p><code>RDY</code> è l'URC che il modulo emette spontaneamente quando ha finito di avviarsi.
+            Significa solo che l'interfaccia AT è viva: <strong>la SIM sta ancora inizializzandosi con calma alle sue spalle</strong>.
+            Misurato: inviando comandi SIM appena compare <code>RDY</code>, si ottiene
+            <code>+CME ERROR: 14</code> (SIM busy) o perfino <code>+CME ERROR: 13</code> (SIM failure);
+            <strong>attendendo circa 6 secondi</strong> e riprovando, tutto torna normale.</p>
+            <div class="warning">
+                <strong>Negli script di automazione non usare RDY come segnale di "si può cominciare".</strong>
+                Le strade corrette sono due: dopo RDY lasciare sempre un margine di circa 6 secondi;
+                oppure interrogare ciclicamente <code>AT+QINISTAT</code> e proseguire solo quando si accende il bit 1 (CPIN pronto).
+            </div>
+
+            <h4>Echo (ATE): "eco del modulo" ed "eco locale del terminale" sono due cose diverse</h4>
+            <p>L'echo è il <strong>modulo</strong> che ti rimanda indietro tali e quali i caratteri che gli hai inviato (<code>ATE1</code> attivo,
+            <code>ATE0</code> spento); l'eco locale del terminale è invece lo <strong>strumento</strong> che stampa da sé sullo schermo
+            ciò che digiti. I due interruttori sono indipendenti: se sono attivi entrambi, ogni carattere compare due volte.</p>
+            <ul>
+                <li>Il <strong>pulsante di commutazione dell'echo</strong> di questa pagina commuta l'echo del modulo con un solo tasto.
+                    All'accensione il valore predefinito è <strong>attivo</strong> (lo conferma il parametro AT <code>E:1</code> misurato).</li>
+                <li>Lo stato mostrato sul pulsante non è ricordato alla cieca: lo strumento <strong>si autocorregge in base alle risposte reali</strong>
+                    (se riceve la riga di eco, considera l'echo attivo); se digiti a mano <code>ATE0</code>/<code>ATE1</code>/
+                    <code>AT&amp;F</code> nella riga di comando, lo stato del pulsante si sincronizza e non si scolla.</li>
+                <li>La commutazione vale solo per la sessione: al riavvio il modulo torna al predefinito. Per scriverla nei predefiniti di accensione
+                    serve un <code>AT&amp;W</code> a parte (questa pagina non ha quel pulsante: se ti serve, digitalo nella riga di comando).</li>
+            </ul>
+
+            <h4>Rendere comprensibili i messaggi di errore (CMEE)</h4>
+            <table>
+                <tr><th>Pulsante</th><th>Effetto</th></tr>
+                <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+                    <td>I codici di errore diventano descrizioni testuali. Esempio: a GNSS senza fix, la modalità numerica risponde
+                        <code>+CME ERROR: 516</code>, quella testuale
+                        <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> —— con la seconda capisci cosa succede senza consultare tabelle.
+                        <strong>Questo strumento consiglia caldamente di premerlo subito dopo il rituale di accensione</strong></td></tr>
+                <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+                    <td>I codici di errore restano numerici —— lo strumento consulta da sé la tabella e affianca al numero una nota leggibile</td></tr>
+            </table>
+            <div class="tip">
+                Entrambe le impostazioni sono <strong>solo per la sessione</strong>: al riavvio del modem spariscono
+                (e ricaricare la pagina = RTS che toglie corrente = riavvio, quindi conta anche quello). Altra scoperta misurata: perfino con
+                <code>CMEE=2</code> attivo, alcuni sottosistemi (come gli errori FILE del file system) mescolano ancora testo e numeri:
+                se scrivi un parser, preparati a ricevere entrambe le forme.
+            </div>
+
+            <h4>AT&amp;F: ritorno ai valori di fabbrica —— cosa tocca</h4>
+            <p>Il pulsante <strong>Factory Reset</strong> riporta le impostazioni AT ai valori di fabbrica:
+            è il primo passo quando erediti un modulo configurato a casaccio. È l'unico pulsante di questa pagina che prima chiede conferma.
+            Ambito d'effetto confermato sul campo: <strong>riporta l'echo su attivo</strong>
+            (lo stato del pulsante di commutazione dell'echo si aggiorna da solo) e <strong>non tocca il baud rate</strong>;
+            per sapere se le altre impostazioni vengono ripristinate, verifica voce per voce la scheda <code>AT&amp;F</code> del manuale.</p>
+
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Scheda Basic">
+                <figcaption>I tre gruppi di pulsanti della pagina Basic: Echo (eco e formato degli errori),
+                SIM (interrogazioni e sblocco PIN/PUK), Status (orologio, tensione, ora di rete).</figcaption>
+            </figure>
+
+            <h4>La tripla interrogazione della SIM: c'è, aspetta un codice, a che punto è l'inizializzazione</h4>
+            <table>
+                <tr><th>Pulsante</th><th>Domanda posta</th><th>Come leggerlo</th></tr>
+                <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+                    <td>La carta è inserita bene?</td>
+                    <td>La risposta ha due campi: il primo è l'interruttore degli URC di inserimento/estrazione,
+                        <strong>solo il secondo è lo stato della carta</strong>: non confonderli.
+                        Su questa unità il pulsante ha precedenti di falsi allarmi, vedi l'avvertenza sotto</td></tr>
+                <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+                    <td>La carta sta aspettando un codice?</td>
+                    <td><code>+CPIN: READY</code> = "in questo momento non sta aspettando alcun codice".
+                        ⚠ <strong>Non significa che la carta non richieda il PIN</strong> —— anche una carta con PIN, una volta sbloccata, risponde READY.
+                        Senza carta risponde <code>+CME ERROR: 10</code></td></tr>
+                <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+                    <td>Avanzamento dell'inizializzazione</td>
+                    <td>Maschera di bit: 1 = CPIN pronto, 2 = SMS, 4 = rubrica, 7 = tutto completato.
+                        Misurato su questa unità, ad avvio stabilizzato si legge <strong>3</strong> (bit della rubrica non impostato) ——
+                        per decidere "si può cominciare" basta il bit 1, <strong>non aspettare il 7 a oltranza</strong></td></tr>
+            </table>
+            <div class="warning">
+                <strong>Su questa unità Card In? mente.</strong> Misurato: <code>AT+QSIMSTAT?</code> risponde
+                <code>0,0</code> (carta rimossa), ma nello stesso istante CPIN è READY, la rete è agganciata e l'IP è stato ottenuto ——
+                la carta sta benissimo. L'ipotesi è che la scheda di controllo non colleghi il pin di rilevamento SIM_DET
+                (o che <code>AT+QSIMDET</code> non sia abilitato), per cui la lettura resta fissa su "non inserita".
+                <strong>Per stabilire se la carta c'è, fai fede a <code>AT+CPIN?</code> o
+                <code>AT+QINISTAT</code>.</strong>
+            </div>
+
+            <h4>Di chi è questa carta: IMSI e ICCID</h4>
+            <p>Il pulsante <strong>IMSI</strong> (<code>AT+CIMI</code>) risponde con una fila di cifre nude:
+            è l'identificativo dell'utente di questa carta sulla rete mobile. Misurato su questa unità: <code>901405117661468</code>.
+            Le prime tre cifre (MCC) sono <strong>901 = intervallo delle carte in roaming internazionale</strong> ——
+            questa è una carta IoT di 1NCE, il che spiega anche perché <code>AT+CEREG?</code>
+            risponda sempre <code>0,5</code> (registrato, <strong>in roaming</strong>): non è un'anomalia di segnale,
+            è la normalità per questo tipo di carta. Prima di un test dati, riconosci le carte in roaming e occhio alle tariffe.</p>
+            <p>Il pulsante <strong>ICCID</strong> (<code>AT+QCCID</code>) interroga il numero di serie della carta;
+            misurato: risponde <code>+QCCID: 89882280666176614687</code>.
+            ⚠ <strong>Nel manuale non esiste il comando <code>AT+CCID</code></strong> ——
+            quello che compare nei tutorial di altri moduli qui non funziona: serve il <code>AT+QCCID</code> proprietario Quectel.</p>
+
+            <h4>Sblocco PIN: prima controlla i tentativi rimasti, poi agisci</h4>
+            <ol>
+                <li><strong>Premi prima PIN Left</strong> (<code>AT+QPINC?</code>) per vedere i tentativi rimasti ——
+                    intervalli da manuale: PIN da 0 a 3 tentativi, PUK da 0 a 10.
+                    Prima di muoverti, sappi quanti colpi ti restano.</li>
+                <li>Se la carta aspetta il PIN premi <strong>Enter PIN</strong>: si apre prima la <strong>scheda parametri</strong>
+                    dove inserire il PIN e poi inviare (modello del comando <code>AT+CPIN="{pin}"</code>, attesa massima 5 secondi).</li>
+                <li>Se i tentativi PIN sono finiti e la carta chiede il PUK premi <strong>Unlock PUK</strong>:
+                    il manuale impone che <strong>il PUK vada inviato insieme al nuovo PIN</strong>
+                    (<code>AT+CPIN="{puk}","{newpin}"</code>), sempre tramite scheda parametri, attesa massima 5 secondi.</li>
+            </ol>
+            <div class="warning">
+                Ogni invio sbagliato brucia un tentativo; quando il PUK è agli sgoccioli <strong>fermati e chiama l'operatore</strong>:
+                non esaurire i tentativi tirando a indovinare.
+            </div>
+
+            <h4>I tre pulsanti di stato: orologio, tensione, ora di rete</h4>
+            <table>
+                <tr><th>Pulsante</th><th>Cosa guarda</th><th>Misura e interpretazione</th></tr>
+                <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+                    <td>L'orologio RTC del modulo</td>
+                    <td><code>+CCLK: "26/08/01,00:55:32+32"</code>.
+                        Il campo del fuso <code>+32</code> è in "quarti" (15 minuti): 32 × 15 minuti = UTC+8.
+                        Misurato: l'RTC di questa unità è già sincronizzato dalla rete, ora e fuso sono corretti</td></tr>
+                <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+                    <td>La tensione di alimentazione</td>
+                    <td>Alcuni firmware non lo supportano e rispondere ERROR è normale; il firmware di questa unità lo supporta,
+                        misurato <code>+CBC: 0,0,4264</code> —— l'ultimo campo è la tensione (mV), cioè 4.264 V</td></tr>
+                <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+                    <td>L'ora locale attuale ricavata dalla sincronizzazione di rete</td>
+                    <td>Misurato <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>.
+                        La differenza rispetto a Clock è la <strong>fonte</strong>: CCLK legge l'RTC del modulo,
+                        QLTS prende direttamente l'ora di rete; anche il formato dell'anno cambia (RTC a due cifre, QLTS a quattro): non confonderli nel parsing</td></tr>
+            </table>
+
+            <h4>Risoluzione dei problemi</h4>
+            <table>
+                <tr><th>Sintomo</th><th>Causa e rimedio</th></tr>
+                <tr><td>Interroghi la SIM appena compare RDY e ottieni errore 14 o 13</td>
+                    <td>La SIM si sta ancora inizializzando (14 = SIM busy; in questa fase è comparso anche 13 = SIM failure).
+                        Attendi circa 6 secondi e rinvia: torna tutto normale, non dichiarare subito la carta guasta</td></tr>
+                <tr><td>Card In? dice che la carta è stata rimossa, ma tutto il resto funziona</td>
+                    <td>Problema del pin di rilevamento SIM_DET (caso misurato su questa unità), non della carta.
+                        Guarda invece <code>AT+CPIN?</code>/<code>AT+QINISTAT</code></td></tr>
+                <tr><td>Sullo schermo ogni carattere compare due volte</td>
+                    <td>Echo del modulo ed eco locale del terminale attivi insieme —— basta un tocco al pulsante di commutazione dell'echo</td></tr>
+                <tr><td>Gli errori arrivano solo come freddi numeri</td>
+                    <td>CMEE non è ancora attivo. Premi Verbose Err; vale solo per la sessione,
+                        va ripremuto dopo ogni rituale di accensione</td></tr>
+                <tr><td>I comandi partono ma non c'è alcuna risposta</td>
+                    <td>Riaprire la porta riasserisce RTS = corrente tolta: il modulo in realtà si è riavviato.
+                        Bisogna rieseguire il rituale di accensione completo; saltarlo significa zero risposte</td></tr>
+            </table>

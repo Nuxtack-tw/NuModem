@@ -1,0 +1,17 @@
+{
+ "⚠ 本機出廠為空，沒有它 AT+QLBS 會回 10002（token 不存在）。⚠ 若回 702 那是伺服器逾時、不是 token 問題 —— 先確認 AT+QIACT? 有 PDP。設定後讀回會被模組遮成 *，跟 FTP 密碼一樣": "⚠ Máy này xuất xưởng để trống; thiếu nó thì AT+QLBS sẽ trả về 10002 (token không tồn tại). ⚠ Nếu trả về 702 thì đó là máy chủ hết thời gian chờ, không phải vấn đề token —— trước hết hãy xác nhận AT+QIACT? có PDP. Đặt xong, khi đọc lại sẽ bị module che thành *, y như mật khẩu FTP",
+ "設定 QuecLocator token。⚠ 這串要向 Quectel 申請，本機出廠是空的 —— 沒有它 AT+QLBS 會回 10002（token 不存在）。⚠ 若回的是 702 那是「伺服器逾時」不是 token 問題 —— 先查 AT+QIACT? 有沒有 PDP。讀回時會被模組遮成 *": "Đặt token QuecLocator. ⚠ Chuỗi này phải xin từ Quectel, máy này xuất xưởng để trống —— thiếu nó thì AT+QLBS sẽ trả về 10002 (token không tồn tại). ⚠ Nếu cái trả về là 702 thì đó là «máy chủ hết thời gian chờ» chứ không phải vấn đề token —— trước hết hãy xem AT+QIACT? có PDP hay không. Khi đọc lại sẽ bị module che thành *",
+ "網路定位失敗 —— 錯誤 {0}：伺服器逾時未回應": "Định vị qua mạng thất bại —— lỗi {0}: máy chủ hết thời gian chờ, không phản hồi",
+ "定位失敗": "Định vị thất bại",
+ "IMEI 不合法": "IMEI không hợp lệ",
+ "token 不存在": "token không tồn tại",
+ "同一 token 的裝置數超過上限": "Số thiết bị dùng cùng một token vượt quá giới hạn",
+ "同一裝置單日定位次數超過上限": "Số lần định vị trong một ngày của cùng một thiết bị vượt quá giới hạn",
+ "同一 token 的總定位次數超過上限": "Tổng số lần định vị của cùng một token vượt quá giới hạn",
+ "token 已過期": "token đã hết hạn",
+ "伺服器不接受此 IMEI": "Máy chủ không chấp nhận IMEI này",
+ "同一 token 單日定位次數超過上限": "Số lần định vị trong một ngày của cùng một token vượt quá giới hạn",
+ "（QuecLocator 走 HTTP，此碼可能是 HTTP 層錯誤；官方 10000-10008 表未收錄）": " (QuecLocator chạy trên HTTP, mã này có thể là lỗi ở lớp HTTP; bảng chính thức 10000-10008 không thu mã này)",
+ "（不是 token 問題！先確認 AT+QIACT? 回得出 IP —— 沒有 PDP 就連不到 QuecLocator 伺服器。逾時秒數見 AT+QLBSCFG=\"timeout\"）": " (Không phải vấn đề token! Trước hết hãy xác nhận AT+QIACT? trả về được IP —— không có PDP thì không kết nối tới máy chủ QuecLocator được. Số giây chờ xem AT+QLBSCFG=\"timeout\")",
+ "（模組讀回時會遮成 *；沒設 token 時 AT+QLBS 回 10002）": " (module che thành * khi đọc lại; chưa đặt token thì AT+QLBS trả về 10002)"
+}

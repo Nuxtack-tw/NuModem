@@ -1,0 +1,149 @@
+<h3 id="tab-network">Network — Pendaftaran, pengendali, frekuensi radio</h3>
+            <p><strong>Prinsip kerja:</strong> semua fungsi data hanya boleh digunakan dengan prasyarat <strong>telah mendaftar ke rangkaian telekomunikasi</strong>
+            dan <strong>saluran data PDP telah sedia</strong> — halaman ini ialah papan pemuka dan suis kemasukan rangkaian;
+            semua penyiasatan "tidak dapat masuk rangkaian" bermula dari sini. Nilai dalam bahagian ini semuanya ujian sebenar EG800K fizikal pada Ogos 2026.</p>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Tab Network">
+                <figcaption>Lima kumpulan butang halaman Network: pertanyaan pendaftaran, Signal URC, PDP, diagnostik, kawalan frekuensi radio.</figcaption>
+            </figure>
+
+            <h4>Sebelum bermula: tukar URC ke UART dahulu</h4>
+            <p>EG800K dari kilang menghantar mesej laporan aktif (URC) ke <code>usbat</code> (port AT USB),
+            sedangkan alat ini menggunakan UART — <strong>semua URC tidak diterima walau satu pun</strong>: laporan isyarat,
+            hasil TCP / MQTT / imbasan Wi-Fi semuanya senyap; gejalanya ialah <strong>"semua arahan pulangkan OK, cuma tiada mesej"</strong>.</p>
+            <div class="warning">
+                <strong>Inilah punca nombor satu "semua URC hilang".</strong>
+                Pergi ke tab Hardware, tekan <code>AT+QURCCFG="urcport"</code> untuk menyemak;
+                jika bukan <code>"uart1"</code>, gunakan butang penukar untuk mengubahnya — tetapan ditulis ke NVRAM; ubah sekali, berkesan merentas but semula.
+            </div>
+
+            <h4>Langkah pertama: sahkan status pendaftaran</h4>
+            <p>Selepas <code>RDY</code> kelihatan dalam ritual but, tekan dahulu <code>AT+CEREG?</code> (untuk modul 4G, arahan ini paling tepat).
+            Tiga butang pendaftaran sepadan dengan tiga domain rangkaian: <code>CEREG</code> = LTE/EPS, <code>CREG</code> = domain pensuisan litar,
+            <code>CGREG</code> = domain pensuisan paket; pentafsiran nombor kedua (stat) adalah sama:</p>
+            <table>
+                <tr><th>stat</th><th>Maksud</th><th>Apa perlu dibuat</th></tr>
+                <tr><td>0</td><td>Belum mendaftar</td><td>Biasa sejurus selepas but; tunggu beberapa saat dan semak semula</td></tr>
+                <tr><td>1</td><td>Telah mendaftar (rangkaian sendiri)</td><td>Normal, teruskan</td></tr>
+                <tr><td>2</td><td>Sedang mencari</td><td>Tunggu</td></tr>
+                <tr><td>3</td><td>Ditolak oleh rangkaian</td><td>Semak SIM / pelan tarif, gunakan CEER untuk lihat sebab</td></tr>
+                <tr><td>5</td><td>Telah mendaftar (perayauan)</td><td><strong>Keadaan normal unit ini</strong>, lihat di bawah</td></tr>
+            </table>
+            <div class="tip">
+                <strong>stat=5 bukan kerosakan.</strong> Ujian sebenar: ketiga-tiga pertanyaan pendaftaran memulangkan <code>0,5</code>:
+                SIM ialah kad IoT 1NCE (kad perayauan antarabangsa MCC 901); di negara mana pun ia dikira "perayauan" —
+                apabila nampak 5, anggap sebagai 1.
+            </div>
+            <p>Jika pendaftaran berjaya tetapi tidak dapat masuk rangkaian, seterusnya tekan <code>AT+CGATT?</code> untuk menyemak pelekapan domain paket;
+            jika perlu tekan <code>AT+CGATT=1</code> untuk melekap secara manual; jika gagal gunakan <code>AT+CEER</code>
+            untuk menyemak sebab (lapisan berbeza daripada <code>QIGETERROR</code> halaman TCP/IP).
+            CGATT boleh menyekat paling lama <strong>140 saat</strong>; jangan tekan berturut-turut.</p>
+
+            <h4>Sekarang bergantung pada pengendali mana, jalur mana</h4>
+            <p><code>AT+COPS?</code> menyemak pengendali yang didaftar masuk sekarang (digit akhir 7 = LTE).
+            <strong>Perangkap: nama pengendali mungkin rentetan kosong</strong> — ujian sebenar memulangkan <code>+COPS: 0,0,"",7</code>,
+            bukan kerosakan. Untuk melihat pengendali, tekan <code>AT+QNWINFO</code> sebagai gantinya (sistem / pengendali / jalur / saluran):</p>
+            <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+            <p>46692 = Chunghwa Telecom, Band 8; tanpa perkhidmatan ia memulangkan <code>NO SERVICE</code>.
+            Kad perayauan ini memilih rangkaian sendiri: ujian sebenar pada tarikh berbeza pernah tergantung pada Chunghwa Telecom Band 8 dan FarEasTone (466-01) Band 3;
+            bertukar pengendali dan jalur kedua-duanya normal. <code>AT+COPS=?</code> mengimbas semua pengendali sekeliling:
+            <strong>menyekat paling lama 300 saat dan akan memutuskan perkhidmatan sedia ada</strong>; tekan hanya selepas pasti perlu.</p>
+
+            <h4>Kekuatan dan kualiti isyarat: CSQ hanyalah nilai kasar</h4>
+            <p><code>AT+CSQ</code> memulangkan rssi dan ber: rssi 0–31 sepadan dengan -113 hingga -51 dBm,
+            99 = tidak dapat dikesan (biasa sejurus selepas but, tunggu beberapa saat). Ujian sebenar: rssi 18–24 (-77 hingga -65 dBm, baik);
+            <strong>ber sentiasa 99, tiada nilai rujukan</strong>. Tiga unsur kualiti sebenar LTE
+            <strong>RSRP (kekuatan) / RSRQ (kualiti) / SINR (nisbah isyarat-hingar; rendah = terganggu)</strong>
+            hanya boleh diperoleh melalui kumpulan Signal URC (<code>AT+QINDCFG="sqi"</code> tanpa nilai = semak suis):</p>
+            <table>
+                <tr><th>Butang</th><th>Arahan</th><th>Fungsi</th></tr>
+                <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+                    <td>Hidupkan laporan RSRP / RSRQ / SINR — <strong>wajib untuk ujian antena dan kedudukan letak</strong>.
+                        Hanya ditolak apabila isyarat "berubah"; jika tiada pergerakan, balut atau cabut-pasang antena; tetapan tidak kekal merentas but semula</td></tr>
+                <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+                    <td>Melaporkan sebaik sahaja isyarat berubah, menggantikan tekanan CSQ bertubi-tubi</td></tr>
+                <tr><td>URC Off / On</td><td><code>AT+QINDCFG="all",0／1</code></td>
+                    <td>Senyapkan dengan satu kekunci apabila dibanjiri mesej — ingat hidupkan semula selepas itu</td></tr>
+            </table>
+
+            <h4>Saluran PDP: lapisan 3GPP vs halaman TCP/IP</h4>
+            <p>PDP context = "saluran data" yang diperuntukkan rangkaian telekomunikasi; dengannya barulah ada IP. Kumpulan ini ialah pertanyaan baca sahaja lapisan piawai 3GPP:
+            <code>AT+CGDCONT?</code> menyenaraikan context dan APN, <code>AT+CGACT?</code> menyenaraikan status pengaktifan
+            (menyekat paling lama 150 saat; ⚠ turutan parameter bentuk tulis adalah terbalik), <code>AT+CGPADDR</code>
+            menyenaraikan IP yang diperoleh. <code>QIACT?</code> / <code>QICSGP</code> pada halaman TCP/IP ialah
+            <strong>tindanan Quectel sendiri, bukan lapisan yang sama</strong> — membandingkannya sebelah-menyebelah dapat membezakan pihak yang rosak:
+            di sini ada IP, di sana tiada = rangkaian sudah memberi tetapi tindanan belum dimulakan. Unit ini mengaktifkan PDP dan memperoleh IP secara automatik sebaik sahaja but.</p>
+            <p><code>AT+QGDCNT?</code> menyemak kuota data terkumpul (nombor pertama <strong>dihantar</strong>, kedua diterima);
+            wajib digunakan untuk mengukur kuota data kad perayauan. ⚠ <strong>Ujian sebenar menyangkal petunjuk butang "terkumpul merentas but"</strong>:
+            pembilang secara lalai tidak disimpan ke NV; sekali kuasa putus (termasuk memuat semula halaman) ia kembali sifar — catat di tempat kejadian,
+            atau simpan ke NV dengan <code>AT+QGDCNT=1</code>.</p>
+
+            <h4>Praktik penyiasatan: kad ini hanya membenarkan PDP tunggal</h4>
+            <p>Menekan <code>AT+QIACT=1</code> pada halaman TCP/IP tetapi ERROR dipulangkan (<code>572,operation not
+            allowed</code>)? Skrip tetap kad ini: selepas but, lapisan 3GPP telah <strong>mengaktifkan satu PDP secara automatik</strong>,
+            tetapi <strong>nombor context boleh berubah-ubah</strong> (ujian sebenar pernah nampak 1 dan 9); membuka yang kedua memulangkan
+            <code>+CME ERROR: 100</code> ⇒ rangkaian hanya membenarkan PDP tunggal; sedangkan julat
+            contextID <code>QIACT</code> hanya 1–8 — apabila PDP dibuka pada 9, tindanan Quectel langsung tidak dapat menyentuhnya.
+            Penyelesaian dua langkah (lakukan sekali selepas setiap but):</p>
+            <pre>AT+CGACT?             ← lihat cid yang mana (nombor berubah-ubah, langkah ini tidak boleh dilangkau)
+AT+CGACT=0,&lt;cid itu&gt;   ← lapisan 3GPP melepaskan kuotanya
+AT+QIACT=1            ← halaman TCP/IP; jika memulangkan +QIACT: 1,1,1,"10.187.7.8" bermakna berjaya</pre>
+            <p>Menetapkan APN dengan <code>QICSGP</code> boleh dilangkau untuk kad ini — ujian sebenar: modul menyegerak secara automatik APN yang diperuntukkan rangkaian
+            (<code>iot.1nce.net</code>); ia hanya perlu untuk kad APN korporat yang memerlukan akaun dan kata laluan.</p>
+            <div class="warning">
+                <strong>Di tengah ujian tiba-tiba semuanya tamat masa? Syaki dahulu hanyutan PDP.</strong>
+                Ujian sebenar: apabila HTTP gagal berturut-turut sepenuhnya (ralat 716, tamat masa tetap 30 saat), <code>AT+QIACT?</code>
+                masih memulangkan IP — ketika ini ia menipu; mesti dibanding silang dengan <code>AT+CGACT?</code>
+                (ujian sebenar: 1,0 dan 9,1 = hanyut ke 9).
+                Penyelesaian: <code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;cid yang dihanyuti&gt;</code> →
+                <code>AT+QIACT=1</code>, kemudian sahkan dengan ping.
+            </div>
+
+            <h4>Tahap fungsi CFUN dan kawalan frekuensi radio</h4>
+            <p>Keseluruhan kumpulan RF Control mengubah status modul; semuanya butang bingkai merah yang meminta pengesahan sebelum ditekan.
+            Tekan dahulu <code>AT+CFUN?</code> untuk melihat tahap semasa sebelum bertindak:</p>
+            <table>
+                <tr><th>Arahan</th><th>Tahap</th><th>Maksud</th></tr>
+                <tr><td><code>AT+CFUN=1</code></td><td>Fungsi penuh</td>
+                    <td>Frekuensi radio dibuka penuh; <strong>untuk pemulihan sentiasa tekan butang ini</strong></td></tr>
+                <tr><td><code>AT+CFUN=4</code></td><td>Mod penerbangan</td>
+                    <td>Penghantaran dan penerimaan dimatikan sepenuhnya, SIM masih ada — titik permulaan ujian "kemasukan semula rangkaian"</td></tr>
+                <tr><td><code>AT+CFUN=0</code></td><td>Minimum</td>
+                    <td>SIM juga dilumpuhkan; manual hanya menulis Minimum functionality, tanpa perincian</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>But semula perisian</td>
+                    <td>But semula keseluruhan modul. ⚠ Port AT hilang fungsi seketika; perlu menunggu <code>RDY</code> semula</td></tr>
+            </table>
+            <p>CFUN menyekat paling lama 15 saat. <strong>Jika SIM ada kunci PIN, selepas bertukar kembali ke CFUN=1, PIN mesti dimasukkan semula
+            barulah pendaftaran berlaku.</strong> <code>AT+CGATT=0</code> (PS Detach) melepaskan diri daripada domain paket —
+            <strong>akan memutuskan semua sambungan TCP / MQTT</strong>; gunakan hanya untuk menguji "pelekapan semula".</p>
+
+            <h4>Lanjutan: QENG membaca maklumat stesen pangkalan (input baris arahan)</h4>
+            <p>Halaman ini tiada butang untuknya — taip <code>AT+QENG="servingcell"</code> di baris arahan
+            untuk membaca parameter stesen pangkalan yang memberi perkhidmatan; medan penting daripada ujian sebenar:</p>
+            <table>
+                <tr><th>Medan</th><th>Nilai ujian sebenar</th><th>Pentafsiran</th></tr>
+                <tr><td>MCC／MNC</td><td>466／01</td><td>Taiwan / FarEasTone</td></tr>
+                <tr><td>Cell ID／TAC</td><td><code>ABCDE02</code>／<code>1234</code> (hex)</td>
+                    <td>Perpuluhan 180149762／4660; eNodeB = ECI≫8 = 703710, sektor = 2</td></tr>
+                <tr><td>PCID／EARFCN</td><td>144／1550</td>
+                    <td>Pengecam sel fizikal (<strong>bukan unik sejagat</strong>) / Band 3</td></tr>
+                <tr><td>RSRP／RSRQ／RSSI／SINR</td><td>-113／-18／-92／-1</td>
+                    <td>RSRP di bawah -100 dikira lemah; SINR -1 dB = kualiti kurang baik</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Cell ID dan TAC dalam heksadesimal; mesti ditukar kepada perpuluhan sebelum menyemak pangkalan data.</strong>
+                Pangkalan data seperti OpenCelliD hanya menerima perpuluhan; melontar terus <code>ABCDE02</code> hanya akan mendapat "rekod tidak ditemui".
+                Selain itu <code>AT+QENG="neighbourcell"</code> hanya memulangkan PCID,
+                <strong>tiada Cell ID sejagat</strong> (had piawai LTE).
+            </div>
+
+            <h4>Penyelesaian masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Punca dan penyelesaian</th></tr>
+                <tr><td>Semua arahan pulangkan OK, mesej aktif langsung tidak muncul</td>
+                    <td>urcport pada usbat (nilai kilang) — tukar ke uart1 di tab Hardware</td></tr>
+                <tr><td><code>QIACT=1</code> memulangkan ERROR (572)</td>
+                    <td>Kuota PDP tunggal telah diduduki — ikut penyiasatan dua langkah di atas</td></tr>
+                <tr><td>Permintaan berturut-turut semuanya tamat masa tetap 30 saat</td>
+                    <td>Hanyutan PDP — banding silang dengan <code>AT+CGACT?</code>; jangan percaya <code>QIACT?</code> sahaja</td></tr>
+            </table>

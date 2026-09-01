@@ -1,0 +1,16 @@
+{
+ " 秒": " s",
+ "125 秒": "125 s",
+ "BSSID 上限": "Max BSSIDs",
+ "{0} 成功": "{0} succeeded",
+ "{0}成功": "{0} succeeded",
+ "例：mqttgo.io": "e.g. mqttgo.io",
+ "充電中": "Charging",
+ "列出全部 FTP 設定子項：9 項回支援值範圍。account 那行的密碼會被模組遮成 *（2026-08-07 P6 實測），帳號則是明文": "Lists every FTP config sub-item: 9 lines of supported value ranges. On the account line the module masks the password to * (measured 2026-08-07, P6); the username is plain text",
+ "失敗": "Failed",
+ "字串，最大 255 bytes。查詢指令讀回時密碼會被模組遮成 *（2026-08-07 P6 實測），但你在這裡輸入的原文仍是明碼": "String, max 255 bytes. When read back by the query command the module masks the password to * (measured 2026-08-07, P6), but what you type here is still in the clear",
+ "成功": "Succeeded",
+ "查詢目前帳密設定；密碼會被模組遮成 *（2026-08-07 P6 實測）": "Query the current account settings; the module masks the password to * (measured 2026-08-07, P6)",
+ "查詢目前設定的 FTP 帳號與密碼。⚠ 手冊寫「回應會把密碼原樣印出」，但 2026-08-07 P6 實測本機韌體是遮成 * 的 —— 以實測為準，不要因為手冊那句話就不敢查。": "Query the FTP username and password currently set. ⚠ The manual says \"the response prints the password verbatim\", but the P6 test on 2026-08-07 showed this firmware masks it to * — trust the measurement, and do not avoid this query because of that sentence in the manual.",
+ "（空）": "(empty)"
+}

@@ -1,0 +1,20 @@
+{
+ "0=不做任何驗證；1=驗證伺服器（需先把受信任 CA 憑證放進模組 UFS）；2=伺服器＋用戶端雙向驗證（遠端要求時，還需 client cert 與 private key）。手冊 §4 明說：seclevel 設 1 或 2 就必須先用 AT+QFUPL 把憑證上傳到模組。⚠ 舊版說明寫「本工具送不出憑證所以必定失敗」是錯的 —— PEM 是純 ASCII，2026-08-07 P5 實測已成功上傳 1939 bytes 的 ISRG Root X1 並通過驗證。目前 UI 沒有上傳按鈕，要用 AT+QFUPL 手動走兩段式流程。⚠ 另注意 sni 出廠預設是 0：同一 IP 掛多網域的伺服器（badssl.com 就是）不送 SNI 會拿到不匹配的憑證，驗證必敗 566。": "0 = sin verificación alguna; 1 = verificar el servidor (en el UFS del módulo debe haber ya un certificado CA de confianza); 2 = verificación mutua de servidor y cliente (si el otro extremo lo pide, hacen falta además certificado de cliente y clave privada). El manual §4 es explícito: con seclevel 1 o 2 hay que subir antes un certificado con AT+QFUPL. ⚠ La nota anterior, «esta herramienta no puede enviar certificados, así que siempre falla», era incorrecta: el PEM es ASCII puro y el 2026-08-07 la tanda P5 subió un ISRG Root X1 de 1939 bytes y superó la verificación. Todavía no hay botón de subida en la interfaz, así que hay que recorrer a mano el flujo en dos pasos de AT+QFUPL. ⚠ Ten en cuenta también que sni viene de fábrica a 0: un servidor con varios dominios en una misma IP (badssl.com lo es) devuelve un certificado que no concuerda si no se envía SNI, y la verificación falla con 566.",
+ "模組回 > 之後會「數滿指定長度的位元組」才送出。若長度算錯或中途取消，AT 口會卡在資料模式吞掉後續指令 —— 用 Hardware 頁的原始位元組按鈕送 ESC（0x1B）即可脫身，不必關連線或重啟模組。資料會實際上網，產生流量。": "Después de que el módulo responda >, no envía hasta haber contado exactamente los bytes declarados. Si la longitud está mal o lo abandonas a medias, el puerto AT se queda en modo datos y se traga todo lo que escribas después: envía ESC (0x1B) con el botón de byte en crudo de la página Hardware para salir; no hace falta cerrar la conexión ni reiniciar el módulo. Los datos salen de verdad a la red y consumen tráfico.",
+ "只查 clientID {0} 這一條連線，回報遠端位址與埠、本地埠、狀態碼、PDP 與 SSL context ID 及所用 AT 埠。": "Consulta solo la conexión con clientID {0}, e informa de la dirección y el puerto remotos, el puerto local, el código de estado, los identificadores de contexto PDP y SSL, y el puerto AT en uso.",
+ "對 clientID {0} 送出固定長度 {1} bytes：模組回 > 提示後要「剛好」送滿 {2} 個位元組才會發出，": "Envía exactamente {1} bytes por el clientID {0}: tras el > del módulo, no transmite hasta que hayan llegado justo {2} bytes, ",
+ "從 clientID {0} 的接收緩衝讀最多 {1} bytes（範圍 0–1500、預設 1500）；": "Lee como mucho {1} bytes del búfer de recepción del clientID {0} (rango 0–1500, predeterminado 1500); ",
+ "用 PDP context {0}、SSL context {1} 連到 {2}:{3}，這條連線的 clientID 是 {4}；": "Conecta con {2}:{3} usando el contexto PDP {0} y el contexto SSL {1}; el clientID de esta conexión es {4}; ",
+ "關閉 clientID {0} 並把 close_timeout 設為 {1}": "Cierra el clientID {0} y fija close_timeout en {1}",
+ "關閉 clientID {0} 的 SSL 連線，未帶逾時參數即採預設 10 秒；": "Cierra la conexión SSL del clientID {0}; sin parámetro de tiempo de espera se aplica el valor predeterminado de 10 segundos; ",
+ " 秒": " segundos",
+ "。先回 OK 只代表指令收下，成敗看 +QSSLOPEN URC": ". El OK inmediato solo significa que se aceptó el comando: el éxito o el fallo llega en la URC +QSSLOPEN",
+ "不必送 Ctrl+Z。單次上限 1460，超出範圍回 ERROR": "no hace falta Ctrl+Z. El límite por llamada es 1460; fuera de rango se responde ERROR",
+ "同一 SSL context 的連線全關後，模組才釋放該 context": "el módulo no libera el contexto SSL hasta que se cierran todas sus conexiones",
+ "末碼 0＝緩衝模式，資料要自己下 AT+QSSLRECV 讀": "el 0 final = modo búfer, los datos los recoges tú con AT+QSSLRECV",
+ "末碼 1＝直推模式，收到的資料由 +QSSLURC 連同內容直接吐出，不必再讀": "el 1 final = envío directo, los datos recibidos salen tal cual en un +QSSLURC junto con su contenido, sin lectura aparte",
+ "末碼 2＝透傳模式，AT 埠變成資料通道": "el 2 final = modo transparente, el puerto AT pasa a ser el canal de datos",
+ "讀到 +QSSLRECV: 0 就代表緩衝空了，只有緩衝模式需要這條": "recibir +QSSLRECV: 0 significa que el búfer está vacío; solo el modo búfer necesita este comando",
+ "，範圍 0–65535": ", rango 0–65535",
+ "＝立即關閉不等待": " = cerrar de inmediato sin esperar"
+}

@@ -1,0 +1,151 @@
+<h3 id="tab-network">Network — Registrasi, Operator, RF</h3>
+            <p><strong>Cara kerja:</strong> semua fungsi data hanya bisa dipakai dengan prasyarat <strong>sudah teregistrasi
+            ke jaringan seluler</strong> dan <strong>kanal data PDP sudah siap</strong> — halaman ini adalah dasbor sekaligus
+            sakelar masuk jaringan; semua penelusuran "tidak bisa online" dimulai dari sini.
+            Angka pada bagian ini semuanya hasil uji nyata EG800K fisik pada Agustus 2026.</p>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Tab Network">
+                <figcaption>Lima kelompok tombol halaman Network: query registrasi, Signal URC, PDP, diagnostik, kendali RF.</figcaption>
+            </figure>
+
+            <h4>Sebelum mulai: alihkan dulu URC ke UART</h4>
+            <p>Dari pabrik, EG800K mengirim pesan laporan proaktif (URC) ke <code>usbat</code> (port AT USB),
+            sedangkan alat ini berjalan lewat UART — <strong>tak satu pun URC akan diterima</strong>: laporan sinyal,
+            hasil TCP / MQTT / pemindaian Wi-Fi semuanya senyap, dengan gejala <strong>"semua perintah membalas OK, tetapi pesan tak pernah datang"</strong>.</p>
+            <div class="warning">
+                <strong>Penyebab nomor satu "semua URC lenyap" adalah ini.</strong>
+                Buka tab Hardware, tekan <code>AT+QURCCFG="urcport"</code> untuk memeriksa;
+                bila bukan <code>"uart1"</code>, ubah dengan tombol pengalihnya — setelan ditulis ke NVRAM, sekali diubah bertahan melintasi boot ulang.
+            </div>
+
+            <h4>Langkah pertama: pastikan status registrasi</h4>
+            <p>Setelah ritual boot menampilkan <code>RDY</code>, tekan dulu <code>AT+CEREG?</code> (untuk modul 4G, perintah inilah yang paling akurat).
+            Tiga tombol registrasi mewakili tiga domain jaringan: <code>CEREG</code> = LTE/EPS, <code>CREG</code> = domain circuit-switched,
+            <code>CGREG</code> = domain packet-switched; angka kedua (stat) dibaca dengan cara yang sama:</p>
+            <table>
+                <tr><th>stat</th><th>Arti</th><th>Yang harus dilakukan</th></tr>
+                <tr><td>0</td><td>Belum teregistrasi</td><td>Lazim tepat setelah boot; tunggu beberapa detik lalu cek lagi</td></tr>
+                <tr><td>1</td><td>Teregistrasi (jaringan sendiri)</td><td>Normal, lanjutkan</td></tr>
+                <tr><td>2</td><td>Sedang mencari</td><td>Tunggu</td></tr>
+                <tr><td>3</td><td>Ditolak jaringan</td><td>Periksa SIM / paket; lihat penyebabnya dengan CEER</td></tr>
+                <tr><td>5</td><td>Teregistrasi (roaming)</td><td><strong>Kondisi normal perangkat ini</strong>, lihat di bawah</td></tr>
+            </table>
+            <div class="tip">
+                <strong>stat=5 bukan kerusakan.</strong> Hasil uji: ketiga query registrasi membalas <code>0,5</code>:
+                SIM-nya kartu IoT 1NCE (kartu roaming internasional MCC 901), di negara mana pun terhitung "roaming" —
+                anggap 5 sebagai 1.
+            </div>
+            <p>Bila registrasi berhasil tetapi tetap tak bisa online, lanjutkan menekan <code>AT+CGATT?</code> untuk memeriksa attach domain paket;
+            bila perlu tekan <code>AT+CGATT=1</code> untuk attach manual; bila gagal, gunakan <code>AT+CEER</code>
+            untuk melihat penyebabnya (lapisannya berbeda dengan <code>QIGETERROR</code> di halaman TCP/IP).
+            CGATT bisa memblokir maksimum <strong>140 detik</strong>; jangan ditekan bertubi-tubi.</p>
+
+            <h4>Sekarang menggantung di operator mana, band berapa</h4>
+            <p><code>AT+COPS?</code> menanyakan operator tempat login saat ini (digit terakhir 7 = LTE).
+            <strong>Jebakan: nama operator bisa berupa string kosong</strong> — hasil uji membalas <code>+COPS: 0,0,"",7</code>,
+            itu bukan kerusakan. Untuk melihat operator, tekan saja <code>AT+QNWINFO</code> (teknologi / operator / band / kanal):</p>
+            <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+            <p>46692 = Chunghwa Telecom, Band 8; tanpa layanan, balasannya <code>NO SERVICE</code>.
+            Kartu roaming ini memilih jaringan sendiri: pada tanggal berbeda pengujian pernah menggantung di Chunghwa Telecom Band 8
+            dan FarEasTone (466-01) Band 3; ganti operator maupun ganti band semuanya normal. <code>AT+COPS=?</code> memindai semua operator di sekitar:
+            <strong>memblokir maksimum 300 detik dan memutus layanan yang sedang berjalan</strong>; tekan hanya bila benar-benar perlu.</p>
+
+            <h4>Kekuatan dan kualitas sinyal: CSQ hanyalah nilai kasar</h4>
+            <p><code>AT+CSQ</code> membalas rssi dan ber: rssi 0–31 memetakan -113 hingga -51 dBm,
+            99 = tak terdeteksi (lazim tepat setelah boot, tunggu beberapa detik). Hasil uji rssi 18–24 (-77 hingga -65 dBm, baik);
+            <strong>ber selalu 99, tak punya nilai rujukan</strong>. Tiga elemen kualitas LTE yang sesungguhnya
+            <strong>RSRP (kekuatan) / RSRQ (kualitas) / SINR (rasio sinyal-derau; rendah = terganggu interferensi)</strong>
+            hanya bisa didapat dari kelompok Signal URC (<code>AT+QINDCFG="sqi"</code> tanpa nilai = memeriksa sakelarnya):</p>
+            <table>
+                <tr><th>Tombol</th><th>Perintah</th><th>Fungsi</th></tr>
+                <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+                    <td>Menyalakan laporan RSRP / RSRQ / SINR — <strong>wajib untuk uji antena dan penempatan</strong>.
+                        Hanya di-push saat sinyal "berubah"; bila tak ada gerakan, bungkus atau cabut-pasang antenanya; setelan tak bertahan melintasi boot ulang</td></tr>
+                <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+                    <td>Melapor begitu sinyal berubah, menggantikan menekan CSQ bertubi-tubi</td></tr>
+                <tr><td>URC Off / On</td><td><code>AT+QINDCFG="all",0 / 1</code></td>
+                    <td>Sekali klik untuk membisukan saat layar kebanjiran — ingat nyalakan kembali sesudahnya</td></tr>
+            </table>
+
+            <h4>Kanal PDP: lapisan 3GPP vs halaman TCP/IP</h4>
+            <p>PDP context = "kanal data" yang dijatahkan jaringan seluler; hanya dengan itu ada IP. Kelompok ini adalah query
+            baca-saja lapisan standar 3GPP: <code>AT+CGDCONT?</code> menampilkan context dan APN, <code>AT+CGACT?</code> menampilkan status aktivasi
+            (memblokir maksimum 150 detik; ⚠ urutan parameter bentuk tulisnya terbalik), <code>AT+CGPADDR</code>
+            menampilkan IP yang didapat. <code>QIACT?</code> / <code>QICSGP</code> di halaman TCP/IP adalah
+            <strong>stack milik Quectel sendiri, bukan lapisan yang sama</strong> — membandingkan keduanya berdampingan bisa membedakan sisi mana yang rusak:
+            di sini ada IP, di sana tidak = jaringan sudah memberi tetapi stack belum menyala. Perangkat ini otomatis mengaktifkan PDP
+            dan mendapat IP begitu boot.</p>
+            <p><code>AT+QGDCNT?</code> menanyakan kuota kumulatif (angka pertama <strong>terkirim</strong>, angka kedua diterima),
+            wajib dipakai saat menguji kuota dengan kartu roaming. ⚠ <strong>Pengujian membantah petunjuk tombol "akumulasi melintasi boot"</strong>:
+            penghitung secara default tidak disimpan ke NV; begitu daya putus (termasuk memuat ulang halaman) langsung nol — catat di tempat,
+            atau simpan ke NV dengan <code>AT+QGDCNT=1</code>.</p>
+
+            <h4>Praktik penelusuran: kartu ini hanya mengizinkan satu PDP</h4>
+            <p>Di halaman TCP/IP menekan <code>AT+QIACT=1</code> malah dibalas ERROR (<code>572,operation not
+            allowed</code>)? Skenario tetap kartu ini: setelah boot, lapisan 3GPP sudah <strong>otomatis mengaktifkan satu PDP</strong>,
+            tetapi <strong>nomor context-nya mengambang</strong> (pengujian pernah melihat 1 dan 9); membuka yang kedua dibalas
+            <code>+CME ERROR: 100</code> ⇒ jaringan hanya mengizinkan satu PDP; sedangkan rentang
+            contextID <code>QIACT</code> hanya 1–8 — bila PDP dibuka di 9, stack Quectel sama sekali tak bisa menyentuhnya.
+            Solusinya dua langkah (lakukan sekali setiap habis boot):</p>
+            <pre>AT+CGACT?             ← Lihat cid yang mana (nomornya mengambang, langkah ini tak boleh dilewati)
+AT+CGACT=0,&lt;cid itu&gt;   ← Lapisan 3GPP melepaskan jatahnya
+AT+QIACT=1            ← Halaman TCP/IP; balasan +QIACT: 1,1,1,"10.187.7.8" berarti berhasil</pre>
+            <p>Menyetel APN lewat <code>QICSGP</code> bisa dilewati untuk kartu ini — hasil uji: modul otomatis menyinkronkan APN
+            yang dijatahkan jaringan (<code>iot.1nce.net</code>); baru wajib bila berganti ke kartu APN korporat yang butuh akun-sandi.</p>
+            <div class="warning">
+                <strong>Di tengah pengujian tiba-tiba semuanya timeout? Curigai dulu PDP hanyut.</strong>
+                Hasil uji: saat HTTP gagal total beruntun (error 716, timeout tetap 30 detik), <code>AT+QIACT?</code>
+                tetap saja membalas IP — pada saat itu ia menipu; silangkan dengan <code>AT+CGACT?</code>
+                (hasil uji: 1,0 dan 9,1 = hanyut ke 9).
+                Solusi: <code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;cid tempat hanyut&gt;</code> →
+                <code>AT+QIACT=1</code>, lalu verifikasi dengan ping.
+            </div>
+
+            <h4>Tingkat fungsi CFUN dan kendali RF</h4>
+            <p>Seluruh kelompok RF Control mengubah status modul; semuanya tombol berbingkai merah yang meminta konfirmasi sebelum jalan.
+            Tekan dulu <code>AT+CFUN?</code> untuk melihat tingkat saat ini sebelum bertindak:</p>
+            <table>
+                <tr><th>Perintah</th><th>Tingkat</th><th>Arti</th></tr>
+                <tr><td><code>AT+CFUN=1</code></td><td>Fungsi penuh</td>
+                    <td>RF menyala penuh; <strong>untuk memulihkan, selalu tekan yang ini</strong></td></tr>
+                <tr><td><code>AT+CFUN=4</code></td><td>Mode pesawat</td>
+                    <td>Kirim-terima mati semua, SIM tetap ada — titik awal untuk menguji "masuk jaringan ulang"</td></tr>
+                <tr><td><code>AT+CFUN=0</code></td><td>Minimum</td>
+                    <td>SIM ikut dinonaktifkan; manual hanya menulis Minimum functionality tanpa perincian</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>Restart lunak</td>
+                    <td>Menyalakan ulang seluruh modul. ⚠ Port AT mati sesaat; tunggu lagi <code>RDY</code></td></tr>
+            </table>
+            <p>CFUN memblokir maksimum 15 detik. <strong>Bila SIM terkunci PIN, setelah kembali ke CFUN=1 PIN harus dimasukkan lagi
+            barulah teregistrasi.</strong> <code>AT+CGATT=0</code> (PS Detach) melepaskan diri dari domain paket —
+            <strong>merobohkan semua koneksi TCP / MQTT</strong>; pakai hanya untuk menguji "attach ulang".</p>
+
+            <h4>Lanjutan: QENG membaca info BTS (diketik di baris perintah)</h4>
+            <p>Halaman ini tidak punya tombolnya — ketik <code>AT+QENG="servingcell"</code> di baris perintah
+            untuk membaca parameter BTS yang melayani; kolom kunci hasil uji:</p>
+            <table>
+                <tr><th>Kolom</th><th>Nilai hasil uji</th><th>Cara membaca</th></tr>
+                <tr><td>MCC / MNC</td><td>466 / 01</td><td>Taiwan / FarEasTone</td></tr>
+                <tr><td>Cell ID / TAC</td><td><code>ABCDE02</code> / <code>1234</code> (hex)</td>
+                    <td>Desimal 180149762 / 4660; eNodeB = ECI≫8 = 703710, sektor = 2</td></tr>
+                <tr><td>PCID / EARFCN</td><td>144 / 1550</td>
+                    <td>Identitas sel fisik (<strong>tidak unik global</strong>) / Band 3</td></tr>
+                <tr><td>RSRP / RSRQ / RSSI / SINR</td><td>-113 / -18 / -92 / -1</td>
+                    <td>RSRP di bawah -100 terhitung buruk; SINR -1 dB = kualitas jelek</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Cell ID dan TAC berbasis heksadesimal; sebelum mencari di basis data, wajib dikonversi ke desimal.</strong>
+                Basis data seperti OpenCelliD semuanya menerima desimal; melempar langsung <code>ABCDE02</code> hanya berbuah "tidak ditemukan".
+                Selain itu <code>AT+QENG="neighbourcell"</code> hanya membalas PCID,
+                <strong>tanpa Cell ID global</strong> (batasan standar LTE).
+            </div>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td>Semua perintah membalas OK, pesan proaktif tak muncul satu pun</td>
+                    <td>urcport masih di usbat (nilai pabrik) — alihkan ke uart1 di tab Hardware</td></tr>
+                <tr><td><code>QIACT=1</code> membalas ERROR (572)</td>
+                    <td>Jatah PDP tunggal sudah diambil — jalankan dua langkah penelusuran di atas</td></tr>
+                <tr><td>Permintaan beruntun semuanya timeout tetap 30 detik</td>
+                    <td>PDP hanyut — silangkan dengan <code>AT+CGACT?</code>, jangan hanya percaya <code>QIACT?</code></td></tr>
+            </table>

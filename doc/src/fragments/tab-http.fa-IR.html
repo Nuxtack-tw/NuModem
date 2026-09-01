@@ -1,0 +1,152 @@
+<h3 id="tab-http">HTTP — درخواست وب</h3>
+            <p><strong>اصول کار:</strong> HTTP ماژول <strong>سه‌مرحله‌ای</strong> است:
+            اول URL را تنظیم می‌کنید (که خودِ این مرحله دومرحله‌ای است)، بعد درخواست را می‌فرستید (GET یا POST) و آخر پاسخ را می‌خوانید.
+            نتیجهٔ هیچ‌کدام از این مرحله‌ها در <code>OK</code> نیست، بلکه در URCای است که بعداً می‌رسد —
+            پس <code>AT+QURCCFG="urcport"</code> باید <code>"uart1"</code> باشد (در صفحهٔ Hardware قابل تغییر است)،
+            وگرنه حتی یک نتیجه هم نمی‌بینید. همهٔ داده‌ها تست عملی 2026-08 روی دستگاه واقعی است.</p>
+
+            <h4>پیش از شروع: اول کانال داده</h4>
+            <p>پیش‌فرض این است که PDP فعال شده و IP گرفته است (<code>AT+QIACT=1</code> در صفحهٔ TCP/IP).
+            <strong>گروه Connect</strong> این صفحه فقط بررسی‌های فقط‌خواندنی دارد:
+            <code>AT+CPIN?</code> / <code>AT+CGATT?</code> / <code>AT+CGREG?</code> /
+            <code>AT+QIACT?</code>، <code>AT+QIDNSCFG=1</code> (DNS برابر 0.0.0.0 یعنی تخصیص نیافته)،
+            <code>AT+QIGETERROR</code> (⚠ فقط برای آخرین فرمان TCP/IP معتبر است؛
+            بعد از شکست <strong>بلافاصله</strong> بزنیدش).</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> دروغ می‌گوید.</strong> در تست عملی به رانش PDP در میانهٔ کار برخوردیم:
+                همهٔ درخواست‌ها شکست می‌خوردند و <strong>با وقفهٔ ثابت 30 ثانیه</strong> خطای 716 برمی‌گرداندند،
+                ولی <code>AT+QIACT?</code> همچنان IP برمی‌گرداند. با <code>AT+CGACT?</code> مقایسهٔ متقاطع کنید؛
+                ناسازگاری یعنی رانش رخ داده است. راه درمان: <code>AT+QIDEACT=1</code> ←
+                <code>AT+CGACT=0,&lt;cid رانش‌کرده&gt;</code> ← <code>AT+QIACT=1</code>،
+                اول ping بگیرید بعد ادامه دهید.
+            </div>
+
+            <h4>اولین GET: چهار گام</h4>
+            <ol>
+                <li><strong>تنظیمات مقدماتی</strong> (گروه Config، صفر مصرف): در کارت پارامترِ <code>contextid</code>
+                    مقدار 1 بگذارید (اتصال به PDP contextی که می‌خواهید از آن بروید)؛ سه کلیدِ <code>rspout/auto</code>،
+                    <code>requestheader</code> و <code>responseheader</code> را روی 0 نگه دارید
+                    (دلیلش را در ادامه ببینید)؛ <code>AT+QHTTPCFG?</code> همهٔ تنظیمات را یکجا برای مقابله برمی‌گرداند و
+                    <code>AT+QHTTPCFG=?</code> موارد قابل تنظیم را فهرست می‌کند.</li>
+                <li><strong>تنظیم URL (دومرحله‌ای)</strong>: کارت <code>AT+QHTTPURL</code> فقط یک دکمهٔ
+                    «ارسال (دومرحله‌ای)» دارد — شما URL را می‌نویسید و طول را برنامه خودکار حساب می‌کند. روند: اول
+                    <code>AT+QHTTPURL=&lt;طول&gt;,80</code> فرستاده می‌شود، منتظر <code>CONNECT</code> می‌مانید
+                    تا وارد حالت داده شوید، بعد بایت‌های URL را عیناً می‌فرستید و <strong>هیچ پایان سطری اضافه نمی‌کنید</strong>
+                    (CR/LF در طول حساب می‌شود).
+                    طول <code>http://www.example.com/</code> دقیقاً 23 است. بعد از ارسال، با
+                    <code>AT+QHTTPURL?</code> بخوانیدش؛ نویسه‌به‌نویسه یکسان بودن یعنی پایان سطر قاطی نشده است.</li>
+                <li><strong>فرستادن درخواست</strong>: <code>AT+QHTTPGET=80</code> (ثانیهٔ انتظار پاسخ).
+                    <code>OK</code> فقط یعنی «فرمان دریافت شد»؛ نتیجهٔ واقعی URC بعدی یعنی
+                    <code>+QHTTPGET: 0,200</code> است که خواندنش را در بخش بعد ببینید.</li>
+                <li><strong>خواندن پاسخ</strong>: <code>AT+QHTTPREAD=80</code>.
+                    بعد از <code>CONNECT</code> همه‌چیز بایت خام است (در تست عملی برای example.com
+                    559 bytes)، بعد <code>OK</code> می‌آید —
+                    اما <strong>نشانهٔ پایان، سطر مستقلِ آخر یعنی <code>+QHTTPREAD: 0</code> است</strong>.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="زبانهٔ HTTP">
+                <figcaption>صفحهٔ HTTP: چهار گروه Config / Connect / Transfer / Close.</figcaption>
+            </figure>
+
+            <h4>خواندن +QHTTPGET: ستون اول کد وضعیت HTTP نیست</h4>
+            <p>URC نتیجهٔ GET / POST / POSTFILE هر سه سه‌ستونی است:
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code>.
+            <code>err</code> برابر <strong>0 یعنی فرمان با موفقیت اجرا شد</strong> و غیر 0 خطای لایهٔ ماژول است (716، 711 و…)؛
+            <code>httprspcode</code> کد وضعیت HTTP است و <strong>فقط وقتی err=0 باشد گزارش می‌شود</strong>
+            (در دفترچه صریح آمده؛ ابزار برای 200 / 403 / 404 / 409 / 411 / 500 حاشیهٔ توضیحی داخلی دارد)؛
+            <code>content_length</code> اختیاری است — فقط وقتی هست که سرآیند پاسخ سرور CONTENT-LENGTH داشته باشد،
+            و GET معمولی اغلب فقط دو ستون دارد. پس <code>+QHTTPGET: 0,404,0</code>ای که در تست عملی دیدیم
+            <strong>شکست نیست</strong>: فرمان موفق بوده و این سرور است که می‌گوید پیدا نکردم.</p>
+
+            <h4>خواندن پاسخ: تلهٔ AT+QHTTPREAD</h4>
+            <p>پارامتر آن «حداکثر فاصلهٔ ثانیه‌ای بین دو بستهٔ داده» است، نه مدت کل.
+            <strong>firmware این دستگاه فقط یک پارامتر می‌گیرد</strong>: روش خواندن قطعه‌قطعهٔ
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> که در نوت کاربردی آمده، در تست عملی
+            <code>ERROR</code> خشک‌وخالی برگرداند (با کاوش <code>=?</code> تأیید شد) و دکمه‌اش حذف شده است —
+            برای دریافت قطعه‌قطعه از <code>GETEX</code> استفاده کنید.</p>
+            <div class="warning">
+                <strong>تلهٔ قفل متقابل: به‌محض اینکه <code>rspout/auto</code> را 1 کنید، همهٔ خانوادهٔ READ شکست می‌خورند</strong>
+                (در دفترچه صریح آمده). این تنظیم باعث می‌شود ماژول پاسخ را خودکار بیرون بدهد و بهایش نابودی کل خانوادهٔ READ است،
+                برای همین این دکمه پنجرهٔ تأیید دارد. اگر READ ناگهان یکسره از کار افتاد، اول <code>AT+QHTTPCFG?</code> را ببینید.
+            </div>
+
+            <h4>دریافت قطعه‌قطعه: خواندن بایت‌به‌بایت با AT+QHTTPGETEX</h4>
+            <p><code>AT+QHTTPGETEX=&lt;ثانیه&gt;,&lt;افست شروع&gt;,&lt;طول&gt;</code>
+            از HTTP Range استفاده می‌کند و فقط قطعهٔ مشخص‌شده را می‌گیرد؛ صرفه‌جویی در مصرف داده. تست عملی (محتوای ثابت نقطهٔ پایانی
+            <code>abcdefghijklmnop</code>): با افست 0 و طول 8، <code>+QHTTPGET: 0,206,8</code> برگشت و
+            <code>abcdefgh</code> خوانده شد؛ با افست 8 و طول 8 هم <code>ijklmnop</code>.
+            خواندن نتیجه: <strong>کد وضعیت حتماً باید 206 باشد</strong>؛ برگشتن <strong>200 با محتوای یکسان در هر بار</strong>
+            یعنی سرور از Range پشتیبانی نمی‌کند، نه اینکه ماژول خراب باشد.
+            ⚠ فقط وقتی <code>requestheader=0</code> است قابل اجراست.</p>
+
+            <h4>POST: دومرحله‌ای و Content-Type</h4>
+            <p>کارت <code>AT+QHTTPPOST</code> هم دومرحله‌ای است: شما body را می‌نویسید و طول خودکار حساب می‌شود؛ اول
+            <code>AT+QHTTPPOST=&lt;طول&gt;,&lt;ثانیهٔ ورودی&gt;,&lt;ثانیهٔ پاسخ&gt;</code> فرستاده می‌شود،
+            منتظر <code>CONNECT</code> می‌مانید و بعد body را می‌فرستید. سه نکته:</p>
+            <ul>
+                <li><strong>انتظار <code>CONNECT</code> تا 125 ثانیه هم می‌رسد</strong> (در دفترچه صریح آمده) —
+                    وقفهٔ انتظار اعلان را کامل روی 125 ثانیه بگذارید و 5 ثانیهٔ MQTT را اینجا تکرار نکنید.</li>
+                <li>سقف body برابر 1 MB است (بازهٔ 1–1024000 در تست عملیِ <code>=?</code>).</li>
+                <li>Content-Type را از قبل با کارت پارامترِ <code>contenttype</code> تنظیم کنید
+                    (کد نوع 0 یعنی form-urlencoded).</li>
+            </ul>
+            <p>تست عملی: POST کردن <code>Message=HelloQuectel</code> (20 bytes) نتیجهٔ
+            <code>+QHTTPPOST: 0,200,440</code> داد؛ JSONای که READ برگرداند نشان می‌دهد جفت کلید-مقدار رسیده،
+            طول درست حساب شده و Content-Type اثر کرده است، و User-Agent همان چیزی است که خود ماژول اعلام می‌کند:
+            <code>QUECTEL_MODULE</code>.</p>
+
+            <h4>سرآیند سفارشی و سرآیند پاسخ</h4>
+            <ul>
+                <li><code>reqheader/add</code>: یک سرآیند درخواست سفارشی اضافه می‌کند (دفترچه نمونه نداده است)؛
+                    دکمهٔ پرس‌وجو تعداد سرآیندهای اضافه‌شدهٔ فعلی را می‌گوید؛ <code>reqheader/remove</code> حذف می‌کند.</li>
+                <li><code>requestheader</code> برابر 1 یعنی کل سرآیند درخواست را خودتان می‌سازید، حتی GET هم دومرحله‌ای می‌شود
+                    و <code>GETEX</code> دیگر کار نمی‌کند. در حالت عادی روی 0 بماند.</li>
+                <li>با 1 کردن <code>responseheader</code>، خروجی READ سرآیند پاسخ HTTP را هم می‌آورد
+                    (در تست عملی حتی X-Test سفارشی هم برگشت). بعد از تست دوباره 0 کنید.</li>
+                <li><code>closed/ind</code>: گزارش URC «session بسته شد» را فعال می‌کند.</li>
+            </ul>
+
+            <h4>نسخهٔ فایلی: POSTFILE و READFILE (UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="نام‌فایل",&lt;ثانیه&gt;</code> فایلی از سیستم فایل ماژول (UFS) را
+            به‌عنوان body در POST می‌فرستد؛ <code>AT+QHTTPREADFILE="نام‌فایل",&lt;ثانیه&gt;</code> پاسخ را
+            به‌صورت فایل UFS ذخیره می‌کند. ⚠ این ابزار فعلاً <strong>نه می‌تواند فایل را از قبل روی UFS بارگذاری کند
+            و نه محتوای فایل UFS را برمی‌گرداند</strong>؛ این دو فرمان برای همراهی با روند سمت firmware هستند.</p>
+
+            <h4>HTTPS: مسیر بدون اعتبارسنجی</h4>
+            <p>HTTPS یعنی HTTP به‌علاوهٔ SSL context. گروه Connect کوتاه‌ترین مسیر را آماده دارد؛ پنج دکمه را به‌ترتیب بزنید:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP از SSL context شمارهٔ 1 استفاده کند
+AT+QSSLCFG="sslversion",1,4        ← نسخهٔ TLS به مذاکره با سرور سپرده شود
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← همهٔ مجموعه‌های رمزنگاری باز
+AT+QSSLCFG="seclevel",1,0          ← بدون اعتبارسنجی گواهی (در ادامه ببینید)
+AT+QSSLCFG="sni",1,1               ← روشن کردن SNI (مقدار کارخانه 0 است!)</pre>
+            <p>بعد از آن، URL را با <code>https://</code> شروع کنید و GET و READ را طبق معمول بزنید —
+            در تست عملی، HTML خوانده‌شده نویسه‌به‌نویسه با نسخهٔ رمزنگاری‌نشده یکسان بود.
+            <strong><code>seclevel=0</code> (بدون اعتبارسنجی گواهی) تنها مسیری است که این ابزار می‌تواند تا آخر برود</strong>
+            — برای اعتبارسنجی گواهی باید اول گواهی CA در UFS نوشته شود؛ جزئیات SSL (فهرست همهٔ زیرموارد با
+            <code>AT+QSSLCFG=?</code> و تنظیم ثانیهٔ انتظار دست‌دهی با <code>negotiatetime</code>) در بخش «SSL — کانال TLS» آمده است.
+            <strong>مقدار کارخانهٔ SNI صفر است</strong>: بدون روشن کردنش، سایت HTTPS روی IP مشترک گواهی نامتناسب می‌دهد و
+            اعتبارسنجی حتماً شکست می‌خورد. <strong>زنجیرهٔ گواهی بیشترین سهم مصرف داده را دارد</strong>: یک دور HTTPS GET حدود
+            8–15 KB است، در حالی که نسخهٔ رمزنگاری‌نشده حدود 1 KB.</p>
+
+            <h4>تغییر مسیر و جمع کردن کار</h4>
+            <p><strong>تغییر مسیر (دفترچه ننوشته، تست عملی روشنش کرد)</strong>: ماژول 302 را خودکار دنبال می‌کند، اما
+            <strong>فقط Location با مسیر مطلق را می‌پذیرد</strong> — مسیر نسبی مستقیماً خطای 711 برمی‌گرداند و
+            در 1 میلی‌ثانیه شکست می‌خورد. <strong>جمع کردن کار</strong>:
+            <code>AT+QHTTPSTOP</code> (گروه Close) درخواست در حال اجرا را لغو و session را قطع می‌کند؛
+            هر وقت وضعیت عجیب شد یا خطای 704 (اشغال بودن حالت داده) آمد، اول این دکمه را بزنید تا همه‌چیز تمیز شود.</p>
+
+            <h4>عیب‌یابی</h4>
+            <table>
+                <tr><th>نشانه</th><th>علت و راه‌حل</th></tr>
+                <tr><td>هیچ URC نتیجه‌ای دیده نمی‌شود</td><td><code>urcport</code> روی <code>uart1</code> نیست؛
+                    در صفحهٔ Hardware عوضش کنید</td></tr>
+                <tr><td>همهٔ URLها 716 می‌دهند، با وقفهٔ ثابت 30 ثانیه</td>
+                    <td>رانش PDP؛ هشدار بالا را ببینید</td></tr>
+                <tr><td>فقط یک URL خاص 716 می‌دهد</td><td>در تست عملی شکست DNS هم 716 می‌دهد (نه 714 که نوشته‌های قدیمی حدس زده بودند)؛
+                    اینکه بعدش READ مقدار 705 برگرداند زنجیرهٔ طبیعی همان است</td></tr>
+                <tr><td><code>READ</code> یا <code>GETEX</code> ناگهان شکست می‌خورد</td>
+                    <td>هم <code>rspout/auto</code> و هم <code>requestheader</code>
+                        باید 0 باشند (بالاتر توضیح داده شد)</td></tr>
+                <tr><td>حتی <code>AT</code> هم پاسخ نمی‌دهد</td>
+                    <td>ماژول قفل کرده است (در تست عملی دیده شد، دفترچه توصیفش نکرده) — آیین راه‌اندازی را دوباره اجرا کنید</td></tr>
+            </table>

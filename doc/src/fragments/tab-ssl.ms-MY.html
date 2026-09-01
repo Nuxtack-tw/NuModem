@@ -1,0 +1,159 @@
+<h3 id="tab-ssl">SSL — saluran TLS</h3>
+            <p><strong>Prinsip kerja:</strong> halaman SSL ialah <strong>lapisan bawah bersama</strong> bagi sambungan tersulit —
+            SSL context yang ditetapkan di sini dan sijil yang dimuat naik digunakan serentak oleh SSL raw socket, MQTT over SSL
+            dan HTTPS. Bilangan saat dan kelakuan dalam bahagian ini ialah nilai ujian sebenar terhadap EG800K fizikal pada Ogos 2026.</p>
+
+            <h4>Sambungan TLS pertama: lima langkah</h4>
+            <ol>
+                <li><strong>Jalankan ritual but</strong> (lihat bahagian "Ritual but"), kemudian tekan
+                    <code>AT+QIACT?</code> untuk mengesahkan saluran data — ia mesti dapat memulangkan
+                    <code>+QIACT: 1,1,…,"IP"</code>; jika tiada, lakukan <code>AT+QIACT=1</code> dahulu.</li>
+                <li><strong>Tetapkan context</strong>: isikan <code>sslversion</code> dengan 4 (semua versi,
+                    keserasian terbaik), <code>ciphersuite</code> dengan 0XFFFF (semua suite),
+                    dan <code>seclevel</code> dengan 0 dahulu — sahkan saluran itu menjadi dahulu, pengesahan sijil disimpan untuk kemudian.</li>
+                <li><strong>Buka sambungan</strong>: tekan <code>AT+QSSLOPEN</code> (digit akhir 0), isikan
+                    hos dan port pada kad parameter. ⚠ <code>OK</code> hanya bermakna "arahan diterima"; berjaya atau gagal perlu menunggu URC:
+                    <code>+QSSLOPEN: 4,0</code> barulah kejayaan (ujian sebenar: jabat tangan 2.0 saat).</li>
+                <li><strong>Hantar data</strong>: tekan <code>AT+QSSLSEND</code> (dua peringkat) —
+                    selepas <code>&gt;</code> muncul hantar isi kandungan, dan <strong>sebaik panjang yang diisytiharkan cukup ia dihantar automatik,
+                    tanpa Ctrl+Z</strong> (had satu paket 1460 bytes). Balasan pihak lawan muncul sebagai
+                    <code>+QSSLURC: "recv",4</code>.</li>
+                <li><strong>Baca balik dan tutup</strong>: <code>AT+QSSLRECV</code> (had 1500 setiap kali);
+                    apabila ia memulangkan <code>+QSSLRECV: 0</code> bermakna semuanya telah dibaca habis, bukan ralat.
+                    <code>AT+QSSLCLOSE=4</code> menutupnya (secara lalai menunggu sehingga 10 saat;
+                    satu lagi butang boleh menetapkan bilangan saat, 0 = serta-merta).</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2.0 saat, 0 = berjaya
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← sebaik 15 bytes cukup, dihantar automatik
+SEND OK
++QSSLURC: "recv",4        ← 0.4 saat
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>Semasa bersambung anda boleh menekan <code>AT+QSSLSTATE</code> untuk melihat semua sambungan (<code>=4</code>
+            untuk menyemak satu clientID; status 2 = telah bersambung). Perhatikan <strong>port setempat sentiasa memulangkan 0</strong> —
+            itu kelakuan modul, bukan ralat.</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="Tab SSL">
+                <figcaption>Halaman SSL: tetapan context, muat naik sijil UFS, sambungan, hantar-terima, penutupan.</figcaption>
+            </figure>
+
+            <h4>Tiga mod capaian (digit akhir <code>AT+QSSLOPEN</code>)</h4>
+            <table>
+                <tr><th>Digit akhir</th><th>Kelakuan</th></tr>
+                <tr><td>0 buffer</td><td>Apabila data diterima ia hanya mengeluarkan <code>+QSSLURC: "recv",&lt;id&gt;</code>,
+                    dan anda sendiri menghantar <code>AT+QSSLRECV</code> untuk membacanya</td></tr>
+                <tr><td>1 tolak terus</td><td>URC turut membawa panjangnya, dan <strong>data terus dimuntahkan pada baris berikutnya</strong>;
+                    ⚠ dalam mod ini <code>AT+QSSLRECV</code> memulangkan ERROR dan itu normal</td></tr>
+                <tr><td>2 lalu-terus</td><td>Seluruh port AT bertukar menjadi saluran data (butang halaman ini hanya menyediakan 0 dan 1)</td></tr>
+            </table>
+
+            <h4>Tetapan context satu demi satu</h4>
+            <p>Jika tidak pasti sub-item mana yang disokong perisian tegar, tekan <code>AT+QSSLCFG=?</code> dahulu —
+            ujian sebenar memulangkan 17 sub-item, lebih banyak daripada yang disenaraikan manual aplikasi. Sub-item yang lazim mempunyai dua butang, tetapkan dan tanya,
+            dan ujian sebenar menunjukkan bacaan balik selepas penulisan adalah sama tepat.</p>
+            <table>
+                <tr><th>Sub-item</th><th>Kilang</th><th>Fungsi dan intipati ujian sebenar</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>Versi protokol; 4 = semua disokong</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>Suite penyulitan; 0XFFFF = semua disokong</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0 = tiada pengesahan, 1 = mengesahkan pelayan
+                    (sijil CA mesti dimuat naik dahulu), 2 = pengesahan dua hala (perlu juga sijil klien + kunci peribadi)</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>Laluan sijil CA, formatnya
+                    <code>"UFS:nama_fail"</code>, dan fail itu mesti sudah berada dalam UFS (lihat bahagian berikutnya)</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>Wajib dihidupkan untuk hos maya / CDN — apabila satu IP menampung banyak domain, tanpa menghantar SNI
+                    anda akan menerima sijil yang tidak sepadan dan pengesahan pasti gagal dengan 566</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>Dari kilang, walaupun seclevel 1 dihidupkan, tempoh sah sijil tidak diperiksa</strong>.
+                    Untuk memeriksanya tetapkan 0, dan jam modul mesti tepat</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>Saat menunggu maksimum bagi jabat tangan TLS (10–300)</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 Tiga nilai lalai kilang ini digabungkan = sijil langsung tidak disahkan</strong>
+                (seclevel 0, sni 0, ignorelocaltime 1); untuk benar-benar mengesahkan, ketiga-tiganya mesti ditetapkan dengan betul.
+                Tambahan pula ketiga-tiga tetapan ini dan <code>cacert</code> <strong>tidak kekal merentas but semula</strong>
+                (disahkan melalui ujian sebenar); setiap kali but ia kembali kepada nilai kilang, manakala fail sijil dalam UFS tidak hilang apabila kuasa terputus.
+            </div>
+
+            <h4>Kumpulan fail UFS: bagaimana sijil masuk ke dalam modul</h4>
+            <p>UFS ialah storan kilat terbina dalam modul; ujian sebenar menunjukkan jumlah kapasiti <strong>280 KB</strong>, dan setiap fail menduduki satu
+            blok 4 KB. Sijil mesti dimuat naik ke sini dahulu barulah <code>cacert</code> mempunyai fail untuk dirujuk.
+            <strong>Muat naik melalui UART, sifar trafik data</strong>, dan fail binari juga boleh dihantar masuk.
+            <strong>Kad Upload</strong>: selepas fail dipilih, nama dan saiznya diisi automatik, dan selepas dihantar alat ini menunggu modul memulangkan
+            <code>CONNECT</code> barulah menghantar bait mentah (jika tidak tiba, ia tidak menghantar). Apabila selesai,
+            <strong>enjin anotasi membandingkan secara automatik</strong> saiz dan checksum yang dilaporkan modul:
+            ✅ = lengkap tanpa cacat, ❌ = rosak semasa penghantaran, padam dahulu kemudian hantar semula.</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← seterusnya 1939 bytes dihantar
++QFUPL: 1939,4f64         ← saiz diterima,checksum; anotasi membandingkannya automatik ✅</pre>
+            <table>
+                <tr><th>Butang</th><th>Kegunaan</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>Menyenaraikan semua fail UFS dan saiznya —
+                    gunakannya untuk mengesahkan selepas muat naik (sifar trafik)</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>Menyemak bytes ruang baki / jumlah (sifar trafik)</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>Memadam fail tertentu (<code>*</code> = semua);
+                    jika fail senama tidak dipadam dahulu, penghantaran semula akan disekat</td></tr>
+            </table>
+            <div class="tip">
+                <strong>Dua kelakuan ujian sebenar yang tidak dinyatakan manual:</strong> (1) bentuk kod ralat FILE tidak konsisten —
+                penghantaran semula fail senama memulangkan teks <code>file already exist</code>, manakala tamat masa memulangkan nombor <code>421</code>,
+                dan alat ini boleh mentafsir kedua-duanya; (2) jika medan saiz diisi lebih besar daripada saiz sebenar, selepas modul tamat masa ia
+                <strong>tetap menyimpan kandungan yang diterima</strong> — perbandingan checksum akan menangkapnya.
+            </div>
+
+            <h4>Pengesahan sijil secara praktik: kaedah ujian berpasangan</h4>
+            <p>Aliran: muat naik sijil akar → arahkan <code>cacert</code> kepadanya → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → sambung ke port 443 sasaran. <strong>Yang perlu dimuat naik ialah sijil akar di lapisan paling atas rantaian sijil</strong>
+            (rantaian badssl.com ada empat lapisan; muat naik ISRG Root X1 yang paling atas).
+            <strong>Menguji "sijil rosak tidak dapat disambung" sahaja tidak mencukupi</strong> — "semuanya tidak dapat disambung" juga akan lulus.
+            Ia mesti diuji berpasangan: sijil baik boleh disambung, sijil rosak tidak boleh disambung,
+            dan <strong>hanya apabila kedua-dua arah itu benar barulah ia dikira</strong>. Perbandingan 2×5 daripada ujian sebenar:</p>
+            <table>
+                <tr><th>Hos</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com (kawalan positif)</td><td>Boleh disambung</td>
+                    <td><strong>Boleh disambung</strong> <code>4,0</code></td></tr>
+                <tr><td>expired (tamat tempoh)</td><td>Boleh disambung</td><td>Ditolak 566</td></tr>
+                <tr><td>self-signed (tandatangan sendiri)</td><td>Boleh disambung</td><td>Ditolak 566</td></tr>
+                <tr><td>wrong.host (nama hos tidak sepadan)</td><td>Boleh disambung</td><td>Ditolak 566</td></tr>
+                <tr><td>untrusted-root (akar tidak dipercayai)</td><td>Boleh disambung</td><td>Ditolak 566</td></tr>
+            </table>
+            <p>Had: <strong>keempat-empat jenis ralat sijil memulangkan 566, dan modul tidak membezakan</strong> yang mana satu.
+            <code>AT+QIGETERROR</code> juga tidak membantu — ia menguruskan lapisan TCP/IP,
+            dan ketika ini ia hanya memulangkan <code>0,operate successfully</code>.</p>
+            <div class="tip">
+                Elakkan expired sebagai item ujian negatif — <code>ignorelocaltime</code> dari kilang ialah 1, jadi tamat tempoh dengan sendirinya
+                tidak akan disekat (dalam jadual di atas ia disekat kerana pada masa yang sama ia bukan di bawah akar yang dimuat naik); untuk ujian tunggal gunakan wrong.host.
+                Selain itu <strong>perhatikan trafik</strong>: setiap jabat tangan memuat turun rantaian sijil penuh dan tetap dibayar walaupun gagal;
+                ujian sebenar 30 jabat tangan lebih kurang 150–200 KB.
+            </div>
+
+            <h4>🔴 Perangkap: selepas kira-kira 20 kali buka-tutup berturut-turut, tindanan data merosot sepenuhnya</h4>
+            <div class="warning">
+                <strong>Gejala: semua <code>AT+QSSLOPEN</code> memulangkan 552</strong>, malah seclevel 0
+                pun tidak dapat disambung, sedangkan setiap pemeriksaan sendiri berkata semuanya elok. <strong>Triaj 30 saat</strong>: gunakan
+                <code>AT+QIOPEN</code> TCP tulen ke sasaran yang sama — jika itu pun gagal maka tindanan data telah rosak, jangan lagi menyiasat
+                tetapan SSL. Memulakan semula PDP tidak menyelamatkannya; <strong>hanya ritual but yang lengkap dapat memulihkannya</strong>.
+                Kemerosotan itu akan mencemarkan data ujian dan mudah disalahtafsir sebagai "disekat oleh pengesahan sijil" —
+                but semula untuk membersihkannya sebelum menjalankan ujian berpasangan.
+            </div>
+
+            <h4>Penyelesaian masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Punca dan penyelesaian</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>Pengesahan sijil gagal. Semak mengikut turutan: adakah <code>sni</code> dihidupkan (paling lazim),
+                        adakah akar <code>cacert</code> betul, atau sijil itu sendiri rosak;
+                        ketiga-tiga tetapan itu kembali sifar selepas but semula</td></tr>
+                <tr><td>Tiada susulan selepas <code>OK</code></td>
+                    <td><code>OK</code> hanya bermakna arahan diterima; keputusan datang melalui URC, dengan menunggu paling lama
+                        150 saat + <code>negotiatetime</code></td></tr>
+                <tr><td>Port AT tersekat dan tidak melayan sebarang arahan</td>
+                    <td>Panjang <code>AT+QSSLSEND</code> tersalah kira, jadi ia tersekat dalam mod data lalu menelan arahan —
+                        gunakan butang bait mentah pada halaman Hardware untuk menghantar ESC (0x1B) sebagai jalan keluar</td></tr>
+            </table>

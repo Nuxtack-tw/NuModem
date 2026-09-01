@@ -1,0 +1,159 @@
+<h3 id="tab-ssl">SSL —— TLS tüneli</h3>
+            <p><strong>Çalışma prensibi:</strong> SSL sayfası, şifreli bağlantıların <strong>ortak alt katmanıdır</strong> ——
+            burada ayarlanan SSL context ve yüklenen sertifikalar, SSL raw socket'e, MQTT over SSL'e
+            ve HTTPS'e birlikte hizmet eder. Bu bölümdeki süreler ve davranışlar, Ağustos 2026'da gerçek bir EG800K üzerinde ölçülmüştür.</p>
+
+            <h4>İlk TLS bağlantısı: beş adım</h4>
+            <ol>
+                <li><strong>Açılış prosedürünü çalıştırın</strong> (bkz. "Açılış Prosedürü" bölümü), sonra
+                    <code>AT+QIACT?</code> ile veri kanalını doğrulayın —— yanıt
+                    <code>+QIACT: 1,1,…,"IP"</code> gelmelidir; gelmiyorsa önce <code>AT+QIACT=1</code>.</li>
+                <li><strong>Context'i ayarlayın</strong>: <code>sslversion</code> için 4 (tüm sürümler,
+                    en iyi uyumluluk), <code>ciphersuite</code> için 0XFFFF (tüm takımlar),
+                    <code>seclevel</code> için önce 0 —— önce tünelin geçtiğini doğrulayın; doğrulamayı sonraya bırakın.</li>
+                <li><strong>Bağlantıyı açın</strong>: <code>AT+QSSLOPEN</code>'a basın (son parametre 0), parametre kartına
+                    sunucu ile portu yazın. ⚠ <code>OK</code> yalnızca "komut alındı" demektir; sonuç URC'den beklenir:
+                    <code>+QSSLOPEN: 4,0</code> başarıdır (ölçülen el sıkışma 2.0 saniye).</li>
+                <li><strong>Veri gönderin</strong>: <code>AT+QSSLSEND</code>'e basın (iki aşamalı) ——
+                    <code>&gt;</code> görünce gövdeyi gönderin; <strong>bildirilen uzunluk dolunca kendiliğinden gönderir,
+                    Ctrl+Z gerekmez</strong> (tek paket üst sınırı 1460 bytes). Karşı taraf yanıt verince
+                    <code>+QSSLURC: "recv",4</code> gelir.</li>
+                <li><strong>Okuma ve kapatma</strong>: <code>AT+QSSLRECV</code> (tek seferde en çok 1500);
+                    <code>+QSSLRECV: 0</code> okumak "tamamen boşaltıldı" demektir, hata değildir.
+                    <code>AT+QSSLCLOSE=4</code> kapatır (varsayılan en fazla 10 saniye bekler;
+                    öbür düğme saniye belirtir, 0 = anında).</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2.0 saniye, 0 = başarı
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← 15 bytes dolunca kendiliğinden gönderilir
+SEND OK
++QSSLURC: "recv",4        ← 0.4 saniye
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>Bağlantı sürerken <code>AT+QSSLSTATE</code> ile tüm bağlantılara bakabilirsiniz (<code>=4</code>
+            tek clientID'yi sorgular; durum 2 = bağlı). Dikkat: <strong>yerel port hep 0 döner</strong> ——
+            modül davranışıdır, hata değildir.</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="SSL sekmesi">
+                <figcaption>SSL sayfası: context ayarları, UFS sertifika yükleme, bağlantı, alışveriş, kapatma.</figcaption>
+            </figure>
+
+            <h4>Üç erişim modu (<code>AT+QSSLOPEN</code> son parametresi)</h4>
+            <table>
+                <tr><th>Son parametre</th><th>Davranış</th></tr>
+                <tr><td>0 tamponlu</td><td>Veri gelince yalnızca <code>+QSSLURC: "recv",&lt;id&gt;</code> bildirir;
+                    <code>AT+QSSLRECV</code> ile kendiniz okursunuz</td></tr>
+                <tr><td>1 doğrudan itme</td><td>URC uzunluk da taşır, <strong>veri hemen alt satıra dökülür</strong>;
+                    ⚠ bu modda <code>AT+QSSLRECV</code>'in ERROR dönmesi normaldir</td></tr>
+                <tr><td>2 şeffaf</td><td>AT portu tümüyle veri kanalına dönüşür (bu sayfadaki düğmeler yalnızca 0 ile 1'i sunar)</td></tr>
+            </table>
+
+            <h4>Context ayarları tek tek</h4>
+            <p>Firmware'in hangi alt maddeleri desteklediğinden emin değilseniz önce <code>AT+QSSLCFG=?</code>'ya basın ——
+            ölçümde 17 alt madde döndü; uygulama kılavuzunun listelediğinden fazla. Sık kullanılan alt maddelerin ayar ve sorgu düğmeleri vardır;
+            ölçümde yazılan değerlerin geri okunanla birebir aynı olduğu görüldü.</p>
+            <table>
+                <tr><th>Alt madde</th><th>Fabrika</th><th>İşlevi ve ölçüm notu</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>Protokol sürümü; 4 = hepsi desteklenir</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>Şifre takımı; 0XFFFF = hepsi desteklenir</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0 = doğrulama yok, 1 = sunucu doğrulanır
+                    (önce CA sertifikası yüklenmeli), 2 = karşılıklı doğrulama (ayrıca istemci sertifikası + özel anahtar)</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>CA sertifikası yolu; biçim
+                    <code>"UFS:dosyaadı"</code>, dosya önceden UFS'te olmalı (bir sonraki bölüme bakın)</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>Sanal sunucuya / CDN'e bağlanırken açılması şart —— aynı IP'de birden çok alan adı varken SNI gönderilmezse
+                    eşleşmeyen sertifika gelir, doğrulama kesinlikle 566 ile düşer</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>Fabrika ayarında seclevel 1 açılsa bile sertifikanın geçerlilik süresi denetlenmez</strong>.
+                    Denetlemek için 0 yapın; modül saati de doğru olmalı</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>TLS el sıkışması için en uzun bekleme süresi, saniye (10–300)</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 Üç fabrika varsayılanının toplamı = sertifika hiç doğrulanmıyor</strong>
+                (seclevel 0, sni 0, ignorelocaltime 1); gerçekten doğrulamak için üçü de doğru ayarlanmalıdır.
+                Üstelik bu üç ayar ile <code>cacert</code> <strong>yeniden başlatmada korunmaz</strong>
+                (ölçümle doğrulandı); her açılışta fabrika değerine döner; UFS'teki sertifika dosyaları ise güç kesilince kaybolmaz.
+            </div>
+
+            <h4>UFS dosya grubu: sertifika modüle nasıl girer</h4>
+            <p>UFS, modülün yerleşik flash deposudur; ölçülen toplam kapasite <strong>280 KB</strong>, her dosya bir
+            4 KB blok kaplar. Sertifika önce buraya yüklenir; <code>cacert</code> ancak o zaman gösterecek dosya bulur.
+            <strong>Yükleme UART'tan gider, sıfır veri trafiği</strong>; ikili dosyalar da gönderilebilir.
+            <strong>Upload kartı</strong>: dosya seçilince ad ve boyut kendiliğinden dolar; gönderildikten sonra araç, modülden
+            <code>CONNECT</code> gelmesini bekler ve ancak o zaman ham baytları gönderir (gelmezse göndermez). Bitince
+            <strong>açıklama motoru</strong> modülün bildirdiği boyut ile checksum'ı <strong>kendiliğinden karşılaştırır</strong>:
+            ✅ = eksiksiz, ❌ = bozuk gitti; önce silin, sonra yeniden yükleyin.</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← ardından 1939 bytes gönderilir
++QFUPL: 1939,4f64         ← alınan boyut,checksum; açıklama kendiliğinden karşılaştırır ✅</pre>
+            <table>
+                <tr><th>Düğme</th><th>Amaç</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>UFS'teki tüm dosyaları ve boyutlarını listeler ——
+                    yüklemeden sonra bununla doğrulayın (sıfır trafik)</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>Kalan / toplam alanı bayt cinsinden sorgular (sıfır trafik)</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>Belirtilen dosyayı siler (<code>*</code> = hepsi);
+                    aynı adlı dosya önce silinmezse yeniden yükleme engellenir</td></tr>
+            </table>
+            <div class="tip">
+                <strong>Kılavuzun açıkça yazmadığı iki ölçüm davranışı:</strong> (1) FILE hata kodlarının biçimi tutarsızdır ——
+                aynı adla yeniden yükleme metin döndürür (<code>file already exist</code>), zaman aşımı sayı döndürür (<code>421</code>);
+                bu araç ikisini de çözer; (2) boyut alanı gerçekten büyük yazılırsa modül zaman aşımından sonra
+                <strong>aldığı kadarını yine de dosyaya kaydeder</strong> —— checksum karşılaştırması bunu yakalar.
+            </div>
+
+            <h4>Sertifika doğrulama pratiği: çift yönlü test yöntemi</h4>
+            <p>Akış: kök sertifikayı yükle → <code>cacert</code>'i ona yönelt → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → hedefin 443'üne bağlan. <strong>Yüklenecek olan, sertifika zincirinin en üstündeki kök sertifikadır</strong>
+            (badssl.com'un zinciri dört katmanlıdır; en tepedeki ISRG Root X1 yüklenir).
+            <strong>Yalnızca "kötü sertifika bağlanamıyor"u test etmek yetmez</strong> —— "hiçbir şey bağlanamıyor" da bu testi geçer.
+            Çift yönlü test gerekir: iyi sertifika bağlanabilmeli, kötü sertifika bağlanamamalı;
+            <strong>iki yön birden tutmadan sayılmaz</strong>. Ölçülen 2×5 karşılaştırma:</p>
+            <table>
+                <tr><th>Sunucu</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com (pozitif kontrol)</td><td>bağlanır</td>
+                    <td><strong>bağlanır</strong> <code>4,0</code></td></tr>
+                <tr><td>expired (süresi geçmiş)</td><td>bağlanır</td><td>ret 566</td></tr>
+                <tr><td>self-signed (kendinden imzalı)</td><td>bağlanır</td><td>ret 566</td></tr>
+                <tr><td>wrong.host (ad uyuşmazlığı)</td><td>bağlanır</td><td>ret 566</td></tr>
+                <tr><td>untrusted-root (güvenilmeyen kök)</td><td>bağlanır</td><td>ret 566</td></tr>
+            </table>
+            <p>Sınır: <strong>dört sertifika hatası da 566 döndürür; modül hangisi olduğunu ayırt etmez</strong>.
+            <code>AT+QIGETERROR</code> da yardım edemez —— o TCP/IP katmanına bakar,
+            bu durumda yalnızca <code>0,operate successfully</code> döndürür.</p>
+            <div class="tip">
+                Negatif test maddesi olarak expired'dan kaçının —— fabrika <code>ignorelocaltime</code> değeri 1'dir; sürenin geçmiş olması
+                tek başına engellenmez (yukarıdaki tabloda engellenmesinin nedeni, aynı zamanda yüklenen kökün altında olmamasıdır);
+                tek test için wrong.host kullanın. Ayrıca <strong>trafiğe dikkat</strong>: her el sıkışmada tam sertifika zinciri indirilir,
+                başarısızlıkta da ödenir; ölçümde 30 el sıkışma yaklaşık 150–200 KB tuttu.
+            </div>
+
+            <h4>🔴 Tuzak: yaklaşık 20 kez art arda açıp kapatınca veri yığını topyekûn dejenere oluyor</h4>
+            <div class="warning">
+                <strong>Belirti: tüm <code>AT+QSSLOPEN</code> denemeleri istisnasız 552 döndürür</strong>; seclevel 0 bile
+                bağlanamaz; oysa her öz denetim "sorun yok" der. <strong>30 saniyelik ayırt etme</strong>: aynı hedefe düz TCP'nin
+                <code>AT+QIOPEN</code>'ıyla vurun —— o da başarısızsa veri yığını bozulmuştur; SSL ayarlarını kurcalamayı bırakın.
+                PDP'yi yeniden başlatmak kurtarmaz; <strong>yalnızca tam açılış prosedürü düzeltir</strong>.
+                Dejenerasyon test verisini kirletir, kolayca "sertifika doğrulaması engelledi" sanılır ——
+                çift yönlü teste başlamadan önce yeniden başlatıp temizleyin.
+            </div>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>Sertifika doğrulaması başarısız. Sırasıyla bakın: <code>sni</code> açık mı (en yaygını),
+                        <code>cacert</code>'in kökü doğru mu, sertifikanın kendisi bozuk mu;
+                        bu üç ayar yeniden başlatınca sıfırlanır</td></tr>
+                <tr><td><code>OK</code> geldi, devamı gelmiyor</td>
+                    <td><code>OK</code> yalnızca alındığını gösterir; sonuç URC ile gelir; en uzun bekleme
+                        150 saniye + <code>negotiatetime</code></td></tr>
+                <tr><td>AT portu takıldı, hiçbir komuta bakmıyor</td>
+                    <td><code>AT+QSSLSEND</code> uzunluğu yanlış hesaplanmış, veri modunda takılıp komut yutuyor ——
+                        Hardware sayfasındaki ham bayt düğmesiyle ESC (0x1B) gönderip kaçın</td></tr>
+            </table>

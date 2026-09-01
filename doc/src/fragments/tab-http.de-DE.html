@@ -1,0 +1,152 @@
+<h3 id="tab-http">HTTP — Webanfragen</h3>
+            <p><strong>Funktionsweise:</strong> HTTP ist auf dem Modul <strong>dreistufig</strong>:
+            zuerst die URL setzen (dieser Schritt ist für sich genommen bereits zweistufig), dann die Anfrage absetzen (GET/POST), zuletzt die Antwort auslesen.
+            Das Ergebnis jeder Stufe steckt nicht im <code>OK</code>, sondern in einer später eintreffenden URC —
+            deshalb muss <code>AT+QURCCFG="urcport"</code> auf <code>"uart1"</code> stehen (auf der Hardware-Seite änderbar),
+            sonst bekommt man kein einziges Ergebnis zu sehen. Alle Zahlen sind Messwerte vom echten Gerät, 2026-08.</p>
+
+            <h4>Bevor Sie anfangen: erst der Datenkanal</h4>
+            <p>Voraussetzung ist ein aktivierter PDP mit erhaltener IP (<code>AT+QIACT=1</code> auf der TCP/IP-Seite).
+            Die <strong>Connect-Gruppe</strong> dieser Seite enthält nur Leseprüfungen:
+            <code>AT+CPIN?</code>/<code>AT+CGATT?</code>/<code>AT+CGREG?</code>/
+            <code>AT+QIACT?</code>, <code>AT+QIDNSCFG=1</code> (DNS 0.0.0.0 = nicht zugeteilt),
+            <code>AT+QIGETERROR</code> (⚠ gilt nur für den letzten TCP/IP-Befehl;
+            nach einem Fehlschlag <strong>sofort</strong> drücken).</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> lügt.</strong> Gemessen kam es mitten im Betrieb zu PDP-Drift:
+                Alle Anfragen scheiterten mit <strong>konstant 30 Sekunden Timeout</strong> und Fehler 716,
+                während <code>AT+QIACT?</code> weiterhin eine IP lieferte. Gleichen Sie mit <code>AT+CGACT?</code> gegen;
+                stimmen die Angaben nicht überein, ist der PDP gedriftet. Die Reparatur: <code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;gedriftete cid&gt;</code> → <code>AT+QIACT=1</code>,
+                erst nach erfolgreichem Ping weitermachen.
+            </div>
+
+            <h4>Das erste GET: vier Schritte</h4>
+            <ol>
+                <li><strong>Vorbereitung</strong> (Config-Gruppe, kein Datenvolumen): in der <code>contextid</code>-Parameterkarte
+                    1 setzen (bindet den zu verwendenden PDP context); die drei Schalter <code>rspout/auto</code>,
+                    <code>requestheader</code> und <code>responseheader</code> auf 0 lassen
+                    (Begründung folgt); <code>AT+QHTTPCFG?</code> liest alle Einstellungen zur Kontrolle in einem Zug,
+                    <code>AT+QHTTPCFG=?</code> listet die konfigurierbaren Punkte auf.</li>
+                <li><strong>URL setzen (zweistufig)</strong>: Die <code>AT+QHTTPURL</code>-Karte hat nur eine einzige
+                    Schaltfläche „Senden (zweistufig)“ — Sie tragen die URL ein, die Länge berechnet das Programm automatisch. Der Ablauf: zuerst
+                    <code>AT+QHTTPURL=&lt;Länge&gt;,80</code> senden, auf <code>CONNECT</code> warten
+                    (Eintritt in den Datenmodus), dann die URL-Bytes unverändert senden — <strong>ohne jedes Zeilenende</strong>
+                    (CR/LF würden in die Länge einfließen).
+                    <code>http://www.example.com/</code> hat genau die Länge 23. Danach mit
+                    <code>AT+QHTTPURL?</code> zurücklesen; stimmt es Zeichen für Zeichen überein, hat sich kein Zeilenende eingeschlichen.</li>
+                <li><strong>Anfrage absetzen</strong>: <code>AT+QHTTPGET=80</code> (Wartezeit auf die Antwort in Sekunden).
+                    <code>OK</code> heißt nur „Befehl angenommen“; das eigentliche Ergebnis ist die spätere URC
+                    <code>+QHTTPGET: 0,200</code>, zur Deutung siehe nächster Absatz.</li>
+                <li><strong>Antwort auslesen</strong>: <code>AT+QHTTPREAD=80</code>.
+                    Nach dem <code>CONNECT</code> folgen lauter Rohbytes (gemessen bei example.com
+                    559 bytes), dann <code>OK</code> —
+                    aber <strong>erst das <code>+QHTTPREAD: 0</code> in einer eigenen letzten Zeile ist die Endemarke</strong>.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="HTTP-Tab">
+                <figcaption>Die HTTP-Seite: die vier Gruppen Config/Connect/Transfer/Close.</figcaption>
+            </figure>
+
+            <h4>+QHTTPGET deuten: Die erste Spalte ist kein HTTP-Statuscode</h4>
+            <p>Die Ergebnis-URCs von GET/POST/POSTFILE haben alle die drei Spalten
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code>:
+            <code>err</code> <strong>0 = Befehl erfolgreich ausgeführt</strong>, ungleich 0 ist ein Fehler der Modulschicht (716, 711 …);
+            <code>httprspcode</code> ist der HTTP-Statuscode und <strong>wird nur bei err=0 gemeldet</strong>
+            (so steht es im Handbuch; das Werkzeug bringt Vergleichskommentare für 200/403/404/409/411/500 mit);
+            <code>content_length</code> ist optional — sie erscheint nur, wenn der Antwortheader des Servers CONTENT-LENGTH enthält,
+            ein gewöhnliches GET hat oft nur zwei Spalten. Das gemessene <code>+QHTTPGET: 0,404,0</code> ist deshalb
+            <strong>kein Fehlschlag</strong>: Der Befehl war erfolgreich — der Server sagt „nicht gefunden“.</p>
+
+            <h4>Die Antwort auslesen: die Falle von AT+QHTTPREAD</h4>
+            <p>Der Parameter ist die „maximale Lücke in Sekunden zwischen zwei Datenpaketen“, nicht die Gesamtdauer.
+            <strong>Die Firmware dieses Geräts nimmt nur einen einzigen Parameter an</strong>: Die Teillese-Form
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> aus der Application Note antwortete gemessen mit einem nackten
+            <code>ERROR</code> (per <code>=?</code>-Sondierung bestätigt), die Schaltfläche wurde entfernt —
+            für Teilabrufe dient stattdessen <code>GETEX</code>.</p>
+            <div class="warning">
+                <strong>Die Verriegelungsfalle: Steht <code>rspout/auto</code> auf 1, scheitern alle READ-Befehle</strong>
+                (so steht es im Handbuch). Es lässt das Modul die Antwort automatisch ausspucken — um den Preis, dass die READ-Familie komplett ausfällt;
+                deshalb hat diese Schaltfläche einen Bestätigungsdialog. Fällt READ plötzlich flächig aus, zuerst <code>AT+QHTTPCFG?</code> prüfen.
+            </div>
+
+            <h4>Teilabruf: AT+QHTTPGETEX liest byteweise</h4>
+            <p><code>AT+QHTTPGETEX=&lt;Sekunden&gt;,&lt;Startversatz&gt;,&lt;Länge&gt;</code>
+            holt über HTTP Range nur den angegebenen Ausschnitt und spart Datenvolumen. Gemessen (der Endpunktinhalt war fest
+            <code>abcdefghijklmnop</code>): Versatz 0, Länge 8 lieferte <code>+QHTTPGET: 0,206,8</code>
+            und las <code>abcdefgh</code> aus; Versatz 8, noch einmal 8 las <code>ijklmnop</code>.
+            Die Deutung: <strong>Der Statuscode muss 206 sein</strong>; kommt <strong>200 und jedes Mal derselbe Inhalt</strong>,
+            unterstützt der Server kein Range — das Modul ist nicht kaputt.
+            ⚠ Ausführbar nur bei <code>requestheader=0</code>.</p>
+
+            <h4>POST: zweistufig und Content-Type</h4>
+            <p>Auch die <code>AT+QHTTPPOST</code>-Karte ist zweistufig: Sie tragen den Body ein, die Länge wird automatisch berechnet; zuerst geht
+            <code>AT+QHTTPPOST=&lt;Länge&gt;,&lt;Eingabesekunden&gt;,&lt;Antwortsekunden&gt;</code> hinaus,
+            nach dem <code>CONNECT</code> folgt der Body. Drei Dinge:</p>
+            <ul>
+                <li><strong>Auf das <code>CONNECT</code> muss man bis zu 125 Sekunden warten</strong> (so steht es im Handbuch) —
+                    setzen Sie den Timeout für die Eingabeaufforderung auf volle 125 Sekunden und übernehmen Sie nicht die 5 Sekunden von MQTT.</li>
+                <li>Body-Obergrenze 1 MB (per <code>=?</code> gemessener Bereich 1–1024000).</li>
+                <li>Den Content-Type vorab über die <code>contenttype</code>-Parameterkarte setzen
+                    (Typcode 0 = form-urlencoded).</li>
+            </ul>
+            <p>Gemessen: Ein POST von <code>Message=HelloQuectel</code> (20 bytes) lieferte
+            <code>+QHTTPPOST: 0,200,440</code>; das per READ zurückgelesene JSON belegte, dass die Schlüssel-Wert-Paare ankamen,
+            die Länge stimmte und der Content-Type wirkte; der User-Agent war das vom Modul selbst gemeldete
+            <code>QUECTEL_MODULE</code>.</p>
+
+            <h4>Eigene Header und Antwortheader</h4>
+            <ul>
+                <li><code>reqheader/add</code>: fügt einen einzelnen eigenen Anfrageheader hinzu (das Handbuch liefert kein Beispiel);
+                    die Abfrage-Schaltfläche zeigt, wie viele bereits gesetzt sind; <code>reqheader/remove</code> entfernt sie.</li>
+                <li><code>requestheader</code> auf 1 = der komplette Anfrageheader wird selbst zusammengebaut; sogar GET wird zweistufig,
+                    und <code>GETEX</code> ist nicht mehr verwendbar. Im Normalfall auf 0 lassen.</li>
+                <li>Mit <code>responseheader</code> auf 1 spuckt READ auch die HTTP-Antwortheader mit aus
+                    (gemessen kam sogar der eigene X-Test-Header zurück). Nach dem Test wieder auf 0 stellen.</li>
+                <li><code>closed/ind</code>: schaltet die URC-Meldung „Session wurde geschlossen“ ein.</li>
+            </ul>
+
+            <h4>Die Dateivarianten: POSTFILE und READFILE (UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="Dateiname",&lt;Sekunden&gt;</code> sendet ein POST mit einer Datei aus dem Moduldateisystem (UFS)
+            als Body; <code>AT+QHTTPREADFILE="Dateiname",&lt;Sekunden&gt;</code> speichert die Antwort als
+            UFS-Datei. ⚠ Dieses Werkzeug kann derzeit <strong>weder Dateien ins UFS hochladen noch den Inhalt von UFS-Dateien
+            zurücklesen</strong>; diese beiden Befehle sind für die Kombination mit firmwareseitigen Abläufen gedacht.</p>
+
+            <h4>HTTPS: der Pfad ohne Prüfung</h4>
+            <p>HTTPS = HTTP + SSL context. Die Connect-Gruppe hält den kürzesten Pfad bereit; die fünf Schaltflächen der Reihe nach drücken:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP soll SSL context 1 verwenden
+AT+QSSLCFG="sslversion",1,4        ← TLS-Version dem Server zur Aushandlung überlassen
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← alle Cipher-Suiten freigeben
+AT+QSSLCFG="seclevel",1,0          ← Zertifikat nicht prüfen (siehe unten)
+AT+QSSLCFG="sni",1,1               ← SNI einschalten (ab Werk 0!)</pre>
+            <p>Danach die URL auf <code>https://</code> umstellen und wie gewohnt GET/READ —
+            gemessen war das zurückgelesene HTML Zeichen für Zeichen identisch mit der Klartextversion.
+            <strong><code>seclevel=0</code> (keine Zertifikatsprüfung) ist der einzige Pfad, den dieses Werkzeug zu Ende gehen kann</strong>
+            — wer Zertifikate prüfen will, muss zuerst das CA-Zertifikat ins UFS schreiben; die SSL-Details (<code>AT+QSSLCFG=?</code>
+            listet alle Unterpunkte, <code>negotiatetime</code> stellt die Handshake-Wartezeit) stehen im Abschnitt „SSL — der TLS-Kanal“.
+            <strong>SNI steht ab Werk auf 0</strong>: Bleibt es aus, bekommen HTTPS-Sites auf geteilten IPs ein nicht passendes Zertifikat,
+            und jede Prüfung scheitert. <strong>Die Zertifikatskette ist der größte Volumenposten</strong>: Eine HTTPS-GET-Runde kostet rund 8–15 KB,
+            Klartext nur rund 1 KB.</p>
+
+            <h4>Weiterleitungen und Aufräumen</h4>
+            <p><strong>Weiterleitungen (im Handbuch fehlend, messtechnisch geklärt)</strong>: Das Modul folgt einer 302 automatisch, akzeptiert aber
+            <strong>nur absolute Pfade im Location-Header</strong> — ein relativer Pfad liefert direkt Fehler 711
+            und scheitert binnen 1 Millisekunde. <strong>Aufräumen</strong>:
+            <code>AT+QHTTPSTOP</code> (Close-Gruppe) bricht die laufende Anfrage ab und trennt die Session;
+            bei merkwürdigem Zustand oder Fehler 704 (Datenmodus belegt) zuerst diese Schaltfläche drücken und sauber machen.</p>
+
+            <h4>Fehlersuche</h4>
+            <table>
+                <tr><th>Symptom</th><th>Ursache und Abhilfe</th></tr>
+                <tr><td>Keine einzige Ergebnis-URC zu sehen</td><td><code>urcport</code> ist nicht <code>uart1</code> —
+                    auf der Hardware-Seite ändern</td></tr>
+                <tr><td>Alle URLs liefern 716 mit konstant 30 Sekunden Timeout</td>
+                    <td>PDP-Drift, siehe Warnung oben</td></tr>
+                <tr><td>Eine einzelne URL liefert 716</td><td>Gemessen ist auch ein DNS-Fehlschlag eine 716 (nicht die 714,
+                    die ältere Dokumente vermuten); das anschließende 705 von READ ist die normale Folgekette</td></tr>
+                <tr><td><code>READ</code>/<code>GETEX</code> scheitern plötzlich</td>
+                    <td><code>rspout/auto</code> und <code>requestheader</code>
+                        müssen beide 0 sein (siehe oben)</td></tr>
+                <tr><td>Selbst <code>AT</code> antwortet nicht mehr</td>
+                    <td>Das Modul hängt (gemessen erlebt, im Handbuch nicht beschrieben) — Boot-Sequenz erneut durchlaufen</td></tr>
+            </table>

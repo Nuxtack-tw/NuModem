@@ -1,0 +1,24 @@
+<h3 id="tab-http">HTTP —— 網頁請求</h3>
+            <p><strong>工作原理：</strong>HTTP 是<strong>三段式</strong>的：
+            先設 URL（本身就是兩段式）、再發請求、最後讀回應。</p>
+            <pre>AT+QHTTPCFG="contextid",1
+AT+QHTTPURL=&lt;URL長度&gt;,80   ← 等 CONNECT 再送 URL，不可附加 CR/LF
+AT+QHTTPGET=80            ← 結果在 +QHTTPGET URC
+AT+QHTTPREAD=80           ← 讀回應。真正的結束標記是 +QHTTPREAD: 0</pre>
+            <table>
+                <tr><th>陷阱</th><th>說明</th></tr>
+                <tr><td>URL 長度</td><td>不可附加 CR/LF，<strong>會被算進長度</strong></td></tr>
+                <tr><td>CONNECT 等多久</td><td>手冊寫「within 125 s」——
+                    等提示符的 timeout 必須設到 125 秒，<strong>不能沿用 MQTT 的 5 秒</strong></td></tr>
+                <tr><td><code>AT+QHTTPREAD</code> 的結束</td>
+                    <td>data mode 中的 <code>OK</code> 不是結束，
+                        <strong>最後獨立一行的 <code>+QHTTPREAD: 0</code> 才是</strong></td></tr>
+                <tr><td>分段 GET</td><td><code>AT+QHTTPGETEX</code> 走 HTTP Range。
+                    ⚠ 只在 <code>requestheader=0</code> 時可執行；
+                    伺服器不支援 Range 就會回 200 加整份內容</td></tr>
+                <tr><td>重新導向</td><td>實測：模組<strong>處理不了相對路徑的 redirect</strong></td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="HTTP 頁簽">
+                <figcaption>HTTP 頁：設定、URL、請求、讀取。</figcaption>
+            </figure>

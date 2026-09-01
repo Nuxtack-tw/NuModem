@@ -1,0 +1,2004 @@
+
+    <header class="header">
+        <h1>📡 NuModem EG800 使用說明書</h1>
+        <p class="subtitle">用瀏覽器控制 4G modem —— AT 指令、即時註解、18 種語言</p>
+        <span class="version">V26.0.76</span>
+    </header>
+
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="#intro">簡介</a>
+            <a href="#requirements">需求</a>
+            <a href="#quickstart">快速開始</a>
+            <a href="#boot">開機儀式</a>
+            <a href="#terminal">終端機</a>
+            <a href="#signals">訊號列</a>
+            <a href="#panel">AT 面板</a>
+            <a href="#tabs">十個頁簽</a>
+            <a href="#method">測試方法</a>
+            <a href="#faq">FAQ</a>
+        </div>
+    </nav>
+
+    <main class="container">
+
+        <section id="intro">
+            <h2><span class="icon">🎯</span> 簡介</h2>
+            <p>NuModem EG800 是一支<strong>單一 HTML 檔</strong>的 4G modem 控制台。它透過瀏覽器的
+            Web Serial API 直接對 Quectel <strong>EG800K</strong> 系列模組下 AT 指令，
+            不需要安裝任何東西、不需要驅動程式以外的軟體、也沒有後端伺服器。</p>
+
+            <p>它跟一般的序列埠終端機差在哪？差在<strong>它看得懂 AT 指令</strong>。
+            每一條你送出的指令、每一行模組回來的回應，旁邊都會即時附上一句人話說明 ——
+            包括那些只有數字的錯誤碼。</p>
+
+            <div class="info-box">
+                <div class="info-box-title">這份說明書涵蓋什麼</div>
+                從打開網頁、接上模組、跑開機儀式開始，一路到十個功能頁簽裡每一組 AT 指令的
+                <strong>工作原理</strong>與<strong>測試方式</strong>。所有的行為描述都來自
+                2026 年 8 月對實體 EG800K 的實測，不是照抄手冊 ——
+                <strong>手冊寫錯的地方本文會直說</strong>。
+            </div>
+
+            <figure class="shot">
+                <img src="img/02-hardware-boot.png" alt="NuModem 主畫面：左邊 AT 指令面板、右邊帶註解的終端機">
+                <figcaption>主畫面。左邊是 AT 指令面板，右邊是終端機 ——
+                每行後面的 <code>//</code> 就是即時註解。</figcaption>
+            </figure>
+                    <h3>語言與主題</h3>
+            <figure class="shot">
+                <img src="img/08-language-menu.png" alt="右上角的語言選單：18 種語言，介面文字與 AT 指令註解會一起切換">
+                <figcaption>右上角的語言選單：18 種語言，介面文字與 AT 指令註解會一起切換。</figcaption>
+            </figure>
+            <figure class="shot">
+                <img src="img/09-theme-light.png" alt="淺色主題">
+                <figcaption>淺色主題。右上角一鍵切換，選擇會記在瀏覽器裡，下次開啟自動沿用。</figcaption>
+            </figure>
+        </section>
+
+        <section id="requirements">
+            <h2><span class="icon">💻</span> 系統需求</h2>
+
+            <h3>瀏覽器</h3>
+            <p>NuModem 建立在 <strong>Web Serial API</strong> 之上，這個 API 只有
+            Chromium 系列的瀏覽器有。</p>
+            <table>
+                <tr><th>瀏覽器</th><th>版本</th><th>狀態</th></tr>
+                <tr><td>Google Chrome</td><td>89 以上</td><td>✅ 建議</td></tr>
+                <tr><td>Microsoft Edge</td><td>89 以上</td><td>✅ 支援</td></tr>
+                <tr><td>Opera</td><td>75 以上</td><td>✅ 支援</td></tr>
+                <tr><td>Firefox</td><td>—</td><td>❌ 沒有 Web Serial API</td></tr>
+                <tr><td>Safari</td><td>—</td><td>❌ 沒有 Web Serial API</td></tr>
+            </table>
+
+            <div class="warning">
+                <strong>直接用 <code>file://</code> 開啟就能用</strong> —— Chromium 把本機檔案
+                視為安全來源，Web Serial 不會被擋。下載後按兩下 <code>NuModem_EG800.html</code>
+                即可連線；用 <code>https://</code> 或 <code>http://localhost</code> 提供當然也可以。
+                唯一的差別是 <code>file://</code> 下 <code>fetch()</code> 會被 CORS 擋掉，
+                但翻譯檔是用 <code>&lt;script&gt;</code> 標籤載入的，18 種語言不受影響。
+            </div>
+
+            <h3>硬體</h3>
+            <table>
+                <tr><th>項目</th><th>說明</th></tr>
+                <tr><td>模組</td><td>Quectel EG800K 系列（本文所有實測皆在韌體
+                    <code>EG800KCNGCR07A06M04</code> 上完成）</td></tr>
+                <tr><td>介面</td><td>USB-UART 橋接器。實測用的是 CH343（<code>1A86:55D3</code>）</td></tr>
+                <tr><td>鮑率</td><td><strong>115200</strong></td></tr>
+                <tr><td>行尾</td><td><strong>CR</strong>（送 LF 模組完全不回應）</td></tr>
+                <tr><td>SIM 卡</td><td>要用資料功能才需要。實測用 1NCE 物聯網卡，APN 自動配發</td></tr>
+            </table>
+            <p>控制板要能用 <strong>RTS 控制模組電源</strong>、<strong>DTR 控制 Reset 腳</strong>，
+            開機儀式才做得起來（見<a href="#boot">開機儀式</a>）。</p>
+        </section>
+
+        <section id="quickstart">
+            <h2><span class="icon">🚀</span> 快速開始</h2>
+
+            <h3>步驟 1 —— 開啟 NuModem</h3>
+            <p>用 Chrome 或 Edge 開啟 <code>NuModem_EG800.html</code> —— 按兩下就行，不必架伺服器。</p>
+
+            <h3>步驟 2 —— 接上模組</h3>
+            <p>按左上角的 <strong>連線</strong>。瀏覽器會跳出接埠選擇視窗，挑你的 USB-UART 橋接器。
+            右邊的箭頭可以展開下拉選單，直接挑先前授權過的接埠。</p>
+            <div class="tip">
+                授權過一次之後，之後開啟頁面按「連線」就會直接接上，不會再問。
+                如果你有多個序列裝置，用下拉選單挑會比較快。
+            </div>
+
+            <h3>步驟 3 —— 確認鮑率</h3>
+            <p>頂端的鮑率選單預設 <strong>115200</strong>，EG800K 出廠就是這個值，通常不用改。</p>
+
+            <h3>步驟 4 —— 跑開機儀式</h3>
+            <p><strong>這一步不能跳過。</strong>瀏覽器打開序列埠的瞬間會重新拉高 RTS，
+            而這塊控制板的 RTS 是負邏輯的電源開關 —— 也就是說
+            <strong>連上線的同時模組就被斷電了</strong>。
+            詳細步驟見下一節。</p>
+
+            <div class="warning">
+                跳過開機儀式最典型的症狀是：<strong>你送出的指令終端機都看得到，但完全沒有任何回應</strong>。
+                那不是鮑率錯、也不是線接反，是模組根本沒通電。
+            </div>
+        </section>
+
+        <section id="boot">
+            <h2><span class="icon">🔌</span> 開機儀式（最重要的一節）</h2>
+
+            <p>EG800K 不是插電就會開機。這塊控制板把兩條 RS-232 的輸出訊號接到了模組的控制腳：</p>
+
+            <table>
+                <tr><th>訊號</th><th>接到哪</th><th>邏輯</th></tr>
+                <tr><td><strong>RTS</strong></td><td>模組電源開關</td>
+                    <td><strong>負邏輯</strong>：RTS <strong>OFF ＝ 通電</strong>、RTS ON ＝ 斷電</td></tr>
+                <tr><td><strong>DTR</strong></td><td>模組 Reset 腳</td>
+                    <td>DTR <strong>ON ＝ Reset 拉高</strong>（可啟動）、OFF ＝ Reset 拉低</td></tr>
+            </table>
+
+            <h3>標準程序</h3>
+            <p>切到 <strong>Hardware</strong> 頁簽，那裡有兩顆專用按鈕：</p>
+            <ol>
+                <li><strong>Power</strong> —— 讓 RTS 走過一次 ON → OFF。
+                    按鈕亮綠色代表電源已開（也就是 RTS 處於 OFF）。
+                    <br>⚠ 直接設 OFF 不保證通電，<strong>一定要先 ON 再 OFF</strong>。</li>
+                <li>停一秒。</li>
+                <li><strong>Reset</strong> —— 這是「按住才生效」的按鈕：
+                    按下時 DTR 拉到 OFF、放開時回到 ON。中間按住約 300 毫秒。</li>
+                <li>等終端機出現 <code>RDY</code>。實測數秒內就會出現。</li>
+            </ol>
+
+            <p>你也可以用訊號列上的 <code>RTS</code> / <code>DTR</code> 直接點，效果一樣，
+            只是要自己數順序。</p>
+
+            <h3>怎麼確認開機成功</h3>
+            <p>終端機應該依序吐出這些：</p>
+            <pre>RDY              ← 模組開機完成
++CFUN: 1         ← 射頻已開
++CPIN: READY     ← SIM 就緒
++QUSIM: 1
++QIND: SMS DONE  ← 簡訊初始化完成
++QIND: PB DONE   ← 電話簿初始化完成</pre>
+            <p>然後送一條 <code>ATI</code> 驗證，應該回廠牌、型號、韌體版本三行加 <code>OK</code>。</p>
+
+            <div class="important">
+                <strong>⚠ 每次重新整理頁面都要重跑一次開機儀式。</strong>
+                重載頁面會重開序列埠，而重開序列埠會重新 assert RTS ——
+                等於又把模組斷電了一次。這是本工具最常被誤判成「模組壞了」的原因。
+            </div>
+
+            <h3>開機後建議先下的兩條</h3>
+            <table>
+                <tr><th>指令</th><th>為什麼</th></tr>
+                <tr><td><code>ATE1</code></td>
+                    <td>開啟複誦。模組會把收到的指令原樣回吐一次，
+                    這樣終端機上「你送的」與「模組真的收到的」可以對照，打錯字一眼就看得出來。</td></tr>
+                <tr><td><code>AT+CMEE=2</code></td>
+                    <td>把錯誤訊息改成文字敘述。沒開的話錯誤只會是乾巴巴的 <code>ERROR</code>；
+                    開了才看得到 <code>+CME ERROR: SIM not inserted</code> 這種可讀訊息。</td></tr>
+            </table>
+            <p><strong>這兩條都是 session-only</strong>，模組重開機後要重下。</p>
+
+            <div class="warning">
+                <strong>🔴 收不到任何 URC 時，第一個要查的是 <code>AT+QURCCFG="urcport"</code>。</strong>
+                模組出廠把 URC（主動回報訊息）送到 <strong>USB AT 埠</strong>，
+                走 UART 的本工具一條都收不到 —— 症狀是「指令都回 OK 但就是沒有後續訊息」，
+                GNSS 定位、TCP 資料到達、MQTT 訊息、Wi-Fi 掃描結果全部靜默。
+                解法：<code>AT+QURCCFG="urcport","uart1"</code>，這條寫 NVRAM、跨重開機有效。
+            </div>
+        </section>
+
+        <section id="terminal">
+            <h2><span class="icon">📟</span> 終端機</h2>
+
+            <p>右半邊就是終端機。它跟一般序列終端機最大的不同是<strong>每一行都有註解</strong>。</p>
+
+            <h3>四種顏色</h3>
+            <table>
+                <tr><th>顏色</th><th>代表</th></tr>
+                <tr><td><strong>TX</strong></td><td>你送出去的資料</td></tr>
+                <tr><td><strong>RX</strong></td><td>模組回來的資料</td></tr>
+                <tr><td><strong>SYS</strong></td><td>工具本身的系統訊息（連線、訊號變化、進出資料模式）</td></tr>
+                <tr><td><strong>CMT</strong></td><td>註解 —— 也就是那些 <code>//</code> 開頭的說明</td></tr>
+            </table>
+            <p>四種顏色都可以自己改，點顏色方塊就會開色盤。</p>
+
+            <h3>註解引擎</h3>
+            <p>這是 NuModem 的核心。它做兩件事：</p>
+            <ul>
+                <li><strong>解釋你送出的指令</strong> —— 例如送
+                    <code>AT+QSSLSEND=4,18</code>，旁邊會寫「對 clientID 4 送出固定長度 18 bytes：
+                    模組回 <code>&gt;</code> 提示後要『剛好』送滿 18 個位元組才會發出，不必送 Ctrl+Z」。</li>
+                <li><strong>解讀模組的回應</strong> —— 尤其是那些純數字的碼。
+                    例如 <code>+QFTPSIZE: 627,550</code> 會被拆成兩層：
+                    「錯誤 627：FTP 未執行所請求的動作；伺服器回覆 550：動作未執行：檔案或目錄不存在」。</li>
+            </ul>
+
+            <div class="tip">
+                註解會跟著<strong>你實際填的參數</strong>走。同一顆按鈕填不同的值，
+                註解裡的數字就會跟著變 —— 它不是固定的說明文字。
+            </div>
+
+            <h3>行尾</h3>
+            <p>輸入框右邊可以選行尾。<strong>EG800K 必須用 CR</strong>，
+            選 LF 的話模組完全不會回應。這是最容易踩的設定。</p>
+
+            <h3>其他</h3>
+            <ul>
+                <li>底部顯示累計的 <strong>RX / TX 位元組數</strong>與目前接埠名稱。</li>
+                <li>右上角一排按鈕：註解開關、行尾、時間戳、自動捲動、清除。</li>
+                <li>終端區還有<strong>衛星狀態</strong>與<strong>地圖</strong>兩個頁簽，
+                    GNSS 定位成功後會有內容。</li>
+            </ul>
+        </section>
+
+        <section id="signals">
+            <h2><span class="icon">🚦</span> RS-232 訊號列</h2>
+
+            <p>連線後標題列下方會出現一整排訊號燈，分成兩組。</p>
+
+            <h3>LOCAL (OUT) —— 你的輸出，可以點</h3>
+            <table>
+                <tr><th>訊號</th><th>在這塊板子上的用途</th></tr>
+                <tr><td><strong>BRK</strong></td><td>Break 訊號</td></tr>
+                <tr><td><strong>RTS</strong></td><td><strong>模組電源</strong>（負邏輯，OFF ＝ 通電）</td></tr>
+                <tr><td><strong>DTR</strong></td><td><strong>模組 Reset</strong>（ON ＝ Reset 拉高）</td></tr>
+            </table>
+
+            <h3>REMOTE (IN) —— 模組的輸出，唯讀</h3>
+            <p><code>DCD</code> / <code>DSR</code> / <code>CTS</code> / <code>RI</code>，
+            外加 <code>ACT</code>（有資料流動）與 <code>ERR</code>（框架/同位錯誤）兩個指示。</p>
+
+            <div class="warning">
+                <strong>Web Serial 讀不回自己送出的訊號狀態。</strong>
+                所以 LOCAL 那三顆燈顯示的是「本工具認為它送出去的值」，不是硬體實際回讀。
+                要確認動作真的生效，看終端機的系統訊息（<code>RTS → ON</code> 這種）比較準。
+            </div>
+        </section>
+
+        <section id="panel">
+            <h2><span class="icon">🎛️</span> AT 指令面板的運作方式</h2>
+
+            <p>左半邊是十個頁簽、兩百多顆按鈕。在看個別頁簽之前，先理解這幾個共通機制，
+            之後每一頁都用得上。</p>
+
+            <h3>兩種按鈕</h3>
+            <table>
+                <tr><th>樣式</th><th>行為</th></tr>
+                <tr><td>一般按鈕</td><td>點下去<strong>直接送出</strong></td></tr>
+                <tr><td>虛線框</td><td>有參數要填。填好後可以「送出」，
+                    也可以「填入命令列」把組好的指令丟到下方輸入框，自己再改</td></tr>
+            </table>
+
+
+            <figure class="shot narrow">
+                <img src="img/13-btn-kinds.png" alt="一般按鈕點下去直接送出；虛線框的卡片要先填參數，填好可以「送出」，也可以「填入命令列」自己再改。">
+                <figcaption>一般按鈕點下去<strong>直接送出</strong>；虛線框的卡片要先填參數，填好可以「送出」，也可以「填入命令列」自己再改。</figcaption>
+            </figure>
+            <h3>參數欄位</h3>
+            <p>每個欄位都有自己的說明（滑鼠移上去會出現），寫的是<strong>本機實測</strong>的範圍，
+            不是照抄手冊。例如 Wi-Fi 掃描的「輪數」寫的是 1-3，
+            因為 <code>AT+QWIFISCAN=?</code> 實際就回這個範圍 —— 應用文件寫的 1-6 是錯的。</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/14-params.png" alt="參數欄位。每一格的說明把滑鼠移上去就會出現，寫的是本機實測的範圍 —— 「輪數」的說明寫 1-3、「BSSID 上限」寫 4-10，那是 AT+QWIFISCAN=? 實際回報的，不是照抄應用文件。欄位裡預填的 1 與 10 只是預設值。">
+                <figcaption>參數欄位。每一格的說明把滑鼠移上去就會出現，寫的是<strong>本機實測</strong>的範圍 —— 「輪數」的說明寫 1-3、「BSSID 上限」寫 4-10，那是 <code>AT+QWIFISCAN=?</code> 實際回報的，不是照抄應用文件。欄位裡預填的 1 與 10 只是預設值。</figcaption>
+            </figure>
+            <h3>兩段式送資料</h3>
+            <p>有些指令不是一行送完就結束的。它們的流程是：</p>
+            <pre>送出指令  →  模組回 &gt; 或 CONNECT  →  送出剛好 N 個位元組  →  模組回結果</pre>
+            <p>這類按鈕有一個獨立的「資料內容」欄位，<strong>長度會自動計算並填進指令</strong>，
+            你不必自己數。屬於這一類的有
+            <code>AT+QISEND</code>、<code>AT+QSSLSEND</code>、<code>AT+QMTPUBEX</code>、
+            <code>AT+QHTTPURL</code>、<code>AT+QHTTPPOST</code>、<code>AT+QFTPPUT</code>。</p>
+
+            <div class="warning">
+                <strong>長度算錯的下場很難看。</strong>模組會一直等到收滿你宣告的位元組數為止，
+                期間 AT 口是「資料模式」—— 你後面打的任何東西都會被當成資料吞掉。
+                <br><br>
+                脫身方法：<strong>用 Hardware 頁的原始位元組按鈕送一個 ESC（0x1B）</strong>。
+                不必關連線、也不必重開模組。
+            </div>
+
+
+            <figure class="shot narrow">
+                <img src="img/15-two-stage.png" alt="兩段式送出。標題列 AT+QISEND=0,6 裡的 6 是工具自動算的，你只要填「資料內容」那一格。">
+                <figcaption>兩段式送出。標題列 <code>AT+QISEND=0,6</code> 裡的 <strong>6 是工具自動算的</strong>，你只要填「資料內容」那一格。</figcaption>
+            </figure>
+            <h3>跳脫序列</h3>
+            <p>資料內容欄位是單行文字框，打不出換行、Tab 這類控制字元。
+            所以這些欄位支援跳脫序列：</p>
+            <table>
+                <tr><th>寫法</th><th>送出的位元組</th></tr>
+                <tr><td><code>\n</code></td><td>0x0A 換行</td></tr>
+                <tr><td><code>\r</code></td><td>0x0D 歸位</td></tr>
+                <tr><td><code>\t</code></td><td>0x09 Tab</td></tr>
+                <tr><td><code>\0</code></td><td>0x00 NUL</td></tr>
+                <tr><td><code>\xHH</code></td><td>任意位元組，HH 是十六進位</td></tr>
+                <tr><td><code>\\</code></td><td>反斜線本身</td></tr>
+            </table>
+            <p><strong>解碼發生在送出前，長度也是以解碼後的位元組數計算。</strong>
+            例如 <code>hello\n</code> 在欄位裡是 7 個字元，但送出去是 6 個位元組，
+            指令裡填的長度就會是 6。</p>
+
+            <div class="tip">
+                <strong>為什麼這件事很重要：</strong>很多測試伺服器是<strong>逐行</strong>回聲的
+                （送什麼就回什麼，但要看到換行才動作）。
+                payload 結尾沒有 <code>\n</code>，你就永遠收不到回應 ——
+                而且看起來會像「連線壞了」。
+            </div>
+
+
+            <figure class="shot narrow">
+                <img src="img/16-escapes.png" alt="跳脫序列。欄位裡是 10 個字元 A\tB\x21\n，解碼後只有 5 個位元組 —— 指令跟著變成 AT+QISEND=0,5。">
+                <figcaption>跳脫序列。欄位裡是 10 個字元 <code>A\tB\x21\n</code>，解碼後只有 <strong>5 個位元組</strong> —— 指令跟著變成 <code>AT+QISEND=0,5</code>。</figcaption>
+            </figure>
+            <h3>逾時標示</h3>
+            <p>有些 AT 指令會阻塞很久。按鈕上的 ⏱ 標示就是手冊寫的最長等待時間，
+            例如 <code>AT+QIACT=1</code> 最長 150 秒、<code>AT+COPS=?</code> 最長 300 秒。
+            <strong>看到很久沒回應時先看這個標示</strong>，多半只是還沒到時間。</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/17-timeout.png" alt="⏱ 標示就是手冊寫的最長等待時間。AT+COPS=? 要等 300 秒 —— 覺得沒回應時先看這裡，多半只是還沒到時間。">
+                <figcaption>⏱ 標示就是手冊寫的最長等待時間。<code>AT+COPS=?</code> 要等 300 秒 —— 覺得沒回應時先看這裡，多半只是還沒到時間。</figcaption>
+            </figure>
+            <h3>確認對話框</h3>
+            <p>會把 AT 口卡在資料模式、或是不可逆的動作（刪除遠端檔案、軟重啟模組、換鮑率）
+            才會跳確認框。<strong>單純「會用到流量」不會擋你</strong> ——
+            那類提醒改放在按鈕說明裡。</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/18-confirm.png" alt="紅框的才會跳確認框。改名（藍框）點了直接送；刪除（紅框）會先問你一次。">
+                <figcaption><strong>紅框的才會跳確認框。</strong>改名（藍框）點了直接送；刪除（紅框）會先問你一次。</figcaption>
+            </figure>
+            <h3>本機開關</h3>
+            <p>少數按鈕下面有一個小勾選框，那是<strong>工具端的行為</strong>不是 AT 指令。
+            例如 <code>AT+QICLOSE=0</code> 底下的「偵測到 <code>+QIURC: "closed",0</code> 時自動關閉」。
+            這些選項會存在瀏覽器裡，下次開啟還在。</p>
+        
+            <figure class="shot narrow">
+                <img src="img/19-auto-opt.png" alt="按鈕下面那個小勾選框是工具端的行為，不是 AT 指令。設定存在瀏覽器裡，下次開啟還在。">
+                <figcaption>按鈕下面那個小勾選框是<strong>工具端的行為</strong>，不是 AT 指令。設定存在瀏覽器裡，下次開啟還在。</figcaption>
+            </figure>
+</section>
+
+        <section id="tabs">
+            <h2><span class="icon">🗂️</span> 十個頁簽</h2>
+
+            <p>頁簽的順序是有意義的：<strong>從左到右大致就是你該操作的順序</strong>。
+            Hardware 開機 → Basic 確認模組活著 → Network 確認上得了網 →
+            後面五個才是各種資料協定。</p>
+
+            <h3 id="tab-hardware">Hardware —— 開機與序列埠</h3>
+            <p><strong>工作原理：</strong>這一頁是整個工具的地基：
+            Control 是開機儀式的兩顆按鈕（Power／Reset）、Module 是產品識別、
+            Serial 是 UART 設定、Power 是低功耗、URC 管模組主動訊息的輸出埠，
+            另有一排<strong>原始位元組鈕</strong>（Ctrl+Z／ESC／+++）當資料模式的逃生門。
+            其他頁簽都建立在兩個前提上：<strong>模組已照儀式開機</strong>、
+            <strong>URC 走 uart1</strong> —— 這兩件事都在本頁完成。
+            本節行為與數字皆為 2026 年 8 月對實體 EG800K 的實測。</p>
+
+            <h4>為什麼要有開機儀式：RTS＝電源、DTR＝Reset</h4>
+            <p>本工具搭配的控制板把兩條 RS-232 交握訊號挪作他用，這是理解整頁的鑰匙：</p>
+            <table>
+                <tr><th>訊號</th><th>實際接到</th><th>邏輯</th></tr>
+                <tr><td><strong>RTS</strong></td><td>模組電源開關</td>
+                    <td><strong>負邏輯</strong>：RTS OFF＝通電、RTS ON＝斷電</td></tr>
+                <tr><td><strong>DTR</strong></td><td>模組 Reset 腳</td>
+                    <td>DTR ON＝Reset 拉高（可啟動）、DTR OFF＝Reset 拉低</td></tr>
+            </table>
+            <p>電路特性（實測確認）：首次連線 RTS 必須<strong>先 ON 再 OFF</strong>，
+            電源才會真的打開 —— 直接設 OFF 不保證通電；DTR 也要走 <strong>ON→OFF→ON</strong>，
+            Reset 才會真的拉高。斷電（RTS ON）是硬切，模組<strong>不會送任何告別訊息</strong>。</p>
+            <div class="warning">
+                <strong>重新整理頁面＝斷電。</strong>瀏覽器重開序列埠時會重新拉起 RTS，
+                模組直接失電 —— 自動重連完成後<strong>必須重跑開機儀式</strong>。
+                實測踩過：跳過儀式直接送 17 條指令，全部有去無回（只有 TX 行、零 RX）。
+                任何「剛剛還好好的、現在全沒反應」，先想到這件事。
+            </div>
+
+            <h4>Power 與 Reset 鈕：怎麼按、會看到什麼</h4>
+            <p>兩顆鈕就是上表兩條訊號的化身，與訊號列的 RTS／DTR 指示<strong>雙向連動</strong>
+            （未連線時反白不可按）。Web Serial 讀不回輸出訊號的實際狀態，
+            訊號列顯示的是本工具送出的認知值。</p>
+            <ol>
+                <li><strong>Power</strong>（切換式）：亮綠＝電源 ON（＝RTS OFF）。
+                    開機儀式要讓 RTS 走過 ON→OFF：鈕若已亮，先點關再點開。</li>
+                <li><strong>Reset</strong>（momentary）：按下＝DTR OFF、放開＝DTR ON，
+                    一按一放就是一次 Reset（標準時序中間停 0.3 秒）。</li>
+                <li><strong>等 RDY</strong>：數秒內終端機會出現模組的開機宣告 <code>RDY</code>。</li>
+                <li><strong>ATI 驗證</strong>：應回 <code>Quectel</code>／<code>EG800K</code>／
+                    <code>Revision: …</code>／<code>OK</code>。回得出來＝UART 與模組都活著。</li>
+            </ol>
+            <div class="tip">
+                開機後建議先確認複誦（ATE）為開（出廠預設開），再下 <code>AT+CMEE=2</code> ——
+                沒開只會看到乾巴巴的 <code>ERROR</code>，開了才有
+                <code>+CME ERROR: …</code> 的可讀文字。兩者皆 session-only，模組每次重開都要重下。
+            </div>
+
+            <h4>Module：五顆識別鈕</h4>
+            <table>
+                <tr><th>按鈕</th><th>指令</th><th>會看到什麼</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>廠牌／型號／韌體版本三合一 —— 開機後第一條就下它</td></tr>
+                <tr><td>Vendor／Model／FW Ver</td>
+                    <td><code>AT+GMI</code>／<code>AT+GMM</code>／<code>AT+GMR</code></td>
+                    <td>把 ATI 的三行拆開單獨查（各等同 CGMI／CGMM／CGMR）。
+                        本機韌體版本實測 <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>模組 IMEI（15 位數字）。零流量，隨時可下</td></tr>
+            </table>
+
+            <h4>Serial：AT&amp;V 讀參數、IPR 改鮑率</h4>
+            <p><strong>AT Params（<code>AT&amp;V</code>）</strong>：列出所有單字母 AT 參數目前值。
+            <code>ATE</code>／<code>ATQ</code>／<code>ATV</code> 這些單字母指令<strong>沒有各自的查詢式，
+            只有這條讀得到</strong>。本機實測 <code>E:1 Q:0 V:1 S3:13 S4:10</code> ——
+            複誦開、結果碼文字模式、行尾＝CR（ASCII 13），正是本工具解析回應的前提。</p>
+            <p><strong>Baud?（<code>AT+IPR?</code>）</strong>：查 UART 目前鮑率，出廠 115200。<br>
+            <strong>Baud List（<code>AT+IPR=?</code>）</strong>：回兩份清單 ——
+            前一份是可自動偵測的鮑率、後一份是僅固定模式可用的。跑過這顆之後，
+            Set Baud 的下拉選單會換成本機實際回報的清單。實測本機第二份清單一路列到
+            <strong>1000000 bps —— 手冊 §3.4 的表沒有這個值</strong>。</p>
+            <p><strong>Set Baud（<code>AT+IPR={rate};&amp;W</code>，參數卡）</strong>：
+            按下會先跳確認框 —— 這是全頁最容易把自己鎖在門外的一顆鈕。</p>
+            <div class="warning">
+                <strong>改鮑率的三重陷阱（實測全數確認）：</strong><br>
+                ① <code>OK</code> 一回就<strong>立即生效</strong>，
+                本工具下一刻起與模組雞同鴨講；<br>
+                ② <code>AT&amp;F</code>（原廠重置）<strong>不會</strong>把鮑率改回來 —— 別指望它救你；<br>
+                ③ 不加 <code>&amp;W</code> 就不存檔 —— 而重連＝斷電，模組會醒在舊鮑率、
+                你的埠設定卻停在新鮑率，<strong>雙重失聯</strong>。
+                所以本工具強制 <code>;&amp;W</code> 合體寫法。<br>
+                復原四步（確認框也會提醒）：斷線 → 改連線區的鮑率 → 重連 → 重跑開機儀式。
+            </div>
+
+            <h4>Power：QSCLK 低功耗</h4>
+            <p><strong>Sleep?（<code>AT+QSCLK?</code>）</strong>：查模組是否允許進入睡眠。
+            本機實測出廠為 <code>0</code>＝停用、模組常醒。
+            本頁只提供查詢鈕：睡著的模組會<strong>停止回應 AT</strong>，手冊的喚醒方式是拉低 DTR ——
+            但本板的 DTR 已接去當 Reset 腳（見本節開頭）。若在命令列自行開了睡眠而叫不醒，
+            重跑開機儀式（斷電重開）即可脫困；細節見官方低功耗應用筆記。</p>
+
+            <h4>URC：收不到訊息時，第一個來這裡</h4>
+            <p><strong>URC（Unsolicited Result Code，非請求結果碼）</strong>是模組「未經請求就主動吐出」
+            的訊息，不是任何指令的回應 —— 開機的 <code>RDY</code>、TCP 資料到達、MQTT 訊息、
+            Wi-Fi 掃描結果、GNSS 韌體載入通知全是。它的輸出埠
+            <strong>出廠預設是 USB 埠（usbat）</strong> —— 走 UART 的本工具一條都收不到，
+            症狀非常典型：<strong>指令都回 OK，就是等不到訊息</strong>。</p>
+            <table>
+                <tr><th>按鈕</th><th>指令</th><th>用途</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>查 URC 現在送去哪 —— 收不到 URC 時<strong>第一條就查它</strong>；
+                        要回 <code>"uart1"</code> 才收得到</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>本機支援哪些輸出埠。實測回 <code>("usbat","usbmodem","uart1")</code>，
+                        <strong>沒有手冊提過的 "all"</strong>（手冊有註部分機型不支援）</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>切到主 UART。寫 NVRAM、跨重開機保留，<strong>改一次就好</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>URC 總開關，「收不到 URC」的另一大原因。
+                        實測本機出廠即為 1（開），問題幾乎都出在輸出埠</td></tr>
+            </table>
+
+            <h4>原始位元組鈕：資料模式的逃生門</h4>
+            <p>不少指令是<strong>兩段式</strong>：先送指令、等模組回 <code>&gt;</code> 提示、
+            再送本文。進了這種<strong>資料模式</strong>之後，模組會把你打的每個字元都當資料吞下去 ——
+            包括你想下的 AT 指令。長度算錯、中途反悔、指令卡住時，一般按鍵救不了，
+            要靠這排送單一原始位元組的鈕：</p>
+            <table>
+                <tr><th>鈕</th><th>送出</th><th>什麼時候用</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td>資料模式的<strong>結束符</strong>：把已累積的內容真正送出去</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td><strong>取消</strong>資料模式、丟棄已累積內容。
+                        兩段式指令卡住、AT 口不再回應時的首選脫身鍵（手冊 §2.3.8）</td></tr>
+                <tr><td>+++</td><td>三個 + 號（原始位元組）</td>
+                    <td>從<strong>透明資料模式</strong>（如 FTP 的 COM: 傳輸）逃回 AT 模式。
+                        規矩很硬：<strong>前後各靜默 1 秒、絕不能帶 CR/LF</strong> ——
+                        實測加了 CR 就不生效，必須用這顆鈕送、不能在命令列打</td></tr>
+            </table>
+            <div class="warning">
+                <strong>實測推翻手冊：+++ 是「中止」，不是「暫停」。</strong>
+                FTPS 應用筆記 v1.5 第 13 頁說 +++ 之後可用 <code>ATO</code> 回到資料模式續傳，
+                實機上 <code>ATO</code> 只回 <code>NO CARRIER</code>，傳輸已經被中止。
+                把 +++ 當成緊急煞車用，別指望煞完還能繼續開。
+            </div>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td>什麼指令都沒回應</td>
+                    <td>依序查三個嫌疑犯：① 沒跑開機儀式（重新整理過頁面就一定是它）；
+                        ② 行尾設成 LF —— 模組<strong>只認 CR</strong>，LF 完全無回應；
+                        ③ 鮑率不合（見四步復原）</td></tr>
+                <tr><td>按了 Reset 卻等不到 RDY</td>
+                    <td>先看 Power 鈕有沒有亮 —— 模組沒電，Reset 按再多次也沒用；
+                        首次連線電源要走過 ON→OFF</td></tr>
+                <tr><td>指令都回 OK，URC 就是不來</td>
+                    <td>八成是 urcport 還在出廠的 usbat：按 URC Port? 查、URC → UART 改；
+                        再不行查 URC Switch 總開關</td></tr>
+                <tr><td>AT 口突然「吞指令」，打什麼都沒回應</td>
+                    <td>卡在資料模式，打的字全被當資料收走了 —— 按 ESC 脫身</td></tr>
+            </table>
+
+            <h3 id="tab-basic">Basic —— SIM、診斷與基本狀態</h3>
+            <p><strong>工作原理：</strong>這一頁是每次連線後的起點。開機儀式跑完、終端出現
+            <code>RDY</code> 之後，先來這裡做三件事：把錯誤訊息換成看得懂的格式、
+            確認 SIM 就緒、認一下這張卡是誰。整頁除了 <code>AT&amp;F</code> 與 PIN／PUK 解鎖，
+            全部是唯讀查詢——按了不會改變模組狀態；
+            會動到連線狀態的指令集中在 Network、TCP/IP 等其他頁簽。
+            本節樣本皆為 2026 年 8 月對實體 EG800K
+            （韌體 EG800KCNGCR07A06M04）的實測值。</p>
+
+            <h4>開機之後：RDY 不等於 SIM 就緒</h4>
+            <p><code>RDY</code> 是模組開機完成時主動送出的 URC。
+            它只代表 AT 介面活了，<strong>SIM 卡還在後面慢慢初始化</strong>。
+            實測：<code>RDY</code> 一出現就送 SIM 相關指令，會回
+            <code>+CME ERROR: 14</code>（SIM busy）甚至 <code>+CME ERROR: 13</code>（SIM failure）；
+            <strong>等約 6 秒</strong>後再送就一切正常。</p>
+            <div class="warning">
+                <strong>寫自動化腳本時，不要拿 RDY 當「可以開工」的訊號。</strong>
+                正確做法二選一：RDY 後固定留約 6 秒緩衝；
+                或輪詢 <code>AT+QINISTAT</code>，等 bit 1（CPIN 就緒）亮起再繼續。
+            </div>
+
+            <h4>複誦（ATE）：「模組回音」與「終端回顯」是兩回事</h4>
+            <p>複誦是<strong>模組</strong>把你送過去的字元原樣回送（<code>ATE1</code> 開、
+            <code>ATE0</code> 關）；終端機的本地回顯則是<strong>工具端</strong>自己把你打的字
+            先印上畫面。兩個開關互相獨立：兩邊都開，每個字就會出現兩次。</p>
+            <ul>
+                <li>本頁的<strong>複誦切換鈕</strong>單鍵切換模組複誦。
+                    開機預設為<strong>開</strong>（實測 AT 參數 <code>E:1</code> 佐證）。</li>
+                <li>鈕上顯示的狀態不是憑空記的——工具<strong>依實際回應自動校正</strong>
+                    （收到複誦行即視為開）；你在命令列手打 <code>ATE0</code>／<code>ATE1</code>／
+                    <code>AT&amp;F</code>，鈕的狀態也會同步，不會脫節。</li>
+                <li>切換是 session-only：模組重開就回到預設。要寫進開機預設得另外下
+                    <code>AT&amp;W</code>（本頁沒做這顆鈕，需要就在命令列手打）。</li>
+            </ul>
+
+            <h4>把錯誤訊息變成看得懂的（CMEE）</h4>
+            <table>
+                <tr><th>按鈕</th><th>效果</th></tr>
+                <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+                    <td>錯誤碼改用文字描述。實例：GNSS 未定位時，數字模式回
+                        <code>+CME ERROR: 516</code>，文字模式回
+                        <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code>——後者不查表就知道發生什麼事。
+                        <strong>本工具強烈建議開機儀式後就按這顆</strong></td></tr>
+                <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+                    <td>錯誤碼用數字——工具會自動查表把號碼翻成中文註解</td></tr>
+            </table>
+            <div class="tip">
+                兩種設定都是 <strong>session-only</strong>：modem 重開就沒了
+                （重載頁面＝RTS 斷電＝重開，也算）。另外實測發現：即使開了
+                <code>CMEE=2</code>，少數子系統（如檔案系統 FILE 錯誤）仍會文字、數字混出，
+                寫解析程式時兩種形式都要接。
+            </div>
+
+            <h4>AT&amp;F：回原廠預設——影響範圍</h4>
+            <p><strong>Factory Reset</strong> 鈕把 AT 設定重置為原廠值，
+            是接手一顆被亂設過的模組時的第一步。這是本頁唯一按下去會先跳確認的按鈕。
+            已實測確認的影響範圍：<strong>會把複誦設回開啟</strong>
+            （複誦切換鈕的狀態會自動跟上）、<strong>不影響鮑率</strong>；
+            其餘各條設定是否被還原，見手冊 <code>AT&amp;F</code> 條目逐項確認。</p>
+
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Basic 頁簽">
+                <figcaption>Basic 頁的三組按鈕：Echo（複誦與錯誤格式）、
+                SIM（查詢與 PIN／PUK 解鎖）、Status（時鐘、電壓、網路時間）。</figcaption>
+            </figure>
+
+            <h4>SIM 三連查：在不在、等不等密碼、初始化到哪</h4>
+            <table>
+                <tr><th>按鈕</th><th>問的問題</th><th>判讀</th></tr>
+                <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+                    <td>卡有沒有插好</td>
+                    <td>回應兩欄：第一欄是插拔 URC 開關、<strong>第二欄才是卡狀態</strong>，別看錯欄。
+                        本機這顆有誤報前科，見下方警告</td></tr>
+                <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+                    <td>卡在不在等密碼</td>
+                    <td><code>+CPIN: READY</code> ＝「目前沒有在等任何密碼」。
+                        ⚠ <strong>不等於這張卡不需要 PIN</strong>——設了 PIN 的卡解鎖後也回 READY。
+                        無卡回 <code>+CME ERROR: 10</code></td></tr>
+                <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+                    <td>初始化進度</td>
+                    <td>位元遮罩：1＝CPIN 就緒、2＝SMS、4＝電話簿，7＝全部完成。
+                        本機實測開機穩定後讀到 <strong>3</strong>（電話簿位元未設）——
+                        判斷「能不能開工」看 bit 1 就夠，<strong>別死等 7</strong></td></tr>
+            </table>
+            <div class="warning">
+                <strong>Card In? 在本機會說謊。</strong>實測 <code>AT+QSIMSTAT?</code> 回
+                <code>0,0</code>（卡已移除），但同一時刻 CPIN READY、網路已附著、已取得 IP——
+                卡明明好好的。推測是控制板未接 SIM_DET 偵測腳（或 <code>AT+QSIMDET</code> 未啟用），
+                讀值恆為「未插入」。<strong>判斷卡在不在，以 <code>AT+CPIN?</code> 或
+                <code>AT+QINISTAT</code> 為準。</strong>
+            </div>
+
+            <h4>這張卡是誰：IMSI 與 ICCID</h4>
+            <p><strong>IMSI</strong> 鈕（<code>AT+CIMI</code>）回一串裸數字，
+            是這張卡在行動網路上的用戶識別碼。本機實測 <code>901405117661468</code>：
+            開頭三碼（MCC）是 <strong>901 ＝ 國際漫遊卡號段</strong>——
+            本機這張是 1NCE 物聯網卡，這也解釋了為什麼 <code>AT+CEREG?</code>
+            一直回 <code>0,5</code>（已註冊、<strong>漫遊</strong>）：不是訊號異常，
+            是這種卡的常態。跑數據測試前先認出漫遊卡，留意流量資費。</p>
+            <p><strong>ICCID</strong> 鈕（<code>AT+QCCID</code>）查卡片序號，
+            實測回 <code>+QCCID: 89882280666176614687</code>。
+            ⚠ <strong>手冊裡沒有 <code>AT+CCID</code> 這條指令</strong>——
+            別家模組教學常見的那條在這裡行不通，要用 Quectel 專屬的 <code>AT+QCCID</code>。</p>
+
+            <h4>PIN 解鎖：先查剩餘次數，再動手</h4>
+            <ol>
+                <li><strong>先按 PIN Left</strong>（<code>AT+QPINC?</code>）看剩餘嘗試次數——
+                    手冊給的範圍：PIN 剩 0–3 次、PUK 剩 0–10 次。
+                    動手前先知道自己還剩幾發。</li>
+                <li>卡在等 PIN 時按 <strong>Enter PIN</strong>：會先展開<strong>參數卡</strong>
+                    讓你填 PIN 再送出（指令樣板 <code>AT+CPIN="{pin}"</code>，最長等 5 秒）。</li>
+                <li>PIN 次數用完、卡改要 PUK 時按 <strong>Unlock PUK</strong>：
+                    手冊規定 <strong>PUK 必須和新 PIN 一起送</strong>
+                    （<code>AT+CPIN="{puk}","{newpin}"</code>），同樣走參數卡、最長等 5 秒。</li>
+            </ol>
+            <div class="warning">
+                每送錯一次就少一次；PUK 見底時<strong>停手找電信商</strong>，
+                不要用猜的把次數燒完。
+            </div>
+
+            <h4>狀態三顆：時鐘、電壓、網路時間</h4>
+            <table>
+                <tr><th>按鈕</th><th>看什麼</th><th>實測與判讀</th></tr>
+                <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+                    <td>模組 RTC 時鐘</td>
+                    <td><code>+CCLK: "26/08/01,00:55:32+32"</code>。
+                        時區欄 <code>+32</code> 的單位是「刻」（15 分鐘）：32 × 15 分＝UTC+8。
+                        本機實測 RTC 已被網路對時，時間與時區皆正確</td></tr>
+                <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+                    <td>供電電壓</td>
+                    <td>部分韌體不支援、回 ERROR 屬正常；本機韌體有支援，
+                        實測 <code>+CBC: 0,0,4264</code>——末欄是電壓（mV），即 4.264 V</td></tr>
+                <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+                    <td>網路同步推算的目前本地時間</td>
+                    <td>實測 <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>。
+                        與 Clock 的差別在<strong>來源</strong>：CCLK 讀模組自己的 RTC、
+                        QLTS 直接取網路時間；年份格式也不同（RTC 兩碼、QLTS 四碼），解析別搞混</td></tr>
+            </table>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td>RDY 剛出現就查 SIM，回錯誤 14 或 13</td>
+                    <td>SIM 還在初始化（14＝SIM busy；13＝SIM failure 在這階段也出現過）。
+                        等約 6 秒再送即正常，別急著斷定卡壞了</td></tr>
+                <tr><td>Card In? 說卡被移除，其他功能卻都正常</td>
+                    <td>SIM_DET 偵測腳問題（本機實測案例），不是卡的問題。
+                        改看 <code>AT+CPIN?</code>／<code>AT+QINISTAT</code></td></tr>
+                <tr><td>畫面上每個字都出現兩次</td>
+                    <td>模組複誦與終端本地回顯同時開著——按一下複誦切換鈕即可</td></tr>
+                <tr><td>錯誤只回冷冰冰的數字</td>
+                    <td>還沒開 CMEE。按 Verbose Err；它是 session-only，
+                        每次開機儀式後都要重按</td></tr>
+                <tr><td>指令送出去完全沒有回應</td>
+                    <td>重開 port 會重新 assert RTS＝斷電，模組其實已重開機。
+                        必須重跑完整開機儀式，跳過則全部無回應</td></tr>
+            </table>
+
+            <h3 id="tab-network">Network —— 註冊、業者、射頻</h3>
+            <p><strong>工作原理：</strong>所有資料功能要能用，前提是<strong>已註冊到電信網路</strong>
+            且 <strong>PDP 資料通道已就緒</strong> —— 這一頁就是入網的儀表板與開關，
+            「連不上網」的排查都從這裡開始。本節數值皆為 2026 年 8 月實體 EG800K 實測。</p>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Network 頁簽">
+                <figcaption>Network 頁五組按鈕：註冊查詢、Signal URC、PDP、診斷、射頻控制。</figcaption>
+            </figure>
+
+            <h4>開始之前：先把 URC 切到 UART</h4>
+            <p>EG800K 出廠把主動回報訊息（URC）送到 <code>usbat</code>（USB AT 埠），
+            本工具走 UART —— <strong>所有 URC 一條都收不到</strong>：訊號回報、
+            TCP／MQTT／Wi-Fi 掃描結果全部靜默，症狀是<strong>「指令都回 OK，就是沒訊息」</strong>。</p>
+            <div class="warning">
+                <strong>「全部 URC 消失」的頭號原因就是它。</strong>
+                到 Hardware 頁簽按 <code>AT+QURCCFG="urcport"</code> 查詢，
+                不是 <code>"uart1"</code> 就用切換鈕改過去 —— 設定寫 NVRAM，改一次跨重開機有效。
+            </div>
+
+            <h4>第一步：確認註冊狀態</h4>
+            <p>開機儀式看到 <code>RDY</code> 後，先按 <code>AT+CEREG?</code>（4G 模組看這條最準）。
+            三顆註冊鈕對應三個網域：<code>CEREG</code>＝LTE/EPS、<code>CREG</code>＝電路交換域、
+            <code>CGREG</code>＝封包交換域，第二個數字（stat）判讀相同：</p>
+            <table>
+                <tr><th>stat</th><th>意義</th><th>怎麼辦</th></tr>
+                <tr><td>0</td><td>還沒註冊</td><td>剛開機常見，等幾秒再查</td></tr>
+                <tr><td>1</td><td>已註冊（本網）</td><td>正常，往下走</td></tr>
+                <tr><td>2</td><td>搜尋中</td><td>等</td></tr>
+                <tr><td>3</td><td>被網路拒絕</td><td>查 SIM／資費，CEER 看原因</td></tr>
+                <tr><td>5</td><td>已註冊（漫遊）</td><td><strong>本機的正常態</strong>，見下</td></tr>
+            </table>
+            <div class="tip">
+                <strong>stat=5 不是故障。</strong>實測三條註冊查詢都回 <code>0,5</code>：
+                SIM 是 1NCE 物聯網卡（MCC 901 國際漫遊卡），在哪國都算「漫遊」，
+                看到 5 當 1 用。
+            </div>
+            <p>註冊成功但上不了網，接著按 <code>AT+CGATT?</code> 查封包域附著；
+            必要時按 <code>AT+CGATT=1</code> 手動附著，失敗再用 <code>AT+CEER</code>
+            查原因（與 TCP/IP 頁 <code>QIGETERROR</code> 不同層）。
+            CGATT 最長阻塞 <strong>140 秒</strong>，別連打。</p>
+
+            <h4>現在掛在哪家業者、哪個頻段</h4>
+            <p><code>AT+COPS?</code> 查目前登錄的業者（末位 7＝LTE）。
+            <strong>陷阱：業者名可能是空字串</strong> —— 實測回 <code>+COPS: 0,0,"",7</code>，
+            不是故障。要看業者改按 <code>AT+QNWINFO</code>（制式／業者／頻段／通道）：</p>
+            <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+            <p>46692＝中華電信、Band 8；沒服務時回 <code>NO SERVICE</code>。
+            本漫遊卡會自己挑網：不同日期實測掛過中華電信 Band 8 與遠傳（466-01）Band 3，
+            換業者換頻段都正常。<code>AT+COPS=?</code> 掃描周邊所有業者：
+            <strong>最長阻塞 300 秒且會中斷現有業務</strong>，確認需要再按。</p>
+
+            <h4>訊號強度與品質：CSQ 只是粗略值</h4>
+            <p><code>AT+CSQ</code> 回 rssi 與 ber：rssi 0–31 對應 -113～-51 dBm，
+            99＝偵測不到（剛開機常見，等幾秒）。實測 rssi 18–24（-77～-65 dBm，良好）；
+            <strong>ber 恆為 99，無參考值</strong>。LTE 真正的品質三要素
+            <strong>RSRP（強度）／RSRQ（品質）／SINR（訊噪比，低＝被干擾）</strong>
+            只有 Signal URC 組拿得到（<code>AT+QINDCFG="sqi"</code> 不帶值＝查開關）：</p>
+            <table>
+                <tr><th>按鈕</th><th>指令</th><th>作用</th></tr>
+                <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+                    <td>開 RSRP／RSRQ／SINR 回報 —— <strong>天線與擺位測試必備</strong>。
+                        只在訊號「有變化」時推播，沒動靜就包住或拔插天線；設定不跨重開機</td></tr>
+                <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+                    <td>訊號一變就回報，取代狂按 CSQ</td></tr>
+                <tr><td>URC Off／On</td><td><code>AT+QINDCFG="all",0／1</code></td>
+                    <td>被洗版時一鍵靜音 —— 記得事後開回來</td></tr>
+            </table>
+
+            <h4>PDP 通道：3GPP 層 vs TCP/IP 頁</h4>
+            <p>PDP context＝電信網路配給的「資料通道」，有它才有 IP。本組是 3GPP 標準層唯讀查詢：
+            <code>AT+CGDCONT?</code> 列 context 與 APN、<code>AT+CGACT?</code> 列啟用狀態
+            （最長阻塞 150 秒；⚠ 寫入式參數順序相反）、<code>AT+CGPADDR</code>
+            列取得的 IP。TCP/IP 頁的 <code>QIACT?</code>／<code>QICSGP</code> 是
+            <strong>Quectel 自家堆疊，不是同一層</strong> —— 並排比對可分辨故障側：
+            這裡有 IP、那邊沒有＝網路給了但堆疊沒啟動。本機開機即自動啟用 PDP 取得 IP。</p>
+            <p><code>AT+QGDCNT?</code> 查累計流量（第一個數字<strong>送出</strong>、第二個接收），
+            漫遊卡測流量必用。⚠ <strong>實測推翻按鈕提示的「跨開機累計」</strong>：
+            計數器預設不存 NV，一斷電（含重載頁面）就歸零 —— 要當場記，
+            或 <code>AT+QGDCNT=1</code> 存 NV。</p>
+
+            <h4>排障實戰：本卡只允許單一 PDP</h4>
+            <p>TCP/IP 頁按 <code>AT+QIACT=1</code> 卻回 ERROR（<code>572,operation not
+            allowed</code>）？本卡固定劇本：開機後 3GPP 層已<strong>自動啟用一個 PDP</strong>，
+            但 <strong>context 編號會浮動</strong>（實測見過 1 與 9）；再開第二個回
+            <code>+CME ERROR: 100</code> ⇒ 網路只允許單一 PDP；而 <code>QIACT</code> 的
+            contextID 範圍只有 1–8，PDP 被開在 9 時 Quectel 堆疊根本碰不到。
+            解法兩步（每次開機後做一次）：</p>
+            <pre>AT+CGACT?             ← 看是哪個 cid（編號會浮動，不能省）
+AT+CGACT=0,&lt;那個 cid&gt;   ← 3GPP 層讓出名額
+AT+QIACT=1            ← TCP/IP 頁；回 +QIACT: 1,1,1,"10.187.7.8" 即成功</pre>
+            <p><code>QICSGP</code> 設 APN 本卡可省 —— 實測模組會自動同步網路配下的 APN
+            （<code>iot.1nce.net</code>）；換需帳密的企業 APN 卡才必要。</p>
+            <div class="warning">
+                <strong>測到一半突然全部逾時？先懷疑 PDP 漂移。</strong>
+                實測 HTTP 連續全敗（錯誤 716、固定 30 秒逾時）時 <code>AT+QIACT?</code>
+                照樣回 IP —— 這時它會騙人，要與 <code>AT+CGACT?</code> 交叉比對
+                （實測：1,0 與 9,1＝漂到 9）。
+                解法：<code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;漂到的 cid&gt;</code> →
+                <code>AT+QIACT=1</code>，再 ping 驗證。
+            </div>
+
+            <h4>CFUN 功能等級與射頻控制</h4>
+            <p>RF Control 整組都會改變模組狀態，全是按下前再確認的紅框鈕。
+            先按 <code>AT+CFUN?</code> 看目前等級再動手：</p>
+            <table>
+                <tr><th>指令</th><th>等級</th><th>意義</th></tr>
+                <tr><td><code>AT+CFUN=1</code></td><td>全功能</td>
+                    <td>射頻全開；<strong>復原一律按這顆</strong></td></tr>
+                <tr><td><code>AT+CFUN=4</code></td><td>飛航</td>
+                    <td>收發全關、SIM 還在 —— 測「重新入網」的起點</td></tr>
+                <tr><td><code>AT+CFUN=0</code></td><td>最小</td>
+                    <td>SIM 也停用；手冊僅寫 Minimum functionality，未列細節</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>軟重啟</td>
+                    <td>重啟整顆模組。⚠ AT 口短暫失效，要重新等 <code>RDY</code></td></tr>
+            </table>
+            <p>CFUN 最長阻塞 15 秒。<strong>SIM 若有 PIN 鎖，切回 CFUN=1 後要重輸 PIN
+            才會註冊。</strong><code>AT+CGATT=0</code>（PS Detach）脫離封包域 ——
+            <strong>會打掉所有 TCP／MQTT 連線</strong>，測「重新附著」才用。</p>
+
+            <h4>進階：QENG 讀基地台資訊（命令列輸入）</h4>
+            <p>本頁沒有按鈕 —— 命令列輸入 <code>AT+QENG="servingcell"</code>
+            讀服務基地台參數，實測關鍵欄位：</p>
+            <table>
+                <tr><th>欄位</th><th>實測值</th><th>判讀</th></tr>
+                <tr><td>MCC／MNC</td><td>466／01</td><td>臺灣／遠傳電信</td></tr>
+                <tr><td>Cell ID／TAC</td><td><code>ABCDE02</code>／<code>1234</code>（hex）</td>
+                    <td>十進位 180149762／4660；eNodeB＝ECI≫8＝703710、扇區＝2</td></tr>
+                <tr><td>PCID／EARFCN</td><td>144／1550</td>
+                    <td>實體小區識別（<strong>非全域唯一</strong>）／Band 3</td></tr>
+                <tr><td>RSRP／RSRQ／RSSI／SINR</td><td>-113／-18／-92／-1</td>
+                    <td>RSRP 低於 -100 算差；SINR -1 dB＝品質不佳</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Cell ID 與 TAC 是十六進位，查資料庫前必須轉十進位。</strong>
+                OpenCelliD 等資料庫一律吃十進位，直接丟 <code>ABCDE02</code> 只會查無此筆。
+                另 <code>AT+QENG="neighbourcell"</code> 只回 PCID、
+                <strong>無全域 Cell ID</strong>（LTE 標準限制）。
+            </div>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td>指令都回 OK，主動訊息全沒出現</td>
+                    <td>urcport 在 usbat（出廠值）—— Hardware 頁簽切 uart1</td></tr>
+                <tr><td><code>QIACT=1</code> 回 ERROR（572）</td>
+                    <td>單一 PDP 名額被占走 —— 走上面的兩步排障</td></tr>
+                <tr><td>連續請求全部固定 30 秒逾時</td>
+                    <td>PDP 漂移 —— <code>AT+CGACT?</code> 交叉比對，別只信 <code>QIACT?</code></td></tr>
+            </table>
+
+            <h3 id="tab-gnss">GNSS —— 衛星定位</h3>
+            <p><strong>工作原理：</strong>GNSS 是<strong>獨立於行動網路</strong>的功能 ——
+            不需要 SIM 卡有網、不需要 PDP、不耗流量（AGNSS 除外，見下）。
+            開啟後模組自己接收衛星訊號，你用 <code>AT+QGPSLOC</code> 輪詢定位結果。
+            本節所有秒數與行為都是 2026 年 8 月對實體 EG800K 的實測值。</p>
+
+            <h4>開始之前：天線決定一切</h4>
+            <p>定位失敗的第一大原因不是指令下錯，是<strong>天線收不到訊號</strong>。
+            實測對比：室內、天線不佳時，模組能列出 38 顆衛星的位置卻<strong>一顆都聽不到</strong>
+            （SNR 全部 00）；換上<strong>主動式（active）GNSS 天線</strong>並放到窗邊後，
+            冷啟動 95 秒內就定位成功。</p>
+            <div class="warning">
+                <strong>室內測不了 GNSS，怎麼等都沒用。</strong>沒有天空視野時
+                <code>$GNGGA</code> 會回「使用衛星 00 顆、定位品質 0」，
+                <code>AT+QGPSLOC</code> 永遠回錯誤 516。
+                請把天線移到窗邊或戶外再開始 —— 這不是耐心問題，是物理問題。
+            </div>
+
+            <h4>第一次定位：五個步驟</h4>
+            <ol>
+                <li><strong>跑開機儀式</strong>（見〈開機儀式〉一節）。
+                    ⚠ 每次重新整理頁面都等於斷電，GNSS 的開啟狀態與收到一半的星曆全部歸零，
+                    要從這一步重來。</li>
+                <li><strong>確認 URC 走 UART</strong>：<code>AT+QURCCFG="urcport"</code> 要回
+                    <code>"uart1"</code>。出廠值是 <code>"usbat"</code>，不改的話很多結果訊息
+                    會被送去 USB 埠，這裡什麼都看不到（設定寫 NVRAM，改一次就好）。</li>
+                <li><strong>開 GNSS</strong>：按 <code>AT+QGPS=1</code>。
+                    幾秒內會看到 <code>+QGPS: "firmware",0,0</code>（GNSS 韌體載入成功）。
+                    已經開著再按會回 <code>+CME ERROR: 504</code>，無害。</li>
+                <li><strong>看收訊</strong>：按 <code>AT+QGPSGNMEA="GSV"</code> 讀可見衛星。
+                    終端區會自動打開<strong>衛星</strong>頁簽，畫出訊號柱狀圖與天空圖 ——
+                    判讀方式見下段。</li>
+                <li><strong>輪詢定位</strong>：每 5–10 秒按一次 <code>AT+QGPSLOC=2</code>。
+                    回 <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code>（錯誤 516）代表還沒定到，
+                    <strong>繼續等就好</strong>。成功時會回座標，
+                    終端區自動打開<strong>地圖</strong>頁簽並把位置畫上去。</li>
+            </ol>
+            <figure class="shot narrow">
+                <img src="img/07-gnss.png" alt="GNSS 頁簽">
+                <figcaption>GNSS 頁：開關、NMEA 讀取、定位查詢、AGNSS 加速。</figcaption>
+            </figure>
+
+            <h4>判讀衛星頁：「看得到」不等於「聽得到」</h4>
+            <p>GSV 每顆衛星有四個數字：編號、仰角、方位角、<strong>SNR（訊號雜訊比，dB-Hz）</strong>。
+            前三個只是「它應該在天上哪裡」，<strong>只有 SNR 才代表真的收到訊號</strong>。</p>
+            <table>
+                <tr><th>SNR</th><th>意義</th></tr>
+                <tr><td>（空）或 00</td><td>完全沒收到 —— 只知道它在哪，聽不到它</td></tr>
+                <tr><td>14–28</td><td>邊緣：解調星曆常出錯重來，定位又慢又不穩</td></tr>
+                <tr><td>30 以上</td><td>可穩定解調；<strong>多數衛星到這個水準，定位就快了</strong></td></tr>
+                <tr><td>40 以上</td><td>開闊天空＋好天線的水準</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/20-sat-view.png" alt="衛星頁：SNR 柱狀圖與天空圖">
+                <figcaption>定位成功時的衛星頁：31/41 顆有訊號，四個星座（GPS／QZSS／GLONASS／BDS）
+                的 SNR 柱狀圖與天空圖。柱子多數超過 20、部分達 40，就是「聽得到」的樣子。</figcaption>
+            </figure>
+
+            <h4>為什麼要等：冷啟動的物理限制與實測時間</h4>
+            <p>定位需要每顆衛星的精確軌道（星曆），而星曆藏在衛星以
+            <strong>50 bps</strong> 廣播的訊號裡 —— 一顆要連續正確解調約 18–30 秒，
+            錯一個位元就重來，還得湊滿至少 4 顆。這就是「冷啟動」慢的原因。
+            本機實測（同一地點、主動式天線、量測解析度 ±5 秒）：</p>
+            <table>
+                <tr><th>情境</th><th>首次定位時間（實測）</th></tr>
+                <tr><td>冷啟動（無任何輔助）</td><td><strong>95 秒</strong></td></tr>
+                <tr><td>冷啟動＋AGNSS</td><td><strong>52 秒</strong>（另外約 20 秒就先回一筆粗略位置）</td></tr>
+                <tr><td>AGNSS＋近期星曆殘留（日常重複使用）</td><td><strong>25 秒</strong></td></tr>
+            </table>
+            <div class="tip">
+                <strong>測試期間不要重新整理頁面。</strong>本工具的硬體設計是 RTS＝電源，
+                重載頁面＝斷電＝星曆全丟，一切從冷啟動重來。
+                要暫停就按 <code>AT+QGPSEND</code>，別斷電。
+            </div>
+
+            <h4>AGNSS 加速：完整流程</h4>
+            <p><strong>原理：</strong>AGNSS 把星曆改成從網路下載（每次約 32–34 KB），
+            跳過 50 bps 慢速解調。它<strong>不能無中生有衛星訊號</strong> ——
+            室內照樣定不到位，它省的只有「等星曆」的時間。</p>
+            <p>兩個最容易漏掉的前提，漏掉任何一個 AGNSS 就<strong>靜靜地完全不動作，不會報錯</strong>：</p>
+            <table>
+                <tr><th>前提</th><th>指令</th><th>陷阱</th></tr>
+                <tr><td>AGNSS 已啟用</td><td><code>AT+QAGPS=1</code></td>
+                    <td>⚠ <strong>重開機才生效</strong>（寫 NVRAM，設一次就好）</td></tr>
+                <tr><td>PDP 已啟用</td><td><code>AT+QIACT=1</code></td>
+                    <td>⚠ 每次開機都要重下。<strong><code>AT+CGATT?</code> 回 1 不算數</strong> ——
+                        附著只是網路層註冊；要 <code>AT+QIACT?</code> 回得出
+                        <code>+QIACT: 1,1,…,"IP"</code> 才有資料通道</td></tr>
+            </table>
+            <p>完整順序（每次開機後）：</p>
+            <pre>AT+QIACT=1          ← 開資料通道（最長等 150 秒；產生流量）
+AT+QIACT?           ← 必須看到 +QIACT: 1,1,…,"IP"
+AT+QGPS=1           ← 開 GNSS；AGNSS 會在此時自動下載輔助資料
+AT+QGPSLOC=2        ← 每 5–10 秒輪詢</pre>
+            <p><strong>怎麼確認 AGNSS 真的在動？</strong>本機韌體<strong>不會</strong>發
+            <code>+QGPS: "agps"</code> 之類的提示（實測確認），要看旁證，三選一即可：</p>
+            <ol>
+                <li><code>AT+QGDCNT?</code> 在 <code>AT+QGPS=1</code> 前後查兩次，
+                    收方向多了約 30 KB ＝ 輔助資料下載了</li>
+                <li>GSV 在幾秒內就列出<strong>大量衛星的位置</strong>（SNR 可能還是 00）——
+                    位置是下載來的，自己解調不可能這麼快</li>
+                <li><code>$GNGGA</code> 的時間欄位有值（時間也是輔助資料的一部分）</li>
+            </ol>
+            <div class="warning">
+                <strong>偽定位陷阱：零顆衛星的座標不是定位。</strong>
+                AGNSS 啟動約 20 秒後，<code>AT+QGPSLOC</code> 可能回出一筆座標，
+                但仔細看：<code>HDOP 0.00 / alt 0.0 / nsat 00</code> ——
+                那是輔助資料裡的<strong>參考位置注入</strong>，不是量測結果，誤差可能很大。
+                <br><br>
+                <strong>真定位的判準：使用衛星數 &gt; 0、定位模式 ≥ 2、HDOP &gt; 0。</strong>
+                寫自動化或產品邏輯時，不能只看「有沒有回座標」。
+            </div>
+
+            <h4>apflash：斷電重開也能快（有條件）</h4>
+            <p><code>AT+QGPSCFG="apflash"</code> 出廠即為 1：每次定位成功會把星曆存進
+            flash，下次開機自動匯入 —— 一小時內斷電重開就從冷啟動變快速熱啟動，
+            <strong>零流量</strong>。兩個限制：星曆約一小時就過期；
+            以及<strong>要先成功定位過一次</strong>，flash 裡才有東西可匯入 ——
+            從來沒定位成功的模組，apflash 幫不上忙。</p>
+
+            <h4>定位成功之後：地圖頁</h4>
+            <p>每次 <code>AT+QGPSLOC</code> 成功，位置就畫進地圖頁：
+            藍色標記是最新位置、青色線是移動軌跡、每個軌跡點滑鼠移上去有當地時間與高度。
+            摘要列顯示座標／高度／HDOP／衛星數，時間自動依經度換算當地時區。</p>
+            <figure class="shot">
+                <img src="img/21-map-track.png" alt="地圖頁：定位軌跡">
+                <figcaption>定位成功後的地圖頁：標記＝最新位置、青色線＝軌跡；
+                頂端摘要列有座標、高度、HDOP、使用衛星數與當地時間。</figcaption>
+            </figure>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td><code>+CME ERROR: 505</code></td>
+                    <td>GNSS 還沒開 —— 先 <code>AT+QGPS=1</code>。
+                        每次重開機（含重載頁面）都要重開</td></tr>
+                <tr><td><code>+CME ERROR: 504</code></td><td>GNSS 已經開著，重複開而已，無害</td></tr>
+                <tr><td>錯誤 516（NOT_FIXED_NOW）</td>
+                    <td>還沒定到位。GSV 有訊號（SNR ≥ 30）就繼續等；
+                        全部 00 就是天線／環境問題，等再久也沒用</td></tr>
+                <tr><td>拿不到連續 NMEA 流</td>
+                    <td>出廠 <code>outport</code> 是 <code>usbnmea</code>，連續流走 USB 埠。
+                        AT 口用 <code>AT+QGPSGNMEA</code> 逐句抓即可（需先
+                        <code>nmeasrc,1</code>，本頁按鈕已備）</td></tr>
+                <tr><td><code>AT+QGPSDEL</code> 想強制冷啟動</td>
+                    <td>⚠ 別用 —— 本機韌體 <code>=?</code> 回 <code>(0-2)</code>
+                        但三個參數<strong>全部拒收</strong>（INVALID_PARA），官方文件也沒收錄。
+                        要冷啟動：<code>apflash,0</code> ＋ 斷電重開（測完記得改回 1）</td></tr>
+                <tr><td>換了設定沒生效</td>
+                    <td><code>QAGPS</code> 重開機才生效；<code>gnssconfig</code>（星座組合）
+                        也是。改完要跑一次開機儀式</td></tr>
+            </table>
+
+            <h3 id="tab-tcpip">TCP/IP —— 資料連線的根</h3>
+            <p><strong>工作原理：</strong>這一頁是所有資料協定的地基。<strong>PDP context
+            （電信網路配給的資料通道）只在這一頁啟用與停用</strong>，SSL／HTTP／MQTT／FTP
+            各頁只放唯讀查詢，避免同一條指令兩處互踩。
+            本節陷阱與秒數皆為 2026 年 8 月實機實測。</p>
+            <figure class="shot">
+                <img src="img/03-tcpip.png" alt="TCP/IP 頁簽">
+                <figcaption>TCP/IP 頁：PDP、socket 收送與診斷工具。</figcaption>
+            </figure>
+
+            <h4>第一步：啟用 PDP（QICSGP／QIACT／QIDEACT）</h4>
+            <p>按 <strong>Act PDP</strong>（<code>AT+QIACT=1</code>）：最長阻塞 150 秒、
+            期間勿下其他指令，從此開始產生流量（漫遊注意費用）。成功後<strong>一定要按
+            Query IP</strong>（<code>AT+QIACT?</code>）確認回 <code>+QIACT: 1,1,1,"IP位址"</code>
+            —— 沒啟用前只回 OK。收線按 <strong>Deact PDP</strong>（<code>AT+QIDEACT=1</code>，
+            最長 40 秒），會強制關閉其下所有連線。<strong>Set APN</strong>
+            （<code>AT+QICSGP</code>）平常不必按 —— 模組會自動同步網路配的 APN
+            （實測 1NCE 卡開機讀回已是 <code>iot.1nce.net</code>），要帳密的企業 APN 才需要。</p>
+            <div class="warning">
+                <strong>Act PDP 回 ERROR、Last Error 572？這卡只允許一條 PDP。</strong>
+                開機時網路已自動啟用一個且<strong>編號會浮動</strong>（實測見過 9 與 1），
+                <code>AT+QIACT</code> 只碰得到 1–8。解法：Network 頁 <code>AT+CGACT?</code>
+                查編號 → <code>AT+CGACT=0,&lt;編號&gt;</code> 讓出名額 → 再按 Act PDP。
+                <br><br>
+                <strong>測到一半全掛？<code>AT+QIACT?</code> 會騙人</strong> —— PDP 漂移時
+                它照樣回 IP，要與 <code>AT+CGACT?</code> 交叉比對才看得出來。復原：
+                Deact PDP → <code>AT+CGACT=0,&lt;漂移編號&gt;</code> → Act PDP → Ping 驗證。
+            </div>
+
+            <h4>開連線：OK 只代表「指令收下」</h4>
+            <p>按 <strong>Open TCP</strong>、參數卡填主機與埠
+            （<code>AT+QIOPEN=1,0,"TCP","主機",埠,0,0</code>；context 1、connectID 0、
+            buffer 模式已固定）。<strong>OK 只代表指令收下</strong>，成敗看 URC
+            <code>+QIOPEN: 0,&lt;err&gt;</code>：0＝成功，最長 150 秒；
+            <strong>563＝connectID 還開著</strong>，先按 Close Sock。
+            <strong>All Socks</strong>（<code>AT+QISTATE</code>）列出所有 socket，
+            state 2＝已連上。</p>
+
+            <h4>送資料：三種方式</h4>
+            <table>
+                <tr><th>按鈕</th><th>說明</th></tr>
+                <tr><td><strong>Send Text</strong><br><code>AT+QISEND=0,&lt;len&gt;</code></td>
+                    <td>定長兩段式：等 <code>&gt;</code> 再送本文，長度自動算、
+                        <strong>免 Ctrl+Z</strong>。純文字首選；上限 1460 bytes、
+                        支援 <code>\n \r \t \xHH</code> 跳脫</td></tr>
+                <tr><td><strong>Send Var 三顆鈕</strong><br><code>AT+QISEND=0</code></td>
+                    <td>變長式：進資料模式一直收，見 Ctrl+Z（0x1A）才送出 ——
+                        可分次寫，見下段</td></tr>
+                <tr><td><strong>Send Hex</strong><br><code>AT+QISENDEX=0,"hex"</code></td>
+                    <td>單行式，不進資料模式。可送任意位元組（含 0x00）；
+                        hex 上限 512 字元＝實際 256 bytes</td></tr>
+            </table>
+            <p><strong>送出（續寫）</strong>第一次按進資料模式、之後每按追加一段
+            （已在資料模式時不重送指令，重送會變成資料）；<strong>送出後自動結束</strong>
+            追加並補 Ctrl+Z，只送一段時最快；<strong>結束（Ctrl+Z）</strong>把累積內容
+            一次送出。進資料模式時終端機會標示；放棄按
+            <strong>ESC Cancel</strong>（0x1B，兩段式卡住時的脫身鍵）。
+            ⚠ 資料不能含 0x1A（會被當提早結束），控制字元改用 Send Hex。</p>
+            <div class="tip">
+                <strong>SEND OK 不代表對方收到</strong>，只表示資料交給模組。按
+                <strong>Check ACK</strong>（<code>AT+QISEND=0,0</code>）查已送／已 ACK，
+                <strong>看 acked 才算數</strong>。
+            </div>
+
+            <h4>收資料：不會自己出現，要按 Read Data</h4>
+            <p>buffer 模式下收到的資料<strong>不會</strong>自動出現在終端機：模組只發
+            <code>+QIURC: "recv",0</code> 通知，要按 <strong>Read Data</strong>
+            （<code>AT+QIRD=0,1500</code>）取出，且<strong>重複讀到回 <code>+QIRD: 0</code>
+            為止</strong> —— 沒讀乾淨就不會再有下一次通知。
+            <strong>Unread Len</strong>（<code>AT+QIRD=0,0</code>）查總收／已讀／未讀。
+            收發完按 <strong>Close Sock</strong>（<code>AT+QICLOSE=0</code>，最長 10 秒）。
+            ⚠ <strong>完全收不到 recv 通知？</strong>Hardware 頁查
+            <code>AT+QURCCFG="urcport"</code> 是不是 <code>uart1</code> ——
+            出廠值是 USB 埠，URC 全跑去那邊。</p>
+
+            <h4>內建對端 tcpbin.com 的兩個脾氣</h4>
+            <p>Open TCP 預設對端是免費 echo 伺服器 <code>tcpbin.com:4242</code>，
+            兩個實測脾氣：</p>
+            <ul>
+                <li><strong>逐行 echo，結尾要換行（0A）</strong>：送 Hello 無 0A 等 6 秒
+                    無回應，補 0A 後 0.1 秒立刻收到。Send Text 結尾加 <code>\n</code>、
+                    Send Hex 尾加 <code>0A</code>。</li>
+                <li><strong>15 秒閒置逾時</strong>：閒置就被斷線並收到
+                    <code>+QIURC: "closed",0</code>。這與 QIRD 無關（它只讀本地緩衝、
+                    不觸網）。要維持連線每 10 秒內送一次資料。收到 closed 後 socket 停在 closing，
+                    <strong>必須先按 Close Sock</strong> 才能重用，否則 QIOPEN 回 563。</li>
+            </ul>
+
+            <h4>診斷三件套：Ping／DNS Lookup／NTP Sync</h4>
+            <table>
+                <tr><th>按鈕（都須先 Act PDP）</th><th>行為與實測</th></tr>
+                <tr><td><strong>Ping</strong><br><code>AT+QPING</code></td>
+                    <td>timeout 4 秒 ×4 已固定。實測 8.8.8.8 全通、RTT 160–270 ms。
+                        ⚠ 很多伺服器擋 ICMP，<strong>ping 不通不代表 TCP 連不上</strong>，
+                        連通性直接 Open TCP</td></tr>
+                <tr><td><strong>DNS Lookup</strong><br><code>AT+QIDNSGIP</code></td>
+                    <td>結果以 URC <code>+QIURC: "dnsgip"</code> 回報（最長 60 秒），
+                        實測分兩段、含多筆 IP</td></tr>
+                <tr><td><strong>NTP Sync</strong><br><code>AT+QNTP</code></td>
+                    <td>最長 125 秒、埠 123 已固定，結果看 URC <code>+QNTP</code>。
+                        ⚠ <strong>時間是 UTC 卻帶本地時區標記</strong>（+32 刻＝GMT+8，實測差正好
+                        8 小時）；看本地時間用 <code>AT+CCLK?</code></td></tr>
+            </table>
+
+            <h4>出錯了：先按 Last Error，再做 30 秒鑑別</h4>
+            <p>指令回 ERROR 就<strong>立刻</strong>按 <strong>Last Error</strong>
+            （<code>AT+QIGETERROR</code>）—— 只保留最後一條，被下一個錯誤蓋掉就查不到。
+            它查 Quectel 堆疊層；網路層用 Network 頁的 <code>AT+CEER</code>。</p>
+            <div class="warning">
+                <strong>🔴 資料堆疊退化 —— 最耗時的坑。</strong>症狀：所有連線一律
+                失敗，但自檢全說沒事（QIACT? 有 IP、QIGETERROR 回 0）。實測連續開關 SSL
+                約 20 次後觸發，連純 TCP 的 QIOPEN 都回 552；QIDEACT＋QIACT 救不回，
+                <strong>只有重跑開機儀式能復原</strong>。<br><br>
+                <strong>30 秒鑑別法</strong>：用 Open TCP 打同一目標 —— 也失敗＝整個堆疊
+                壞了，重跑開機儀式；成功＝問題在上層協定，繼續查。
+            </div>
+
+            <h4>Keepalive：擋得住電信商 NAT，擋不住 tcpbin</h4>
+            <p><strong>QICFG=?</strong> 列子項與範圍、<strong>Keepalive?</strong> 查現值、
+            <strong>Keepalive On／Off</strong> 開關 —— 這四顆指令<strong>本身</strong>零流量；
+            啟用後只要有 socket 閒置著，探測封包就計入行動流量。
+            <strong>它擋不住 tcpbin 的 15 秒逾時</strong>：實測開了仍在 15.1 秒被關 ——
+            keepalive 是 TCP 層空探測，應用程式看不到；且 interval 最小 25 秒，
+            本來就大於 15。要撐應用層逾時只能送真資料（如每 10 秒 Send Hex 送
+            <code>0A</code>）。真正用途是<strong>電信商 NAT
+            保活</strong>（IoT 卡 NAT 閒置數分鐘就被回收）。</p>
+            <p>流量帳（<strong>推算非實測</strong>）：一次探測來回約 80 bytes；
+            預設 idle＝30 秒持續閒置 → 每小時約 9.4 KB、一天約 225 KB、
+            <strong>一個月約 6.8 MB</strong>；idle＝600 秒 → 一天約 11 KB。
+            1NCE 這類總量預付卡要把 idle 調大。沒 socket 開著就完全不耗流量。</p>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td><code>+QIOPEN: 0,563</code></td>
+                    <td>connectID 還開著 —— 先 Close Sock</td></tr>
+                <tr><td>收不到 <code>+QIURC: "recv"</code></td>
+                    <td>① urcport 不是 uart1（Hardware 頁）
+                        ② 沒讀到 <code>+QIRD: 0</code>，通知被抑制</td></tr>
+                <tr><td>冒出 <code>+QIURC: "closed",0</code></td>
+                    <td>tcpbin 15 秒閒置逾時；Close Sock 後可重開</td></tr>
+                <tr><td>兩段式卡住、AT 口不回應</td>
+                    <td>按 ESC Cancel 脫身；再不行 Hardware 頁 Reset</td></tr>
+                <tr><td>連線全失敗但自檢全綠</td>
+                    <td>資料堆疊退化 —— 鑑別後重跑開機儀式</td></tr>
+                <tr><td>Act PDP 回 ERROR，或測到一半全掛</td>
+                    <td>單一 PDP 名額被佔／PDP 漂移 —— 見〈第一步〉兩個排障框</td></tr>
+            </table>
+
+            <h3 id="tab-mqtt">MQTT —— 物聯網訊息</h3>
+            <p><strong>工作原理：</strong>MQTT 是「broker（訊息中介伺服器）」式的協定：
+            裝置不直接互連，各自連上 broker，對「主題（topic）」發布或訂閱訊息。
+            在 EG800K 上它是兩層的：先 <code>AT+QMTOPEN</code> 開「網路連線」（TCP 連到 broker），
+            再 <code>AT+QMTCONN</code> 做「MQTT 登入」，兩層都通了才能訂閱與發布。
+            先記住：<strong>MQTT 指令的結果全是「先 OK 再 URC」模式</strong>（與 FTP 相同）——
+            <code>OK</code> 只代表指令收下，成敗看之後的結果 URC。</p>
+            <p>本頁固定用 client 0；韌體另支援多 client（0–5）、SSL 與雲平台認證
+            （<code>=?</code> 實測確認），進階用法見 MQTT 應用筆記。</p>
+
+            <h4>開始之前：兩個前提</h4>
+            <ol>
+                <li><strong>URC 要走 UART</strong>：<code>AT+QURCCFG="urcport"</code> 必須回
+                    <code>"uart1"</code>。出廠值是 <code>"usbat"</code>，而 MQTT 的結果全是 URC ——
+                    不改的話<strong>每個指令都只回 OK、沒有下文</strong>
+                    （Basic 頁有按鈕；寫 NVRAM，改一次就好）。</li>
+                <li><strong>PDP 要先啟用</strong>：先在 TCP/IP 頁按 <code>AT+QIACT=1</code>
+                    （最長 150 秒）；沒開則 <code>+QMTOPEN</code> 回 <strong>3＝PDP 啟用失敗</strong>。
+                    全程產生數據流量，預估約 5 KB。</li>
+            </ol>
+
+            <h4>怎麼測：四個免費公開 broker</h4>
+            <p><code>AT+QMTOPEN</code> 的參數卡內建 broker 下拉選單（保留自由打字），
+            四家都允許匿名、不必註冊。數據為 2026 年 8 月實測（PC 端爆量 100 則、模組端 ping）：</p>
+            <table>
+                <tr><th>Broker</th><th>爆量 100 則</th><th>模組端 ping</th><th>備註</th></tr>
+                <tr><td><strong>mqttgo.io</strong>（預設）</td><td><strong>100/100</strong></td>
+                    <td><strong>190–210 ms</strong></td><td>台灣 HiNet；1883 明文／8883 TLS</td></tr>
+                <tr><td>broker.hivemq.com</td><td>100/100</td><td>擋 ICMP</td>
+                    <td><code>AT+QPING</code> 回 559 別慌 —— 實測四家 TCP 1883 全通，
+                        可達性直接用 <code>AT+QMTOPEN</code> 測</td></tr>
+                <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+                    <td>官網自稱勿用於重要用途；主題污染最嚴重</td></tr>
+                <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>擋 ICMP</td>
+                    <td><strong>有發布速率限制</strong>；有網頁 Dashboard</td></tr>
+            </table>
+            <p>這四家都<strong>完全公開</strong>：任何人都能訂閱你的主題、
+            別人的訊息也可能混進來 —— 這正是隨機尾碼要解決的問題。</p>
+
+            <h4>client ID 與主題的隨機尾碼：每次重新整理就換一組</h4>
+            <p>client ID 與預設主題不是寫死的：頁面載入時自動產生 6 個十六進位字元的尾碼，
+            組成 <code>numodem-&lt;尾碼&gt;</code> 與 <code>test/numodem-&lt;尾碼&gt;</code>，
+            Subscribe／Publish／Unsub 三顆按鈕共用同一組（否則自迴路對不起來）。理由有二：</p>
+            <ul>
+                <li><strong>撞名會被踢線</strong>：MQTT 3.1.1 §3.1.4 規定 broker 要把先連上的那個
+                    踢下線 —— 兩個人同用固定 ID 就會互踢，症狀看起來像「模組莫名斷線」。</li>
+                <li><strong>固定主題會收到別人的訊息</strong>：你以為收到的是自己發的，其實不是 ——
+                    這比收不到更糟，因為它給出假的通過。</li>
+            </ul>
+            <div class="warning">
+                <strong>⚠ 每次重新整理頁面，尾碼就換一組 ——
+                訂閱與發布必須在同一次頁面生命週期內完成。</strong>
+                何況本工具 RTS＝電源，重載頁面＝模組斷電，MQTT 連線整組消失，
+                要從開機儀式與 <code>AT+QMTOPEN</code> 重來。
+            </div>
+
+            <h4>完整動線：連線 → 訂閱 → 發布 → 收回自己的訊息</h4>
+            <p>最有說服力的驗證是<strong>自迴路</strong>：訂閱後發布到同一個主題、
+            自己收回自己的訊息，一次驗完整條收發鏈路。每步等到結果 URC 再往下：</p>
+            <ol>
+                <li><strong>設協定版本</strong>：按 Ver 3.1.1（<code>AT+QMTCFG="version",0,4</code>；
+                    3＝3.1、4＝3.1.1）。按 Version? 可查目前值（不帶值＝查詢）。
+                    Keepalive 參數卡可調保活間隔，不調也能測。</li>
+                <li><strong>開網路</strong>：按 Open Net（<code>AT+QMTOPEN=0,"broker",1883</code>）。
+                    先回 <code>OK</code>，成敗看 URC <code>+QMTOPEN: 0,&lt;result&gt;</code>
+                    （0＝成功），最長等 120 秒。按 Open? 可查已開的連線
+                    （無連線時回空 <code>OK</code>，實測正常）。</li>
+                <li><strong>MQTT 登入</strong>：按 Connect（<code>AT+QMTCONN=0,"numodem-&lt;尾碼&gt;"</code>）。
+                    成功 URC 固定是 <code>+QMTCONN: 0,0,0</code>。公開 broker 免帳密；
+                    需要帳密時在參數後自行加 <code>,"user","pass"</code>。
+                    按 Conn? 查狀態（1＝初始、2＝連線中、3＝已連線、4＝斷線中）。</li>
+                <li><strong>訂閱</strong>：按 Subscribe（<code>AT+QMTSUB=0,1,"test/numodem-&lt;尾碼&gt;",0</code>，
+                    msgid 固定 1）。成功 URC 形如 <code>+QMTSUB: 0,1,0,0</code>。
+                    此後這個主題的訊息都以 <code>+QMTRECV</code> URC 進來。</li>
+                <li><strong>發布</strong>：按 Publish（<code>AT+QMTPUBEX</code>，兩段式，見下段）。
+                    成功 URC 為 <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code>。</li>
+                <li><strong>收回來</strong>：發布目標就是訂閱中的主題，緊接著會看到
+                    <code>+QMTRECV</code> 帶著主題與剛剛的訊息本文 —— 自迴路成功。
+                    中文 payload 也不截斷、不亂碼。</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="MQTT 頁簽">
+                <figcaption>MQTT 頁：broker 下拉選單、連線、訂閱與發布；預設值已帶隨機尾碼。</figcaption>
+            </figure>
+
+            <h4>QMTPUBEX 兩段式：數滿長度自動送，不用 Ctrl+Z</h4>
+            <p><code>AT+QMTPUBEX</code> 的末參數是<strong>長度（位元組數），不是訊息內容</strong>
+            （MQTT 應用筆記 §3.3.8 結案 —— 塞訊息的單行送法必定回 ERROR）。
+            正確流程是兩段式：送指令 → 模組回提示符 <code>&gt;</code> → 送出剛好 N 位元組，
+            模組<strong>數滿長度就自動送出，不需要 Ctrl+Z</strong>
+            （與 TCP 頁 <code>AT+QISEND</code> 的資料模式不同）。
+            按 Publish 全自動：只要在參數卡填訊息內容，
+            長度由 UTF-8 位元組數自動計算（中文一字 3 位元組，實測「測試」→ 6）。</p>
+            <ul>
+                <li>payload 型指令<strong>不提供「填入命令列」</strong> —— 命令列送出一律加行尾，
+                    那個 CR 會被算進長度而錯位，請用按鈕送。</li>
+                <li>韌體另有 <code>AT+QMTPUB</code>（資料模式變體，要 Ctrl+Z 收尾）——
+                    本工具一律改用 <code>QMTPUBEX</code>，不必兩套都學。</li>
+            </ul>
+
+            <h4>判讀結果碼：每個指令的值域都不一樣</h4>
+            <div class="warning">
+                <strong>不要把 A 指令的結果碼表套到 B 指令上。</strong>
+                <code>+QMTOPEN</code> 的 3 是「PDP 啟用失敗」，
+                <code>+QMTPUBEX</code> 根本沒有 3 這個值。
+                <br><br>
+                最容易誤讀的是 <code>+QMTCONN: 0,1</code> ——
+                它<strong>可能是查詢回應的「狀態 1＝初始化中」，也可能是寫入結果的「封包重傳中」</strong>。
+                單看一行分不出來，所以本工具把兩種讀法並陳，不硬猜。
+            </div>
+            <p>你不必背表：從 <code>+QMTOPEN</code> 到 <code>+QMTRECV</code>／<code>+QMTSTAT</code>
+            的全部結果 URC，終端區都會依 MQTT 應用筆記 v1.5 的七張對照表逐欄加上白話註解。</p>
+
+            <h4>離線與收尾</h4>
+            <ul>
+                <li><strong>只想停止收訊、連線留著</strong>：按 Unsub
+                    （<code>AT+QMTUNS=0,2,"主題"</code>，msgid 固定 2）。</li>
+                <li><strong>正常離線</strong>：按 Disconnect（<code>AT+QMTDISC=0</code>，
+                    送 MQTT DISCONNECT），回 <code>+QMTDISC: 0,0</code>。
+                    <strong>之後不必再按 Close Net</strong> —— <code>AT+QMTCLOSE=0</code>
+                    是給「QMTDISC 失敗、網路層卡住」時強制關閉用的。</li>
+            </ul>
+            <p>不是你按的斷線（被踢、keepalive 逾時、斷網）會以 <code>+QMTSTAT</code>
+            異常斷線 URC 回報（例：<code>+QMTSTAT: 0,5</code>，終端區會註解原因），
+            此時要從 <code>AT+QMTOPEN</code> 重來。</p>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td>每個指令都回 OK，然後就沒下文</td>
+                    <td>URC 被送去 USB 埠 —— <code>urcport</code> 出廠是 <code>usbat</code>，
+                        切成 <code>uart1</code>（見前提 1）</td></tr>
+                <tr><td><code>+QMTOPEN: 0,3</code></td>
+                    <td>PDP 啟用失敗 —— 先 <code>AT+QIACT=1</code>（TCP/IP 頁）再重來</td></tr>
+                <tr><td>訂閱了卻收不到自己發的訊息</td>
+                    <td>中途重新整理過頁面 —— 尾碼換組、模組也斷電重開。
+                        同一次頁面生命週期內重跑一輪動線</td></tr>
+                <tr><td>收到不是自己發的訊息</td>
+                    <td>公開 broker 主題污染（mosquitto 最嚴重）。預設主題已帶隨機尾碼；
+                        自訂主題取獨特名字</td></tr>
+                <tr><td>大量發布時訊息掉了一部分</td>
+                    <td>emqx 有發布速率限制（實測爆量 100 只到 40）——
+                        換 mqttgo.io 或 hivemq（100/100 無限流）</td></tr>
+                <tr><td>等很久都沒有結果 URC</td>
+                    <td>這家族本來就慢：<code>QMTOPEN</code> 最長 120 秒、
+                        <code>QMTCONN</code>／<code>QMTSUB</code>／<code>QMTPUBEX</code> 最長 600 秒
+                        （PUBEX＝封包逾時 60 秒 × 重試 10），按鈕說明已標示，不是當掉</td></tr>
+            </table>
+
+            <h3 id="tab-wifi">WiFiScan —— Wi-Fi 掃描與網路定位</h3>
+            <p><strong>工作原理：</strong>EG800K 是 LTE 模組，<strong>沒有 Wi-Fi 上網能力</strong>，
+            但內建一個「只掃不連」的 Wi-Fi 接收器：被動接收周邊 2.4GHz 熱點廣播的
+            beacon 訊框，回報每個熱點的 MAC 位址（BSSID）、RSSI（訊號強度）與頻道。
+            掃描是純 RF 接收，<strong>零數據流量</strong>；本身不會產生座標 ——
+            要把 MAC＋RSSI 清單送去雲端熱點位置資料庫查詢才換得出經緯度；
+            這就是<strong>室內也能用、不靠衛星</strong>的網路定位。
+            本節所有數字與行為都是 2026 年 8 月對實體 EG800K 的實測值。</p>
+
+            <h4>本頁的兩群按鈕</h4>
+            <p>上半 <strong>Wi-Fi Scan</strong> 四顆（純掃描），下半
+            <strong>QuecLocator (QLBS)</strong> 十三顆（先讀後面的真相段落再按）：</p>
+            <table>
+                <tr><th>按鈕</th><th>指令</th><th>作用與實測重點</th></tr>
+                <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>查參數範圍。本機實回
+                        <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+                <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+                    <td>讀目前參數。本機出廠 <code>12000,1,5,5,0</code>＝
+                        時限 12 秒、1 輪、熱點上限 5、RRC 逾時 5 秒、優先權 0</td></tr>
+                <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+                    <td>用目前參數掃一次。結果在 <code>OK</code> 之後<strong>非同步</strong>回報，
+                        最長等 13 秒</td></tr>
+                <tr><td>Scan (custom)</td><td>參數卡</td>
+                    <td>自訂時限（毫秒）／輪數／熱點上限／RRC 逾時／優先權後掃描</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="WiFiScan 頁簽與 QuecLocator 群">
+                <figcaption>WiFiScan 頁：掃描四鈕與 QuecLocator（QLBS）群。</figcaption>
+            </figure>
+
+            <h4>第一次掃描：怎麼按、會看到什麼</h4>
+            <ol>
+                <li><strong>跑開機儀式</strong>（見〈開機儀式〉一節）。</li>
+                <li><strong>確認 URC 走 UART</strong>：<code>AT+QURCCFG="urcport"</code> 要回
+                    <code>"uart1"</code>。出廠值是 <code>"usbat"</code> ——
+                    掃描結果全部被送去 USB 埠，這裡只看得到 <code>OK</code>、
+                    連 TIMEOUT 都等不到（設定寫 NVRAM，改一次就好）。</li>
+                <li><strong>按 <code>Scan</code></strong>：模組先回 <code>OK</code>，
+                    這代表「掃描開始」，<strong>不是結果</strong>。幾秒內（最長到掃描時限）
+                    結果一條一條回報，每行附自動註解（MAC／RSSI／頻道）。</li>
+            </ol>
+
+            <h4>判讀掃描結果</h4>
+            <p>實測回報長這樣（2026-08-29，掃到 7 個熱點，RSSI -37 ~ -89 dBm）：</p>
+            <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+            <p>欄位順序是 <code>(ecn, ssid, rssi, mac, channel)</code>。
+            <strong>本機韌體的 ecn 與 ssid 固定回 <code>-</code></strong>（2026-08-02 實測），
+            清單看不到「這是誰家的 Wi-Fi」——
+            對定位剛好夠用，資料庫吃的本來就是 MAC＋RSSI。
+            RSSI 直覺：-30 ~ -50 很近、-60 ~ -75 一般、-80 以下很弱。</p>
+            <p>時限內一個熱點都沒掃到時回 <code>+QWIFISCAN:TIMEOUT</code> ——
+            <strong>正常結束，不是錯誤</strong>（冒號後沒空白，本工具解析已處理）。
+            想多掃幾顆：用參數卡把熱點上限從出廠的 5 調高（本機極限 10）、
+            輪數調到 2-3（實測跨輪結果會去重）。</p>
+            <div class="warning">
+                <strong>掃到的熱點不是每顆都能拿去定位。</strong>2026-08-29 實測 7 顆裡有
+                4 顆是「本地管理位址」（<code>C2:</code>／<code>62:</code>／<code>9E:</code>
+                開頭，第一位元組的 0x02 位元為 1 —— 多 SSID 分身的虛擬 BSSID），
+                <strong>定位資料庫通常直接忽略這種位址</strong>，實際可用素材只剩 3 顆全域位址。
+            </div>
+            <div class="warning">
+                <strong>應用文件 V1.2 的參數範圍對本機是錯的。</strong>
+                文件把輪數放寬到 1-6、熱點上限放寬到 4-30，但本機韌體實回的範圍仍是
+                <strong>輪數 1-3、熱點上限 4-10</strong>（2026-08-06 實測）。
+                以 <code>Support?</code> 實回為準，別照抄文件數字。
+            </div>
+
+            <h4>QuecLocator（QLBS）按鈕群：按之前先看真相</h4>
+            <p>QuecLocator 是 Quectel 的雲端定位服務：<code>AT+QLBS</code>（<code>Locate</code>
+            按鈕）一條指令，韌體自己蒐集素材、送去伺服器查庫、回傳座標。三個現實：</p>
+            <ol>
+                <li><strong>要 token，而且是收費服務。</strong>官方文件明寫須聯絡 Quectel
+                    技術支援申請（無自助註冊）。本機 token 出廠為空。</li>
+                <li><strong>16 份 EG800K 官方文件沒有一份提到 QuecLocator。</strong>
+                    手上的應用文件是 EC200U／EG915U 用的（語法與錯誤碼實測相符），
+                    不是本機的官方文件。</li>
+                <li><strong>本專案已裁定不採用</strong>（2026-08-29）：定位邏輯鎖在韌體裡，
+                    服務一旦收攤，整條 AT 指令直接失效、供應商無法抽換
+                    （Quectel 論壇已證實 BG95 系列停止支援）。
+                    按鈕保留，只為「若拿得到免費 token 順手驗證」。</li>
+            </ol>
+            <div class="warning">
+                <strong><code>+QLBS: 702</code> 是「伺服器逾時」，不是 token 問題。</strong>
+                本專案曾把 702 誤判成「沒 token」整整三週 —— 真相是當時忘了先啟用
+                PDP，模組根本連不上伺服器，等滿逾時（出廠 60 秒）就回 702。
+                2026-08-29 對照實驗（token 全程為空）：
+                PDP 未啟用回 <code>702</code>；啟用後回 <code>10002</code>（token 不存在）——
+                <strong>伺服器從臺灣是連得通的，缺的只有 token</strong>。
+                下 <code>AT+QLBS</code> 前一定要先 <code>AT+QIACT=1</code>（會產生流量）。
+            </div>
+            <p>七個設定子項的查／設都有按鈕，<code>Cfg?</code>（<code>AT+QLBSCFG=?</code>）
+            一鍵列出全部範圍（零流量）。本機出廠值與實測重點：</p>
+            <table>
+                <tr><th>子項（按鈕）</th><th>出廠值</th><th>實測重點</th></tr>
+                <tr><td><code>token</code>（Set Token／Token?）</td><td>空</td>
+                    <td>讀回一律被遮成 <code>*</code>；設定路徑實測是通的</td></tr>
+                <tr><td><code>server</code>（Server?／Set Server）</td>
+                    <td><code>www.queclocator.com:80</code></td><td>定位伺服器位址</td></tr>
+                <tr><td><code>timeout</code>（Timeout?／Set Timeout）</td><td>60 秒</td>
+                    <td>就是 702 等的那個逾時，範圍 10-120</td></tr>
+                <tr><td><code>asynch</code>（Async?／Set Async）</td><td>0</td>
+                    <td>同步／非同步切換</td></tr>
+                <tr><td><code>latorder</code>（LatOrder?）</td><td>0</td>
+                    <td>緯經度輸出順序。⚠ 設定用小寫鍵，讀回卻是駝峰 <code>latOrder</code></td></tr>
+                <tr><td><code>withtime</code>（WithTime?）</td><td>0</td>
+                    <td>回應是否附時間；讀回鍵名 <code>withTime</code></td></tr>
+                <tr><td><code>timeupdate</code>（TimeUpd?）</td><td>0</td>
+                    <td>是否用定位結果校正模組時鐘；讀回鍵名 <code>timeUpdate</code></td></tr>
+            </table>
+            <p>真的拿到 token：<code>Set Token</code> 填入 → <code>Token?</code>
+            確認（顯示 <code>*</code>）→ TCP/IP 頁啟用 PDP → <code>Locate</code>。</p>
+
+            <h4>替代路線：免 token 的網路定位（實測 71 公尺）</h4>
+            <p>網路定位不必靠 QuecLocator。替代路線 2026-08-29 已端到端打通：
+            模組只出素材（本頁掃熱點、<code>AT+QENG="servingcell"</code> 讀基地台），
+            終端機輸出存檔後交給 <code>tools/wifi_geolocate.py</code> 在 PC 端查公開資料庫 ——
+            <strong>模組零流量、免 Quectel 服務</strong>。
+            實測（與同日 GNSS 真值比對）：基地台查表用 Unwired Labs（免費註冊）<strong>誤差
+            71 公尺</strong>（定位這條線的收尾結論）、用 beaconDB（免金鑰）632 公尺；
+            Wi-Fi 查表則卡在供應商 —— 免費生態已崩（beaconDB 本區無涵蓋、
+            Unwired Labs 免費方案不含 Wi-Fi、Google／HERE 要綁卡），擱置。</p>
+            <div class="tip">
+                <strong>71 公尺是「查表命中」，不是「量測精度」。</strong>
+                基地台定位是用 Cell ID 查那座基地台的登記座標，同一個 cell 永遠回同一個點 ——
+                換一座基地台誤差可能就是公里級；服務自己回報的 ±1051 公尺才是誠實估計。
+                另外 Cell ID 與 TAC 是<strong>十六進位</strong>，
+                查表前必須轉十進位（工具已內建處理）。
+            </div>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td>按 <code>Scan</code> 只回 <code>OK</code>，結果永遠不出現</td>
+                    <td>URC 被送去 USB 埠 —— <code>AT+QURCCFG="urcport"</code> 查，
+                        不是 <code>"uart1"</code> 就改（寫 NVRAM）</td></tr>
+                <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+                    <td>時限內沒掃到熱點，正常結束不是錯誤。換位置或調長時限</td></tr>
+                <tr><td><code>+QLBS: 702</code></td>
+                    <td>伺服器逾時 —— 幾乎都是忘了 <code>AT+QIACT=1</code>，不是 token 問題</td></tr>
+                <tr><td><code>+QLBS: 10002</code></td>
+                    <td>token 不存在 —— 要向 Quectel 付費申請；本專案已裁定不採用，
+                        改走上面的替代路線</td></tr>
+                <tr><td>想用 <code>AT+QCELLLOC</code></td>
+                    <td>本機<strong>不支援</strong>（回 ERROR）—— 那是 EC2x 系列的指令</td></tr>
+            </table>
+
+            <h3 id="tab-ssl">SSL —— TLS 通道</h3>
+            <p><strong>工作原理：</strong>SSL 頁是加密連線的<strong>共用底層</strong> ——
+            這裡設好的 SSL context 與上傳的憑證，同時供 SSL raw socket、MQTT over SSL
+            與 HTTPS 使用。本節的秒數與行為都是 2026 年 8 月對實體 EG800K 的實測值。</p>
+
+            <h4>第一次 TLS 連線：五個步驟</h4>
+            <ol>
+                <li><strong>跑開機儀式</strong>（見〈開機儀式〉一節），再按
+                    <code>AT+QIACT?</code> 確認資料通道 —— 要回得出
+                    <code>+QIACT: 1,1,…,"IP"</code>，沒有就先 <code>AT+QIACT=1</code>。</li>
+                <li><strong>設 context</strong>：<code>sslversion</code> 填 4（全部版本，
+                    相容性最好）、<code>ciphersuite</code> 填 0XFFFF（全部套件）、
+                    <code>seclevel</code> 先填 0 —— 先確認通道會通，驗證留到後面。</li>
+                <li><strong>開連線</strong>：按 <code>AT+QSSLOPEN</code>（末碼 0），參數卡填
+                    主機與埠。⚠ <code>OK</code> 只代表「指令收下」，成敗要等 URC：
+                    <code>+QSSLOPEN: 4,0</code> 才是成功（實測交握 2.0 秒）。</li>
+                <li><strong>送資料</strong>：按 <code>AT+QSSLSEND</code>（兩段式）——
+                    出現 <code>&gt;</code> 後送本文，<strong>數滿宣告長度自動送出，
+                    免 Ctrl+Z</strong>（單包上限 1460 bytes）。對方回話會出
+                    <code>+QSSLURC: "recv",4</code>。</li>
+                <li><strong>讀回與關閉</strong>：<code>AT+QSSLRECV</code>（單次上限 1500）
+                    讀到 <code>+QSSLRECV: 0</code> 代表收乾淨了，不是錯誤。
+                    <code>AT+QSSLCLOSE=4</code> 關閉（預設最長等 10 秒；
+                    另一顆可指定秒數，0＝立即）。</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2.0 秒，0＝成功
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← 數滿 15 bytes 自動送出
+SEND OK
++QSSLURC: "recv",4        ← 0.4 秒
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>連線期間可按 <code>AT+QSSLSTATE</code> 看所有連線（<code>=4</code>
+            查單一 clientID，狀態 2＝已連線）。注意<strong>本地埠永遠回 0</strong> ——
+            模組行為，不是錯誤。</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="SSL 頁簽">
+                <figcaption>SSL 頁：context 設定、UFS 憑證上傳、連線、收送、關閉。</figcaption>
+            </figure>
+
+            <h4>三種存取模式（<code>AT+QSSLOPEN</code> 末碼）</h4>
+            <table>
+                <tr><th>末碼</th><th>行為</th></tr>
+                <tr><td>0 緩衝</td><td>收到資料只發 <code>+QSSLURC: "recv",&lt;id&gt;</code>，
+                    自己下 <code>AT+QSSLRECV</code> 讀</td></tr>
+                <tr><td>1 直推</td><td>URC 多帶長度、<strong>資料直接吐在下一行</strong>；
+                    ⚠ 此模式下 <code>AT+QSSLRECV</code> 回 ERROR 是正常的</td></tr>
+                <tr><td>2 透傳</td><td>AT 口整個變成資料通道（本頁按鈕只備 0 與 1）</td></tr>
+            </table>
+
+            <h4>context 設定逐項</h4>
+            <p>不確定韌體支援哪些子項就先按 <code>AT+QSSLCFG=?</code> ——
+            實測回 17 個子項，比應用手冊列的多。常用子項都有設定與查詢兩顆按鈕，
+            實測寫入後讀回完全一致。</p>
+            <table>
+                <tr><th>子項</th><th>出廠</th><th>作用與實測要點</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>協定版本；4＝全部支援</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>加密套件；0XFFFF＝全部支援</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0＝不驗證、1＝驗證伺服器
+                    （要先上傳 CA 憑證）、2＝雙向認證（還要用戶端憑證＋私鑰）</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>CA 憑證路徑，格式
+                    <code>"UFS:檔名"</code>，檔案須已在 UFS（見下節）</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>連虛擬主機／CDN 必開 —— 同一 IP 掛多網域時不送 SNI
+                    就拿到不匹配的憑證，驗證必敗 566</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>出廠即使開了 seclevel 1 也不檢查憑證有效期</strong>。
+                    要檢查就設 0，且模組時鐘要對</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>TLS 交握最長等待秒數（10–300）</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 三個出廠預設加起來＝完全不驗證憑證</strong>
+                （seclevel 0、sni 0、ignorelocaltime 1），要真的驗就三個都要設對。
+                且這三個設定與 <code>cacert</code> <strong>不跨重開機保存</strong>
+                （實測確認），每次開機都回出廠值；UFS 裡的憑證檔則斷電不丟。
+            </div>
+
+            <h4>UFS 檔案群：憑證怎麼進模組</h4>
+            <p>UFS 是模組內建快閃儲存，實測總容量 <strong>280 KB</strong>、每檔佔一個
+            4 KB 區塊。憑證要先上傳到這裡，<code>cacert</code> 才有檔案可指。
+            <strong>上傳走 UART、零數據流量</strong>，二進位檔也送得進去。
+            <strong>Upload 卡</strong>：選檔後檔名與大小自動填入，送出後工具等模組回
+            <code>CONNECT</code> 才送原始位元組（等不到就不送）。完成時
+            <strong>註解引擎自動比對</strong>模組回報的大小與 checksum：
+            ✅＝完整無誤、❌＝傳壞了，先刪再重傳。</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← 接著送出 1939 bytes
++QFUPL: 1939,4f64         ← 實收大小,checksum，註解自動比對 ✅</pre>
+            <table>
+                <tr><th>按鈕</th><th>用途</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>列出 UFS 全部檔案與大小 ——
+                    上傳後用它驗證（零流量）</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>查剩餘／總空間 bytes（零流量）</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>刪除指定檔（<code>*</code>＝全部）；
+                    同名檔不先刪、重傳會被擋</td></tr>
+            </table>
+            <div class="tip">
+                <strong>兩個手冊沒明說的實測行為：</strong>（1）FILE 錯誤碼形式不一致 ——
+                同名重傳回文字 <code>file already exist</code>、逾時回數字 <code>421</code>，
+                本工具兩種都能解讀；（2）大小欄填得比實際大，模組逾時後
+                <strong>照樣把實收內容存檔</strong> —— checksum 比對會抓出來。
+            </div>
+
+            <h4>憑證驗證實戰：成對測試法</h4>
+            <p>流程：上傳根憑證 → <code>cacert</code> 指到它 → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → 連目標的 443。<strong>要上傳的是憑證鏈最上層的根憑證</strong>
+            （badssl.com 的鏈有四層，上傳最頂端的 ISRG Root X1）。
+            <strong>只測「壞憑證連不上」不夠</strong> —— 「全部連不上」也會通過。
+            要成對測試：好憑證連得上、壞憑證連不上，
+            <strong>兩個方向都成立才算數</strong>。實測 2×5 對照：</p>
+            <table>
+                <tr><th>主機</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com（正對照）</td><td>連得上</td>
+                    <td><strong>連得上</strong> <code>4,0</code></td></tr>
+                <tr><td>expired（過期）</td><td>連得上</td><td>拒絕 566</td></tr>
+                <tr><td>self-signed（自簽）</td><td>連得上</td><td>拒絕 566</td></tr>
+                <tr><td>wrong.host（主機名不符）</td><td>連得上</td><td>拒絕 566</td></tr>
+                <tr><td>untrusted-root（根不受信）</td><td>連得上</td><td>拒絕 566</td></tr>
+            </table>
+            <p>限制：<strong>四種憑證錯誤全回 566，模組不區分</strong>是哪一種。
+            <code>AT+QIGETERROR</code> 也幫不上忙 —— 它管 TCP/IP 層，
+            這時只回 <code>0,operate successfully</code>。</p>
+            <div class="tip">
+                負向測項避開 expired —— 出廠 <code>ignorelocaltime</code> 是 1，過期本身
+                不會被擋（上表它被擋是因為同時不在上傳的根之下），單測就用 wrong.host。
+                另外<strong>留意流量</strong>：每次交握都下載完整憑證鏈、失敗照付，
+                實測 30 次交握約 150–200 KB。
+            </div>
+
+            <h4>🔴 陷阱：連續開關約 20 次後，資料堆疊整個退化</h4>
+            <div class="warning">
+                <strong>症狀：所有 <code>AT+QSSLOPEN</code> 一律回 552</strong>，連 seclevel 0
+                都連不上，而每項自我檢查都說沒事。<strong>30 秒鑑別</strong>：用純 TCP 的
+                <code>AT+QIOPEN</code> 打同一目標 —— 也失敗就是資料堆疊壞了，別再查
+                SSL 設定。PDP 重啟救不回來，<strong>只有完整開機儀式能復原</strong>。
+                退化會污染測試資料、易誤判成「被憑證驗證擋掉」——
+                做成對測試前先重開機清乾淨。
+            </div>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>憑證驗證失敗。依序查：<code>sni</code> 開了沒（最常見）、
+                        <code>cacert</code> 的根對不對、憑證本身壞；
+                        三個設定重開機就歸零</td></tr>
+                <tr><td><code>OK</code> 之後沒下文</td>
+                    <td><code>OK</code> 只代表收下，結果走 URC，最久等到
+                        150 秒＋<code>negotiatetime</code></td></tr>
+                <tr><td>AT 口卡住不理任何指令</td>
+                    <td><code>AT+QSSLSEND</code> 長度算錯、卡在資料模式吞指令 ——
+                        用 Hardware 頁的原始位元組按鈕送 ESC（0x1B）脫身</td></tr>
+            </table>
+
+            <h3 id="tab-http">HTTP —— 網頁請求</h3>
+            <p><strong>工作原理：</strong>模組的 HTTP 是<strong>三段式</strong>的：
+            先設 URL（這一步本身又是兩段式）、再發請求（GET／POST）、最後把回應讀回來。
+            每一段的結果都不在 <code>OK</code> 裡，而是之後才到的 URC ——
+            所以 <code>AT+QURCCFG="urcport"</code> 必須是 <code>"uart1"</code>（Hardware 頁可改），
+            否則結果一個都看不到。數據皆為 2026-08 實機實測。</p>
+
+            <h4>開始之前：先有資料通道</h4>
+            <p>前提是 PDP 已啟用並拿到 IP（TCP/IP 頁的 <code>AT+QIACT=1</code>）。
+            本頁 <strong>Connect 群組</strong>只放唯讀檢查：
+            <code>AT+CPIN?</code>／<code>AT+CGATT?</code>／<code>AT+CGREG?</code>／
+            <code>AT+QIACT?</code>、<code>AT+QIDNSCFG=1</code>（DNS 0.0.0.0＝沒配到）、
+            <code>AT+QIGETERROR</code>（⚠ 只對最後一條 TCP/IP 指令有效，
+            失敗後要<strong>立刻</strong>按）。</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> 會騙人。</strong>實測遇過 PDP 中途漂移：
+                所有請求全部失敗、<strong>固定 30 秒逾時</strong>回錯誤 716，
+                <code>AT+QIACT?</code> 卻照樣回 IP。用 <code>AT+CGACT?</code> 交叉比對，
+                不一致就是漂移了。修法：<code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;漂移的 cid&gt;</code> → <code>AT+QIACT=1</code>，
+                ping 過再繼續。
+            </div>
+
+            <h4>第一次 GET：四個步驟</h4>
+            <ol>
+                <li><strong>前置設定</strong>（Config 群組，零流量）：<code>contextid</code>
+                    參數卡設 1（綁定要走的 PDP context）；<code>rspout/auto</code>、
+                    <code>requestheader</code>、<code>responseheader</code> 三個開關保持 0
+                    （理由見後）；<code>AT+QHTTPCFG?</code> 一次讀回全部設定核對、
+                    <code>AT+QHTTPCFG=?</code> 列出可設定項。</li>
+                <li><strong>設 URL（兩段式）</strong>：<code>AT+QHTTPURL</code> 卡片只有一顆
+                    「送出（兩段式）」鈕 —— 你填 URL，長度由程式自動算。流程：先送
+                    <code>AT+QHTTPURL=&lt;長度&gt;,80</code>，等 <code>CONNECT</code>
+                    進入資料模式，再把 URL 位元組原樣送出、<strong>不加任何行尾</strong>
+                    （CR/LF 會被算進長度）。
+                    <code>http://www.example.com/</code> 長度恰是 23。送完按
+                    <code>AT+QHTTPURL?</code> 讀回，逐字相同＝行尾沒混進去。</li>
+                <li><strong>發請求</strong>：<code>AT+QHTTPGET=80</code>（等回應秒數）。
+                    <code>OK</code> 只代表「收下指令」，真正結果是稍後的 URC
+                    <code>+QHTTPGET: 0,200</code>，判讀見下段。</li>
+                <li><strong>讀回應</strong>：<code>AT+QHTTPREAD=80</code>。
+                    <code>CONNECT</code> 之後全是原始位元組（實測 example.com 為
+                    559 bytes），接著 <code>OK</code> ——
+                    但<strong>最後獨立一行的 <code>+QHTTPREAD: 0</code> 才是結束標記</strong>。</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="HTTP 頁簽">
+                <figcaption>HTTP 頁：Config／Connect／Transfer／Close 四個群組。</figcaption>
+            </figure>
+
+            <h4>判讀 +QHTTPGET：第一欄不是 HTTP 狀態碼</h4>
+            <p>GET／POST／POSTFILE 的結果 URC 都是
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code> 三欄：
+            <code>err</code> <strong>0 ＝ 指令執行成功</strong>、非 0 是模組層錯誤（716、711…）；
+            <code>httprspcode</code> 是 HTTP 狀態碼，<strong>只在 err=0 時才回報</strong>
+            （手冊明載；工具內建 200／403／404／409／411／500 對照註解）；
+            <code>content_length</code> 選填 —— 伺服器回應標頭有 CONTENT-LENGTH 才有，
+            一般 GET 常常只有兩欄。所以實測的 <code>+QHTTPGET: 0,404,0</code>
+            <strong>不是失敗</strong>：指令成功了，是伺服器說找不到。</p>
+
+            <h4>讀回應：AT+QHTTPREAD 的陷阱</h4>
+            <p>參數是「兩包資料間的最大間隔秒數」，不是總時長。
+            <strong>本機韌體只吃一個參數</strong>：應用文件的
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> 分段讀法實測回裸
+            <code>ERROR</code>（<code>=?</code> 探測證實），按鈕已移除 ——
+            分段取回改用 <code>GETEX</code>。</p>
+            <div class="warning">
+                <strong>互鎖陷阱：<code>rspout/auto</code> 一設 1，READ 類一律失敗</strong>
+                （手冊明載）。它讓模組自動吐回應，代價是 READ 類全滅，
+                所以這顆按鈕有確認對話框。READ 突然全掛，先查 <code>AT+QHTTPCFG?</code>。
+            </div>
+
+            <h4>分段取回：AT+QHTTPGETEX 逐 byte 讀</h4>
+            <p><code>AT+QHTTPGETEX=&lt;秒&gt;,&lt;起始位移&gt;,&lt;長度&gt;</code>
+            走 HTTP Range 只抓指定片段、省流量。實測（端點內容固定為
+            <code>abcdefghijklmnop</code>）：位移 0 取 8 回 <code>+QHTTPGET: 0,206,8</code>、
+            讀出 <code>abcdefgh</code>；位移 8 再取 8 讀出 <code>ijklmnop</code>。
+            判讀：<strong>狀態碼必須是 206</strong>；回 <strong>200 且每次內容一樣</strong>
+            ＝伺服器不支援 Range，不是模組壞掉。
+            ⚠ 只在 <code>requestheader=0</code> 時可執行。</p>
+
+            <h4>POST：兩段式與 Content-Type</h4>
+            <p><code>AT+QHTTPPOST</code> 卡片也是兩段式：你填 body、長度自動算，先送
+            <code>AT+QHTTPPOST=&lt;長度&gt;,&lt;輸入秒&gt;,&lt;回應秒&gt;</code>，
+            等 <code>CONNECT</code> 再送 body。三件事：</p>
+            <ul>
+                <li><strong><code>CONNECT</code> 最長要等 125 秒</strong>（手冊明載）——
+                    等提示符的逾時要設足 125 秒，別沿用 MQTT 的 5 秒。</li>
+                <li>body 上限 1 MB（<code>=?</code> 實測範圍 1–1024000）。</li>
+                <li>Content-Type 先用 <code>contenttype</code> 參數卡設好
+                    （型別碼 0 ＝ form-urlencoded）。</li>
+            </ul>
+            <p>實測：POST <code>Message=HelloQuectel</code>（20 bytes）回
+            <code>+QHTTPPOST: 0,200,440</code>；READ 回的 JSON 可驗證鍵值送達、
+            長度算對、Content-Type 生效，User-Agent 是模組自報的
+            <code>QUECTEL_MODULE</code>。</p>
+
+            <h4>自訂標頭與回應標頭</h4>
+            <ul>
+                <li><code>reqheader/add</code>：加單條自訂請求標頭（手冊未附實例）；
+                    查詢鈕可查目前加了幾條；<code>reqheader/remove</code> 移除。</li>
+                <li><code>requestheader</code> 設 1 ＝ 整份請求標頭自己組，連 GET 都變兩段式，
+                    且 <code>GETEX</code> 不能用。平常維持 0。</li>
+                <li><code>responseheader</code> 設 1 後 READ 連 HTTP 回應標頭一併吐出
+                    （實測連自訂的 X-Test 都帶得回來）。測完改回 0。</li>
+                <li><code>closed/ind</code>：開啟「session 被關閉」的 URC 回報。</li>
+            </ul>
+
+            <h4>檔案版：POSTFILE 與 READFILE（UFS）</h4>
+            <p><code>AT+QHTTPPOSTFILE="檔名",&lt;秒&gt;</code> 以模組檔案系統（UFS）的檔案
+            當 body 送 POST；<code>AT+QHTTPREADFILE="檔名",&lt;秒&gt;</code> 把回應存成
+            UFS 檔。⚠ 本工具目前<strong>無法先上傳檔案到 UFS、也讀不回 UFS
+            檔內容</strong>，這兩條供搭配韌體端流程使用。</p>
+
+            <h4>HTTPS：免驗證路徑</h4>
+            <p>HTTPS ＝ HTTP ＋ SSL context。Connect 群組備好最短路徑，五顆照序按：</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP 指定用 SSL context 1
+AT+QSSLCFG="sslversion",1,4        ← TLS 版本交給伺服器協商
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← 加密套件全開
+AT+QSSLCFG="seclevel",1,0          ← 不驗憑證（見下）
+AT+QSSLCFG="sni",1,1               ← 開 SNI（出廠是 0！）</pre>
+            <p>之後 URL 換 <code>https://</code> 開頭照常 GET／READ ——
+            實測讀回 HTML 與明文版逐字相同。
+            <strong><code>seclevel=0</code>（不驗憑證）是本工具唯一走得完的路徑</strong>
+            —— 要驗憑證得先把 CA 憑證寫進 UFS；SSL 細節（<code>AT+QSSLCFG=?</code>
+            列全部子項、<code>negotiatetime</code> 調握手等待秒數）見〈SSL —— TLS 通道〉一節。
+            <strong>SNI 出廠是 0</strong>：不開，共用 IP 的 HTTPS 站拿到不匹配的憑證、
+            一驗就敗。<strong>憑證鏈是流量大頭</strong>：一輪 HTTPS GET 約 8–15 KB，
+            明文才約 1 KB。</p>
+
+            <h4>轉址與收尾</h4>
+            <p><strong>轉址（手冊沒寫，實測釐清）</strong>：模組會自動跟隨 302，但
+            <strong>只吃絕對路徑的 Location</strong> —— 相對路徑直接回錯誤 711、
+            1 毫秒立即失敗。<strong>收尾</strong>：
+            <code>AT+QHTTPSTOP</code>（Close 群組）取消進行中的請求並斷開 session；
+            狀態怪怪的、或出現錯誤 704（資料模式被佔）時先按這顆收乾淨。</p>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td>看不到任何結果 URC</td><td><code>urcport</code> 不是 <code>uart1</code>，
+                    去 Hardware 頁改</td></tr>
+                <tr><td>所有 URL 都 716、固定 30 秒逾時</td>
+                    <td>PDP 漂移，見上方警告</td></tr>
+                <tr><td>單一 URL 回 716</td><td>實測 DNS 失敗也是 716（不是舊文件猜的
+                    714）；接著 READ 回 705 是正常連鎖</td></tr>
+                <tr><td><code>READ</code>／<code>GETEX</code> 突然失敗</td>
+                    <td><code>rspout/auto</code> 與 <code>requestheader</code>
+                        都要是 0（見上文）</td></tr>
+                <tr><td><code>AT</code> 都沒回應</td>
+                    <td>模組掛住（實測遇過，手冊沒描述）—— 重跑開機儀式</td></tr>
+            </table>
+
+            <h3 id="tab-ftp">FTP —— 檔案傳輸</h3>
+            <p><strong>工作原理：</strong>FTP 有<strong>兩條通道</strong>：控制通道走命令、
+            資料通道走檔案內容。登入、改名、刪除、查大小只走控制通道；
+            LIST、上傳、下載要<strong>另開一條資料連線</strong> ——
+            本節大半的怪現象（615、603 連發）都由此而來。
+            貫穿全節的 Quectel 通則：<strong><code>OK</code> 只代表「指令收下」</strong>，
+            真正結果之後才以 URC 送達。本節回應與數字全是 2026 年 8 月對實體 EG800K 的實測值。</p>
+
+            <h4>開始之前：兩個前提</h4>
+            <ul>
+                <li><strong>PDP 要先啟用</strong>：本頁第一顆 <code>AT+QIACT?</code> 就是做這個檢查 ——
+                    回得出 <code>+QIACT: 1,1,…,"IP"</code> 才能繼續，只回 OK 就先到 TCP/IP 頁按
+                    Act PDP（PDP 未啟用時 QFTPOPEN 必失敗）。</li>
+                <li><strong>URC 要走 UART</strong>：FTP 指令幾乎全是「先 OK、結果再以 URC 送達」，
+                    <code>AT+QURCCFG="urcport"</code> 不是 <code>"uart1"</code> 的話，
+                    這裡只看得到一堆 OK（設定見 Hardware 頁）。</li>
+            </ul>
+
+            <h4>登入動線：設定 → 開啟 → 等 URC</h4>
+            <ol>
+                <li><strong>綁 PDP context</strong>：<code>AT+QFTPCFG="contextid",1</code>
+                    （出廠即為 1，查詢鈕可讀回確認）。</li>
+                <li><strong>設帳密</strong>：<code>AT+QFTPCFG="account","帳號","密碼"</code>，
+                    <strong>必須在 QFTPOPEN 之前</strong>設好。</li>
+                <li><strong>模式與型態</strong>：<code>transmode</code> 設 1
+                    （被動；NAT 後方一律用它，FTPS 必須）；
+                    <code>filetype</code> 純文字檔用 1、其餘用 0。</li>
+                <li><strong>登入</strong>：<code>AT+QFTPOPEN="主機",21</code> 立即回 OK（只是收下），
+                    等 <code>+QFTPOPEN: 0,0</code> 才是登入成功（最長 125 秒）。
+                    再按 <code>AT+QFTPSTAT</code> 應回 1（閒置；2＝傳輸中、3＝關閉中）。</li>
+            </ol>
+            <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK                ← 只代表指令收下
++QFTPOPEN: 0,0    ← 這一行才是登入成功</pre>
+            <p>其餘設定項：<code>AT+QFTPCFG=?</code> 一鍵列出全部 10 個可設定項與範圍（零流量）。
+            <code>rsptimeout</code>（20–180，預設 90 秒）是多數指令的最大回應時間、
+            也是資料模式中兩包資料的最大間隔；<code>ssltype</code>／<code>sslctxid</code> 是
+            FTPS 用（純 FTP 維持 0，SSL 參數在 SSL 頁設）；
+            <code>data_address</code>／<code>cache</code>／<code>restenable</code>
+            屬特殊環境微調，用途見各鈕說明與手冊。</p>
+            <div class="tip">
+                <strong>密碼遮蔽（實測，與手冊不符）：</strong>查詢 <code>AT+QFTPCFG="account"</code>
+                讀回時密碼被遮成 <code>*</code>（手冊說原樣印出）。但帳號仍是明文，
+                <strong>設定那一行的密碼也是明碼</strong>，截圖錄影要留意的是設定行。
+            </div>
+            <div class="warning">
+                <strong>🔴 <code>AT+QFTPCLOSE</code> 是非同步的 —— <code>OK</code> 不代表關好了。</strong>
+                要等 <code>+QFTPCLOSE: 0,0</code> 才算登出完成；期間 <code>AT+QFTPSTAT</code>
+                回 3（關閉中），下任何 FTP 指令<strong>一律回 <code>+CME ERROR: 603</code></strong>（伺服器忙碌）。
+                <br><br>
+                症狀極具誤導性：一連串 603 看起來像模組壞了或被伺服器封鎖，
+                其實只是還沒關完（實測當天就因此繞了一大圈）。等待上限＝rsptimeout。
+                另外它只登出 FTP；要徹底重置網路，到 TCP/IP 頁按 Deact PDP。
+            </div>
+
+            <h4>目錄與檔案管理：把伺服器當檔案總管用</h4>
+            <p>全套伺服器端檔案操作（LIST／NLST／MLSD 要開資料連線，其餘只走控制通道）。
+            成功回應一律 <code>+QFTPXXX: 0,…</code> —— 第一個數字 0 就是成功：</p>
+            <table>
+                <tr><th>指令</th><th>做什麼</th><th>成功回應（實測）</th></tr>
+                <tr><td><code>AT+QFTPPWD</code></td><td>查目前工作目錄</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+                <tr><td><code>AT+QFTPCWD</code></td><td>切換工作目錄，之後的操作以此為基準</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPLIST</code></td><td>完整清單直接吐在終端機（兩顆鈕：目前目錄／指定目錄）</td><td>內容後 <code>+QFTPLIST: 0,1175</code>（尾數＝位元組數）</td></tr>
+                <tr><td><code>AT+QFTPNLST</code>／<code>AT+QFTPMLSD</code></td><td>只列檔名（省流量）／MLSD 標準格式（好解析）</td><td>同 LIST</td></tr>
+                <tr><td><code>AT+QFTPSIZE</code></td><td>查檔案大小，不下載內容</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+                <tr><td><code>AT+QFTPMDTM</code></td><td>查檔案修改時間，不下載內容</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+                <tr><td><code>AT+QFTPMKDIR</code>／<code>AT+QFTPRMDIR</code></td><td>建立／刪除資料夾</td><td><code>…: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPRENAME</code></td><td>檔案或資料夾改名</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPDEL</code></td><td>刪除檔案</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+            </table>
+            <p>招式（實測整串通過）：<strong>拿 SIZE 當存在性檢查</strong> ——
+            改名後查舊名回 <code>+QFTPSIZE: 627,550</code>、新名回 <code>0,20</code>；
+            刪除後再查又是 <code>627,550</code>，不下載半個 byte 就驗證了每一步。
+            <code>627,550</code> 是<strong>兩層錯誤碼</strong>：627＝模組層「FTP 未執行所請求的動作」、
+            550＝FTP 協定層伺服器回覆「檔案或目錄不存在」，本工具的註解會分層翻譯。</p>
+
+            <h4>下載：內容直接印在終端機（COM:）</h4>
+            <p><code>AT+QFTPGET="檔名","COM:"</code> —— <code>CONNECT</code> 後檔案內容直接吐在終端機，
+            結尾 <code>+QFTPGET: 0,&lt;位元組數&gt;</code>（實測 readme.txt 回 0,379）。
+            另一顆<strong>分塊下載</strong>鈕多帶起點與長度參數，是最推薦的下載方式：
+            先用 SIZE 查大小、再分塊拿，避免整檔爆流量。
+            <code>AT+QFTPLEN</code> 查上一次 PUT／GET／LIST／NLST 實際傳了多少 byte。</p>
+
+            <h4>上傳：兩段式，送滿宣告長度自動結束</h4>
+            <p><code>AT+QFTPPUT="檔名","COM:",0,&lt;長度&gt;,1</code> 是兩段式指令：
+            等 <code>CONNECT</code>（進入資料模式）後送出<strong>剛好</strong>宣告長度的位元組數，
+            模組數滿自動退出資料模式，不必送 Ctrl+Z。本工具長度自動計算，參數卡貼上內容即可。</p>
+            <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT                        ← 進入資料模式
+NuModem-P6-FTP-test\n          ← 送出剛好 20 bytes
+OK
++QFTPPUT: 0,20                 ← 伺服器收到 20 bytes</pre>
+            <p>這 20 bytes 實測時特地從主機端用 Python ftplib 抓回逐位元組比對 —— 完全相符。
+            <strong>UFS 中轉形式</strong>：手冊另支援檔名寫成 <code>"UFS:xxx"</code>、
+            以模組內建儲存區中轉，細節見 FTPS 應用筆記；要先把電腦檔案放進 UFS，
+            用 SSL 頁「UFS 檔案」羣的 Upload 鈕（<code>AT+QFUPL</code>，走 UART 零流量、
+            自動比對 checksum）。</p>
+            <div class="warning">
+                <strong>⚠ <code>+++</code> 對 FTP 是「中止」不是「暫停」。</strong>
+                手冊（FTPS AN v1.5 p13）寫逃逸後可用 <code>ATO</code> 重回資料模式續傳，
+                <strong>實測不成立</strong>（測兩次結果一致）：逃逸後 <code>AT+QFTPSTAT</code>
+                回 1（閒置）而不是 2（傳輸中），<code>ATO</code> 回 <code>NO CARRIER</code> ——
+                傳輸已被整個中止，沒有可回復的連線。所以 <code>+++</code> 只能用來從失控的
+                資料模式脫身，不能拿來暫停大檔下載。
+                <br><br>
+                正確下法：<strong>前後各靜默 1 秒、以原始位元組送、不加 CR</strong>（加了不生效）——
+                本頁的 <code>+++</code> 鈕已照此規矩送；<code>ATO</code> 鈕依手冊語意保留。
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="FTP 頁簽">
+                <figcaption>FTP 頁：登入設定、目錄與檔案管理、上傳下載。</figcaption>
+            </figure>
+
+            <h4>疑難排解</h4>
+            <table>
+                <tr><th>症狀</th><th>原因與解法</th></tr>
+                <tr><td><code>+CME ERROR: 603</code> 連發</td>
+                    <td>① QFTPCLOSE 後還在關閉中（QFTPSTAT 回 3）—— 等 <code>+QFTPCLOSE: 0,0</code>；
+                        ② 先前發生過 615 —— <strong>615 之後所有 FTP 指令一律 603</strong>，直到正確關閉為止</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>開資料連線失敗：<strong>控制通道正常、資料通道全滅</strong>
+                        （SIZE 有回應，PUT／GET／LIST 全倒）。多半是伺服器端問題 ——
+                        dlptest 從兩條不同網路路徑測都失敗、rebex 全程零失敗；
+                        讀取用 rebex、寫入才用 dlptest 且一次做完</td></tr>
+                <tr><td><code>627,550</code></td>
+                    <td>檔案或目錄不存在 —— 檔名或路徑打錯，先 QFTPPWD／QFTPLIST 確認自己在哪</td></tr>
+                <tr><td>重開機後第一個 PUT 就 615</td>
+                    <td>資料堆疊退化：QFTPCLOSE 與 PDP 重啟都救不回，
+                        <strong>只有完整開機儀式能復原</strong>。鑑別法：用 TCP/IP 頁
+                        <code>AT+QIOPEN</code> 打同一目標 —— 也失敗＝整個堆疊壞了，別再查 FTP 設定</td></tr>
+                <tr><td>指令回 OK 後什麼都沒發生</td>
+                    <td>結果 URC 跑去 USB 埠了 —— 查 <code>AT+QURCCFG="urcport"</code>
+                        是不是 uart1</td></tr>
+                <tr><td><code>AT+QFTPOPEN</code> 直接失敗</td>
+                    <td>PDP 沒啟用 —— 先按本頁 <code>AT+QIACT?</code>，沒有 IP 就到 TCP/IP 頁 Act PDP</td></tr>
+            </table>
+
+            </section>
+
+        <section id="method">
+            <h2><span class="icon">🧪</span> 測試方法</h2>
+
+            <p>這一節寫的是「怎麼測才不會得到假結論」。都是實際踩過才學到的。</p>
+
+            <h3>OK 幾乎都不代表完成</h3>
+            <p>Quectel 這類模組有一個共通模式：<strong>先回 <code>OK</code> 表示指令收下，
+            真正的結果走 URC</strong>。屬於這類的有
+            <code>QIOPEN</code>、<code>QSSLOPEN</code>、<code>QMTOPEN</code>、
+            <code>QFTPOPEN</code>、<strong>以及最容易被忽略的 <code>QFTPCLOSE</code></strong>。
+            把 <code>OK</code> 當成完成然後馬上下一個動作，是本專案繞最多冤枉路的原因。</p>
+
+            <h3>沒有對照組就不要下結論</h3>
+            <p>兩個實例：</p>
+            <ul>
+                <li><strong>憑證驗證</strong>：只測「壞憑證連不上」時，「全部都連不上」也會通過。
+                    要同時證明好憑證連得上。</li>
+                <li><strong>AGNSS 加速</strong>：7-2「冷啟動 TTFF」本來就是 7-4 的對照組。
+                    室內沒有衛星訊號時兩邊都定不出來，測了只會得到「兩邊都失敗」。</li>
+            </ul>
+
+            <h3>每輪測試尾端跑一次健康檢查</h3>
+            <p>模組會退化。連續開關連線約 20 次之後，
+            會進入一種「控制通道還活著、資料通道全滅」的狀態 ——
+            而且 <code>QSSLSTATE</code> 是空的、<code>QIACT?</code> 有 IP、
+            <code>QIGETERROR</code> 回 0，<strong>看起來完全正常</strong>。</p>
+            <p>這個狀態會污染測試資料。實測中就發生過：退化期間某些主機在「關閉驗證」時也連不上，
+            差點被判定成憑證驗證的結果。<strong>每輪結束前用一個已知可連的目標驗一次</strong>，
+            資料才可信。</p>
+            <div class="tip">
+                <strong>鑑別方法：用純 TCP 的 <code>AT+QIOPEN</code> 打同一個目標。</strong>
+                如果它也失敗，那就不是 SSL / FTP 層的問題，是整個資料堆疊壞了。
+                <br>
+                復原方式：<strong>只有完整開機儀式有效</strong>。
+                <code>QIDEACT</code> + <code>QIACT</code> 救不回來。
+            </div>
+
+            <h3>零流量探測：<code>AT+Q...=?</code></h3>
+            <p>測試形式（<code>=?</code>）<strong>不觸網、不花錢</strong>，
+            而且回的是這顆韌體真正支援的參數範圍 ——
+            比應用文件可信，因為文件是一整個系列共用的。
+            本專案就是靠這招抓到 Wi-Fi 掃描的參數範圍與手冊不符。</p>
+
+            <h3>驗「真的傳對了」要從第三方讀回來</h3>
+            <p><code>+QFTPPUT: 0,20</code> 只是模組自報它送了 20 bytes。
+            實測是從電腦端用另一個 FTP 客戶端把檔案抓回來逐 byte 比對 ——
+            這樣才同時排除了「模組算錯」與「伺服器存壞」兩種可能。</p>
+
+            <h3>流量</h3>
+            <p><code>AT+QGDCNT?</code> 回「送出,接收」兩個位元組數。
+            ⚠ <strong>這個計數器不存 NV，模組每次重開機就歸零</strong>；
+            <code>AT+QAUGDCNT</code> 不是累計計數器，是「自動存檔間隔」的設定（0 ＝ 停用）。
+            要跨階段累計必須<strong>每段當場記</strong>，事後補不回來。</p>
+            <p>參考數字：TLS 交握比直覺貴很多，
+            <strong>每次交握都要下載完整憑證鏈，失敗的交握一樣付錢</strong>。
+            實測 11 次交握就用掉 TX 15.3 KB / RX 59.6 KB。</p>
+        </section>
+
+        <section id="faq">
+            <h2><span class="icon">❓</span> 常見問題</h2>
+
+            <h3>Q：按了連線，但清單裡沒有任何接埠</h3>
+            <p>檢查三件事：（1）是不是用 <code>file://</code> 開的 —— Web Serial 會被擋；
+            （2）USB-UART 的驅動程式裝了沒；（3）瀏覽器是不是 Chrome / Edge / Opera。</p>
+
+            <h3>Q：指令送得出去，但模組完全沒有回應</h3>
+            <p>九成是<strong>沒跑開機儀式</strong>。連上序列埠的瞬間 RTS 會被重新拉高，
+            而 RTS 在這塊板子上是負邏輯的電源開關 —— 等於連線就斷電。
+            切到 Hardware 頁跑一次 Power / Reset，等 <code>RDY</code>。</p>
+            <p>其次是<strong>行尾設成了 LF</strong>。EG800K 只吃 CR。</p>
+
+            <h3>Q：指令都回 OK，但完全收不到 URC</h3>
+            <p>下 <code>AT+QURCCFG="urcport"</code>。出廠值是 <code>usbat</code>，
+            URC 全被送到 USB 埠去了。改成 <code>uart1</code>，這條寫 NVRAM 只要設一次。</p>
+
+            <h3>Q：終端機卡住了，打什麼都沒反應</h3>
+            <p>你多半在<strong>資料模式</strong>裡 —— 某個兩段式指令的長度算錯，
+            模組還在等你把位元組數補滿。
+            用 Hardware 頁的原始位元組按鈕送 <strong>ESC（0x1B）</strong>脫身。
+            FTP 的資料模式則要送 <code>+++</code>（前後靜默 1 秒、不加 CR）。</p>
+
+            <h3>Q：一直回 <code>+CME ERROR: 603</code></h3>
+            <p>如果剛下過 <code>AT+QFTPCLOSE</code>，那是<strong>關閉還沒完成</strong>。
+            等 <code>+QFTPCLOSE: 0,0</code> 出現再繼續。</p>
+
+            <h3>Q：連線全部失敗，但 <code>AT+QIACT?</code> 顯示還有 IP</h3>
+            <p>模組的資料堆疊退化了。用純 TCP 的 <code>AT+QIOPEN</code> 打一個已知可連的目標確認 ——
+            如果它也失敗，<strong>重跑完整開機儀式</strong>。
+            <code>QIDEACT</code> + <code>QIACT</code> 救不回來。</p>
+
+            <h3>Q：送了資料給 echo 伺服器卻收不到回聲</h3>
+            <p>檢查 payload 結尾有沒有 <code>\n</code>。很多 echo 服務是<strong>逐行</strong>的，
+            沒有換行就不會回送。欄位裡直接打 <code>\n</code> 兩個字元即可，
+            工具會在送出前解碼成真正的換行，長度也會跟著算對。</p>
+
+            <h3>Q：GNSS 一直定不出位置</h3>
+            <p>先用 <code>AT+QGPSGNMEA="GSV"</code> 看有沒有衛星。
+            室內通常一顆都收不到，那就不是設定問題，是<strong>沒有天空視野</strong>。</p>
+
+            <h3>Q：怎麼換語言或主題？</h3>
+            <p>右上角。語言 18 種、主題深淺兩套，選擇都會記住。
+            <strong>AT 指令的說明與註解也會跟著翻譯</strong>，不只是介面。</p>
+
+            <h3>Q：這個工具會不會偷偷用到我的流量？</h3>
+            <p>不會。它是純前端的單一 HTML 檔，沒有後端。
+            會產生行動流量的只有<strong>你自己按下去的那些資料類指令</strong>，
+            那些按鈕的說明裡都寫清楚了。查詢類與 <code>=?</code> 測試類指令完全不觸網。</p>
+        </section>
+
+        <footer class="footer">
+            <p>NuModem EG800 —— 由 <a href="https://github.com/Nuxtack">Nuxtack</a> 開發</p>
+            <p>本說明書所有行為描述皆來自 2026 年 8 月對實體 EG800K
+            （韌體 <code>EG800KCNGCR07A06M04</code>）的實測。</p>
+        </footer>
+    </main>
+
+    <a href="#" class="back-to-top" aria-label="回到頂端">↑</a>

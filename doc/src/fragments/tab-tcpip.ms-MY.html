@@ -1,0 +1,148 @@
+<h3 id="tab-tcpip">TCP/IP — akar bagi setiap sambungan data</h3>
+            <p><strong>Prinsip kerja:</strong> halaman ini ialah asas kepada semua protokol data. <strong>PDP context
+            (saluran data yang diperuntukkan rangkaian telekomunikasi) hanya diaktifkan dan dinyahaktifkan pada halaman ini</strong>;
+            halaman SSL / HTTP / MQTT / FTP hanya membawa pertanyaan baca sahaja, supaya arahan yang sama tidak dipandu dari dua tempat serentak.
+            Semua perangkap dan bilangan saat dalam bahagian ini diukur pada unit sebenar pada Ogos 2026.</p>
+            <figure class="shot">
+                <img src="img/03-tcpip.png" alt="Tab TCP/IP">
+                <figcaption>Halaman TCP/IP: PDP, penghantaran dan penerimaan socket, serta alat diagnostik.</figcaption>
+            </figure>
+
+            <h4>Langkah pertama: aktifkan PDP (QICSGP / QIACT / QIDEACT)</h4>
+            <p>Tekan <strong>Act PDP</strong> (<code>AT+QIACT=1</code>): ia boleh menyekat sehingga 150 saat —
+            jangan hantar arahan lain dalam tempoh itu — dan mulai saat ini caj data bermula (berhati-hati dengan kos perayauan).
+            Selepas berjaya, <strong>sentiasa tekan Query IP</strong> (<code>AT+QIACT?</code>) dan sahkan ia memulangkan
+            <code>+QIACT: 1,1,1,"alamat IP"</code> — sebelum diaktifkan ia hanya memulangkan OK. Untuk menutup, tekan
+            <strong>Deact PDP</strong> (<code>AT+QIDEACT=1</code>, sehingga 40 saat), yang menutup secara paksa setiap sambungan di bawahnya.
+            <strong>Set APN</strong> (<code>AT+QICSGP</code>) lazimnya tidak perlu — modul menyegerak secara automatik APN yang diberikan rangkaian
+            (ujian sebenar: kad 1NCE sudah membaca balik <code>iot.1nce.net</code> semasa but); hanya APN korporat yang memerlukan akaun dan kata laluan memerlukannya.</p>
+            <div class="warning">
+                <strong>Act PDP memulangkan ERROR, Last Error 572? Kad ini hanya membenarkan satu PDP.</strong>
+                Semasa but, rangkaian telah mengaktifkan satu secara automatik dan <strong>nombornya berubah-ubah</strong> (ujian sebenar pernah nampak 9 dan 1),
+                manakala <code>AT+QIACT</code> hanya boleh menyentuh 1–8. Penyelesaian: pada halaman Network, <code>AT+CGACT?</code>
+                untuk mencari nombornya → <code>AT+CGACT=0,&lt;nombor&gt;</code> untuk melepaskan kuota → kemudian tekan Act PDP semula.
+                <br><br>
+                <strong>Semuanya mati di tengah ujian? <code>AT+QIACT?</code> menipu</strong> — semasa PDP hanyut
+                ia tetap memulangkan IP; hanya banding silang dengan <code>AT+CGACT?</code> mendedahkannya. Pemulihan:
+                Deact PDP → <code>AT+CGACT=0,&lt;nombor yang dihanyuti&gt;</code> → Act PDP → sahkan dengan Ping.
+            </div>
+
+            <h4>Membuka sambungan: OK hanya bermakna "arahan diterima"</h4>
+            <p>Tekan <strong>Open TCP</strong> dan isikan hos serta port pada kad parameter
+            (<code>AT+QIOPEN=1,0,"TCP","hos",port,0,0</code>; context 1, connectID 0 dan
+            mod buffer telah ditetapkan). <strong>OK hanya bermakna arahan telah diterima</strong>; berjaya atau gagal datang dalam URC
+            <code>+QIOPEN: 0,&lt;err&gt;</code>: 0 = berjaya, sehingga 150 saat;
+            <strong>563 = connectID masih terbuka</strong> — tekan Close Sock dahulu.
+            <strong>All Socks</strong> (<code>AT+QISTATE</code>) menyenaraikan setiap socket;
+            state 2 = telah bersambung.</p>
+
+            <h4>Menghantar data: tiga cara</h4>
+            <table>
+                <tr><th>Butang</th><th>Keterangan</th></tr>
+                <tr><td><strong>Send Text</strong><br><code>AT+QISEND=0,&lt;len&gt;</code></td>
+                    <td>Dua peringkat panjang tetap: tunggu <code>&gt;</code>, kemudian hantar muatan; panjang dikira secara automatik,
+                        <strong>tanpa perlu Ctrl+Z</strong>. Pilihan utama untuk teks biasa; had 1460 bytes,
+                        menyokong escape <code>\n \r \t \xHH</code></td></tr>
+                <tr><td><strong>Tiga butang Send Var</strong><br><code>AT+QISEND=0</code></td>
+                    <td>Panjang berubah: masuk mod data dan terus menerima sehingga Ctrl+Z (0x1A) menghantarnya keluar —
+                        boleh ditulis berperingkat, lihat perenggan berikut</td></tr>
+                <tr><td><strong>Send Hex</strong><br><code>AT+QISENDEX=0,"hex"</code></td>
+                    <td>Satu baris, tanpa mod data. Boleh menghantar sebarang bait (0x00 termasuk);
+                        had hex 512 aksara = 256 bytes sebenar</td></tr>
+            </table>
+            <p><strong>Send (tambah)</strong>: tekanan pertama memasuki mod data, setiap tekanan berikutnya menambah satu bahagian lagi
+            (semasa sudah dalam mod data arahan tidak dihantar semula — menghantarnya semula akan menjadi data); <strong>Send lalu tamat automatik</strong>
+            menambah dan meletakkan Ctrl+Z, paling pantas apabila menghantar satu bahagian sahaja; <strong>Tamat (Ctrl+Z)</strong> menghantar kandungan
+            terkumpul sekali gus. Terminal menandakan mod data selagi anda berada di dalamnya; untuk berundur, tekan
+            <strong>ESC Cancel</strong> (0x1B, kekunci keluar apabila arahan dua peringkat tersekat).
+            ⚠ Data tidak boleh mengandungi 0x1A (ia akan dianggap tamat awal); untuk aksara kawalan gunakan Send Hex.</p>
+            <div class="tip">
+                <strong>SEND OK tidak bermakna pihak lawan telah menerimanya</strong> — hanya bermakna data telah diserahkan kepada modul. Tekan
+                <strong>Check ACK</strong> (<code>AT+QISEND=0,0</code>) untuk melihat dihantar / di-ACK;
+                <strong>hanya acked yang dikira</strong>.
+            </div>
+
+            <h4>Menerima data: ia tidak muncul sendiri — tekan Read Data</h4>
+            <p>Dalam mod buffer, data yang diterima <strong>tidak</strong> muncul sendiri dalam terminal: modul hanya mengeluarkan notis
+            <code>+QIURC: "recv",0</code>, dan anda mesti menekan <strong>Read Data</strong>
+            (<code>AT+QIRD=0,1500</code>) untuk mengambilnya, <strong>berulang kali sehingga ia memulangkan <code>+QIRD: 0</code></strong>
+            — selagi buffer belum dikosongkan tiada notis seterusnya.
+            <strong>Unread Len</strong> (<code>AT+QIRD=0,0</code>) menunjukkan jumlah diterima / dibaca / belum dibaca.
+            Setelah selesai, tekan <strong>Close Sock</strong> (<code>AT+QICLOSE=0</code>, sehingga 10 saat).
+            ⚠ <strong>Langsung tiada notis recv?</strong> Pada halaman Hardware semak sama ada
+            <code>AT+QURCCFG="urcport"</code> ialah <code>uart1</code> —
+            nilai kilang ialah port USB, dan semua URC pergi ke sana.</p>
+
+            <h4>Dua ragam pihak lawan terbina dalam tcpbin.com</h4>
+            <p>Pihak lawan lalai bagi Open TCP ialah pelayan echo percuma <code>tcpbin.com:4242</code>,
+            dengan dua ragam yang diukur:</p>
+            <ul>
+                <li><strong>Echo baris demi baris; baris mesti berakhir dengan baris baharu (0A)</strong>: Hello tanpa 0A tiada balasan selepas 6 saat;
+                    dengan 0A ditambah, echo tiba dalam 0.1 saat. Tambah <code>\n</code> dengan Send Text,
+                    atau <code>0A</code> di hujung dengan Send Hex.</li>
+                <li><strong>Tamat masa melahu 15 saat</strong>: sambungan yang melahu diputuskan dengan
+                    <code>+QIURC: "closed",0</code>. Ini tiada kaitan dengan QIRD (ia hanya membaca buffer setempat,
+                    langsung tidak menyentuh rangkaian). Untuk mengekalkan sambungan, hantar data sebenar sekurang-kurangnya setiap 10 saat. Selepas closed, socket kekal dalam closing —
+                    <strong>anda mesti menekan Close Sock dahulu</strong> sebelum menggunakannya semula, jika tidak QIOPEN memulangkan 563.</li>
+            </ul>
+
+            <h4>Trio diagnostik: Ping / DNS Lookup / NTP Sync</h4>
+            <table>
+                <tr><th>Butang (semuanya perlu Act PDP dahulu)</th><th>Kelakuan dan ujian sebenar</th></tr>
+                <tr><td><strong>Ping</strong><br><code>AT+QPING</code></td>
+                    <td>Tamat masa 4 saat ×4, telah ditetapkan. Ujian sebenar: 8.8.8.8 semuanya sampai, RTT 160–270 ms.
+                        ⚠ Banyak pelayan menyekat ICMP — <strong>ping yang gagal tidak bermakna TCP tidak boleh bersambung</strong>;
+                        untuk kebolehcapaian terus gunakan Open TCP</td></tr>
+                <tr><td><strong>DNS Lookup</strong><br><code>AT+QIDNSGIP</code></td>
+                    <td>Keputusan dipulangkan sebagai URC <code>+QIURC: "dnsgip"</code> (sehingga 60 saat);
+                        ujian sebenar: tiba dalam dua bahagian, dengan beberapa IP</td></tr>
+                <tr><td><strong>NTP Sync</strong><br><code>AT+QNTP</code></td>
+                    <td>Sehingga 125 saat, port 123 telah ditetapkan; keputusan datang dalam URC <code>+QNTP</code>.
+                        ⚠ <strong>Masanya ialah UTC tetapi membawa tanda zon waktu setempat</strong> (+32 suku jam = GMT+8; ujian sebenar tepat
+                        8 jam berbeza); untuk waktu setempat gunakan <code>AT+CCLK?</code></td></tr>
+            </table>
+
+            <h4>Apabila tersasar: tekan Last Error dahulu, kemudian triaj 30 saat</h4>
+            <p>Sebaik sahaja sesuatu arahan memulangkan ERROR, tekan <strong>Last Error</strong>
+            (<code>AT+QIGETERROR</code>) <strong>serta-merta</strong> — hanya yang terakhir disimpan, dan sebaik ralat seterusnya menimpanya, ia hilang.
+            Ia menyiasat lapisan tindanan Quectel; untuk lapisan rangkaian gunakan <code>AT+CEER</code> pada halaman Network.</p>
+            <div class="warning">
+                <strong>🔴 Kemerosotan tindanan data — lubang yang paling memakan masa.</strong> Gejala: setiap sambungan
+                gagal, namun setiap pemeriksaan sendiri berkata semuanya elok (QIACT? ada IP, QIGETERROR memulangkan 0). Ujian sebenar: tercetus selepas kira-kira 20
+                kitaran buka/tutup SSL berturut-turut, selepas itu QIOPEN TCP tulen pun memulangkan 552; QIDEACT + QIACT tidak dapat menyelamatkannya —
+                <strong>hanya menjalankan semula ritual but yang memulihkannya</strong>.<br><br>
+                <strong>Triaj 30 saat</strong>: sasarkan hos yang sama dengan Open TCP — jika itu pun gagal, keseluruhan tindanan
+                telah rosak, jalankan semula ritual but; jika berjaya, masalahnya pada protokol lapisan atas — teruskan menyiasat.
+            </div>
+
+            <h4>Keepalive: menahan NAT pengendali, tidak dapat menahan tcpbin</h4>
+            <p><strong>QICFG=?</strong> menyenaraikan sub-item dan julatnya, <strong>Keepalive?</strong> membaca nilai semasa,
+            <strong>Keepalive On / Off</strong> menghidup dan mematikannya — empat arahan ini <strong>dengan sendirinya</strong> tidak memakan data;
+            setelah dihidupkan, selagi ada socket yang melahu, paket penyiasat dikira terhadap kuota data mudah alih anda.
+            <strong>Ia tidak dapat menahan tamat masa 15 saat tcpbin</strong>: ujian sebenar, walaupun dihidupkan, sambungan tetap diputuskan pada 15.1 saat —
+            keepalive ialah penyiasat kosong lapisan TCP yang tidak kelihatan kepada aplikasi; dan interval minimumnya 25 saat,
+            sudah lebih besar daripada 15. Untuk bertahan daripada tamat masa lapisan aplikasi anda mesti menghantar data sebenar (contohnya Send Hex
+            <code>0A</code> setiap 10 saat). Kegunaan sebenarnya ialah <strong>pengekalan hidup NAT
+            pengendali</strong> (entri NAT kad IoT dituntut semula selepas beberapa minit melahu).</p>
+            <p>Bil data (<strong>anggaran, bukan ujian sebenar</strong>): satu pusingan penyiasat lebih kurang 80 bytes;
+            idle lalai = 30 saat melahu berterusan → kira-kira 9.4 KB sejam, kira-kira 225 KB sehari,
+            <strong>kira-kira 6.8 MB sebulan</strong>; idle = 600 saat → kira-kira 11 KB sehari.
+            Kad prabayar jumlah tetap seperti 1NCE patut menaikkan nilai idle. Tanpa socket yang terbuka, ia langsung tidak memakan apa-apa.</p>
+
+            <h4>Penyelesaian masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Punca dan penyelesaian</th></tr>
+                <tr><td><code>+QIOPEN: 0,563</code></td>
+                    <td>connectID masih terbuka — Close Sock dahulu</td></tr>
+                <tr><td>Tiada <code>+QIURC: "recv"</code> tiba</td>
+                    <td>① urcport bukan uart1 (halaman Hardware)
+                        ② anda tidak pernah membaca sehingga <code>+QIRD: 0</code>, jadi notis ditindas</td></tr>
+                <tr><td>Muncul <code>+QIURC: "closed",0</code></td>
+                    <td>Tamat masa melahu 15 saat tcpbin; buka semula selepas Close Sock</td></tr>
+                <tr><td>Arahan dua peringkat tersekat, port AT tidak bertindak balas</td>
+                    <td>Tekan ESC Cancel untuk keluar; jika masih gagal, Reset pada halaman Hardware</td></tr>
+                <tr><td>Semua sambungan gagal tetapi setiap pemeriksaan sendiri hijau</td>
+                    <td>Kemerosotan tindanan data — triaj, kemudian jalankan semula ritual but</td></tr>
+                <tr><td>Act PDP memulangkan ERROR, atau semuanya mati di tengah ujian</td>
+                    <td>Kuota PDP tunggal telah diduduki / hanyutan PDP — lihat dua kotak penyahpepijatan di bawah "Langkah pertama"</td></tr>
+            </table>

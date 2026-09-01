@@ -1,0 +1,168 @@
+<h3 id="tab-gnss">GNSS — Penentuan Posisi Satelit</h3>
+            <p><strong>Cara kerja:</strong> GNSS adalah fungsi yang <strong>independen dari jaringan seluler</strong> —
+            tidak perlu SIM dengan jaringan aktif, tidak butuh PDP, tidak memakan kuota (kecuali AGNSS, lihat di bawah).
+            Setelah dinyalakan, modul menerima sinyal satelit sendiri, dan Anda melakukan polling hasil posisinya
+            dengan <code>AT+QGPSLOC</code>.
+            Semua angka detik dan perilaku pada bagian ini adalah nilai hasil uji nyata terhadap EG800K fisik pada Agustus 2026.</p>
+
+            <h4>Sebelum mulai: antena menentukan segalanya</h4>
+            <p>Penyebab nomor satu kegagalan penentuan posisi bukanlah perintah yang salah, melainkan
+            <strong>antena yang tidak menangkap sinyal</strong>.
+            Perbandingan hasil uji: di dalam ruangan dengan antena seadanya, modul mampu mencantumkan posisi 38 satelit
+            namun <strong>tidak satu pun yang terdengar</strong> (SNR semuanya 00);
+            setelah diganti <strong>antena GNSS aktif (active)</strong> dan diletakkan di dekat jendela,
+            cold start berhasil fix dalam 95 detik.</p>
+            <div class="warning">
+                <strong>GNSS tidak bisa diuji di dalam ruangan; ditunggu sampai kapan pun tetap percuma.</strong>
+                Tanpa pandangan ke langit,
+                <code>$GNGGA</code> akan membalas "satelit terpakai 00, kualitas fix 0",
+                dan <code>AT+QGPSLOC</code> selamanya membalas error 516.
+                Pindahkan antena ke dekat jendela atau ke luar ruangan sebelum mulai —
+                ini bukan soal kesabaran, ini soal fisika.
+            </div>
+
+            <h4>Fix pertama: lima langkah</h4>
+            <ol>
+                <li><strong>Jalankan ritual boot</strong> (lihat bagian "Ritual Boot").
+                    ⚠ Setiap kali halaman di-refresh sama saja dengan daya putus: status nyala GNSS dan
+                    efemeris yang baru setengah diterima semuanya kembali nol, dan Anda harus mengulang dari langkah ini.</li>
+                <li><strong>Pastikan URC lewat UART</strong>: <code>AT+QURCCFG="urcport"</code> harus membalas
+                    <code>"uart1"</code>. Nilai pabriknya <code>"usbat"</code>; bila tidak diubah, banyak pesan hasil
+                    akan dikirim ke port USB dan di sini tidak terlihat apa-apa (setelan disimpan ke NVRAM, cukup diubah sekali).</li>
+                <li><strong>Nyalakan GNSS</strong>: tekan <code>AT+QGPS=1</code>.
+                    Dalam beberapa detik akan muncul <code>+QGPS: "firmware",0,0</code> (firmware GNSS berhasil dimuat).
+                    Bila sudah menyala lalu ditekan lagi, balasannya <code>+CME ERROR: 504</code>, tidak berbahaya.</li>
+                <li><strong>Lihat penerimaan sinyal</strong>: tekan <code>AT+QGPSGNMEA="GSV"</code> untuk membaca
+                    satelit yang terlihat. Area terminal otomatis membuka tab <strong>Status Satelit</strong>
+                    dan menggambar grafik batang sinyal serta peta langit — cara membacanya lihat bagian berikut.</li>
+                <li><strong>Polling posisi</strong>: tekan <code>AT+QGPSLOC=2</code> setiap 5–10 detik.
+                    Balasan <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> (error 516) berarti belum fix,
+                    <strong>cukup terus menunggu</strong>. Saat berhasil ia membalas koordinat,
+                    dan area terminal otomatis membuka tab <strong>Peta</strong> lalu menggambar posisinya di sana.</li>
+            </ol>
+            <figure class="shot narrow">
+                <img src="img/07-gnss.png" alt="Tab GNSS">
+                <figcaption>Halaman GNSS: sakelar, pembacaan NMEA, query posisi, akselerasi AGNSS.</figcaption>
+            </figure>
+
+            <h4>Membaca tab Status Satelit: "terlihat" bukan berarti "terdengar"</h4>
+            <p>GSV memberi empat angka untuk tiap satelit: nomor, elevasi, azimut, dan
+            <strong>SNR (rasio sinyal terhadap derau, dB-Hz)</strong>.
+            Tiga yang pertama hanya menyatakan "di mana seharusnya ia berada di langit";
+            <strong>hanya SNR yang menandakan sinyalnya benar-benar diterima</strong>.</p>
+            <table>
+                <tr><th>SNR</th><th>Arti</th></tr>
+                <tr><td>(kosong) atau 00</td><td>Sama sekali tidak diterima — hanya tahu ia di mana, tetapi tidak terdengar</td></tr>
+                <tr><td>14–28</td><td>Marginal: demodulasi efemeris sering gagal lalu mengulang, fix jadi lambat dan tidak stabil</td></tr>
+                <tr><td>30 ke atas</td><td>Demodulasi stabil; <strong>bila mayoritas satelit mencapai level ini, fix akan cepat</strong></td></tr>
+                <tr><td>40 ke atas</td><td>Level langit terbuka plus antena bagus</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/20-sat-view.png" alt="Tab Status Satelit: grafik batang SNR dan peta langit">
+                <figcaption>Tab Status Satelit saat fix berhasil: 31/41 satelit bersinyal, grafik batang SNR dan
+                peta langit empat konstelasi (GPS/QZSS/GLONASS/BDS). Mayoritas batang melampaui 20, sebagian mencapai 40 —
+                beginilah wujud "terdengar".</figcaption>
+            </figure>
+
+            <h4>Mengapa harus menunggu: keterbatasan fisika cold start dan waktu hasil uji</h4>
+            <p>Penentuan posisi membutuhkan orbit presisi tiap satelit (efemeris), dan efemeris itu tertanam
+            dalam sinyal yang dipancarkan satelit pada laju <strong>50 bps</strong> — satu satelit perlu didemodulasi
+            dengan benar tanpa putus selama sekitar 18–30 detik, salah satu bit saja harus diulang dari awal,
+            dan minimal harus terkumpul 4 satelit. Itulah sebabnya "cold start" lambat.
+            Hasil uji pada perangkat ini (lokasi sama, antena aktif, resolusi pengukuran ±5 detik):</p>
+            <table>
+                <tr><th>Skenario</th><th>Waktu fix pertama (hasil uji)</th></tr>
+                <tr><td>Cold start (tanpa bantuan apa pun)</td><td><strong>95 detik</strong></td></tr>
+                <tr><td>Cold start + AGNSS</td><td><strong>52 detik</strong> (dan pada sekitar detik ke-20 sudah keluar dulu satu posisi kasar)</td></tr>
+                <tr><td>AGNSS + sisa efemeris terbaru (pemakaian berulang sehari-hari)</td><td><strong>25 detik</strong></td></tr>
+            </table>
+            <div class="tip">
+                <strong>Jangan me-refresh halaman selama pengujian.</strong> Rancangan perangkat keras alat ini
+                menjadikan RTS = daya; memuat ulang halaman = daya putus = seluruh efemeris hilang,
+                dan semuanya kembali ke cold start.
+                Untuk berhenti sementara, tekan <code>AT+QGPSEND</code>, jangan putuskan daya.
+            </div>
+
+            <h4>Akselerasi AGNSS: alur lengkap</h4>
+            <p><strong>Prinsipnya:</strong> AGNSS mengganti sumber efemeris menjadi unduhan dari jaringan
+            (sekitar 32–34 KB tiap kali), melompati demodulasi lambat 50 bps.
+            Ia <strong>tidak bisa menciptakan sinyal satelit dari ketiadaan</strong> —
+            di dalam ruangan tetap saja tidak akan fix; yang ia hemat hanyalah waktu "menunggu efemeris".</p>
+            <p>Dua prasyarat yang paling mudah terlewat; lewatkan salah satu saja dan AGNSS <strong>diam total tanpa bergerak, tanpa pesan error</strong>:</p>
+            <table>
+                <tr><th>Prasyarat</th><th>Perintah</th><th>Jebakan</th></tr>
+                <tr><td>AGNSS sudah diaktifkan</td><td><code>AT+QAGPS=1</code></td>
+                    <td>⚠ <strong>Harus boot ulang agar berlaku</strong> (disimpan ke NVRAM, cukup disetel sekali)</td></tr>
+                <tr><td>PDP sudah aktif</td><td><code>AT+QIACT=1</code></td>
+                    <td>⚠ Harus dikirim ulang setiap kali boot. <strong><code>AT+CGATT?</code> membalas 1 belum berarti apa-apa</strong> —
+                        attach hanyalah registrasi di lapisan jaringan; jalur data baru ada bila <code>AT+QIACT?</code> bisa membalas
+                        <code>+QIACT: 1,1,…,"IP"</code></td></tr>
+            </table>
+            <p>Urutan lengkapnya (setiap kali setelah boot):</p>
+            <pre>AT+QIACT=1          ← Buka jalur data (menunggu maksimum 150 detik; memakan kuota)
+AT+QIACT?           ← Harus terlihat +QIACT: 1,1,…,"IP"
+AT+QGPS=1           ← Nyalakan GNSS; AGNSS otomatis mengunduh data bantuan pada saat ini
+AT+QGPSLOC=2        ← Polling setiap 5–10 detik</pre>
+            <p><strong>Bagaimana memastikan AGNSS benar-benar bekerja?</strong> Firmware perangkat ini <strong>tidak</strong>
+            mengeluarkan notifikasi semacam <code>+QGPS: "agps"</code> (terkonfirmasi lewat pengujian);
+            Anda harus melihat bukti tidak langsung — cukup salah satu dari tiga ini:</p>
+            <ol>
+                <li><code>AT+QGDCNT?</code> diperiksa dua kali, sebelum dan sesudah <code>AT+QGPS=1</code>:
+                    arah terima bertambah sekitar 30 KB = data bantuan sudah terunduh</li>
+                <li>GSV dalam hitungan detik langsung mencantumkan <strong>posisi banyak sekali satelit</strong> (SNR mungkin masih 00) —
+                    posisi itu hasil unduhan; demodulasi sendiri mustahil secepat itu</li>
+                <li>Kolom waktu pada <code>$GNGGA</code> terisi (waktu juga bagian dari data bantuan)</li>
+            </ol>
+            <div class="warning">
+                <strong>Jebakan fix palsu: koordinat dengan nol satelit bukanlah fix.</strong>
+                Sekitar 20 detik setelah AGNSS berjalan, <code>AT+QGPSLOC</code> bisa saja membalas satu koordinat,
+                tetapi perhatikan baik-baik: <code>HDOP 0.00 / alt 0.0 / nsat 00</code> —
+                itu adalah <strong>injeksi posisi referensi</strong> dari data bantuan, bukan hasil pengukuran,
+                dan kesalahannya bisa besar.
+                <br><br>
+                <strong>Kriteria fix sejati: jumlah satelit terpakai &gt; 0, mode fix ≥ 2, HDOP &gt; 0.</strong>
+                Saat menulis logika otomasi atau logika produk, jangan hanya memeriksa "ada balasan koordinat atau tidak".
+            </div>
+
+            <h4>apflash: tetap cepat meski daya diputus lalu dinyalakan lagi (dengan syarat)</h4>
+            <p><code>AT+QGPSCFG="apflash"</code> dari pabrik sudah bernilai 1: setiap kali fix berhasil,
+            efemeris disimpan ke flash dan otomatis diimpor pada boot berikutnya —
+            daya diputus lalu dinyalakan lagi dalam rentang satu jam berubah dari cold start menjadi hot start yang cepat,
+            <strong>tanpa kuota sama sekali</strong>. Dua batasannya: efemeris kedaluwarsa dalam sekitar satu jam;
+            dan <strong>harus pernah berhasil fix sekali dulu</strong> agar flash punya isi untuk diimpor —
+            pada modul yang belum pernah berhasil fix, apflash tidak bisa menolong.</p>
+
+            <h4>Setelah fix berhasil: tab Peta</h4>
+            <p>Setiap kali <code>AT+QGPSLOC</code> berhasil, posisinya digambar ke tab Peta:
+            penanda biru adalah posisi terbaru, garis sian adalah jejak pergerakan, dan tiap titik jejak
+            menampilkan waktu setempat serta ketinggian saat kursor mouse diarahkan ke atasnya.
+            Baris ringkasan menampilkan koordinat/ketinggian/HDOP/jumlah satelit, dan waktunya otomatis
+            dikonversi ke zona waktu setempat berdasarkan bujur.</p>
+            <figure class="shot">
+                <img src="img/21-map-track.png" alt="Tab Peta: jejak penentuan posisi">
+                <figcaption>Tab Peta setelah fix berhasil: penanda = posisi terbaru, garis sian = jejak;
+                baris ringkasan di atas memuat koordinat, ketinggian, HDOP, jumlah satelit terpakai, dan waktu setempat.</figcaption>
+            </figure>
+
+            <h4>Pemecahan Masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td><code>+CME ERROR: 505</code></td>
+                    <td>GNSS belum dinyalakan — jalankan <code>AT+QGPS=1</code> dulu.
+                        Harus dinyalakan ulang setiap kali boot ulang (termasuk memuat ulang halaman)</td></tr>
+                <tr><td><code>+CME ERROR: 504</code></td><td>GNSS memang sudah menyala, hanya dinyalakan ganda, tidak berbahaya</td></tr>
+                <tr><td>Error 516 (NOT_FIXED_NOW)</td>
+                    <td>Belum fix. Bila GSV menunjukkan sinyal (SNR ≥ 30), teruslah menunggu;
+                        bila semuanya 00 berarti masalah antena/lingkungan, ditunggu selama apa pun tetap percuma</td></tr>
+                <tr><td>Aliran NMEA kontinu tidak didapat</td>
+                    <td>Dari pabrik <code>outport</code> adalah <code>usbnmea</code>; aliran kontinu lewat port USB.
+                        Di port AT cukup ambil per kalimat dengan <code>AT+QGPSGNMEA</code> (perlu
+                        <code>nmeasrc,1</code> dulu; tombolnya sudah tersedia di halaman ini)</td></tr>
+                <tr><td><code>AT+QGPSDEL</code> untuk memaksa cold start</td>
+                    <td>⚠ Jangan dipakai — firmware perangkat ini pada <code>=?</code> membalas <code>(0-2)</code>,
+                        tetapi <strong>menolak ketiga parameternya</strong> (INVALID_PARA), dan dokumen resmi pun tidak mencantumkannya.
+                        Untuk cold start: <code>apflash,0</code> + putus daya lalu nyalakan lagi (setelah pengujian jangan lupa kembalikan ke 1)</td></tr>
+                <tr><td>Setelan diubah tapi tidak berlaku</td>
+                    <td><code>QAGPS</code> baru berlaku setelah boot ulang; begitu pula <code>gnssconfig</code> (kombinasi konstelasi).
+                        Setelah mengubah, jalankan sekali ritual boot</td></tr>
+            </table>

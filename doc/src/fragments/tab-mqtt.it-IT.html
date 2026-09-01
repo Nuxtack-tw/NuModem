@@ -1,0 +1,149 @@
+<h3 id="tab-mqtt">MQTT —— messaggistica per l'IoT</h3>
+            <p><strong>Principio di funzionamento:</strong> MQTT è un protocollo a "broker (server intermediario dei messaggi)":
+            i dispositivi non si collegano tra loro direttamente, ciascuno si collega al broker e pubblica o sottoscrive messaggi su un "argomento (topic)".
+            Sull'EG800K è a due strati: prima <code>AT+QMTOPEN</code> apre la "connessione di rete" (TCP verso il broker),
+            poi <code>AT+QMTCONN</code> fa il "login MQTT"; solo con entrambi gli strati aperti si può sottoscrivere e pubblicare.
+            Tienilo a mente da subito: <strong>i risultati dei comandi MQTT seguono tutti lo schema "prima OK, poi URC"</strong> (come l'FTP) ——
+            l'<code>OK</code> significa solo che il comando è stato accettato; l'esito sta nell'URC di risultato che arriva dopo.</p>
+            <p>Questa pagina usa sempre il client 0; il firmware supporta anche più client (0–5), SSL e autenticazione verso le piattaforme cloud
+            (confermato sul campo con <code>=?</code>); per gli usi avanzati vedi la application note MQTT.</p>
+
+            <h4>Prima di iniziare: due prerequisiti</h4>
+            <ol>
+                <li><strong>Gli URC devono passare dalla UART</strong>: <code>AT+QURCCFG="urcport"</code> deve rispondere
+                    <code>"uart1"</code>. Il valore di fabbrica è <code>"usbat"</code>, e i risultati MQTT sono tutti URC ——
+                    senza questa modifica <strong>ogni comando risponde solo OK e poi più nulla</strong>
+                    (il pulsante è nella pagina Basic; va in NVRAM, basta cambiarlo una volta).</li>
+                <li><strong>Il PDP va attivato prima</strong>: nella pagina TCP/IP premi <code>AT+QIACT=1</code>
+                    (fino a 150 secondi); senza, <code>+QMTOPEN</code> risponde <strong>3 = attivazione PDP fallita</strong>.
+                    L'intera procedura genera traffico dati, stimato in circa 5 KB.</li>
+            </ol>
+
+            <h4>Come testare: quattro broker pubblici gratuiti</h4>
+            <p>La scheda parametri di <code>AT+QMTOPEN</code> ha un menu a discesa di broker predefiniti (la digitazione libera resta possibile);
+            tutti e quattro accettano l'anonimo, senza registrazione. Dati misurati ad agosto 2026 (raffica di 100 messaggi dal PC, ping dal modulo):</p>
+            <table>
+                <tr><th>Broker</th><th>Raffica di 100</th><th>Ping dal modulo</th><th>Note</th></tr>
+                <tr><td><strong>mqttgo.io</strong> (predefinito)</td><td><strong>100/100</strong></td>
+                    <td><strong>190–210 ms</strong></td><td>HiNet, Taiwan; 1883 in chiaro / 8883 TLS</td></tr>
+                <tr><td>broker.hivemq.com</td><td>100/100</td><td>Blocca l'ICMP</td>
+                    <td><code>AT+QPING</code> risponde 559, niente panico —— misurato: il TCP 1883 passa su tutti e quattro,
+                        la raggiungibilità si testa direttamente con <code>AT+QMTOPEN</code></td></tr>
+                <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+                    <td>Il sito stesso dice di non usarlo per scopi importanti; l'inquinamento degli argomenti è il peggiore</td></tr>
+                <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>Blocca l'ICMP</td>
+                    <td><strong>Ha un limite di frequenza di pubblicazione</strong>; offre una Dashboard web</td></tr>
+            </table>
+            <p>Questi quattro broker sono <strong>completamente pubblici</strong>: chiunque può sottoscrivere i tuoi argomenti
+            e i messaggi altrui possono infilarsi nei tuoi —— è esattamente il problema che il suffisso casuale risolve.</p>
+
+            <h4>Suffisso casuale per client ID e argomento: cambia a ogni ricarica della pagina</h4>
+            <p>Il client ID e l'argomento predefinito non sono fissi: al caricamento della pagina viene generato un suffisso di 6 caratteri esadecimali
+            che compone <code>numodem-&lt;suffisso&gt;</code> e <code>test/numodem-&lt;suffisso&gt;</code>;
+            i tre pulsanti Subscribe/Publish/Unsub condividono lo stesso suffisso (altrimenti l'anello su sé stessi non tornerebbe). I motivi sono due:</p>
+            <ul>
+                <li><strong>Un nome duplicato fa cadere la linea</strong>: il §3.1.4 di MQTT 3.1.1 impone al broker di buttare giù
+                    chi si era collegato per primo —— due persone con lo stesso ID fisso si scalciano a vicenda, e il sintomo somiglia a
+                    "il modulo si scollega senza motivo".</li>
+                <li><strong>Un argomento fisso riceve i messaggi degli altri</strong>: credi di aver ricevuto ciò che hai pubblicato tu, e invece no ——
+                    peggio che non ricevere nulla, perché produce un falso "test superato".</li>
+            </ul>
+            <div class="warning">
+                <strong>⚠ A ogni ricarica della pagina il suffisso cambia ——
+                sottoscrizione e pubblicazione vanno completate nello stesso ciclo di vita della pagina.</strong>
+                Per giunta in questo strumento RTS = alimentazione: ricaricare la pagina = modulo senza corrente, la connessione MQTT sparisce in blocco
+                e si riparte dal rituale di accensione e da <code>AT+QMTOPEN</code>.
+            </div>
+
+            <h4>Il percorso completo: connessione → sottoscrizione → pubblicazione → ricevere il proprio messaggio</h4>
+            <p>La verifica più convincente è l'<strong>anello su sé stessi</strong>: sottoscrivi, pubblichi sullo stesso argomento
+            e ricevi indietro il tuo stesso messaggio: un giro solo convalida l'intera catena di invio e ricezione. A ogni passo attendi l'URC di risultato prima di proseguire:</p>
+            <ol>
+                <li><strong>Imposta la versione del protocollo</strong>: premi Ver 3.1.1 (<code>AT+QMTCFG="version",0,4</code>;
+                    3 = 3.1, 4 = 3.1.1). Con Version? leggi il valore attuale (senza valore = interrogazione).
+                    La scheda parametri Keepalive regola l'intervallo di mantenimento; si può testare anche senza toccarla.</li>
+                <li><strong>Apri la rete</strong>: premi Open Net (<code>AT+QMTOPEN=0,"broker",1883</code>).
+                    Prima arriva <code>OK</code>, l'esito sta nell'URC <code>+QMTOPEN: 0,&lt;result&gt;</code>
+                    (0 = riuscito), attesa fino a 120 secondi. Con Open? vedi le connessioni aperte
+                    (senza connessioni risponde un <code>OK</code> vuoto: misurato, è normale).</li>
+                <li><strong>Login MQTT</strong>: premi Connect (<code>AT+QMTCONN=0,"numodem-&lt;suffisso&gt;"</code>).
+                    L'URC di successo è sempre <code>+QMTCONN: 0,0,0</code>. I broker pubblici non chiedono credenziali;
+                    se servono, aggiungi tu <code>,"user","pass"</code> in coda ai parametri.
+                    Con Conn? leggi lo stato (1 = iniziale, 2 = in connessione, 3 = connesso, 4 = in disconnessione).</li>
+                <li><strong>Sottoscrivi</strong>: premi Subscribe (<code>AT+QMTSUB=0,1,"test/numodem-&lt;suffisso&gt;",0</code>,
+                    msgid fisso a 1). L'URC di successo ha la forma <code>+QMTSUB: 0,1,0,0</code>.
+                    Da qui in poi i messaggi di quell'argomento arrivano come URC <code>+QMTRECV</code>.</li>
+                <li><strong>Pubblica</strong>: premi Publish (<code>AT+QMTPUBEX</code>, in due fasi, vedi il paragrafo sotto).
+                    L'URC di successo è <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code>.</li>
+                <li><strong>Ricevi indietro</strong>: la destinazione della pubblicazione è proprio l'argomento sottoscritto, e subito dopo vedrai
+                    <code>+QMTRECV</code> con l'argomento e il testo appena pubblicato —— anello riuscito.
+                    Anche i payload in caratteri cinesi arrivano senza troncamenti né testo corrotto.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="Scheda MQTT">
+                <figcaption>Pagina MQTT: menu a discesa dei broker, connessione, sottoscrizione e pubblicazione; i valori predefiniti portano già il suffisso casuale.</figcaption>
+            </figure>
+
+            <h4>QMTPUBEX in due fasi: a lunghezza raggiunta parte da solo, niente Ctrl+Z</h4>
+            <p>L'ultimo parametro di <code>AT+QMTPUBEX</code> è <strong>la lunghezza (in bytes), non il contenuto del messaggio</strong>
+            (caso chiuso dal §3.3.8 della application note MQTT —— la forma a riga singola con il messaggio dentro risponde sempre ERROR).
+            La procedura corretta è in due fasi: invii il comando → il modulo risponde con il prompt <code>&gt;</code> → invii esattamente N bytes,
+            e il modulo <strong>spedisce da solo appena la lunghezza è raggiunta, senza Ctrl+Z</strong>
+            (diversamente dalla modalità dati di <code>AT+QISEND</code> nella pagina TCP).
+            Il pulsante Publish fa tutto da sé: basta compilare il contenuto nella scheda parametri,
+            e la lunghezza viene calcolata dai bytes UTF-8 (un carattere cinese = 3 bytes; misurato: una parola di due caratteri cinesi → 6).</p>
+            <ul>
+                <li>I comandi con payload <strong>non offrono "Inserire nella riga di comando"</strong> —— l'invio da riga di comando aggiunge sempre il fine riga,
+                    e quel CR verrebbe contato nella lunghezza sfalsando tutto: usa il pulsante.</li>
+                <li>Il firmware ha anche <code>AT+QMTPUB</code> (variante in modalità dati, chiusa da Ctrl+Z) ——
+                    questo strumento usa sempre <code>QMTPUBEX</code>: non serve impararli entrambi.</li>
+            </ul>
+
+            <h4>Leggere i codici di risultato: ogni comando ha il suo dominio di valori</h4>
+            <div class="warning">
+                <strong>Non applicare la tabella dei codici del comando A al comando B.</strong>
+                Il 3 di <code>+QMTOPEN</code> è "attivazione PDP fallita",
+                mentre <code>+QMTPUBEX</code> il valore 3 non ce l'ha proprio.
+                <br><br>
+                Il più facile da fraintendere è <code>+QMTCONN: 0,1</code> ——
+                <strong>può essere la risposta a un'interrogazione ("stato 1 = inizializzazione") oppure il risultato di una scrittura ("ritrasmissione del pacchetto in corso")</strong>.
+                Da una riga sola non si distingue, perciò questo strumento mostra entrambe le letture affiancate, senza tirare a indovinare.
+            </div>
+            <p>Non devi imparare le tabelle a memoria: per tutti gli URC di risultato, da <code>+QMTOPEN</code> a <code>+QMTRECV</code>/<code>+QMTSTAT</code>,
+            l'area del terminale aggiunge campo per campo le note in linguaggio piano secondo le sette tabelle della application note MQTT v1.5.</p>
+
+            <h4>Disconnessione e chiusura</h4>
+            <ul>
+                <li><strong>Vuoi solo smettere di ricevere, tenendo la connessione</strong>: premi Unsub
+                    (<code>AT+QMTUNS=0,2,"topic"</code>, msgid fisso a 2).</li>
+                <li><strong>Disconnessione ordinata</strong>: premi Disconnect (<code>AT+QMTDISC=0</code>,
+                    invia il DISCONNECT MQTT); risponde <code>+QMTDISC: 0,0</code>.
+                    <strong>Dopo non serve premere anche Close Net</strong> —— <code>AT+QMTCLOSE=0</code>
+                    è la chiusura forzata per quando "QMTDISC fallisce e lo strato di rete resta incastrato".</li>
+            </ul>
+            <p>Le disconnessioni che non hai chiesto tu (espulsione, timeout del keepalive, caduta della rete) vengono riportate dall'URC
+            di disconnessione anomala <code>+QMTSTAT</code> (esempio: <code>+QMTSTAT: 0,5</code>, con il motivo annotato nell'area del terminale);
+            in quel caso si riparte da <code>AT+QMTOPEN</code>.</p>
+
+            <h4>Risoluzione dei problemi</h4>
+            <table>
+                <tr><th>Sintomo</th><th>Causa e rimedio</th></tr>
+                <tr><td>Ogni comando risponde OK e poi più nulla</td>
+                    <td>Gli URC vanno alla porta USB —— <code>urcport</code> di fabbrica è <code>usbat</code>:
+                        passa a <code>uart1</code> (vedi il prerequisito 1)</td></tr>
+                <tr><td><code>+QMTOPEN: 0,3</code></td>
+                    <td>Attivazione PDP fallita —— prima <code>AT+QIACT=1</code> (pagina TCP/IP), poi ricomincia</td></tr>
+                <tr><td>Hai sottoscritto ma non ricevi ciò che pubblichi</td>
+                    <td>La pagina è stata ricaricata a metà strada —— suffisso cambiato e modulo riavviato senza corrente.
+                        Rifai l'intero percorso nello stesso ciclo di vita della pagina</td></tr>
+                <tr><td>Ricevi messaggi che non hai pubblicato tu</td>
+                    <td>Inquinamento degli argomenti sui broker pubblici (mosquitto è il peggiore). L'argomento predefinito porta già il suffisso casuale;
+                        per gli argomenti personalizzati scegli nomi distintivi</td></tr>
+                <tr><td>Nelle pubblicazioni massicce una parte dei messaggi si perde</td>
+                    <td>emqx limita la frequenza di pubblicazione (misurato: raffica di 100, arrivati solo 40) ——
+                        passa a mqttgo.io o hivemq (100/100 senza limiti)</td></tr>
+                <tr><td>L'URC di risultato non arriva per un bel pezzo</td>
+                    <td>Questa famiglia è lenta di suo: <code>QMTOPEN</code> fino a 120 secondi,
+                        <code>QMTCONN</code>/<code>QMTSUB</code>/<code>QMTPUBEX</code> fino a 600 secondi
+                        (PUBEX = timeout pacchetto 60 secondi × 10 tentativi); la nota del pulsante lo segnala, non è un blocco</td></tr>
+            </table>

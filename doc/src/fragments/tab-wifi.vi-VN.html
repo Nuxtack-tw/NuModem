@@ -1,0 +1,148 @@
+<h3 id="tab-wifi">WiFiScan —— quét Wi-Fi và định vị qua mạng</h3>
+            <p><strong>Nguyên lý hoạt động:</strong> EG800K là module LTE, <strong>không có khả năng lên mạng bằng Wi-Fi</strong>,
+            nhưng cài sẵn một bộ thu Wi-Fi "chỉ quét không nối": thu thụ động các khung beacon
+            mà những điểm phát 2.4GHz xung quanh quảng bá, báo về địa chỉ MAC (BSSID), RSSI (cường độ tín hiệu) và kênh của từng điểm phát.
+            Quét là thu RF thuần túy, <strong>không tốn một byte lưu lượng dữ liệu</strong>; bản thân nó không sinh ra tọa độ ——
+            phải đem danh sách MAC + RSSI gửi lên cơ sở dữ liệu vị trí điểm phát trên đám mây tra cứu mới đổi ra được kinh vĩ độ;
+            đó chính là định vị qua mạng kiểu <strong>trong nhà vẫn dùng được, không dựa vào vệ tinh</strong>.
+            Mọi con số và hành vi trong mục này đều là giá trị đo thực tế trên EG800K vật lý tháng 8 năm 2026.</p>
+
+            <h4>Hai cụm nút của trang này</h4>
+            <p>Nửa trên <strong>Wi-Fi Scan</strong> bốn nút (quét thuần túy), nửa dưới
+            <strong>QuecLocator (QLBS)</strong> mười ba nút (đọc đoạn sự thật phía sau rồi hãy bấm):</p>
+            <table>
+                <tr><th>Nút</th><th>Lệnh</th><th>Tác dụng và điểm chính đo thực tế</th></tr>
+                <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>Tra phạm vi tham số. Máy này thực trả
+                        <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+                <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+                    <td>Đọc tham số hiện tại. Máy này xuất xưởng <code>12000,1,5,5,0</code> =
+                        hạn giờ 12 giây, 1 vòng, trần điểm phát 5, RRC hết giờ 5 giây, ưu tiên 0</td></tr>
+                <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+                    <td>Quét một lượt bằng tham số hiện tại. Kết quả báo về <strong>bất đồng bộ</strong> sau <code>OK</code>,
+                        chờ tối đa 13 giây</td></tr>
+                <tr><td>Scan (custom)</td><td>Thẻ tham số</td>
+                    <td>Tự đặt hạn giờ (mili giây) / số vòng / trần điểm phát / RRC hết giờ / ưu tiên rồi quét</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="Tab WiFiScan và cụm QuecLocator">
+                <figcaption>Trang WiFiScan: bốn nút quét và cụm QuecLocator (QLBS).</figcaption>
+            </figure>
+
+            <h4>Lần quét đầu tiên: bấm thế nào, sẽ thấy gì</h4>
+            <ol>
+                <li><strong>Chạy nghi thức khởi động</strong> (xem phần "Nghi thức khởi động").</li>
+                <li><strong>Xác nhận URC đi đường UART</strong>: <code>AT+QURCCFG="urcport"</code> phải trả
+                    <code>"uart1"</code>. Giá trị xuất xưởng là <code>"usbat"</code> ——
+                    kết quả quét bị gửi hết sang cổng USB, ở đây chỉ thấy mỗi <code>OK</code>,
+                    đến TIMEOUT cũng chờ không thấy (thiết lập ghi NVRAM, đổi một lần là xong).</li>
+                <li><strong>Bấm <code>Scan</code></strong>: module trả <code>OK</code> trước,
+                    nghĩa là "bắt đầu quét", <strong>không phải kết quả</strong>. Trong vài giây (dài nhất tới hạn giờ quét)
+                    kết quả báo về từng dòng một, mỗi dòng kèm chú giải tự động (MAC / RSSI / kênh).</li>
+            </ol>
+
+            <h4>Đọc kết quả quét</h4>
+            <p>Báo cáo đo thực tế trông thế này (2026-08-29, quét được 7 điểm phát, RSSI -37 ~ -89 dBm):</p>
+            <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+            <p>Thứ tự các cột là <code>(ecn, ssid, rssi, mac, channel)</code>.
+            <strong>Firmware máy này cố định trả <code>-</code> cho ecn và ssid</strong> (đo thực tế 2026-08-02),
+            danh sách không nhìn ra "Wi-Fi này của nhà ai" ——
+            với định vị thì vừa vặn đủ dùng, cơ sở dữ liệu vốn dĩ chỉ ăn MAC + RSSI.
+            Trực giác RSSI: -30 ~ -50 rất gần, -60 ~ -75 tầm tầm, dưới -80 rất yếu.</p>
+            <p>Trong hạn giờ không quét được điểm phát nào thì trả <code>+QWIFISCAN:TIMEOUT</code> ——
+            <strong>kết thúc bình thường, không phải lỗi</strong> (sau dấu hai chấm không có khoảng trắng, phần phân tích của công cụ đã xử lý).
+            Muốn quét được nhiều hơn: dùng thẻ tham số nâng trần điểm phát từ 5 xuất xưởng lên (máy này tối đa 10),
+            số vòng chỉnh lên 2-3 (đo thực tế kết quả giữa các vòng có khử trùng lặp).</p>
+            <div class="warning">
+                <strong>Không phải điểm phát nào quét được cũng đem đi định vị được.</strong> Đo thực tế 2026-08-29 trong 7 cái có
+                4 cái là "địa chỉ quản trị cục bộ" (bắt đầu bằng <code>C2:</code> / <code>62:</code> / <code>9E:</code>,
+                bit 0x02 của byte đầu bằng 1 —— BSSID ảo của phân thân đa SSID),
+                <strong>cơ sở dữ liệu định vị thường bỏ qua thẳng loại địa chỉ này</strong>, nguyên liệu dùng được thực tế chỉ còn 3 địa chỉ toàn cầu.
+            </div>
+            <div class="warning">
+                <strong>Phạm vi tham số trong tài liệu ứng dụng V1.2 là sai đối với máy này.</strong>
+                Tài liệu nới số vòng lên 1-6, trần điểm phát lên 4-30, nhưng phạm vi firmware máy này thực trả vẫn là
+                <strong>số vòng 1-3, trần điểm phát 4-10</strong> (đo thực tế 2026-08-06).
+                Lấy kết quả thực trả của <code>Support?</code> làm chuẩn, đừng chép nguyên con số trong tài liệu.
+            </div>
+
+            <h4>Cụm nút QuecLocator (QLBS): trước khi bấm hãy nhìn sự thật</h4>
+            <p>QuecLocator là dịch vụ định vị đám mây của Quectel: <code>AT+QLBS</code> (nút <code>Locate</code>)
+            một lệnh duy nhất, firmware tự gom nguyên liệu, gửi lên máy chủ tra kho, trả về tọa độ. Ba hiện thực:</p>
+            <ol>
+                <li><strong>Cần token, và là dịch vụ thu phí.</strong> Tài liệu chính thức ghi rõ phải liên hệ hỗ trợ kỹ thuật
+                    Quectel để xin (không có tự đăng ký). Token máy này xuất xưởng rỗng.</li>
+                <li><strong>16 tài liệu chính thức của EG800K không tài liệu nào nhắc tới QuecLocator.</strong>
+                    Tài liệu ứng dụng đang có là của EC200U / EG915U (cú pháp và mã lỗi đo thực tế trùng khớp),
+                    không phải tài liệu chính thức của máy này.</li>
+                <li><strong>Dự án này đã quyết không dùng</strong> (2026-08-29): logic định vị khóa trong firmware,
+                    dịch vụ mà dẹp tiệm thì cả dòng lệnh AT mất tác dụng luôn, không thay được nhà cung cấp
+                    (diễn đàn Quectel đã xác thực dòng BG95 ngừng hỗ trợ).
+                    Nút vẫn giữ lại, chỉ để "nếu xin được token miễn phí thì tiện tay kiểm chứng".</li>
+            </ol>
+            <div class="warning">
+                <strong><code>+QLBS: 702</code> là "máy chủ hết giờ chờ", không phải vấn đề token.</strong>
+                Dự án này từng phán nhầm 702 thành "thiếu token" suốt ba tuần —— sự thật là lúc đó quên kích hoạt
+                PDP trước, module căn bản không nối được máy chủ, chờ cạn hạn giờ (xuất xưởng 60 giây) thì trả 702.
+                Thí nghiệm đối chứng 2026-08-29 (token rỗng toàn trình):
+                PDP chưa kích hoạt trả <code>702</code>; kích hoạt xong trả <code>10002</code> (token không tồn tại) ——
+                <strong>máy chủ từ Đài Loan là nối thông được, thứ thiếu chỉ có token</strong>.
+                Trước khi gõ <code>AT+QLBS</code> nhất định phải <code>AT+QIACT=1</code> trước (sẽ phát sinh lưu lượng).
+            </div>
+            <p>Bảy mục thiết lập con đều có nút tra / đặt, <code>Cfg?</code> (<code>AT+QLBSCFG=?</code>)
+            một phím liệt kê toàn bộ phạm vi (không tốn lưu lượng). Giá trị xuất xưởng máy này và điểm chính đo thực tế:</p>
+            <table>
+                <tr><th>Mục con (nút)</th><th>Giá trị xuất xưởng</th><th>Điểm chính đo thực tế</th></tr>
+                <tr><td><code>token</code> (Set Token / Token?)</td><td>Rỗng</td>
+                    <td>Đọc lại luôn bị che thành <code>*</code>; đường đặt giá trị đo thực tế là thông</td></tr>
+                <tr><td><code>server</code> (Server? / Set Server)</td>
+                    <td><code>www.queclocator.com:80</code></td><td>Địa chỉ máy chủ định vị</td></tr>
+                <tr><td><code>timeout</code> (Timeout? / Set Timeout)</td><td>60 giây</td>
+                    <td>Chính là cái hạn giờ mà 702 ngồi chờ, phạm vi 10-120</td></tr>
+                <tr><td><code>asynch</code> (Async? / Set Async)</td><td>0</td>
+                    <td>Chuyển đồng bộ / bất đồng bộ</td></tr>
+                <tr><td><code>latorder</code> (LatOrder?)</td><td>0</td>
+                    <td>Thứ tự xuất vĩ kinh độ. ⚠ Đặt thì dùng khóa chữ thường, đọc lại lại là camelCase <code>latOrder</code></td></tr>
+                <tr><td><code>withtime</code> (WithTime?)</td><td>0</td>
+                    <td>Phản hồi có kèm thời gian không; tên khóa đọc lại <code>withTime</code></td></tr>
+                <tr><td><code>timeupdate</code> (TimeUpd?)</td><td>0</td>
+                    <td>Có dùng kết quả định vị hiệu chỉnh đồng hồ module không; tên khóa đọc lại <code>timeUpdate</code></td></tr>
+            </table>
+            <p>Thật sự có token trong tay: <code>Set Token</code> điền vào → <code>Token?</code>
+            xác nhận (hiển thị <code>*</code>) → trang TCP/IP kích hoạt PDP → <code>Locate</code>.</p>
+
+            <h4>Lối đi thay thế: định vị qua mạng miễn token (đo thực tế 71 mét)</h4>
+            <p>Định vị qua mạng không nhất thiết dựa QuecLocator. Lối thay thế đã thông suốt đầu-cuối ngày 2026-08-29:
+            module chỉ xuất nguyên liệu (trang này quét điểm phát, <code>AT+QENG="servingcell"</code> đọc trạm gốc),
+            lưu output của terminal ra tệp rồi giao cho <code>tools/wifi_geolocate.py</code> tra cơ sở dữ liệu công khai ở phía PC ——
+            <strong>module không tốn lưu lượng, miễn dịch vụ Quectel</strong>.
+            Đo thực tế (đối chiếu với giá trị thật GNSS cùng ngày): tra bảng trạm gốc bằng Unwired Labs (đăng ký miễn phí) <strong>sai số
+            71 mét</strong> (kết luận chốt sổ của nhánh định vị này), bằng beaconDB (miễn khóa) 632 mét;
+            còn tra bảng Wi-Fi thì kẹt ở nhà cung cấp —— hệ sinh thái miễn phí đã sụp (beaconDB vùng này không phủ,
+            gói miễn phí Unwired Labs không gồm Wi-Fi, Google / HERE đòi ràng buộc thẻ), tạm gác.</p>
+            <div class="tip">
+                <strong>71 mét là "tra bảng trúng", không phải "độ chính xác đo lường".</strong>
+                Định vị trạm gốc là dùng Cell ID tra tọa độ đăng ký của trạm đó, cùng một cell mãi mãi trả cùng một điểm ——
+                đổi sang trạm khác sai số có thể lên mức kilômét; con số ±1051 mét dịch vụ tự báo mới là ước lượng thành thật.
+                Ngoài ra Cell ID và TAC là <strong>thập lục phân</strong>,
+                trước khi tra bảng phải đổi sang thập phân (công cụ đã xử lý sẵn).
+            </div>
+
+            <h4>Khắc phục sự cố</h4>
+            <table>
+                <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+                <tr><td>Bấm <code>Scan</code> chỉ trả <code>OK</code>, kết quả mãi không hiện</td>
+                    <td>URC bị gửi sang cổng USB —— tra <code>AT+QURCCFG="urcport"</code>,
+                        không phải <code>"uart1"</code> thì đổi (ghi NVRAM)</td></tr>
+                <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+                    <td>Trong hạn giờ không quét được điểm phát nào, kết thúc bình thường không phải lỗi. Đổi chỗ hoặc kéo dài hạn giờ</td></tr>
+                <tr><td><code>+QLBS: 702</code></td>
+                    <td>Máy chủ hết giờ chờ —— hầu như đều do quên <code>AT+QIACT=1</code>, không phải vấn đề token</td></tr>
+                <tr><td><code>+QLBS: 10002</code></td>
+                    <td>Token không tồn tại —— phải trả phí xin Quectel; dự án này đã quyết không dùng,
+                        chuyển sang lối thay thế bên trên</td></tr>
+                <tr><td>Muốn dùng <code>AT+QCELLLOC</code></td>
+                    <td>Máy này <strong>không hỗ trợ</strong> (trả ERROR) —— đó là lệnh của dòng EC2x</td></tr>
+            </table>

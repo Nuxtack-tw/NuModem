@@ -1,0 +1,156 @@
+<h3 id="tab-gnss">GNSS — positionnement par satellite</h3>
+            <p><strong>Principe de fonctionnement :</strong> le GNSS est une fonction <strong>indépendante du réseau mobile</strong> —
+            pas besoin d'une SIM connectée, pas besoin de PDP, aucune consommation de données (AGNSS excepté, voir plus bas).
+            Une fois activé, le module reçoit lui-même les signaux des satellites, et vous interrogez le résultat de positionnement avec <code>AT+QGPSLOC</code>.
+            Toutes les durées et tous les comportements de cette section sont des valeurs mesurées en août 2026 sur un EG800K réel.</p>
+
+            <h4>Avant de commencer : l'antenne décide de tout</h4>
+            <p>La première cause d'échec de positionnement n'est pas une mauvaise commande, c'est
+            <strong>une antenne qui ne capte rien</strong>.
+            Comparaison mesurée : en intérieur, avec une antenne médiocre, le module pouvait situer 38 satellites sans en <strong>entendre un seul</strong>
+            (SNR tous à 00) ; après passage à une <strong>antenne GNSS active</strong> placée près d'une fenêtre,
+            le fix à froid est arrivé en moins de 95 secondes.</p>
+            <div class="warning">
+                <strong>Le GNSS ne se teste pas en intérieur, et attendre n'y change rien.</strong> Sans vue du ciel,
+                <code>$GNGGA</code> répond « 00 satellite utilisé, qualité de fix 0 »,
+                et <code>AT+QGPSLOC</code> renvoie éternellement l'erreur 516.
+                Déplacez l'antenne près d'une fenêtre ou dehors avant de commencer — ce n'est pas une question de patience, c'est de la physique.
+            </div>
+
+            <h4>Premier fix : cinq étapes</h4>
+            <ol>
+                <li><strong>Exécuter le rituel de démarrage</strong> (voir la section « Rituel de démarrage »).
+                    ⚠ Chaque rechargement de la page équivaut à une coupure d'alimentation : l'état d'activation du GNSS et les éphémérides reçues à moitié sont remis à zéro,
+                    et tout reprend à cette étape.</li>
+                <li><strong>Vérifier que les URC passent par l'UART</strong> : <code>AT+QURCCFG="urcport"</code> doit répondre
+                    <code>"uart1"</code>. La valeur d'usine est <code>"usbat"</code> ; sans ce changement, beaucoup de messages de résultat
+                    partent vers le port USB et rien n'apparaît ici (réglage écrit en NVRAM, à faire une seule fois).</li>
+                <li><strong>Activer le GNSS</strong> : appuyez sur <code>AT+QGPS=1</code>.
+                    En quelques secondes apparaît <code>+QGPS: "firmware",0,0</code> (firmware GNSS chargé avec succès).
+                    Appuyer alors qu'il est déjà actif renvoie <code>+CME ERROR: 504</code>, sans conséquence.</li>
+                <li><strong>Regarder la réception</strong> : appuyez sur <code>AT+QGPSGNMEA="GSV"</code> pour lire les satellites visibles.
+                    La zone terminal ouvre automatiquement l'onglet <strong>État des satellites</strong> et trace l'histogramme des signaux et la vue du ciel —
+                    la lecture est expliquée au paragraphe suivant.</li>
+                <li><strong>Interroger la position</strong> : appuyez sur <code>AT+QGPSLOC=2</code> toutes les 5–10 secondes.
+                    Une réponse <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> (erreur 516) signifie que le fix n'est pas encore obtenu :
+                    <strong>continuez simplement d'attendre</strong>. En cas de succès, des coordonnées sont renvoyées,
+                    et la zone terminal ouvre automatiquement l'onglet <strong>Carte</strong> pour y tracer la position.</li>
+            </ol>
+            <figure class="shot narrow">
+                <img src="img/07-gnss.png" alt="Onglet GNSS">
+                <figcaption>Page GNSS : activation, lecture NMEA, interrogation de position, accélération AGNSS.</figcaption>
+            </figure>
+
+            <h4>Lire la page des satellites : « voir » ne veut pas dire « entendre »</h4>
+            <p>Dans le GSV, chaque satellite porte quatre nombres : identifiant, élévation, azimut et <strong>SNR (rapport signal/bruit, dB-Hz)</strong>.
+            Les trois premiers disent seulement « où il devrait se trouver dans le ciel » ; <strong>seul le SNR prouve qu'un signal est réellement reçu</strong>.</p>
+            <table>
+                <tr><th>SNR</th><th>Signification</th></tr>
+                <tr><td>(vide) ou 00</td><td>Rien reçu du tout — on sait où il est, on ne l'entend pas</td></tr>
+                <tr><td>14–28</td><td>Limite : le décodage des éphémérides échoue et recommence souvent, fix lent et instable</td></tr>
+                <tr><td>30 et plus</td><td>Décodage stable ; <strong>quand la plupart des satellites atteignent ce niveau, le fix vient vite</strong></td></tr>
+                <tr><td>40 et plus</td><td>Le niveau d'un ciel dégagé avec une bonne antenne</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/20-sat-view.png" alt="Page satellites : histogramme SNR et vue du ciel">
+                <figcaption>La page satellites lors d'un fix réussi : 31/41 satellites avec signal, histogramme SNR et vue du ciel des quatre constellations (GPS / QZSS / GLONASS / BDS).
+                La plupart des barres au-dessus de 20, certaines à 40 : voilà à quoi ressemble « entendre ».</figcaption>
+            </figure>
+
+            <h4>Pourquoi il faut attendre : la limite physique du démarrage à froid et les temps mesurés</h4>
+            <p>Le fix exige l'orbite précise de chaque satellite (les éphémérides), et ces éphémérides sont enfouies dans le signal que le satellite diffuse à
+            <strong>50 bps</strong> — il faut environ 18–30 secondes de décodage continu et sans faute par satellite,
+            un seul bit erroné et tout recommence, et il en faut au moins 4. Voilà pourquoi le « démarrage à froid » est lent.
+            Mesures locales (même lieu, antenne active, résolution de mesure ±5 secondes) :</p>
+            <table>
+                <tr><th>Scénario</th><th>Temps du premier fix (mesuré)</th></tr>
+                <tr><td>Démarrage à froid (sans aucune assistance)</td><td><strong>95 secondes</strong></td></tr>
+                <tr><td>Démarrage à froid + AGNSS</td><td><strong>52 secondes</strong> (avec, dès 20 secondes environ, une première position grossière)</td></tr>
+                <tr><td>AGNSS + éphémérides récentes résiduelles (usage quotidien répété)</td><td><strong>25 secondes</strong></td></tr>
+            </table>
+            <div class="tip">
+                <strong>Ne rechargez pas la page pendant les tests.</strong> Le matériel de cet outil fait de RTS l'interrupteur d'alimentation :
+                recharger la page = couper le courant = perdre toutes les éphémérides, et tout repart d'un démarrage à froid.
+                Pour faire une pause, appuyez sur <code>AT+QGPSEND</code>, ne coupez pas l'alimentation.
+            </div>
+
+            <h4>Accélération AGNSS : la procédure complète</h4>
+            <p><strong>Principe :</strong> l'AGNSS fait télécharger les éphémérides par le réseau (environ 32–34 Ko à chaque fois),
+            court-circuitant le lent décodage à 50 bps. Il <strong>ne peut pas créer un signal satellite à partir de rien</strong> —
+            en intérieur, toujours aucun fix ; il n'économise que le temps « d'attente des éphémérides ».</p>
+            <p>Deux prérequis très faciles à oublier ; qu'un seul manque et l'AGNSS <strong>reste silencieusement inerte, sans signaler la moindre erreur</strong> :</p>
+            <table>
+                <tr><th>Prérequis</th><th>Commande</th><th>Piège</th></tr>
+                <tr><td>AGNSS activé</td><td><code>AT+QAGPS=1</code></td>
+                    <td>⚠ <strong>Ne prend effet qu'après un redémarrage</strong> (écrit en NVRAM, à régler une seule fois)</td></tr>
+                <tr><td>PDP activé</td><td><code>AT+QIACT=1</code></td>
+                    <td>⚠ À refaire à chaque démarrage. <strong><code>AT+CGATT?</code> répondant 1 ne compte pas</strong> —
+                        l'attachement n'est qu'un enregistrement au niveau réseau ; il faut que <code>AT+QIACT?</code> renvoie
+                        <code>+QIACT: 1,1,…,"IP"</code> pour disposer d'un canal de données</td></tr>
+            </table>
+            <p>Séquence complète (après chaque démarrage) :</p>
+            <pre>AT+QIACT=1          ← ouvrir le canal de données (attente jusqu'à 150 s ; consomme du trafic)
+AT+QIACT?           ← il faut voir +QIACT: 1,1,…,"IP"
+AT+QGPS=1           ← activer le GNSS ; l'AGNSS télécharge alors automatiquement les données d'assistance
+AT+QGPSLOC=2        ← interroger toutes les 5–10 secondes</pre>
+            <p><strong>Comment vérifier que l'AGNSS agit vraiment ?</strong> Le firmware de cet exemplaire <strong>n'émet pas</strong>
+            d'indication du type <code>+QGPS: "agps"</code> (confirmé par mesure) ; il faut des indices indirects, un seul des trois suffit :</p>
+            <ol>
+                <li>Interroger <code>AT+QGDCNT?</code> avant et après <code>AT+QGPS=1</code> :
+                    environ 30 Ko de plus en réception = les données d'assistance ont bien été téléchargées</li>
+                <li>Le GSV liste en quelques secondes <strong>les positions d'un grand nombre de satellites</strong> (SNR possiblement encore à 00) —
+                    ces positions ont été téléchargées, un décodage local ne peut pas aller aussi vite</li>
+                <li>Le champ heure du <code>$GNGGA</code> est renseigné (l'heure fait aussi partie des données d'assistance)</li>
+            </ol>
+            <div class="warning">
+                <strong>Piège du faux fix : des coordonnées avec zéro satellite ne sont pas un fix.</strong>
+                Environ 20 secondes après le lancement de l'AGNSS, <code>AT+QGPSLOC</code> peut renvoyer des coordonnées,
+                mais regardez de près : <code>HDOP 0.00 / alt 0.0 / nsat 00</code> —
+                c'est <strong>l'injection de la position de référence</strong> contenue dans les données d'assistance,
+                pas une mesure, et l'erreur peut être énorme.
+                <br><br>
+                <strong>Critères d'un vrai fix : satellites utilisés &gt; 0, mode de fix ≥ 2, HDOP &gt; 0.</strong>
+                Un automatisme ou une logique produit ne doit jamais se contenter de « des coordonnées sont-elles revenues ».
+            </div>
+
+            <h4>apflash : rapide même après une coupure de courant (sous conditions)</h4>
+            <p><code>AT+QGPSCFG="apflash"</code> vaut 1 en sortie d'usine : chaque fix réussi enregistre les éphémérides en
+            flash, réimportées automatiquement au démarrage suivant — couper puis redémarrer dans l'heure transforme le démarrage à froid en démarrage à chaud rapide,
+            <strong>sans aucun trafic</strong>. Deux limites : les éphémérides expirent en une heure environ ;
+            et <strong>il faut avoir déjà réussi un fix au moins une fois</strong> pour que la flash contienne quelque chose à importer —
+            sur un module qui n'a jamais obtenu de fix, apflash n'aide en rien.</p>
+
+            <h4>Après le fix : la page Carte</h4>
+            <p>À chaque succès d'<code>AT+QGPSLOC</code>, la position est tracée sur la page Carte :
+            le marqueur bleu est la dernière position, la ligne cyan est la trajectoire, et survoler un point de trajectoire affiche l'heure locale et l'altitude.
+            La barre de synthèse montre coordonnées / altitude / HDOP / nombre de satellites, l'heure étant convertie automatiquement dans le fuseau local d'après la longitude.</p>
+            <figure class="shot">
+                <img src="img/21-map-track.png" alt="Page Carte : trajectoire de positionnement">
+                <figcaption>La page Carte après un fix réussi : marqueur = dernière position, ligne cyan = trajectoire ;
+                la barre de synthèse en haut donne coordonnées, altitude, HDOP, satellites utilisés et heure locale.</figcaption>
+            </figure>
+
+            <h4>Dépannage</h4>
+            <table>
+                <tr><th>Symptôme</th><th>Cause et solution</th></tr>
+                <tr><td><code>+CME ERROR: 505</code></td>
+                    <td>Le GNSS n'est pas encore activé — faites d'abord <code>AT+QGPS=1</code>.
+                        À refaire après chaque redémarrage (rechargement de la page compris)</td></tr>
+                <tr><td><code>+CME ERROR: 504</code></td><td>Le GNSS est déjà actif ; simple activation en double, sans conséquence</td></tr>
+                <tr><td>Erreur 516 (NOT_FIXED_NOW)</td>
+                    <td>Pas encore de fix. Si le GSV montre du signal (SNR ≥ 30), continuez d'attendre ;
+                        si tout est à 00, c'est un problème d'antenne ou d'environnement, attendre plus longtemps ne servira à rien</td></tr>
+                <tr><td>Impossible d'obtenir le flux NMEA continu</td>
+                    <td>En usine, <code>outport</code> vaut <code>usbnmea</code> : le flux continu part sur le port USB.
+                        Sur le port AT, récupérez les trames une par une avec <code>AT+QGPSGNMEA</code> (nécessite au préalable
+                        <code>nmeasrc,1</code>, bouton déjà prévu sur cette page)</td></tr>
+                <tr><td><code>AT+QGPSDEL</code> pour forcer un démarrage à froid</td>
+                    <td>⚠ À proscrire — sur ce firmware, <code>=?</code> répond <code>(0-2)</code>
+                        mais les trois paramètres sont <strong>tous rejetés</strong> (INVALID_PARA), et la commande est absente de la documentation officielle.
+                        Pour un démarrage à froid : <code>apflash,0</code> + coupure puis redémarrage (repassez à 1 après le test)</td></tr>
+                <tr><td>Un réglage modifié ne prend pas effet</td>
+                    <td><code>QAGPS</code> ne prend effet qu'après redémarrage ; <code>gnssconfig</code> (combinaison de constellations)
+                        de même. Après modification, refaites une fois le rituel de démarrage</td></tr>
+            </table>
+
+

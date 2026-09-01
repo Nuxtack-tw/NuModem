@@ -1,0 +1,158 @@
+<h3 id="tab-basic">Basic — SIM, diagnostics and basic status</h3>
+            <p><strong>Working principle:</strong> this page is the starting point after every connection. Once the power-up ritual is done
+            and the terminal shows <code>RDY</code>, come here first to do three things: switch error messages to a readable format,
+            confirm the SIM is ready, and identify whose card this is. Except for <code>AT&amp;F</code> and PIN / PUK unlocking,
+            the entire page is read-only queries — clicking them does not change the module's state;
+            the commands that touch connection state live in the Network, TCP/IP and other tabs.
+            All samples in this section are values measured in August 2026 on a physical EG800K
+            (firmware EG800KCNGCR07A06M04).</p>
+
+            <h4>After power-up: RDY does not mean the SIM is ready</h4>
+            <p><code>RDY</code> is the URC the module sends on its own when it finishes booting.
+            It only means the AT interface is alive; <strong>the SIM card is still slowly initializing behind it</strong>.
+            Measured: sending SIM-related commands the moment <code>RDY</code> appears returns
+            <code>+CME ERROR: 14</code> (SIM busy) or even <code>+CME ERROR: 13</code> (SIM failure);
+            <strong>wait about 6 seconds</strong> and everything works.</p>
+            <div class="warning">
+                <strong>When writing automation scripts, do not treat RDY as the "clear to start" signal.</strong>
+                Pick one of two correct approaches: leave a fixed buffer of about 6 seconds after RDY;
+                or poll <code>AT+QINISTAT</code> and proceed only once bit 1 (CPIN ready) is set.
+            </div>
+
+            <h4>Echo (ATE): "module echo" and "terminal local echo" are two different things</h4>
+            <p>Echo is the <strong>module</strong> sending back verbatim the characters you sent it (<code>ATE1</code> on,
+            <code>ATE0</code> off); the terminal's local echo is the <strong>tool side</strong> printing what you type
+            onto the screen itself. The two switches are independent: with both on, every character appears twice.</p>
+            <ul>
+                <li>This page's <strong>echo toggle button</strong> switches module echo with a single click.
+                    The boot default is <strong>on</strong> (corroborated by the measured AT parameter <code>E:1</code>).</li>
+                <li>The state shown on the button is not remembered out of thin air — the tool
+                    <strong>self-corrects from the actual responses</strong>
+                    (receiving an echoed line counts as on); if you hand-type <code>ATE0</code> / <code>ATE1</code> /
+                    <code>AT&amp;F</code> on the command line, the button's state follows along and never drifts.</li>
+                <li>The toggle is session-only: a module restart returns it to the default. To make it the boot default you must also send
+                    <code>AT&amp;W</code> (this page has no button for it; hand-type it on the command line if needed).</li>
+            </ul>
+
+            <h4>Making error messages readable (CMEE)</h4>
+            <table>
+                <tr><th>Button</th><th>Effect</th></tr>
+                <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+                    <td>Error codes become text descriptions. Example: with GNSS not yet fixed, numeric mode returns
+                        <code>+CME ERROR: 516</code>, text mode returns
+                        <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> — the latter tells you what happened without a lookup table.
+                        <strong>This tool strongly recommends clicking it right after the power-up ritual</strong></td></tr>
+                <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+                    <td>Error codes as numbers — the tool automatically looks up the code and annotates it</td></tr>
+            </table>
+            <div class="tip">
+                Both settings are <strong>session-only</strong>: gone once the modem restarts
+                (a page reload = RTS power cut = a restart, which also counts). Also found in testing: even with
+                <code>CMEE=2</code> on, a few subsystems (such as file-system FILE errors) still emit a mix of text and numbers —
+                a parser must accept both forms.
+            </div>
+
+            <h4>AT&amp;F: back to factory defaults — the scope</h4>
+            <p>The <strong>Factory Reset</strong> button resets the AT settings to factory values,
+            the first step when taking over a module someone has misconfigured. It is the only button on this page that asks for confirmation first.
+            Scope confirmed by testing: <strong>it sets echo back to on</strong>
+            (the echo toggle button's state follows automatically) and <strong>does not affect the baud rate</strong>;
+            whether each remaining setting is restored, check item by item under the <code>AT&amp;F</code> entry in the manual.</p>
+
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Basic tab">
+                <figcaption>The three button groups of the Basic page: Echo (echo and error format),
+                SIM (queries and PIN / PUK unlocking), Status (clock, voltage, network time).</figcaption>
+            </figure>
+
+            <h4>The SIM triple check: is it there, is it waiting for a password, how far has it initialized</h4>
+            <table>
+                <tr><th>Button</th><th>The question it asks</th><th>How to read it</th></tr>
+                <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+                    <td>Is the card seated properly</td>
+                    <td>The reply has two fields: the first is the insert/remove URC switch, <strong>the second is the card state</strong> — do not read the wrong field.
+                        On this unit this button has a record of false reports; see the warning below</td></tr>
+                <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+                    <td>Is the card waiting for a password</td>
+                    <td><code>+CPIN: READY</code> = "not currently waiting for any password".
+                        ⚠ <strong>It does not mean this card needs no PIN</strong> — a PIN-protected card also returns READY once unlocked.
+                        With no card it returns <code>+CME ERROR: 10</code></td></tr>
+                <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+                    <td>Initialization progress</td>
+                    <td>A bitmask: 1 = CPIN ready, 2 = SMS, 4 = phonebook, 7 = all done.
+                        Measured on this unit once boot settles: <strong>3</strong> (phonebook bit never set) —
+                        to decide "can I start", bit 1 is enough; <strong>do not wait forever for 7</strong></td></tr>
+            </table>
+            <div class="warning">
+                <strong>Card In? lies on this unit.</strong> Measured: <code>AT+QSIMSTAT?</code> returned
+                <code>0,0</code> (card removed), yet at the same moment CPIN was READY, the network attached, and an IP obtained —
+                the card was perfectly fine. Presumably the control board does not wire the SIM_DET detect pin (or <code>AT+QSIMDET</code> is not enabled),
+                so the reading is permanently "not inserted". <strong>To decide whether the card is present, trust <code>AT+CPIN?</code> or
+                <code>AT+QINISTAT</code>.</strong>
+            </div>
+
+            <h4>Whose card is this: IMSI and ICCID</h4>
+            <p>The <strong>IMSI</strong> button (<code>AT+CIMI</code>) returns a string of bare digits,
+            the card's subscriber identity on the mobile network. Measured on this unit: <code>901405117661468</code> —
+            the first three digits (MCC) are <strong>901 = the international roaming number range</strong>.
+            This unit's card is a 1NCE IoT SIM, which also explains why <code>AT+CEREG?</code>
+            keeps returning <code>0,5</code> (registered, <strong>roaming</strong>): not a signal anomaly,
+            but the norm for this kind of card. Recognize a roaming card before running data tests, and mind the data pricing.</p>
+            <p>The <strong>ICCID</strong> button (<code>AT+QCCID</code>) queries the card's serial number;
+            measured reply <code>+QCCID: 89882280666176614687</code>.
+            ⚠ <strong>The manual has no <code>AT+CCID</code> command</strong> —
+            the one common in other vendors' modem tutorials does not work here; use Quectel's own <code>AT+QCCID</code>.</p>
+
+            <h4>PIN unlocking: check the remaining attempts first, then act</h4>
+            <ol>
+                <li><strong>Click PIN Left first</strong> (<code>AT+QPINC?</code>) to see the remaining attempts —
+                    the manual's ranges: PIN 0–3 attempts left, PUK 0–10 attempts left.
+                    Know how many shots you have before you act.</li>
+                <li>When the card is waiting for a PIN, click <strong>Enter PIN</strong>: it first expands a <strong>parameter card</strong>
+                    for you to fill in the PIN before sending (command template <code>AT+CPIN="{pin}"</code>, waits up to 5 seconds).</li>
+                <li>When the PIN attempts are exhausted and the card demands a PUK, click <strong>Unlock PUK</strong>:
+                    the manual requires <strong>the PUK to be sent together with a new PIN</strong>
+                    (<code>AT+CPIN="{puk}","{newpin}"</code>), likewise via the parameter card, waiting up to 5 seconds.</li>
+            </ol>
+            <div class="warning">
+                Every wrong attempt costs one; when the PUK runs low, <strong>stop and contact the carrier</strong> —
+                do not burn through the attempts by guessing.
+            </div>
+
+            <h4>The three status buttons: clock, voltage, network time</h4>
+            <table>
+                <tr><th>Button</th><th>What it shows</th><th>Measured values and how to read them</th></tr>
+                <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+                    <td>The module's RTC clock</td>
+                    <td><code>+CCLK: "26/08/01,00:55:32+32"</code>.
+                        The time-zone field <code>+32</code> is in quarter-hours (15 minutes): 32 × 15 min = UTC+8.
+                        Measured on this unit, the RTC had already been synced by the network; time and zone both correct</td></tr>
+                <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+                    <td>Supply voltage</td>
+                    <td>Some firmware does not support it and an ERROR reply is normal; this unit's firmware does —
+                        measured <code>+CBC: 0,0,4264</code>, where the last field is the voltage (mV), i.e. 4.264 V</td></tr>
+                <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+                    <td>Current local time derived from network sync</td>
+                    <td>Measured <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>.
+                        The difference from Clock is the <strong>source</strong>: CCLK reads the module's own RTC,
+                        QLTS takes the network time directly; the year format also differs (RTC two digits, QLTS four) — do not confuse them when parsing</td></tr>
+            </table>
+
+            <h4>Troubleshooting</h4>
+            <table>
+                <tr><th>Symptom</th><th>Cause and fix</th></tr>
+                <tr><td>Querying the SIM right after RDY returns error 14 or 13</td>
+                    <td>The SIM is still initializing (14 = SIM busy; 13 = SIM failure has also appeared at this stage).
+                        Wait about 6 seconds and resend — do not rush to declare the card dead</td></tr>
+                <tr><td>Card In? says the card was removed, yet everything else works</td>
+                    <td>A SIM_DET detect-pin issue (measured case on this unit), not a card problem.
+                        Look at <code>AT+CPIN?</code> / <code>AT+QINISTAT</code> instead</td></tr>
+                <tr><td>Every character appears twice on screen</td>
+                    <td>Module echo and the terminal's local echo are both on — one click of the echo toggle button fixes it</td></tr>
+                <tr><td>Errors come back as cold bare numbers</td>
+                    <td>CMEE is not on yet. Click Verbose Err; it is session-only and must be
+                        re-clicked after every power-up ritual</td></tr>
+                <tr><td>Commands go out and get no response at all</td>
+                    <td>Reopening the port re-asserts RTS = a power cut; the module has in fact rebooted.
+                        You must rerun the full power-up ritual — skip it and nothing responds</td></tr>
+            </table>

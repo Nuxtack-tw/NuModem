@@ -1,0 +1,41 @@
+<h3 id="tab-ssl">SSL —— TLS 通道</h3>
+            <p><strong>工作原理：</strong>SSL 頁是 HTTPS 與 FTPS 的<strong>共用底層</strong>。
+            先用 <code>AT+QSSLCFG</code> 設好一個 SSL context（版本、加密套件、驗證模式），
+            再用 <code>AT+QSSLOPEN</code> 建立 TLS 連線。</p>
+            <pre>AT+QSSLCFG="sslversion",1,4    ← 4 ＝ 全部支援，相容性最好
+AT+QSSLCFG="seclevel",1,0      ← 0 ＝ 不驗證憑證
+AT+QSSLOPEN=1,1,4,"主機",埠,0   ← 末碼 0 ＝ 緩衝模式
+AT+QSSLSEND=4,&lt;長度&gt;           ← 兩段式，免 Ctrl+Z
+AT+QSSLRECV=4,1500             ← 讀到 0 代表空了
+AT+QSSLCLOSE=4</pre>
+            <p><strong>三種存取模式</strong>（<code>AT+QSSLOPEN</code> 的末碼）：</p>
+            <table>
+                <tr><th>末碼</th><th>行為</th></tr>
+                <tr><td>0 緩衝</td><td>收到資料只發 <code>+QSSLURC: "recv",&lt;id&gt;</code>，
+                    要自己下 <code>AT+QSSLRECV</code> 讀</td></tr>
+                <tr><td>1 直推</td><td>URC 多帶長度、<strong>資料直接吐在下一行</strong>，不必再讀。
+                    ⚠ 這個模式下 <code>AT+QSSLRECV</code> 會回 <code>ERROR</code>，那是正常的</td></tr>
+                <tr><td>2 透傳</td><td>AT 口整個變成資料通道</td></tr>
+            </table>
+            <div class="important">
+                <strong>🔴 兩個出廠預設會讓憑證驗證形同虛設：</strong>
+                <ul>
+                    <li><code>sni</code> 預設 <strong>0</strong> ——
+                        同一個 IP 掛多個網域的伺服器（絕大多數 CDN 與測試站都是）
+                        不送 SNI 就會拿到不匹配的憑證，驗證必敗 566</li>
+                    <li><code>ignorelocaltime</code> 預設 <strong>1</strong> ——
+                        <strong>出廠狀態下即使開了 seclevel 1 也不檢查憑證有效期</strong></li>
+                </ul>
+                要真的驗憑證，這兩個都要自己設對。
+            </div>
+            <p><strong>怎麼測憑證驗證有沒有真的生效：</strong>只測「壞憑證連不上」是不夠的 ——
+            「全部都連不上」也會通過。要做<strong>成對測試</strong>：
+            同一組設定下，好憑證必須連得上、壞憑證必須連不上，兩個方向都成立才算數。
+            實測用的是 badssl.com 家族（expired / self-signed / wrong.host / untrusted-root）
+            加上正常的 badssl.com 當對照組。</p>
+            <p>憑證怎麼進模組？<code>AT+QFUPL</code>。<strong>PEM 是純 ASCII，送得進去</strong>
+            （本工具送得出任何位元組）。上傳後用 <code>AT+QSSLCFG="cacert"</code> 掛上去。</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="SSL 頁簽">
+                <figcaption>SSL 頁：context 設定、連線、收送、狀態查詢。</figcaption>
+            </figure>

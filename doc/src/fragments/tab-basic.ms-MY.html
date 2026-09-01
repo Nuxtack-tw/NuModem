@@ -1,0 +1,157 @@
+<h3 id="tab-basic">Basic — SIM, diagnostik dan status asas</h3>
+            <p><strong>Prinsip kerja:</strong> halaman ini ialah titik permulaan selepas setiap sambungan. Selepas ritual but selesai dan terminal memaparkan
+            <code>RDY</code>, datang ke sini dahulu untuk melakukan tiga perkara: menukar mesej ralat kepada format yang boleh difahami,
+            mengesahkan SIM sedia, dan mengecam siapa kad ini. Keseluruhan halaman, kecuali <code>AT&amp;F</code> dan buka kunci PIN / PUK,
+            semuanya pertanyaan baca sahaja — menekannya tidak mengubah status modul;
+            arahan yang menyentuh status sambungan terkumpul di tab lain seperti Network dan TCP/IP.
+            Sampel dalam bahagian ini semuanya nilai ujian sebenar pada EG800K fizikal
+            (perisian tegar EG800KCNGCR07A06M04) pada Ogos 2026.</p>
+
+            <h4>Selepas but: RDY tidak bermakna SIM sedia</h4>
+            <p><code>RDY</code> ialah URC yang dihantar secara aktif apabila modul selesai but.
+            Ia hanya bermakna antara muka AT sudah hidup; <strong>kad SIM masih perlahan-lahan dimulakan di belakang</strong>.
+            Ujian sebenar: menghantar arahan berkaitan SIM sebaik sahaja <code>RDY</code> muncul akan memulangkan
+            <code>+CME ERROR: 14</code> (SIM busy) malah <code>+CME ERROR: 13</code> (SIM failure);
+            <strong>tunggu kira-kira 6 saat</strong> sebelum menghantar semula, semuanya kembali normal.</p>
+            <div class="warning">
+                <strong>Semasa menulis skrip automasi, jangan jadikan RDY sebagai isyarat "boleh mula bekerja".</strong>
+                Pilih satu daripada dua cara betul: tinggalkan penimbal tetap kira-kira 6 saat selepas RDY;
+                atau tinjau <code>AT+QINISTAT</code> secara berkala, tunggu bit 1 (CPIN sedia) menyala sebelum meneruskan.
+            </div>
+
+            <h4>Echo (ATE): "gema modul" dan "paparan semula terminal" ialah dua perkara berbeza</h4>
+            <p>Echo ialah <strong>modul</strong> menghantar semula seadanya aksara yang anda hantar (<code>ATE1</code> hidup,
+            <code>ATE0</code> mati); paparan semula setempat terminal pula ialah <strong>pihak alat</strong> sendiri mencetak dahulu
+            apa yang anda taip ke skrin. Kedua-dua suis ini bebas antara satu sama lain: jika kedua-duanya hidup, setiap aksara akan muncul dua kali.</p>
+            <ul>
+                <li><strong>Butang togol echo</strong> pada halaman ini menukar echo modul dengan satu kekunci.
+                    Lalai semasa but ialah <strong>hidup</strong> (dibuktikan oleh parameter AT <code>E:1</code> dalam ujian sebenar).</li>
+                <li>Status yang dipaparkan pada butang bukan diingat sesuka hati — alat ini <strong>membetulkannya secara automatik mengikut respons sebenar</strong>
+                    (menerima baris echo dianggap hidup); jika anda menaip sendiri <code>ATE0</code> / <code>ATE1</code> /
+                    <code>AT&amp;F</code> di baris arahan, status butang turut diselaraskan, tidak akan terpisah.</li>
+                <li>Penukaran adalah session-only: modul dibut semula akan kembali ke lalai. Untuk menulisnya sebagai lalai but perlu hantar tambahan
+                    <code>AT&amp;W</code> (butang ini tidak disediakan pada halaman; jika perlu taip sendiri di baris arahan).</li>
+            </ul>
+
+            <h4>Menjadikan mesej ralat boleh difahami (CMEE)</h4>
+            <table>
+                <tr><th>Butang</th><th>Kesan</th></tr>
+                <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+                    <td>Kod ralat ditukar kepada penerangan teks. Contoh sebenar: apabila GNSS belum menetapkan kedudukan, mod nombor memulangkan
+                        <code>+CME ERROR: 516</code>, mod teks memulangkan
+                        <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> — yang kedua tidak perlu semak jadual pun sudah tahu apa yang berlaku.
+                        <strong>Alat ini amat menyarankan menekannya sejurus selepas ritual but</strong></td></tr>
+                <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+                    <td>Kod ralat dalam bentuk nombor — alat akan menyemak jadual secara automatik dan menterjemah nombor itu kepada anotasi</td></tr>
+            </table>
+            <div class="tip">
+                Kedua-dua tetapan adalah <strong>session-only</strong>: hilang apabila modem dibut semula
+                (memuat semula halaman = RTS putus kuasa = but semula, juga dikira). Selain itu ujian sebenar mendapati: walaupun
+                <code>CMEE=2</code> telah dihidupkan, segelintir subsistem (seperti ralat FILE sistem fail) masih mengeluarkan campuran teks dan nombor;
+                semasa menulis program penghurai, kedua-dua bentuk mesti diterima.
+            </div>
+
+            <h4>AT&amp;F: kembali ke lalai kilang — skop kesannya</h4>
+            <p>Butang <strong>Factory Reset</strong> menetapkan semula tetapan AT kepada nilai kilang,
+            langkah pertama apabila mengambil alih modul yang telah ditetapkan sesuka hati oleh orang lain. Ini satu-satunya butang pada halaman ini yang memaparkan pengesahan dahulu apabila ditekan.
+            Skop kesan yang telah disahkan melalui ujian sebenar: <strong>akan menetapkan semula echo kepada hidup</strong>
+            (status butang togol echo akan menyusul secara automatik), <strong>tidak menjejaskan kadar baud</strong>;
+            sama ada tetapan lain turut dipulihkan, lihat entri <code>AT&amp;F</code> dalam manual dan sahkan satu persatu.</p>
+
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Tab Basic">
+                <figcaption>Tiga kumpulan butang halaman Basic: Echo (echo dan format ralat),
+                SIM (pertanyaan serta buka kunci PIN / PUK), Status (jam, voltan, masa rangkaian).</figcaption>
+            </figure>
+
+            <h4>Tiga pertanyaan SIM berturut: ada tak, menunggu kata laluan tak, pemulaan sampai mana</h4>
+            <table>
+                <tr><th>Butang</th><th>Soalan yang ditanya</th><th>Pentafsiran</th></tr>
+                <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+                    <td>Adakah kad terpasang dengan baik</td>
+                    <td>Respons dua lajur: lajur pertama ialah suis URC pasang-cabut, <strong>lajur kedua barulah status kad</strong>; jangan salah lajur.
+                        Butang ini pada unit ini ada rekod lapor palsu, lihat amaran di bawah</td></tr>
+                <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+                    <td>Adakah kad sedang menunggu kata laluan</td>
+                    <td><code>+CPIN: READY</code> = "buat masa ini tidak menunggu sebarang kata laluan".
+                        ⚠ <strong>Tidak bermakna kad ini tidak memerlukan PIN</strong> — kad yang ditetapkan PIN juga memulangkan READY selepas dibuka kunci.
+                        Tanpa kad ia memulangkan <code>+CME ERROR: 10</code></td></tr>
+                <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+                    <td>Kemajuan pemulaan</td>
+                    <td>Topeng bit: 1 = CPIN sedia, 2 = SMS, 4 = buku telefon, 7 = semuanya selesai.
+                        Ujian sebenar unit ini selepas but stabil membaca <strong>3</strong> (bit buku telefon tidak ditetapkan) —
+                        untuk menilai "boleh mula bekerja atau tidak" lihat bit 1 sudah memadai, <strong>jangan tunggu mati-matian untuk 7</strong></td></tr>
+            </table>
+            <div class="warning">
+                <strong>Card In? pada unit ini berbohong.</strong> Ujian sebenar: <code>AT+QSIMSTAT?</code> memulangkan
+                <code>0,0</code> (kad telah dikeluarkan), tetapi pada saat yang sama CPIN READY, rangkaian telah dilekapkan dan IP telah diperoleh —
+                kad itu memang elok. Diduga papan kawalan tidak menyambungkan pin pengesanan SIM_DET (atau <code>AT+QSIMDET</code> tidak diaktifkan),
+                nilai bacaan sentiasa "tidak dimasukkan". <strong>Untuk menilai sama ada kad ada, rujuk <code>AT+CPIN?</code> atau
+                <code>AT+QINISTAT</code>.</strong>
+            </div>
+
+            <h4>Siapa kad ini: IMSI dan ICCID</h4>
+            <p>Butang <strong>IMSI</strong> (<code>AT+CIMI</code>) memulangkan sederet nombor kosong,
+            iaitu pengecam pelanggan kad ini pada rangkaian mudah alih. Ujian sebenar unit ini: <code>901405117661468</code>:
+            tiga digit pertama (MCC) ialah <strong>901 = julat nombor kad perayauan antarabangsa</strong> —
+            kad pada unit ini ialah kad IoT 1NCE, dan ini juga menjelaskan kenapa <code>AT+CEREG?</code>
+            sentiasa memulangkan <code>0,5</code> (telah didaftar, <strong>perayauan</strong>): bukan isyarat bermasalah,
+            itulah keadaan biasa kad jenis ini. Sebelum menjalankan ujian data, kenal pasti dahulu kad perayauan dan beri perhatian pada tarif kuota data.</p>
+            <p>Butang <strong>ICCID</strong> (<code>AT+QCCID</code>) menyemak nombor siri kad;
+            ujian sebenar memulangkan <code>+QCCID: 89882280666176614687</code>.
+            ⚠ <strong>Manual tiada arahan <code>AT+CCID</code></strong> —
+            arahan yang lazim dalam tutorial modul jenama lain tidak berfungsi di sini; mesti guna <code>AT+QCCID</code> khusus Quectel.</p>
+
+            <h4>Buka kunci PIN: semak baki percubaan dahulu, barulah bertindak</h4>
+            <ol>
+                <li><strong>Tekan PIN Left dahulu</strong> (<code>AT+QPINC?</code>) untuk melihat baki bilangan percubaan —
+                    julat yang diberikan manual: PIN baki 0–3 kali, PUK baki 0–10 kali.
+                    Sebelum bertindak, ketahui dahulu berapa peluru yang tinggal.</li>
+                <li>Apabila kad sedang menunggu PIN, tekan <strong>Enter PIN</strong>: <strong>kad parameter</strong> akan dikembangkan dahulu
+                    untuk anda mengisi PIN sebelum menghantar (templat arahan <code>AT+CPIN="{pin}"</code>, tunggu paling lama 5 saat).</li>
+                <li>Apabila percubaan PIN habis dan kad bertukar meminta PUK, tekan <strong>Unlock PUK</strong>:
+                    manual menetapkan <strong>PUK mesti dihantar bersama PIN baharu</strong>
+                    (<code>AT+CPIN="{puk}","{newpin}"</code>), turut melalui kad parameter, tunggu paling lama 5 saat.</li>
+            </ol>
+            <div class="warning">
+                Setiap kali tersilap hantar, baki berkurang satu; apabila PUK hampir habis, <strong>berhenti dan hubungi penyedia telekomunikasi</strong> —
+                jangan membakar habis baki percubaan dengan meneka.
+            </div>
+
+            <h4>Tiga butang status: jam, voltan, masa rangkaian</h4>
+            <table>
+                <tr><th>Butang</th><th>Apa yang dilihat</th><th>Ujian sebenar dan pentafsiran</th></tr>
+                <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+                    <td>Jam RTC modul</td>
+                    <td><code>+CCLK: "26/08/01,00:55:32+32"</code>.
+                        Unit medan zon masa <code>+32</code> ialah "suku" (15 minit): 32 × 15 minit = UTC+8.
+                        Ujian sebenar unit ini: RTC telah diselaraskan masa oleh rangkaian, masa dan zon masa kedua-duanya betul</td></tr>
+                <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+                    <td>Voltan bekalan</td>
+                    <td>Sesetengah perisian tegar tidak menyokongnya dan memulangkan ERROR, itu normal; perisian tegar unit ini menyokongnya,
+                        ujian sebenar <code>+CBC: 0,0,4264</code> — lajur akhir ialah voltan (mV), iaitu 4.264 V</td></tr>
+                <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+                    <td>Masa tempatan semasa yang dianggar daripada penyegerakan rangkaian</td>
+                    <td>Ujian sebenar <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>.
+                        Bezanya dengan Clock ialah <strong>sumber</strong>: CCLK membaca RTC modul sendiri,
+                        QLTS mengambil terus masa rangkaian; format tahun juga berbeza (RTC dua digit, QLTS empat digit) — jangan keliru semasa menghurai</td></tr>
+            </table>
+
+            <h4>Penyelesaian masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Punca dan penyelesaian</th></tr>
+                <tr><td>Menyemak SIM sebaik sahaja RDY muncul, ralat 14 atau 13 dipulangkan</td>
+                    <td>SIM masih dalam pemulaan (14 = SIM busy; 13 = SIM failure juga pernah muncul pada peringkat ini).
+                        Tunggu kira-kira 6 saat kemudian hantar semula, semuanya normal; jangan terburu-buru menyimpulkan kad rosak</td></tr>
+                <tr><td>Card In? kata kad telah dikeluarkan, tetapi fungsi lain semuanya normal</td>
+                    <td>Masalah pin pengesanan SIM_DET (kes ujian sebenar unit ini), bukan masalah kad.
+                        Rujuk <code>AT+CPIN?</code> / <code>AT+QINISTAT</code> sebagai gantinya</td></tr>
+                <tr><td>Setiap aksara pada skrin muncul dua kali</td>
+                    <td>Echo modul dan paparan semula setempat terminal hidup serentak — tekan butang togol echo sekali sahaja</td></tr>
+                <tr><td>Ralat hanya memulangkan nombor yang dingin</td>
+                    <td>CMEE belum dihidupkan. Tekan Verbose Err; ia session-only,
+                        perlu ditekan semula selepas setiap ritual but</td></tr>
+                <tr><td>Arahan dihantar tetapi langsung tiada respons</td>
+                    <td>Membuka semula port akan meng-assert RTS semula = kuasa putus; modul sebenarnya telah dibut semula.
+                        Ritual but lengkap mesti dijalankan semula; jika dilangkau, semuanya tanpa respons</td></tr>
+            </table>

@@ -1,0 +1,156 @@
+<h3 id="tab-gnss">GNSS — Satellitenortung</h3>
+            <p><strong>Funktionsweise:</strong> GNSS arbeitet <strong>unabhängig vom Mobilfunknetz</strong> —
+            es braucht keine SIM mit Netz, keinen PDP context und verursacht kein Datenvolumen (Ausnahme: AGNSS, siehe unten).
+            Nach dem Einschalten empfängt das Modul die Satellitensignale selbstständig, und Sie pollen das Ergebnis mit <code>AT+QGPSLOC</code>.
+            Alle Sekundenangaben und Verhaltensweisen in diesem Abschnitt sind Messwerte, die im August 2026 an einer echten EG800K erhoben wurden.</p>
+
+            <h4>Bevor Sie anfangen: Die Antenne entscheidet über alles</h4>
+            <p>Die häufigste Ursache für einen fehlenden Fix ist kein falsch abgesetzter Befehl, sondern
+            <strong>eine Antenne, die kein Signal empfängt</strong>.
+            Gemessener Vergleich: In Innenräumen mit schlechter Antenne konnte das Modul die Positionen von 38 Satelliten
+            auflisten und trotzdem <strong>keinen einzigen hören</strong>
+            (SNR durchweg 00); mit einer <strong>aktiven GNSS-Antenne</strong> am Fenster
+            gelang der Kaltstart-Fix binnen 95 Sekunden.</p>
+            <div class="warning">
+                <strong>In Innenräumen lässt sich GNSS nicht testen — Warten hilft dort nichts.</strong> Ohne freie Sicht zum Himmel meldet
+                <code>$GNGGA</code> „00 verwendete Satelliten, Fix-Qualität 0“,
+                und <code>AT+QGPSLOC</code> antwortet auf ewig mit Fehler 516.
+                Legen Sie die Antenne erst ans Fenster oder ins Freie, bevor Sie beginnen — das ist keine Frage der Geduld, sondern der Physik.
+            </div>
+
+            <h4>Der erste Fix: fünf Schritte</h4>
+            <ol>
+                <li><strong>Boot-Sequenz durchlaufen</strong> (siehe Abschnitt „Boot-Sequenz“).
+                    ⚠ Jedes Neuladen der Seite wirkt wie ein Stromausfall: Der Einschaltzustand von GNSS und halb empfangene
+                    Ephemeriden werden komplett genullt, und Sie beginnen wieder bei diesem Schritt.</li>
+                <li><strong>Sicherstellen, dass URCs über den UART laufen</strong>: <code>AT+QURCCFG="urcport"</code> muss
+                    <code>"uart1"</code> zurückgeben. Der Auslieferungswert ist <code>"usbat"</code>; ohne Änderung gehen viele
+                    Ergebnismeldungen an den USB-Port, und hier ist nichts davon zu sehen (die Einstellung landet im NVRAM, einmal ändern genügt).</li>
+                <li><strong>GNSS einschalten</strong>: Klicken Sie <code>AT+QGPS=1</code>.
+                    Binnen Sekunden erscheint <code>+QGPS: "firmware",0,0</code> (GNSS-Firmware erfolgreich geladen).
+                    Ist es bereits an, kommt beim erneuten Klick <code>+CME ERROR: 504</code> — harmlos.</li>
+                <li><strong>Empfang prüfen</strong>: Mit <code>AT+QGPSGNMEA="GSV"</code> lesen Sie die sichtbaren Satelliten aus.
+                    Der Terminalbereich öffnet automatisch den Tab <strong>Satellitenstatus</strong> und zeichnet SNR-Balken und Himmelskarte —
+                    wie man das liest, steht im nächsten Absatz.</li>
+                <li><strong>Position pollen</strong>: Alle 5–10 Sekunden <code>AT+QGPSLOC=2</code> absetzen.
+                    Ein <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> (Fehler 516) heißt nur „noch kein Fix“ —
+                    <strong>einfach weiter warten</strong>. Bei Erfolg kommen Koordinaten zurück,
+                    der Terminalbereich öffnet automatisch den Tab <strong>Karte</strong> und trägt die Position dort ein.</li>
+            </ol>
+            <figure class="shot narrow">
+                <img src="img/07-gnss.png" alt="GNSS-Tab">
+                <figcaption>GNSS-Seite: Ein/Aus, NMEA-Auslesen, Positionsabfrage, AGNSS-Beschleunigung.</figcaption>
+            </figure>
+
+            <h4>Den Tab Satellitenstatus lesen: „sehen“ heißt nicht „hören“</h4>
+            <p>GSV liefert pro Satellit vier Zahlen: Kennung, Elevation, Azimut und <strong>SNR (Signal-Rausch-Verhältnis, dB-Hz)</strong>.
+            Die ersten drei sagen nur, „wo er am Himmel stehen sollte“ — <strong>erst das SNR zeigt, dass wirklich ein Signal ankommt</strong>.</p>
+            <table>
+                <tr><th>SNR</th><th>Bedeutung</th></tr>
+                <tr><td>(leer) oder 00</td><td>Gar kein Empfang — man weiß nur, wo er steht, hören kann man ihn nicht</td></tr>
+                <tr><td>14–28</td><td>Grenzbereich: Die Ephemeriden-Demodulation scheitert oft und beginnt von vorn, der Fix wird langsam und instabil</td></tr>
+                <tr><td>ab 30</td><td>Stabile Demodulation möglich; <strong>sobald die meisten Satelliten dieses Niveau erreichen, kommt der Fix schnell</strong></td></tr>
+                <tr><td>ab 40</td><td>Das Niveau von freiem Himmel plus guter Antenne</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/20-sat-view.png" alt="Tab Satellitenstatus: SNR-Balken und Himmelskarte">
+                <figcaption>Der Tab Satellitenstatus bei erfolgreichem Fix: 31/41 Satelliten mit Signal, SNR-Balken und Himmelskarte
+                der vier Konstellationen (GPS/QZSS/GLONASS/BDS). Die meisten Balken über 20, einige bei 40 — so sieht „hören“ aus.</figcaption>
+            </figure>
+
+            <h4>Warum man warten muss: die Physik des Kaltstarts und gemessene Zeiten</h4>
+            <p>Für einen Fix braucht das Modul die präzise Bahn jedes Satelliten (die Ephemeriden), und die stecken im Signal, das die Satelliten mit
+            <strong>50 bps</strong> ausstrahlen — pro Satellit sind das etwa 18–30 Sekunden fehlerfreier Demodulation am Stück,
+            ein einziges falsches Bit heißt von vorn, und mindestens 4 Satelliten müssen zusammenkommen.
+            Genau deshalb ist der „Kaltstart“ langsam.
+            Vor Ort gemessen (gleicher Standort, aktive Antenne, Messauflösung ±5 Sekunden):</p>
+            <table>
+                <tr><th>Szenario</th><th>Zeit bis zum ersten Fix (gemessen)</th></tr>
+                <tr><td>Kaltstart (ohne jede Hilfe)</td><td><strong>95 Sekunden</strong></td></tr>
+                <tr><td>Kaltstart + AGNSS</td><td><strong>52 Sekunden</strong> (bereits nach rund 20 Sekunden kommt eine erste grobe Position)</td></tr>
+                <tr><td>AGNSS + frische Ephemeriden-Reste (täglicher Wiederholbetrieb)</td><td><strong>25 Sekunden</strong></td></tr>
+            </table>
+            <div class="tip">
+                <strong>Laden Sie die Seite während des Tests nicht neu.</strong> Die Hardware dieses Werkzeugs ist so verdrahtet,
+                dass RTS = Stromversorgung ist; Seite neu laden = stromlos = alle Ephemeriden weg,
+                und alles beginnt wieder beim Kaltstart.
+                Zum Pausieren <code>AT+QGPSEND</code> absetzen, nicht den Strom kappen.
+            </div>
+
+            <h4>AGNSS-Beschleunigung: der vollständige Ablauf</h4>
+            <p><strong>Das Prinzip:</strong> AGNSS lädt die Ephemeriden stattdessen aus dem Netz herunter (etwa 32–34 KB pro Vorgang)
+            und überspringt so die langsame 50-bps-Demodulation. <strong>Satellitensignale herbeizaubern kann es nicht</strong> —
+            in Innenräumen kommt weiterhin kein Fix zustande; gespart wird ausschließlich die Zeit des „Ephemeriden-Wartens“.</p>
+            <p>Zwei Voraussetzungen werden am leichtesten übersehen; fehlt auch nur eine, bleibt AGNSS <strong>still und vollständig untätig, ohne jede Fehlermeldung</strong>:</p>
+            <table>
+                <tr><th>Voraussetzung</th><th>Befehl</th><th>Falle</th></tr>
+                <tr><td>AGNSS ist aktiviert</td><td><code>AT+QAGPS=1</code></td>
+                    <td>⚠ <strong>Wirkt erst nach einem Neustart</strong> (landet im NVRAM, einmal setzen genügt)</td></tr>
+                <tr><td>PDP ist aktiviert</td><td><code>AT+QIACT=1</code></td>
+                    <td>⚠ Muss nach jedem Einschalten neu abgesetzt werden. <strong><code>AT+CGATT?</code> mit Antwort 1 zählt nicht</strong> —
+                        der Attach ist nur die Registrierung auf Netzebene; erst wenn <code>AT+QIACT?</code> ein
+                        <code>+QIACT: 1,1,…,"IP"</code> liefert, steht der Datenkanal</td></tr>
+            </table>
+            <p>Die vollständige Reihenfolge (nach jedem Einschalten):</p>
+            <pre>AT+QIACT=1          ← Datenkanal öffnen (blockiert bis zu 150 Sekunden; erzeugt Datenvolumen)
+AT+QIACT?           ← es muss +QIACT: 1,1,…,"IP" erscheinen
+AT+QGPS=1           ← GNSS einschalten; AGNSS lädt jetzt automatisch die Assistenzdaten herunter
+AT+QGPSLOC=2        ← alle 5–10 Sekunden pollen</pre>
+            <p><strong>Woran erkennt man, dass AGNSS wirklich arbeitet?</strong> Diese Firmware sendet <strong>keine</strong> Meldung
+            wie <code>+QGPS: "agps"</code> (durch Messung bestätigt); man muss auf Indizien ausweichen, eines von dreien genügt:</p>
+            <ol>
+                <li><code>AT+QGDCNT?</code> vor und nach <code>AT+QGPS=1</code> abfragen:
+                    rund 30 KB mehr in Empfangsrichtung = die Assistenzdaten wurden heruntergeladen</li>
+                <li>GSV listet binnen Sekunden die Positionen <strong>sehr vieler Satelliten</strong> (SNR eventuell noch 00) —
+                    die Positionen sind heruntergeladen, durch eigene Demodulation ginge das nie so schnell</li>
+                <li>Das Zeitfeld von <code>$GNGGA</code> ist gefüllt (auch die Uhrzeit ist Teil der Assistenzdaten)</li>
+            </ol>
+            <div class="warning">
+                <strong>Die Pseudo-Fix-Falle: Koordinaten mit null Satelliten sind kein Fix.</strong>
+                Etwa 20 Sekunden nach dem AGNSS-Start kann <code>AT+QGPSLOC</code> bereits Koordinaten liefern,
+                aber sehen Sie genau hin: <code>HDOP 0.00 / alt 0.0 / nsat 00</code> (HDOP 0.00, Höhe 0.0, 00 verwendete Satelliten) —
+                das ist die <strong>injizierte Referenzposition</strong> aus den Assistenzdaten, kein Messergebnis, und der Fehler kann erheblich sein.
+                <br><br>
+                <strong>Kriterium für einen echten Fix: verwendete Satelliten &gt; 0, Fix-Modus ≥ 2, HDOP &gt; 0.</strong>
+                Automatisierungs- oder Produktlogik darf sich nicht allein darauf verlassen, „dass Koordinaten zurückkamen“.
+            </div>
+
+            <h4>apflash: auch nach Stromverlust schnell (unter Bedingungen)</h4>
+            <p><code>AT+QGPSCFG="apflash"</code> steht ab Werk auf 1: Nach jedem erfolgreichen Fix werden die Ephemeriden ins
+            flash geschrieben und beim nächsten Start automatisch importiert — ein Aus- und Wiedereinschalten binnen einer Stunde
+            wird so vom Kaltstart zum schnellen Warmstart, <strong>ganz ohne Datenvolumen</strong>. Zwei Einschränkungen: Die Ephemeriden
+            verfallen nach rund einer Stunde; und <strong>es muss vorher mindestens ein Fix gelungen sein</strong>,
+            sonst liegt im flash nichts zum Importieren — einem Modul, das noch nie einen Fix hatte, hilft apflash nicht.</p>
+
+            <h4>Nach dem Fix: der Tab Karte</h4>
+            <p>Jeder erfolgreiche <code>AT+QGPSLOC</code> trägt die Position im Tab Karte ein:
+            Der blaue Marker ist die neueste Position, die türkisfarbene Linie die Bewegungsspur, und jeder Spurpunkt zeigt beim Überfahren mit der Maus Ortszeit und Höhe.
+            Die Übersichtszeile zeigt Koordinaten/Höhe/HDOP/Satellitenzahl; die Uhrzeit wird anhand der geographischen Länge automatisch in die lokale Zeitzone umgerechnet.</p>
+            <figure class="shot">
+                <img src="img/21-map-track.png" alt="Tab Karte: Positionsspur">
+                <figcaption>Der Tab Karte nach erfolgreichem Fix: Marker = neueste Position, türkisfarbene Linie = Spur;
+                die Übersichtszeile oben zeigt Koordinaten, Höhe, HDOP, verwendete Satelliten und Ortszeit.</figcaption>
+            </figure>
+
+            <h4>Fehlersuche</h4>
+            <table>
+                <tr><th>Symptom</th><th>Ursache und Abhilfe</th></tr>
+                <tr><td><code>+CME ERROR: 505</code></td>
+                    <td>GNSS ist noch nicht an — zuerst <code>AT+QGPS=1</code>.
+                        Nach jedem Neustart (auch nach einem Neuladen der Seite) muss es neu eingeschaltet werden</td></tr>
+                <tr><td><code>+CME ERROR: 504</code></td><td>GNSS läuft bereits, das war nur ein doppeltes Einschalten — harmlos</td></tr>
+                <tr><td>Fehler 516 (NOT_FIXED_NOW)</td>
+                    <td>Noch kein Fix. Zeigt GSV Signale (SNR ≥ 30), einfach weiter warten;
+                        steht alles auf 00, ist es ein Antennen-/Umgebungsproblem, und Warten hilft nicht, egal wie lange</td></tr>
+                <tr><td>Kein fortlaufender NMEA-Strom</td>
+                    <td>Ab Werk steht <code>outport</code> auf <code>usbnmea</code>, der fortlaufende Strom geht an den USB-Port.
+                        Am AT-Port holen Sie die Sätze einzeln mit <code>AT+QGPSGNMEA</code> ab (vorher ist
+                        <code>nmeasrc,1</code> nötig; die Schaltfläche auf dieser Seite bringt das bereits mit)</td></tr>
+                <tr><td><code>AT+QGPSDEL</code> soll einen Kaltstart erzwingen</td>
+                    <td>⚠ Lassen Sie es — diese Firmware antwortet auf <code>=?</code> zwar mit <code>(0-2)</code>,
+                        weist aber <strong>alle drei Parameter ab</strong> (INVALID_PARA), und im offiziellen Handbuch fehlt der Befehl ebenfalls.
+                        Für einen Kaltstart: <code>apflash,0</code> plus Aus- und Wiedereinschalten (nach dem Test wieder auf 1 stellen)</td></tr>
+                <tr><td>Eine geänderte Einstellung greift nicht</td>
+                    <td><code>QAGPS</code> wirkt erst nach einem Neustart; <code>gnssconfig</code> (Konstellationsauswahl)
+                        ebenso. Nach der Änderung einmal die Boot-Sequenz durchlaufen</td></tr>
+            </table>

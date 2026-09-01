@@ -1,0 +1,148 @@
+<h3 id="tab-mqtt">MQTT — IoT messaging</h3>
+            <p><strong>Working principle:</strong> MQTT is a "broker" (message-intermediary server) protocol:
+            devices never connect to each other directly; each connects to the broker and publishes or subscribes to messages on "topics".
+            On the EG800K it is two-layered: first <code>AT+QMTOPEN</code> opens the "network connection" (TCP to the broker),
+            then <code>AT+QMTCONN</code> performs the "MQTT login"; only with both layers up can you subscribe and publish.
+            Remember first: <strong>every MQTT command's result follows the "OK first, URC later" pattern</strong> (same as FTP) —
+            <code>OK</code> only means the command was accepted; success or failure comes in the result URC that follows.</p>
+            <p>This page always uses client 0; the firmware also supports multiple clients (0–5), SSL and cloud-platform authentication
+            (confirmed by testing with <code>=?</code>) — see the MQTT application note for advanced usage.</p>
+
+            <h4>Before you start: two prerequisites</h4>
+            <ol>
+                <li><strong>URCs must go to the UART</strong>: <code>AT+QURCCFG="urcport"</code> must return
+                    <code>"uart1"</code>. The factory value is <code>"usbat"</code>, and MQTT's results are all URCs —
+                    leave it unchanged and <strong>every command replies only OK with no follow-up</strong>
+                    (the Basic page has a button for it; written to NVRAM, change it once).</li>
+                <li><strong>The PDP must be active first</strong>: click <code>AT+QIACT=1</code> on the TCP/IP page first
+                    (up to 150 seconds); without it, <code>+QMTOPEN</code> returns <strong>3 = PDP activation failed</strong>.
+                    The whole run consumes mobile data, estimated at about 5 KB.</li>
+            </ol>
+
+            <h4>How to test: four free public brokers</h4>
+            <p>The <code>AT+QMTOPEN</code> parameter card has a built-in broker dropdown (free typing still allowed);
+            all four allow anonymous access, no registration. Numbers measured in August 2026 (PC-side burst of 100 messages, module-side ping):</p>
+            <table>
+                <tr><th>Broker</th><th>Burst of 100</th><th>Module-side ping</th><th>Notes</th></tr>
+                <tr><td><strong>mqttgo.io</strong> (default)</td><td><strong>100/100</strong></td>
+                    <td><strong>190–210 ms</strong></td><td>Taiwan HiNet; 1883 plaintext / 8883 TLS</td></tr>
+                <tr><td>broker.hivemq.com</td><td>100/100</td><td>Blocks ICMP</td>
+                    <td>Do not panic when <code>AT+QPING</code> returns 559 — measured, TCP 1883 was open on all four;
+                        test reachability directly with <code>AT+QMTOPEN</code></td></tr>
+                <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+                    <td>Its own site says not for anything important; worst topic pollution</td></tr>
+                <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>Blocks ICMP</td>
+                    <td><strong>Has a publish rate limit</strong>; offers a web Dashboard</td></tr>
+            </table>
+            <p>All four are <strong>completely public</strong>: anyone can subscribe to your topics,
+            and other people's messages may drift into yours — exactly the problem the random suffix solves.</p>
+
+            <h4>The random suffix on client ID and topic: a new one on every page reload</h4>
+            <p>The client ID and default topic are not hard-coded: at page load a 6-hex-character suffix is generated,
+            forming <code>numodem-&lt;suffix&gt;</code> and <code>test/numodem-&lt;suffix&gt;</code>;
+            the Subscribe / Publish / Unsub buttons share the same set (otherwise the loopback would not line up). Two reasons:</p>
+            <ul>
+                <li><strong>An ID collision gets you kicked off</strong>: MQTT 3.1.1 §3.1.4 requires the broker to kick the earlier
+                    connection — two people on the same fixed ID kick each other, and the symptom looks like "the module drops for no reason".</li>
+                <li><strong>A fixed topic receives other people's messages</strong>: you think you received your own message when you did not —
+                    worse than receiving nothing, because it hands you a false pass.</li>
+            </ul>
+            <div class="warning">
+                <strong>⚠ Every page reload rolls a new suffix —
+                subscribing and publishing must happen within the same page lifetime.</strong>
+                Besides, in this tool RTS = power, so a page reload = module power cut: the whole MQTT connection vanishes,
+                and you start over from the power-up ritual and <code>AT+QMTOPEN</code>.
+            </div>
+
+            <h4>The full walkthrough: connect → subscribe → publish → receive your own message back</h4>
+            <p>The most convincing verification is the <strong>loopback</strong>: subscribe, publish to the same topic,
+            and receive your own message back — one pass validates the entire send/receive chain. Wait for each step's result URC before moving on:</p>
+            <ol>
+                <li><strong>Set the protocol version</strong>: click Ver 3.1.1 (<code>AT+QMTCFG="version",0,4</code>;
+                    3 = 3.1, 4 = 3.1.1). Version? queries the current value (no value = query).
+                    The Keepalive parameter card can adjust the keep-alive interval; testing works without touching it.</li>
+                <li><strong>Open the network</strong>: click Open Net (<code>AT+QMTOPEN=0,"broker",1883</code>).
+                    It replies <code>OK</code> first; success or failure comes in the URC <code>+QMTOPEN: 0,&lt;result&gt;</code>
+                    (0 = success), waiting up to 120 seconds. Open? lists the open connections
+                    (with none open it returns an empty <code>OK</code> — measured, normal).</li>
+                <li><strong>MQTT login</strong>: click Connect (<code>AT+QMTCONN=0,"numodem-&lt;suffix&gt;"</code>).
+                    The success URC is always <code>+QMTCONN: 0,0,0</code>. Public brokers need no credentials;
+                    when credentials are required, append <code>,"user","pass"</code> to the parameters yourself.
+                    Conn? queries the state (1 = initial, 2 = connecting, 3 = connected, 4 = disconnecting).</li>
+                <li><strong>Subscribe</strong>: click Subscribe (<code>AT+QMTSUB=0,1,"test/numodem-&lt;suffix&gt;",0</code>,
+                    msgid fixed at 1). The success URC looks like <code>+QMTSUB: 0,1,0,0</code>.
+                    From then on, messages on this topic arrive as <code>+QMTRECV</code> URCs.</li>
+                <li><strong>Publish</strong>: click Publish (<code>AT+QMTPUBEX</code>, two-stage, see the next section).
+                    The success URC is <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code>.</li>
+                <li><strong>Receive it back</strong>: the publish target is the topic you are subscribed to, so immediately afterwards you see
+                    <code>+QMTRECV</code> carrying the topic and the message body you just sent — loopback successful.
+                    Even a Chinese payload arrives untruncated and ungarbled.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="MQTT tab">
+                <figcaption>The MQTT page: broker dropdown, connection, subscribe and publish; the defaults already carry the random suffix.</figcaption>
+            </figure>
+
+            <h4>QMTPUBEX two-stage: sends automatically once the length is counted out — no Ctrl+Z</h4>
+            <p>The last parameter of <code>AT+QMTPUBEX</code> is <strong>the length in bytes, not the message content</strong>
+            (settled by MQTT application note §3.3.8 — the single-line form with the message stuffed in always returns ERROR).
+            The correct flow is two-stage: send the command → the module replies with the prompt <code>&gt;</code> → send exactly N bytes,
+            and the module <strong>sends automatically once the length is counted out — no Ctrl+Z needed</strong>
+            (unlike the data mode of the TCP page's <code>AT+QISEND</code>).
+            The Publish button is fully automatic: just fill the message in the parameter card,
+            and the length is computed from the UTF-8 byte count (one Chinese character = 3 bytes; measured, a two-character Chinese payload → 6).</p>
+            <ul>
+                <li>Payload-type commands <strong>offer no "insert into command line"</strong> — the command line always appends a line ending,
+                    and that CR would be counted into the length and shift everything; send with the button.</li>
+                <li>The firmware also has <code>AT+QMTPUB</code> (the data-mode variant, ended with Ctrl+Z) —
+                    this tool uses <code>QMTPUBEX</code> throughout, so you need not learn both.</li>
+            </ul>
+
+            <h4>Reading the result codes: every command has its own value range</h4>
+            <div class="warning">
+                <strong>Never apply command A's result-code table to command B.</strong>
+                In <code>+QMTOPEN</code>, 3 means "PDP activation failed";
+                <code>+QMTPUBEX</code> has no value 3 at all.
+                <br><br>
+                The easiest to misread is <code>+QMTCONN: 0,1</code> —
+                it <strong>could be the query response's "state 1 = initializing", or the write result's "packet being retransmitted"</strong>.
+                A single line cannot tell them apart, so this tool shows both readings side by side instead of guessing.
+            </div>
+            <p>You need not memorize the tables: for every result URC from <code>+QMTOPEN</code> through <code>+QMTRECV</code> / <code>+QMTSTAT</code>,
+            the terminal area annotates each field in plain language, following the seven reference tables of MQTT application note v1.5.</p>
+
+            <h4>Going offline and wrapping up</h4>
+            <ul>
+                <li><strong>Just stop receiving, keep the connection</strong>: click Unsub
+                    (<code>AT+QMTUNS=0,2,"topic"</code>, msgid fixed at 2).</li>
+                <li><strong>Normal disconnect</strong>: click Disconnect (<code>AT+QMTDISC=0</code>,
+                    sends MQTT DISCONNECT), returning <code>+QMTDISC: 0,0</code>.
+                    <strong>No need to click Close Net afterwards</strong> — <code>AT+QMTCLOSE=0</code>
+                    is for force-closing when "QMTDISC failed and the network layer is stuck".</li>
+            </ul>
+            <p>Disconnects you did not initiate (kicked off, keepalive timeout, network loss) are reported by the <code>+QMTSTAT</code>
+            abnormal-disconnect URC (e.g. <code>+QMTSTAT: 0,5</code>; the terminal area annotates the reason),
+            after which you start over from <code>AT+QMTOPEN</code>.</p>
+
+            <h4>Troubleshooting</h4>
+            <table>
+                <tr><th>Symptom</th><th>Cause and fix</th></tr>
+                <tr><td>Every command replies OK, then nothing</td>
+                    <td>URCs are going to the USB port — <code>urcport</code> ships as <code>usbat</code>;
+                        switch to <code>uart1</code> (see prerequisite 1)</td></tr>
+                <tr><td><code>+QMTOPEN: 0,3</code></td>
+                    <td>PDP activation failed — run <code>AT+QIACT=1</code> first (TCP/IP page), then retry</td></tr>
+                <tr><td>Subscribed but never receiving your own messages</td>
+                    <td>The page was reloaded partway — the suffix rolled and the module also power-cycled.
+                        Redo the whole walkthrough within one page lifetime</td></tr>
+                <tr><td>Receiving messages you did not send</td>
+                    <td>Public-broker topic pollution (mosquitto is the worst). The default topic already carries the random suffix;
+                        give custom topics distinctive names</td></tr>
+                <tr><td>Some messages lost during bulk publishing</td>
+                    <td>emqx has a publish rate limit (measured: only 40 of a 100 burst arrived) —
+                        switch to mqttgo.io or hivemq (100/100, no throttling)</td></tr>
+                <tr><td>Waiting forever with no result URC</td>
+                    <td>This family is simply slow: <code>QMTOPEN</code> up to 120 seconds,
+                        <code>QMTCONN</code> / <code>QMTSUB</code> / <code>QMTPUBEX</code> up to 600 seconds
+                        (PUBEX = 60-second packet timeout × 10 retries) — the button help marks this; it is not a hang</td></tr>
+            </table>

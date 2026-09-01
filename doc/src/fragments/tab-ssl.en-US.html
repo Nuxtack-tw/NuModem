@@ -1,0 +1,159 @@
+<h3 id="tab-ssl">SSL — TLS channels</h3>
+            <p><strong>Working principle:</strong> the SSL page is the <strong>shared substrate</strong> of encrypted connections —
+            the SSL context configured here and the certificates uploaded here serve SSL raw sockets, MQTT over SSL
+            and HTTPS alike. All timings and behavior in this section were measured on a physical EG800K in August 2026.</p>
+
+            <h4>Your first TLS connection: five steps</h4>
+            <ol>
+                <li><strong>Run the power-up ritual</strong> (see the Power-Up Ritual section), then click
+                    <code>AT+QIACT?</code> to confirm the data channel — it must return
+                    <code>+QIACT: 1,1,…,"IP"</code>; if not, run <code>AT+QIACT=1</code> first.</li>
+                <li><strong>Configure the context</strong>: set <code>sslversion</code> to 4 (all versions,
+                    best compatibility), <code>ciphersuite</code> to 0XFFFF (all suites),
+                    and <code>seclevel</code> to 0 for now — first prove the channel works; leave verification for later.</li>
+                <li><strong>Open the connection</strong>: click <code>AT+QSSLOPEN</code> (trailing code 0), fill
+                    host and port in the parameter card. ⚠ <code>OK</code> only means "command accepted"; success rides on the URC:
+                    only <code>+QSSLOPEN: 4,0</code> is success (measured handshake: 2.0 seconds).</li>
+                <li><strong>Send data</strong>: click <code>AT+QSSLSEND</code> (two-stage) —
+                    after the <code>&gt;</code> appears, send the payload; <strong>it sends automatically once the declared length is counted out,
+                    no Ctrl+Z</strong> (single-packet limit 1460 bytes). The peer's reply shows up as
+                    <code>+QSSLURC: "recv",4</code>.</li>
+                <li><strong>Read back and close</strong>: <code>AT+QSSLRECV</code> (1500 per read) —
+                    reading down to <code>+QSSLRECV: 0</code> means the buffer is drained, not an error.
+                    <code>AT+QSSLCLOSE=4</code> closes (default wait up to 10 seconds;
+                    the other button takes a seconds value, 0 = immediate).</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2.0 seconds, 0 = success
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← sent automatically once 15 bytes are counted out
+SEND OK
++QSSLURC: "recv",4        ← 0.4 seconds
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>While connected you can click <code>AT+QSSLSTATE</code> to see all connections (<code>=4</code>
+            queries a single clientID; state 2 = connected). Note that <strong>the local port always reads 0</strong> —
+            module behavior, not an error.</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="SSL tab">
+                <figcaption>The SSL page: context configuration, UFS certificate upload, connect, send/receive, close.</figcaption>
+            </figure>
+
+            <h4>The three access modes (<code>AT+QSSLOPEN</code>'s trailing code)</h4>
+            <table>
+                <tr><th>Code</th><th>Behavior</th></tr>
+                <tr><td>0 buffered</td><td>On data arrival only <code>+QSSLURC: "recv",&lt;id&gt;</code> is issued;
+                    you read it yourself with <code>AT+QSSLRECV</code></td></tr>
+                <tr><td>1 direct push</td><td>The URC also carries the length and <strong>the data is dumped on the next line</strong>;
+                    ⚠ in this mode <code>AT+QSSLRECV</code> returning ERROR is normal</td></tr>
+                <tr><td>2 transparent</td><td>The whole AT port becomes the data channel (this page provides buttons for 0 and 1 only)</td></tr>
+            </table>
+
+            <h4>Context settings, item by item</h4>
+            <p>Unsure which sub-items the firmware supports? Click <code>AT+QSSLCFG=?</code> first —
+            measured, it returns 17 sub-items, more than the application note lists. The common sub-items each have a set and a query button;
+            measured, what is written reads back identically.</p>
+            <table>
+                <tr><th>Sub-item</th><th>Factory</th><th>Effect and measured notes</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>Protocol version; 4 = all supported</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>Cipher suites; 0XFFFF = all supported</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0 = no verification, 1 = verify the server
+                    (requires a CA certificate uploaded first), 2 = mutual authentication (also needs a client certificate + private key)</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>CA certificate path, in the form
+                    <code>"UFS:filename"</code>; the file must already be in UFS (see the next section)</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>Mandatory for virtual hosts / CDNs — with many domains on one IP, omitting SNI
+                    gets you a mismatched certificate and verification always fails with 566</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>From the factory, certificate validity dates are not checked even with seclevel 1</strong>.
+                    To check them, set 0 — and the module clock must be right</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>Maximum TLS handshake wait in seconds (10–300)</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 The three factory defaults together = no certificate verification at all</strong>
+                (seclevel 0, sni 0, ignorelocaltime 1); to truly verify, all three must be set right.
+                And these three settings plus <code>cacert</code> <strong>do not survive reboots</strong>
+                (confirmed by testing) — every boot returns them to factory values; the certificate files in UFS, however, survive power loss.
+            </div>
+
+            <h4>The UFS file group: how certificates get into the module</h4>
+            <p>UFS is the module's built-in flash storage; measured total capacity <strong>280 KB</strong>, each file occupying one
+            4 KB block. Certificates must be uploaded here first before <code>cacert</code> has a file to point at.
+            <strong>Uploads go over the UART at zero data cost</strong>, and binary files go through too.
+            <strong>The Upload card</strong>: after picking a file, the name and size fill in automatically; on submit the tool waits for the module's
+            <code>CONNECT</code> before sending the raw bytes (no CONNECT, nothing is sent). On completion
+            <strong>the annotation engine automatically compares</strong> the module's reported size and checksum:
+            ✅ = intact, ❌ = corrupted in transit — delete first, then re-upload.</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← now send 1939 bytes
++QFUPL: 1939,4f64         ← received size,checksum; the annotation compares automatically ✅</pre>
+            <table>
+                <tr><th>Button</th><th>Purpose</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>Lists every UFS file with its size —
+                    use it to verify after upload (zero data cost)</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>Queries free / total space in bytes (zero data cost)</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>Deletes the named file (<code>*</code> = all);
+                    re-uploading without deleting the namesake first gets blocked</td></tr>
+            </table>
+            <div class="tip">
+                <strong>Two measured behaviors the manual never spells out:</strong> (1) FILE error codes are inconsistent in form —
+                a same-name re-upload returns the text <code>file already exist</code>, a timeout returns the number <code>421</code>;
+                this tool decodes both. (2) If the size field is larger than the actual file, after the timeout the module
+                <strong>still saves what it received as the file</strong> — the checksum comparison catches it.
+            </div>
+
+            <h4>Certificate verification in practice: the paired-test method</h4>
+            <p>Procedure: upload the root certificate → point <code>cacert</code> at it → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → connect to the target's 443. <strong>What you upload is the root certificate at the top of the chain</strong>
+            (badssl.com's chain has four levels; upload the topmost ISRG Root X1).
+            <strong>Testing only "bad certificates fail to connect" is not enough</strong> — "nothing connects at all" would also pass.
+            Test in pairs: the good certificate connects and the bad one is refused —
+            <strong>it only counts when both directions hold</strong>. Measured 2×5 comparison:</p>
+            <table>
+                <tr><th>Host</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com (positive control)</td><td>Connects</td>
+                    <td><strong>Connects</strong> <code>4,0</code></td></tr>
+                <tr><td>expired</td><td>Connects</td><td>Refused 566</td></tr>
+                <tr><td>self-signed</td><td>Connects</td><td>Refused 566</td></tr>
+                <tr><td>wrong.host (hostname mismatch)</td><td>Connects</td><td>Refused 566</td></tr>
+                <tr><td>untrusted-root</td><td>Connects</td><td>Refused 566</td></tr>
+            </table>
+            <p>Limitation: <strong>all four certificate errors return 566; the module does not distinguish</strong> which one it was.
+            <code>AT+QIGETERROR</code> cannot help either — it covers the TCP/IP layer
+            and at this point only returns <code>0,operate successfully</code>.</p>
+            <div class="tip">
+                For the negative test, avoid expired — the factory <code>ignorelocaltime</code> is 1, so expiry alone
+                is not blocked (it is blocked in the table above only because it also sits outside the uploaded root); for a standalone test use wrong.host.
+                Also <strong>watch the data usage</strong>: every handshake downloads the full certificate chain, failures included —
+                measured, 30 handshakes cost about 150–200 KB.
+            </div>
+
+            <h4>🔴 Trap: after about 20 consecutive open/close cycles, the data stack degrades wholesale</h4>
+            <div class="warning">
+                <strong>Symptom: every <code>AT+QSSLOPEN</code> returns 552</strong> — even seclevel 0
+                cannot connect, while every self-check says all is well. <strong>The 30-second triage</strong>: hit the same target with plain-TCP
+                <code>AT+QIOPEN</code> — if that fails too, the data stack is broken; stop auditing
+                SSL settings. A PDP restart cannot save it; <strong>only the full power-up ritual recovers</strong>.
+                The degradation contaminates test data and is easily misread as "blocked by certificate verification" —
+                reboot to a clean slate before running paired tests.
+            </div>
+
+            <h4>Troubleshooting</h4>
+            <table>
+                <tr><th>Symptom</th><th>Cause and fix</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>Certificate verification failed. Check in order: is <code>sni</code> on (the most common),
+                        is <code>cacert</code>'s root the right one, is the certificate itself bad;
+                        the three settings reset to zero on reboot</td></tr>
+                <tr><td>Nothing after the <code>OK</code></td>
+                    <td><code>OK</code> only means accepted; the result comes by URC, waiting up to
+                        150 seconds + <code>negotiatetime</code></td></tr>
+                <tr><td>The AT port is stuck and ignores every command</td>
+                    <td><code>AT+QSSLSEND</code>'s length was miscounted and it is stuck in data mode swallowing commands —
+                        send ESC (0x1B) with the Hardware page's raw-byte button to escape</td></tr>
+            </table>

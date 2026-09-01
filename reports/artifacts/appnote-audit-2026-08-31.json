@@ -1,0 +1,2493 @@
+[
+ {
+  "doc": "ref/EG800K/Application Note/TCP IP_quectel_ec200xeg800keg91xneg912yeg950a_series_application_note_v1-4.pdf（v1.4, 2023-10-30, 59 頁）",
+  "applicable": true,
+  "applicable_note": "§1.1 Table 1（p.8）適用機型表明列「EG800K Series」；且 v1.4 修訂紀錄註明本版新增 EG800K 系列為適用機型。",
+  "commands": [
+   {
+    "cmd": "AT+QICFG=?",
+    "purpose": "列出所有 QICFG 可配置子參數與範圍",
+    "status": "有按鈕",
+    "note": "TCP/IP 頁 Keepalive 群「QICFG=?」鈕"
+   },
+   {
+    "cmd": "AT+QICFG=\"transpktsize\"[,<n>]",
+    "purpose": "查詢或設定透傳模式單包最大長度（1–1460，預設 1024）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"transwaittm\"[,<n>]",
+    "purpose": "查詢或設定透傳模式自動送出前等待時間（0–20，單位 100ms）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"dataformat\"[,<send>,<recv>]",
+    "purpose": "設定非透傳模式收送資料格式（文字/HEX）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"viewmode\"[,<mode>]",
+    "purpose": "設定接收資料的輸出格式（換行或逗號分隔）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"passiveclosed\"[,<en>]",
+    "purpose": "啟用或停用伺服器端關閉時 TCP 被動關閉",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"udp/readmode\"[,<mode>]",
+    "purpose": "設定 UDP 資料讀取模式",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"udp/sendmode\"[,<mode>]",
+    "purpose": "設定 UDP 資料送出模式（block/stream）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"tcp/keepalive\"[,<en>[,<idle>,<interval>,<probe>]]",
+    "purpose": "查詢或設定 TCP keep-alive",
+    "status": "有按鈕",
+    "note": "TCP/IP 頁三顆：Keepalive?（查詢）/ Keepalive On（參數卡）/ Keepalive Off"
+   },
+   {
+    "cmd": "AT+QICFG=\"recvind\"[,<en>]",
+    "purpose": "buffer 模式接收 URC 是否附帶資料長度",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"tcp/retranscfg\"[,<times>,<time>]",
+    "purpose": "設定 TCP 重傳次數與重傳間隔",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"tcp/accept\"[,<state>]",
+    "purpose": "啟用或停用自動接受 incoming TCP 連線",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"send/buffersize\"[,<size>]",
+    "purpose": "設定單次傳送最大位元組數（1460–10240）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"send/auto\",<id>[,<cycle>[,<msg>][,<fmt>][,<try>]]",
+    "purpose": "設定週期性心跳封包自動送出",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令，§3.10 有範例"
+   },
+   {
+    "cmd": "AT+QICFG=\"recv/ignore\",<id>[,<msg>][,<fmt>]",
+    "purpose": "設定過濾（忽略）指定的接收資料內容",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令，§3.10 有範例"
+   },
+   {
+    "cmd": "AT+QICFG=\"formatcfg\"[,<fmt>]",
+    "purpose": "設定 QISEND 提示符 > 的輸出格式",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令。若改為 0D0A>0D0A 可能影響本機兩段式偵測 >，建議維持預設——待確認"
+   },
+   {
+    "cmd": "AT+QICFG=\"qisend/timeout\"[,<sec>]",
+    "purpose": "設定 QISEND 出現 > 後的送資料逾時（0–120s）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"close/mode\"[,<mode>]",
+    "purpose": "啟用或停用 TCP 非同步斷線",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"sendinfo\"[,<mode>]",
+    "purpose": "QISEND/QISENDEX 執行結果改以 URC 形式回報",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令。開啟後回應變 +QISEND: 格式，不影響終端顯示"
+   },
+   {
+    "cmd": "AT+QICFG=\"TCP/SendMode\"[,<mode>]",
+    "purpose": "設定 SEND OK 的回覆時機（立即或收到 ACK 後，0–4）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"pdp/retry\",<pdpmode>,<ratmode>[,<counts>,<time>]",
+    "purpose": "設定 PDP 啟用/停用之重試次數與單次最長時間",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QICFG=\"wakeup/data\",<id>[,<data>[,<fmt>]]",
+    "purpose": "設定喚醒封包資料（其餘伺服器資料將被丟棄）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令，§3.10 有範例；對應 URC +QIURC: \"wakeup/data\" 可正常收到"
+   },
+   {
+    "cmd": "AT+QICSGP=<cid>[,<type>,<APN>[,<user>,<pass>[,<auth>[,<CDMA_pwd>]]]]",
+    "purpose": "設定 TCP/IP context 的 APN、帳密與認證方式",
+    "status": "有按鈕",
+    "note": "「Set APN」參數卡（cid 寫死 1、type 寫死 IPv4）；查詢形式 AT+QICSGP=<cid> 與 IPv6/IPv4v6 設定無按鈕，可手動"
+   },
+   {
+    "cmd": "AT+QIACT=<cid>",
+    "purpose": "啟用 PDP context（最長 150 秒）",
+    "status": "有按鈕",
+    "note": "「Act PDP」鈕固定 cid=1；其他 cid 可手動"
+   },
+   {
+    "cmd": "AT+QIACT?",
+    "purpose": "查詢已啟用的 context 與本機 IP 位址",
+    "status": "有按鈕",
+    "note": "「Query IP」鈕"
+   },
+   {
+    "cmd": "AT+QIDEACT=<cid>",
+    "purpose": "停用 PDP context 並關閉其下所有連線（最長 40 秒）",
+    "status": "有按鈕",
+    "note": "「Deact PDP」鈕固定 cid=1"
+   },
+   {
+    "cmd": "AT+QIOPEN=<cid>,<id>,<type>,<addr>,<rport>[,<lport>[,<mode>]]",
+    "purpose": "開啟 socket 服務（TCP/UDP/TCP LISTENER/UDP SERVICE，存取模式 0/1/2）",
+    "status": "有按鈕",
+    "note": "僅「Open TCP」參數卡（TCP client、buffer 模式寫死 0,0）；UDP client、TCP LISTENER、UDP SERVICE、direct push（mode 1）、透傳（mode 2）變體無按鈕，皆單行可手動，建議參數卡增加服務型別與 access_mode 欄位"
+   },
+   {
+    "cmd": "AT+QICLOSE=<id>[,<timeout>]",
+    "purpose": "關閉指定 socket（預設最長 10 秒）",
+    "status": "有按鈕",
+    "note": "「Close Sock」鈕固定 id=0；其他 connectID 與 timeout 形式可手動"
+   },
+   {
+    "cmd": "AT+QISTATE / AT+QISTATE=<qtype>,<id|cid>",
+    "purpose": "查詢全部或指定 socket 的服務狀態",
+    "status": "有按鈕",
+    "note": "「All Socks」鈕（execution 形式）；帶 query_type 的寫入形式可手動"
+   },
+   {
+    "cmd": "AT+QISEND=<id>,<len>",
+    "purpose": "兩段式送出固定長度資料（等 > 後輸入至長度滿）",
+    "status": "有按鈕",
+    "note": "「Send Text」兩段式參數卡（id 固定 0，長度自動計算）；其他 connectID 需手動改按鈕參數或補鈕"
+   },
+   {
+    "cmd": "AT+QISEND=<id>",
+    "purpose": "兩段式送出變動長度資料，Ctrl+Z 送出、ESC 取消",
+    "status": "有按鈕",
+    "note": "「Send (續寫)」「Send + End」兩段式鈕，搭配 Ctrl+Z（0x1A）與 ESC（0x1B）原始位元組鈕"
+   },
+   {
+    "cmd": "AT+QISEND=<id>,<len>,<remoteIP>,<rport>",
+    "purpose": "UDP SERVICE 模式下對指定遠端 IP/port 兩段式送資料",
+    "status": "需兩段式-已有機制",
+    "note": "此變體（§3.6.2）無按鈕；兩段式等 > 機制已存在，缺一顆帶 remoteIP/remote_port 的參數卡按鈕"
+   },
+   {
+    "cmd": "AT+QISEND=<id>,0",
+    "purpose": "查詢已送出/已確認/未確認的資料位元組數",
+    "status": "有按鈕",
+    "note": "「Check ACK」鈕（id 固定 0）"
+   },
+   {
+    "cmd": "AT+QIRD=<id>[,<len>]",
+    "purpose": "讀取 buffer 模式下暫存的接收資料（單次最多 1500 bytes）",
+    "status": "有按鈕",
+    "note": "「Read Data」（=0,1500）與「Unread Len」（=0,0）兩鈕；其他 connectID（如 server incoming 的 11）需手動。二進位資料顯示得出來但存不了檔——限制非無法實現"
+   },
+   {
+    "cmd": "AT+QISENDEX=<id>,<hex_string>",
+    "purpose": "以 HEX 字串送出資料（單行，最長 512 bytes，免兩段式）",
+    "status": "有按鈕",
+    "note": "「Send Hex」參數卡；不適用 UDP SERVICE 與 TCP LISTENER"
+   },
+   {
+    "cmd": "AT+QISWTMD=<id>,<mode>",
+    "purpose": "切換 socket 的資料存取模式（buffer/direct push/透傳）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令。切 mode 2 回 CONNECT 即進透傳——之後命令列每行都會附 CR 送出，僅適合文字資料，退出靠 +++ 逃逸鈕（已有）"
+   },
+   {
+    "cmd": "AT+QPING=<cid>,<host>[,<timeout>[,<pingnum>]]",
+    "purpose": "ping 遠端主機測試連通性",
+    "status": "有按鈕",
+    "note": "「Ping」參數卡（4 包、timeout 4 秒）"
+   },
+   {
+    "cmd": "AT+QNTP=<cid>,<server>[,<port>[,<autosettime>]]",
+    "purpose": "與 NTP 伺服器同步本地時間（最長 125 秒）",
+    "status": "有按鈕",
+    "note": "「NTP Sync」參數卡；autosettime 參數需手動"
+   },
+   {
+    "cmd": "AT+QIDNSCFG=<cid>[,<pridns>[,<secdns>]]",
+    "purpose": "查詢或設定指定 context 的主/次 DNS 伺服器",
+    "status": "有按鈕",
+    "note": "HTTP 頁「AT+QIDNSCFG={cid}」參數卡僅覆蓋查詢形式；設定 DNS 位址形式無按鈕，可手動"
+   },
+   {
+    "cmd": "AT+QIDNSGIP=<cid>,<hostname>",
+    "purpose": "以域名解析 IP，結果經 +QIURC: \"dnsgip\" URC 回報",
+    "status": "有按鈕",
+    "note": "「DNS Lookup」參數卡；URC 走 uart1 可正常收到"
+   },
+   {
+    "cmd": "AT+QISDE=<echo>",
+    "purpose": "控制 QISEND 兩段式輸入資料是否回顯",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令。關回顯不影響本機兩段式流程"
+   },
+   {
+    "cmd": "AT+QIGETERROR",
+    "purpose": "查詢最後一次 TCP/IP 指令的錯誤碼與描述（Ch.4 錯誤表 550–574）",
+    "status": "有按鈕",
+    "note": "「Last Error」鈕"
+   },
+   {
+    "cmd": "AT+CPIN?",
+    "purpose": "流程圖步驟：查詢 (U)SIM 卡狀態",
+    "status": "有按鈕",
+    "note": "Basic 頁「SIM PIN」鈕；指令本體屬 AT 手冊[1]"
+   },
+   {
+    "cmd": "AT+CGREG? / AT+CEREG?",
+    "purpose": "流程圖步驟：查詢 PS 域網路註冊狀態",
+    "status": "有按鈕",
+    "note": "Network 頁「PS Reg」「EPS Reg」鈕"
+   },
+   {
+    "cmd": "AT+CGQREQ / AT+CGEQREQ / AT+CGQMIN / AT+CGEQMIN",
+    "purpose": "流程圖步驟：設定 PDP QoS 參數",
+    "status": "可命令列手動",
+    "note": "無按鈕；屬 AT 手冊[1]，本文件僅流程圖引用，一般測試可略過"
+   },
+   {
+    "cmd": "AT+QPOWD",
+    "purpose": "流程圖建議的正常關機指令",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令，送出後需等 12 秒以上再斷電"
+   },
+   {
+    "cmd": "AT+CFUN=0 / AT+CFUN=1",
+    "purpose": "流程圖救援步驟：PS 註冊失敗時重啟射頻功能",
+    "status": "有按鈕",
+    "note": "Network 頁 RF Control 群「Minimum」「Full」鈕"
+   },
+   {
+    "cmd": "AT+CCLK?",
+    "purpose": "§3.8 範例：NTP 對時後讀取本地時鐘驗證",
+    "status": "有按鈕",
+    "note": "Basic 頁「Clock」鈕"
+   },
+   {
+    "cmd": "ATO",
+    "purpose": "由命令模式返回透傳模式（成功回 CONNECT）",
+    "status": "有按鈕",
+    "note": "FTP 頁已有「ATO」鈕，可通用於本文件 §1.3 情境"
+   },
+   {
+    "cmd": "+++",
+    "purpose": "自透傳模式逃逸回 buffer 模式（前後需 1 秒靜默）",
+    "status": "有按鈕",
+    "note": "已有 +++ 逃逸鈕（不附 CR）；前後 1 秒靜默由使用者自行掌握"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "開機→SIM→PS 註冊→PDP 配置與啟用完整流程（§1.2 Figure 1）",
+    "feasible": true,
+    "note": "CPIN? / CEREG? / Set APN / Act PDP / Query IP 各步驟均有按鈕；QoS（CGQREQ 等）與 QPOWD 需命令列手動；各步逾時（20s/60s/150s/40s）需使用者自行計時，本機無自動重試機制"
+   },
+   {
+    "name": "TCP client buffer access mode 收發流程（§3.2）",
+    "feasible": true,
+    "note": "全鏈按鈕齊備：Open TCP → Send Text/Send(續寫)+Ctrl+Z → 收 +QIURC:\"recv\"（urcport=uart1 可收）→ Read Data → Check ACK → Close Sock；是本機覆蓋最完整的流程"
+   },
+   {
+    "name": "TCP client direct push mode 流程（§3.4）",
+    "feasible": true,
+    "note": "Open TCP 鈕寫死 access_mode=0，開啟 direct push 需手動下 AT+QIOPEN=...,0,1；之後資料隨 +QIURC:\"recv\" 直接顯示於終端，送資料沿用既有兩段式鈕"
+   },
+   {
+    "name": "TCP client 透傳（transparent）模式進出（§1.3 / §3.3）",
+    "feasible": true,
+    "note": "進：手動 QIOPEN mode 2 或 QISWTMD=<id>,2（回 CONNECT）；出：+++ 逃逸鈕（已有，需前後 1 秒靜默）或先 AT&D1 再以 RS-232 訊號列拉 DTR。限制：命令列每行自動附 CR，透傳下只適合以「行」為單位的文字測試，二進位透傳不可靠"
+   },
+   {
+    "name": "TCP server（TCP LISTENER）含 incoming 連線處理（§3.5）",
+    "feasible": true,
+    "note": "無專用按鈕但全程單行指令可手動：QIOPEN \"TCP LISTENER\" → +QIURC:\"incoming\" URC 正常顯示 → AT+QIRD=<新id>,1500 手動讀取 → QICLOSE；QIRD/QICLOSE 按鈕寫死 id=0 幫不上 incoming 的動態 connectID"
+   },
+   {
+    "name": "UDP SERVICE 收發流程（§3.6）",
+    "feasible": true,
+    "note": "開啟（QIOPEN \"UDP SERVICE\"）與讀取（AT+QIRD=<id> 免長度）可手動；唯一缺口是送資料 AT+QISEND=<id>,<len>,<ip>,<port> 為兩段式無按鈕（見指令表），要可靠使用需補按鈕"
+   },
+   {
+    "name": "心跳（send/auto）、喚醒封包（wakeup/data）、資料過濾（recv/ignore）optional 配置（§3.10）",
+    "feasible": true,
+    "note": "全為單行 QICFG 指令，命令列手動即可；wakeup URC 與心跳結果均經 uart1 正常顯示"
+   }
+  ],
+  "summary": "EG800K 適用本文件，17 條 TCP/IP 指令無一「無法實現」，核心 buffer 模式收發鏈（QIOPEN/QISEND/QIRD/QICLOSE/QIGETERROR）按鈕齊備。最大缺口有三：QICFG 的 21 個子參數僅 tcp/keepalive 有按鈕、UDP SERVICE 指定遠端的兩段式 QISEND 完全無按鈕（需補）、Open TCP 鈕寫死 buffer 模式使 direct push/透傳與 TCP server/UDP 服務型別都得靠命令列手動。建議補 QIOPEN 服務型別與 access_mode 參數卡、UDP SERVICE 送資料鈕，並讓 QISEND/QIRD/QICLOSE 的 connectID 可變以支援 server incoming 連線。"
+ },
+ {
+  "doc": "Wi-Fi Scan Application Note（兩份並讀：A=Wi-Fi-Scan_EG800AK...v1-1.pdf 實為 V1.1/2025-04-28；B=quectel_ecx00x...v1-1.pdf 檔名雖標 v1-1、內容實為 V1.2/2026-02-09。以 B（V1.2、260KB 較大較新）為準。兩版指令集完全相同，僅參數範圍與適用機型表不同：V1.2 將 <round> 範圍 1–3 放寬為 1–6、<max_bssid_num> 4–10 放寬為 4–30，機型表 EG800AK-EU/EG915K-EU 改為整個 series、刪除 EOL 的 EC200N-LA）",
+  "applicable": true,
+  "applicable_note": "EG800K Series 明確列於兩版 Table 1（Applicable Modules）。但文件 NOTE 註明部分機型因 flash 空間限制不支援本功能，實機以 AT+QWIFISCAN=?（已有 Support? 按鈕）驗證即可。",
+  "commands": [
+   {
+    "cmd": "AT+QWIFISCAN=?",
+    "purpose": "查詢模組是否支援 Wi-Fi Scan 及各參數的支援範圍",
+    "status": "有按鈕",
+    "note": "wifiscan 頁「Support?」按鈕。回應為各參數支援清單；若模組因空間限制不支援本功能，此指令會報錯，正好可當支援性檢測。"
+   },
+   {
+    "cmd": "AT+QWIFISCAN?",
+    "purpose": "讀取目前 Wi-Fi Scan 參數設定值",
+    "status": "有按鈕",
+    "note": "wifiscan 頁「Read Cfg」按鈕。注意 Characteristics 載明設定不儲存（重開機回預設）。"
+   },
+   {
+    "cmd": "AT+QWIFISCAN",
+    "purpose": "以預設參數執行 Wi-Fi 掃描並回報熱點清單",
+    "status": "有按鈕",
+    "note": "wifiscan 頁「Scan」按鈕。單行指令，結果為 OK 後非同步吐出 +QWIFISCAN: (<ecn>,<ssid>,<rssi>,<mac>,<channel>) 多行（最長 13 s；無熱點時回 +QWIFISCAN:TIMEOUT），結果走指令埠（UART）可正常收到。<ecn>/<ssid> 目前韌體不支援、固定為 \"-\"。"
+   },
+   {
+    "cmd": "AT+QWIFISCAN=<time>,<round>,<max_bssid_num>,<scan_timeout>,<priority>",
+    "purpose": "以自訂參數（時限/輪數/回報熱點數/RRC 逾時/優先權）執行掃描",
+    "status": "有按鈕",
+    "note": "wifiscan 頁「Scan (custom)」參數卡（5 參數全填）。兩點提醒：(1) 文件語法為巢狀可選參數，只填前幾項（如 AT+QWIFISCAN=20000）合法、省略者用預設，此類部分參數形式參數卡若不支援可命令列手動補；(2) V1.2 已放寬範圍——<round> 1–6（舊 1–3）、<max_bssid_num> 4–30（舊 4–10）——若參數卡有前端驗證上限，需確認是否仍卡在 V1.1 舊範圍（待確認）。超範圍模組回 +CME ERROR: 50、超過 5 參數回 ERROR。"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "Wi-Fi 掃描結果等待流程（非同步回報）",
+    "feasible": true,
+    "note": "本文件唯一的操作流程：送出 AT+QWIFISCAN → 立即收 OK → 在 <time>（預設 12 s、最長 13 s）內非同步收 +QWIFISCAN: 結果行或 +QWIFISCAN:TIMEOUT。單行指令、無兩段式、無二進位資料，NuModem 終端機原生可完整支援；使用者只需知道 OK 不代表結束、要等後續行。多輪掃描（round>1）會自動去重合併回報，也是模組端行為、主機端無需配合。"
+   }
+  ],
+  "summary": "本文件僅含 1 條指令 AT+QWIFISCAN（Test/Read/Execution/Write 四形式），NuModem wifiscan 頁 4 顆按鈕全數對應，覆蓋率 100%，無兩段式、無無法實現項目。最大缺口僅剩小事一件：檔名標 v1-1 的 quectel_ecx00x 那份實為 V1.2（2026-02-09），已將 <round> 上限 3→6、<max_bssid_num> 上限 10→30，「Scan (custom)」參數卡若有範圍驗證需核對是否還卡舊值（待確認）。建議：保留 V1.2 那份為準（建議改名消歧義），實機以 Support? 按鈕確認 EG800K 韌體未因空間限制裁掉本功能即可結案。"
+ },
+ {
+  "doc": "quectel_ec200u_eg915u_series_queclocator_application_note_v1-0__NOT-EG800K.pdf（QuecLocator Application Note v1.0，2021-11-01，20 頁）",
+  "applicable": false,
+  "applicable_note": "標題與 §1 明載本文件適用 EC200U 系列與 EG915U 系列；§1.1 Table 1（Applicable Modules）在 PDF 無文字層（僅目錄引用，逐頁驗證過 content stream），但內文兩處明確限定 EC200U/EG915U，全文無 EG800K 字樣，EG800K 自己的 16 份官方文件也沒有 QuecLocator 專文。惟 2026-08-07 實機實測 EG800K 韌體確實內建 QLBS 指令家族（AT+QLBSCFG=? 有實回、timeout 範圍 10–120、出廠 token 為空、無 token 時 AT+QLBS 一律回 702），NuModem 已依本文件反推建立 13 顆 QLBS 按鈕；2026-08-29 user 已裁定不採用 QuecLocator（token 須向 Quectel 申請、無自助管道，供應商鎖在韌體層），QLBS 降級為「拿得到免費 token 才順手驗證」。",
+  "commands": [
+   {
+    "cmd": "AT+QLBSCFG=?",
+    "purpose": "查詢 QuecLocator 各子參數支援值與範圍",
+    "status": "有按鈕",
+    "note": "wifiscan 面板「Cfg?」鈕。2026-08-07 實機有實回（timeout 範圍 10–120），證實 EG800K 韌體支援本指令"
+   },
+   {
+    "cmd": "AT+QLBSCFG?",
+    "purpose": "一次讀回全部 QuecLocator 目前設定",
+    "status": "可命令列手動",
+    "note": "缺按鈕（面板只有 =? 測試鈕）；單行指令，命令列直接打即可"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"asynch\"",
+    "purpose": "查詢 AT+QLBS 執行模式（同步/非同步）",
+    "status": "有按鈕",
+    "note": "「Async?」鈕"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"asynch\",<mode>",
+    "purpose": "設定同步(0)/非同步(1)定位模式，重開機保留",
+    "status": "有按鈕",
+    "note": "「Set Async」鈕（參數卡）。非同步模式的 +QLBS URC 走 uart1（本機 urcport 已設）收得到"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"timeout\"",
+    "purpose": "查詢等候伺服器回應的逾時秒數",
+    "status": "有按鈕",
+    "note": "「Timeout?」鈕。2026-08-07 實測本機出廠值 60"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"timeout\",<time>",
+    "purpose": "設定逾時 10–120 秒（重開機不保留）",
+    "status": "有按鈕",
+    "note": "「Set Timeout」鈕（參數卡）"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"server\"",
+    "purpose": "查詢定位伺服器網域/IP 與埠",
+    "status": "有按鈕",
+    "note": "「Server?」鈕。預設 www.queclocator.com:80"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"server\",<server_name>",
+    "purpose": "設定定位伺服器（含自訂伺服器）",
+    "status": "有按鈕",
+    "note": "「Set Server」鈕（參數卡）"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"token\"",
+    "purpose": "查詢認證 token 是否已設定",
+    "status": "有按鈕",
+    "note": "「Token?」鈕。2026-08-07 實測：本機出廠為空；設定後讀回被遮成 *"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"token\",<token_value>",
+    "purpose": "寫入認證 token（最長 127 bytes，重開機保留）",
+    "status": "有按鈕",
+    "note": "「Set Token」鈕（參數卡）。實測填假 token 也能寫入，但 AT+QLBS 仍回 702；真 token 須向 Quectel 申請、無自助管道"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"timeupdate\"",
+    "purpose": "查詢是否將伺服器時間更新到 RTC",
+    "status": "有按鈕",
+    "note": "「TimeUpd?」鈕"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"timeupdate\",<update_mode>",
+    "purpose": "設定是否把伺服器時間更新到 RTC",
+    "status": "可命令列手動",
+    "note": "缺 write 按鈕（面板僅有查詢鈕）；單行指令可手打。user 已裁定不採用 QuecLocator，不建議補鈕"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"withtime\"",
+    "purpose": "查詢 AT+QLBS 是否連同時間一起輸出",
+    "status": "有按鈕",
+    "note": "「WithTime?」鈕"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"withtime\",<time_mode>",
+    "purpose": "設定定位結果是否附帶伺服器時間",
+    "status": "可命令列手動",
+    "note": "缺 write 按鈕；單行指令可手打"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"latorder\"",
+    "purpose": "查詢經緯度輸出順序",
+    "status": "有按鈕",
+    "note": "「LatOrder?」鈕。本機無 token 無法實測輸出欄位對應（先前記錄已標待確認）"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"latorder\",<order_mode>",
+    "purpose": "設定輸出順序（0=經度在前、1=緯度在前）",
+    "status": "可命令列手動",
+    "note": "缺 write 按鈕；單行指令可手打"
+   },
+   {
+    "cmd": "AT+QLBSCFG=\"contextid\"[,<contextID>]",
+    "purpose": "查詢/設定定位用的 PDP context ID（1–7）",
+    "status": "可命令列手動",
+    "note": "缺按鈕（查詢與設定皆無）；單行可手打。此子參數僅見於本 EC200U/EG915U 文件，EG800K 實機是否支援待確認（2026-08-07 實測記錄未涵蓋）"
+   },
+   {
+    "cmd": "AT+QLBS=?",
+    "purpose": "測試指令存在性（僅回 OK）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；單行可手打"
+   },
+   {
+    "cmd": "AT+QLBS",
+    "purpose": "以基站資訊觸發 QuecLocator 定位",
+    "status": "有按鈕",
+    "note": "「Locate」鈕。2026-08-07 實測：無有效 token 一律回 702（702 為 timeout/認證失敗路徑），指令本身 EG800K 韌體存在"
+   },
+   {
+    "cmd": "AT+QLBS=<mode>",
+    "purpose": "指定定位來源（0=基站、1=自動掃 Wi-Fi MAC）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；單行可手打。mode=1 需模組 Wi-Fi 掃描能力（EG800K 有 QWIFISCAN，理論可行），但本變體在 EG800K 上未實測、支援與否待確認"
+   },
+   {
+    "cmd": "AT+QLBS=<MAC_num>,<AP_MAC1>,<RSSI1>,<AP_MAC2>,<RSSI2>[,...]",
+    "purpose": "手動輸入 2–6 組 Wi-Fi MAC+RSSI 定位",
+    "status": "可命令列手動",
+    "note": "缺按鈕；雖參數長仍是單行指令，命令列可打（可先按 QWIFISCAN 掃描、人工轉填 MAC/RSSI）。EG800K 支援與否待確認（本文件變體、未實測）"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "Auth token 首次設定流程（§2 Figure 1：查 token → 空則寫入 → 再查確認 → AT+QLBS）",
+    "feasible": true,
+    "note": "全部單行指令，Token?/Set Token/Locate 三顆現有按鈕即可走完。工具面無缺口；實務卡點是 token 須向 Quectel 業務/技術支援申請（無公開定價、無自助註冊），且 2026-08-29 user 已裁定不採用 QuecLocator"
+   },
+   {
+    "name": "非同步定位流程（asynch=1 → AT+QLBS 先回 OK → +QLBS URC 回報結果）",
+    "feasible": true,
+    "note": "Set Async 鈕 + Locate 鈕即可；本機 urcport 已設 uart1，+QLBS URC 在終端機收得到。無 token 未能實測完整回報格式"
+   },
+   {
+    "name": "伺服器時間取得與 RTC 更新（withtime=1 + timeupdate=1 → AT+QLBS 附帶時間並更新 RTC）",
+    "feasible": true,
+    "note": "兩個 write 子指令無按鈕但皆單行、命令列可手打；查詢鈕（WithTime?/TimeUpd?）已有"
+   },
+   {
+    "name": "Wi-Fi 輔助定位（模組不支援自動掃描時，人工把掃到的 AP MAC/RSSI 餵給 AT+QLBS）",
+    "feasible": true,
+    "note": "單行指令、命令列可打；可搭配現有 QWIFISCAN 按鈕取得 MAC/RSSI 後人工轉填。無自動串接（掃描結果自動組參數）機制，屬便利性缺口而非能力缺口"
+   }
+  ],
+  "summary": "本文件 2 條指令家族共 21 個變體全為單行指令、無兩段式與二進位流程，NuModem wifiscan 面板 13 顆 QLBS 按鈕已覆蓋主要操作（13 有按鈕、8 可命令列手動、0 無法實現），文件層面覆蓋率無缺口。文件適用機型為 EC200U/EG915U、不含 EG800K，但 2026-08-07 實機證實 EG800K 韌體內建 QLBS 家族（無 token 一律回 702）；最大缺口是 token 須向 Quectel 申請且無自助管道，屬服務面而非工具面。user 已於 2026-08-29 裁定不採用 QuecLocator，建議維持現狀、不補 write 按鈕（timeupdate/withtime/latorder/contextid 設定與 AT+QLBS 進階變體留命令列手動即可）。"
+ },
+ {
+  "doc": "FILE Application Note（UFS 檔案系統）— 檔名標 v1-4，PDF 內文實為 Version 1.5（2024-12-27），v1.5 新增 AT+QFSIZE / AT+QFMD5",
+  "applicable": true,
+  "applicable_note": "§1.1 Table 1 明列 EG800K Series（v1.4 修訂加入）。但注意：SD 卡儲存媒介僅 EC200A 與 EG950A 系列支援，EG800K 只有 UFS；RAM 媒介全系列不支援（§1 NOTE 2）。",
+  "commands": [
+   {
+    "cmd": "AT+QFLDS",
+    "purpose": "查詢儲存媒介剩餘/總空間（執行式回 UFS 檔案總大小與數量；寫入式 =\"UFS\" 回剩餘/總空間）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令，命令列手動即可"
+   },
+   {
+    "cmd": "AT+QFLST",
+    "purpose": "列出 UFS 中單一或全部檔案的名稱與大小（=\"*\" 列全部）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令。開檔寫入中的檔案查不到即時大小，需先 QFCLOSE"
+   },
+   {
+    "cmd": "AT+QFDEL",
+    "purpose": "刪除 UFS 中指定檔案或全部檔案（=\"*\" 刪全部、不刪目錄）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令。=\"*\" 具破壞性，若做成按鈕建議加確認"
+   },
+   {
+    "cmd": "AT+QFUPL=<filename>[,<file_size>[,<timeout>[,<ackmode>]]]",
+    "purpose": "上傳檔案到 UFS：CONNECT 後進資料模式，送滿 file_size 或逾時自動結束，回傳大小與 16-bit XOR checksum",
+    "status": "需兩段式-已有機制",
+    "note": "缺按鈕。兩段式（等 CONNECT 再送原始資料），命令列必加 CR 且不算長度，不可靠；工具已有兩段式機制（QISEND/QHTTPPOST 等在用）可套用。最大實務缺口：SSL 面板 cacert 按鈕引用 UFS:{file}，卻無此上傳鈕可把憑證送進模組。另 ackmode=1 為分塊握手，見 procedures"
+   },
+   {
+    "cmd": "AT+QFDWL=<filename>",
+    "purpose": "從 UFS 下載檔案：CONNECT 後模組輸出檔案內容，結束回傳大小與 checksum",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令可手動下。限制：二進位內容顯示得出來但存不了檔（終端機無存檔功能），文字檔可目視核對；checksum 可對照。輸入 +++ 可中止（已有 +++ 鈕）"
+   },
+   {
+    "cmd": "AT+QFOPEN=<filename>[,<mode>]",
+    "purpose": "開啟檔案取得 filehandle（mode 0 開或建、1 覆寫清空、2 唯讀），供 QFREAD/QFWRITE/QFSEEK/QFPOSITION/QFCLOSE 使用；讀取式 AT+QFOPEN? 列出已開檔案",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QFREAD=<filehandle>[,<length>]",
+    "purpose": "從檔案指標目前位置讀出資料：回 CONNECT <read_length> 後輸出內容",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令可手動下。同 QFDWL 限制：二進位輸出顯示得出來但存不了檔"
+   },
+   {
+    "cmd": "AT+QFWRITE=<filehandle>[,<length>[,<timeout>]]",
+    "purpose": "從檔案指標目前位置寫入資料：CONNECT 後進資料模式，寫滿 length 或逾時結束，回實際寫入長度與檔案總長",
+    "status": "需兩段式-已有機制",
+    "note": "缺按鈕。兩段式（等 CONNECT 再送資料），命令列加 CR 會污染內容，需補兩段式按鈕（機制已存在）"
+   },
+   {
+    "cmd": "AT+QFSEEK=<filehandle>,<offset>[,<position>]",
+    "purpose": "移動檔案指標（position 0 檔頭/1 目前位置/2 檔尾），決定後續讀寫起點",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令。offset 超出檔案大小回 ERROR"
+   },
+   {
+    "cmd": "AT+QFPOSITION=<filehandle>",
+    "purpose": "查詢檔案指標距檔頭的偏移量",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QFCLOSE=<filehandle>",
+    "purpose": "關閉檔案並釋放 filehandle",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QFSIZE=<filehandle>",
+    "purpose": "查詢目前開啟中檔案的大小（v1.5 新增）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "AT+QFMD5=<filename>",
+    "purpose": "取得目前開啟中檔案的 MD5 雜湊值（v1.5 新增），可用於驗證上傳完整性",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令"
+   },
+   {
+    "cmd": "SD: 前綴各式（AT+QFLDS=\"SD\"、AT+QFLST=\"SD:*\"、AT+QFDEL=\"SD:*\"、QFUPL/QFDWL/QFOPEN/QFMD5 之 SD:<filename> 形式）",
+    "purpose": "對 SD 卡目錄做相同檔案操作",
+    "status": "不適用本機",
+    "note": "§1 明載 SD 媒介僅 EC200A 與 EG950A 系列支援，EG800K 無 SD，下了會錯"
+   },
+   {
+    "cmd": "+++",
+    "purpose": "脫離資料模式（前後各需 1 秒靜默），可中止 QFUPL/QFDWL/QFREAD/QFWRITE 的資料傳輸",
+    "status": "有按鈕",
+    "note": "FTP 區已有 +++ 逃逸鈕（escape=true）。中止 QFUPL 時已送資料仍保留於檔案（§2.3.4 NOTE 2）"
+   },
+   {
+    "cmd": "ATO",
+    "purpose": "回到資料模式（文件 §1.3 指出：以 +++/DTR 中斷檔案指令後 ATO 無法重回資料模式）",
+    "status": "有按鈕",
+    "note": "FTP 區已有 ATO 鈕。對本文件的檔案指令而言 ATO 無效，僅列供對照"
+   },
+   {
+    "cmd": "AT&D1",
+    "purpose": "設定 DTR 腳位行為，使拉高 DTR 可脫離資料模式（+++ 之外的第二種脫離法）",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令可手動下。但實際以 DTR 脫離需 UI 能手動切 DTR——訊號列繼承自母專案應有 DTR 控制，待確認"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "檔案上傳流程（QFUPL 非 ACK 模式，§3.1.1.1）：下 QFUPL → 等 CONNECT → 送原始資料至 file_size 或逾時 → 收 +QFUPL: <size>,<checksum>",
+    "feasible": false,
+    "note": "命令列手動不可靠（自動加 CR、無法送二進位、不算長度），需補 QFUPL 兩段式按鈕；兩段式機制工具已有（QISEND/QMTPUBEX/QHTTPPOST 等在用），補上即可。逾時（timeout 預設 5 秒）有自動收尾，失敗可用 +++ 鈕脫身"
+   },
+   {
+    "name": "檔案上傳 ACK 模式（QFUPL ackmode=1，§3.1.1.2）：每送 1 KB 等模組回 'A' 再續送下一塊",
+    "feasible": false,
+    "note": "現有兩段式機制為「等提示字元後一次送完」，不支援 1 KB 分塊等 'A' 的握手迴圈，需專用邏輯才能做。替代方案：小檔或已開硬體流控時用非 ACK 模式即可，實務上可先不做"
+   },
+   {
+    "name": "檔案下載流程（QFDWL，§3.1.2）：下 QFDWL → CONNECT → 模組輸出內容 → +QFDWL: <size>,<checksum>",
+    "feasible": true,
+    "note": "單行指令，命令列手動即可。限制：二進位內容顯示得出來但存不了檔（終端機無把資料流存成檔案的功能）；文字檔（如憑證 PEM）可目視搬運。checksum 與 AT+QFMD5 可做完整性核對"
+   },
+   {
+    "name": "開檔讀寫流程（§1.2/§3.2）：QFOPEN 取 handle → QFWRITE/QFREAD（QFSEEK/QFPOSITION 定位）→ QFCLOSE 釋放 handle",
+    "feasible": false,
+    "note": "半套可行：讀取路徑（QFOPEN→QFSEEK→QFREAD→QFCLOSE）全部單行、命令列手動可完整走完；寫入路徑卡在 QFWRITE 為兩段式無按鈕，補上該鈕即全流程可行"
+   },
+   {
+    "name": "資料模式脫離（§1.3）：+++（前後各 1 秒靜默）或拉高 DTR（需先 AT&D1）",
+    "feasible": true,
+    "note": "+++ 已有按鈕。DTR 法需訊號列可手動切 DTR（母專案訊號列應有，待確認）。注意文件警告：以此法中斷 QFUPL/QFDWL/QFREAD/QFWRITE 後，ATO 無法重回資料模式"
+   }
+  ],
+  "summary": "本文件 13 條 QF 檔案指令中 0 條有專屬按鈕：11 條為單行指令可命令列手動完成，QFUPL 與 QFWRITE 為兩段式必須補按鈕（工具的兩段式機制已存在，套用即可）。最大缺口是 SSL 面板的 cacert 按鈕引用 UFS:{file} 憑證檔、卻無 QFUPL 上傳鈕，憑證完全無法經本工具送進模組；另 QFUPL 的 ACK 模式（1 KB 分塊等 'A'）連兩段式機制也不涵蓋，需專用邏輯但可先不做。建議：補 QFUPL（非 ACK）與 QFWRITE 兩顆兩段式按鈕，並可順手加 QFLST/QFLDS/QFDEL/QFMD5 等單行管理鈕；SD 前綴指令 EG800K 不支援，勿做。"
+ },
+ {
+  "doc": "RF FTM Application Note（檔名 quectel_ec200xeg912yeg915n_series_rf_ftm_application_note_v1-2.pdf，實際內容為 ECx00x&EG800AK&EG800K&EG810M&EG91xN&EG915K&EG950A Series RF FTM Application Note **v1.3**，2026-02-05，21 頁）",
+  "applicable": true,
+  "applicable_note": "檔名與 CLAUDE.md 註記皆說是 v1.2（適用機型不含 EG800K），但實際抽出的 PDF 內容是 v1.3：Table 1 適用機型已明確列入「EG800K Series」（v1.3 修訂記錄註明新增）。CLAUDE.md 的「RF FTM 那份的適用機型不含 EG800K」警告已過時，建議更新。兩項保留條件：(1) 2 MB Flash 記憶體版本的模組不支援 FTM——EG800K 具體變體的 Flash 容量需向 Quectel 確認（待確認）；(2) EG800AK-GL 不支援 FTM（非 EG800K，僅供辨識）。另注意 EG800K 為 LTE Cat 1bis 模組，文件中 GSM/WCDMA 寫法的頻段是否適用取決於模組實際支援的 RAT，實測時以模組回應為準（待確認）。",
+  "commands": [
+   {
+    "cmd": "AT+QRFTESTMODE=?",
+    "purpose": "查詢 FTM 模式支援的 <mode> 清單",
+    "status": "可命令列手動",
+    "note": "無按鈕。單行指令，命令列直接輸入即可。"
+   },
+   {
+    "cmd": "AT+QRFTESTMODE?",
+    "purpose": "讀取模組目前是否處於 FTM（工廠測試模式）",
+    "status": "可命令列手動",
+    "note": "無按鈕。單行指令，回應 +QRFTESTMODE: <mode>。"
+   },
+   {
+    "cmd": "AT+QRFTESTMODE=<mode>",
+    "purpose": "進入（1）或退出（0）FTM 工廠測試模式",
+    "status": "可命令列手動",
+    "note": "無按鈕。單行指令。時序限制：退出 FTM 後至少隔 3 秒才能再進入，否則回 ERROR；設定不儲存、最大回應時間 300 ms。若要做成按鈕建議 Enter/Exit 兩顆。"
+   },
+   {
+    "cmd": "AT+QRXFTM=?",
+    "purpose": "測試 AT+QRXFTM 指令是否存在",
+    "status": "可命令列手動",
+    "note": "無按鈕。僅回 OK。"
+   },
+   {
+    "cmd": "AT+QRXFTM=<band>,<RX_channel>,<enable>,<power>",
+    "purpose": "FTM 下的 RX 接收測試，回報 RSSI（GSM/WCDMA 回單一 RX_RSSI，LTE 回 PRX/DRX 兩路）",
+    "status": "可命令列手動",
+    "note": "無按鈕、無參數卡。單行指令，依 RAT 有三種寫法：GSM 用 <GSM_power>（0–1023，建議 200–700）、WCDMA 用 <WCDMA_power>（0–2047，建議 1600）、LTE 用 <LTE_RX_power>（0–100 dBm，須等於儀器設定訊號強度的絕對值，實務設 55–85）。band 為字串（如 \"LTE BAND1\"）、channel 為下行頻道號，文件附完整頻段/頻道對照表。切換 RAT 前須先下 \"off\"。需外接 RF 儀器饋入 -85 至 -55 dBm 訊號，此為儀器需求、非 NuModem 限制。若常做產測建議補參數卡（band 下拉 + channel + on/off）。"
+   },
+   {
+    "cmd": "AT+QRFTEST=?",
+    "purpose": "測試 AT+QRFTEST 指令是否存在",
+    "status": "可命令列手動",
+    "note": "無按鈕。僅回 OK。"
+   },
+   {
+    "cmd": "AT+QRFTEST=<band>,<TX_channel>,<enable>,<power>",
+    "purpose": "FTM 下的 TX 發射測試（模組對外發射，供儀器量測發射功率）",
+    "status": "可命令列手動",
+    "note": "無按鈕、無參數卡。單行指令，回應僅 OK；功率量測靠外部儀器（頻譜儀/綜測儀），非 UART 回傳，本工具能下指令但看不到量測結果——此為架構本質、非缺陷。參數同 RX 但 channel 為上行頻道、LTE 功率用 <LTE_TX_power>（0–2047，建議 2000）。注意：發射是週期性而非連續性；切換 RAT 前須先下 \"off\"。"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "RX 接收測試流程（§3.1）：AT+QRFTESTMODE? 確認狀態 → =1 進 FTM → 逐頻段 AT+QRXFTM \"on\" 讀 RSSI → 同頻段 \"off\" 關閉 → 換 RAT/頻段重複 → AT+QRFTESTMODE=0 退出",
+    "feasible": true,
+    "note": "全程單行 AT 指令，NuModem 命令列可完整手動走完。注意事項：(1) 切換 GSM/WCDMA/LTE 前必須先對當前模式下 \"off\"；(2) 建議在退出 FTM 前把所有要測的頻段測完；(3) 退出後重進 FTM 須間隔 ≥3 秒；(4) 需 RF 儀器饋入 -85~-55 dBm 訊號源，儀器端不在本工具範圍。"
+   },
+   {
+    "name": "TX 發射測試流程（§3.2）：AT+QRFTESTMODE=1 進 FTM → 逐頻段 AT+QRFTEST \"on\" 發射（儀器量測）→ \"off\" 停止 → 換頻段重複 → AT+QRFTESTMODE=0 退出",
+    "feasible": true,
+    "note": "AT 指令側全程可手動；但 TX 測試的「結果」在外部儀器上（發射功率/頻譜），UART 只回 OK，本工具無法呈現量測值——這是測試方法本質，不是工具缺口。發射為週期性非連續，儀器觸發設定需配合。"
+   }
+  ],
+  "summary": "文件僅 3 條指令（7 種形態），全為單行 AT 指令，NuModem 命令列 100% 可手動執行，無兩段式、無二進位、無「無法實現」項；現有 217 顆按鈕中 RF FTM 相關為 0 顆，是純按鈕缺口而非能力缺口。最大缺口是無 band/channel 參數卡，頻段字串（如 \"LTE BAND1\"）與頻道號對照表要人工查文件。重要更正：磁碟上檔案實為 v1.3（檔名誤標 v1-2），適用機型已含 EG800K Series，CLAUDE.md「RF FTM 不含 EG800K」註記應更新；若工廠射頻校準是常態需求再補 FTM 參數卡頁即可，否則維持手動。"
+ },
+ {
+  "doc": "Quectel ECx00x&EG800AK&EG800K&EG810M&EG91xN&EG915K&EG950A Series QuecCell Application Note（檔名 quectel_..._v1-4.pdf，PDF 內容實為 Version 1.5，2025-08-27，24 頁）",
+  "applicable": true,
+  "applicable_note": "檔名標 v1-4 但 PDF 內容為 v1.5（2025-08-27）；v1.5 修訂記錄明載「Added ... EG800K series」，§1.1 Table 1 適用機型表含 EG800K Series，故本文件適用 EG800K。注意 EG800K 為 LTE Cat 1 bis 純 LTE 模組，文件中 GSM/WCDMA 模式的回應分支在本機不會出現。",
+  "commands": [
+   {
+    "cmd": "AT+QENG=?",
+    "purpose": "測試指令，列出 AT+QENG 支援的 <cell_type> 清單。",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令，命令列輸入即可（行尾自動加 CR）。"
+   },
+   {
+    "cmd": "AT+QENG=\"servingcell\"",
+    "purpose": "查詢主服務小區資訊（LTE 模式回報 MCC/MNC/cellID/PCI/EARFCN/RSRP/RSRQ/RSSI/SINR/srxlev 等）。",
+    "status": "可命令列手動",
+    "note": "缺按鈕。本文件最高頻的查詢指令（最大回應時間 300 ms），值得在 Network 頁補一顆「Serving Cell」按鈕；EG800K 純 LTE，僅會出現 LTE 分支輸出。"
+   },
+   {
+    "cmd": "AT+QENG=\"neighbourcell\"",
+    "purpose": "查詢鄰近小區資訊（LTE intra/inter 頻鄰區及 GSM/WCDMA 鄰區清單，含重選參數）。",
+    "status": "可命令列手動",
+    "note": "缺按鈕，建議與 servingcell 一起補。多行輸出但為純文字，終端機可完整顯示；注意 PCI=65535、BSIC=255 為無效值（文件 NOTE 3/4）。"
+   },
+   {
+    "cmd": "AT+QENG=\"3gcomm\"",
+    "purpose": "在 WCDMA 網路下查詢 3G 服務小區、3G 鄰區與 2G 鄰區的共通資訊。",
+    "status": "可命令列手動",
+    "note": "指令可下，但文件明載僅 WCDMA 網路有效；EG800K 為 LTE Cat 1 bis 純 LTE 模組、無 WCDMA，預期無資料或回錯誤（實機行為待確認）。不建議做按鈕。"
+   },
+   {
+    "cmd": "AT+QCELL=?",
+    "purpose": "測試指令，確認 AT+QCELL 存在（僅回 OK）。",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令可手動。"
+   },
+   {
+    "cmd": "AT+QCELL?",
+    "purpose": "掃描並回報服務小區與鄰近小區的精簡資訊（MCC/MNC/TAC/cellID/PCI/RX_lev）。",
+    "status": "可命令列手動",
+    "note": "缺按鈕。文件 NOTE 1 明載：僅在未插 (U)SIM 卡、或已插卡且模組處於 idle 狀態時可執行，官方建議拔 SIM 使用 —— 若做成按鈕需在 UI 註明此前置條件。"
+   },
+   {
+    "cmd": "AT+QCELLINFO=?",
+    "purpose": "測試指令，列出 AT+QCELLINFO 支援的 <mode> 與 <interval1>/<interval2> 範圍。",
+    "status": "可命令列手動",
+    "note": "無按鈕；單行指令可手動。"
+   },
+   {
+    "cmd": "AT+QCELLINFO?",
+    "purpose": "讀取服務小區與鄰近小區資訊（LTE 模式含 RX_dbm/EARFCN/RSRP/RSSI/SINR）。",
+    "status": "可命令列手動",
+    "note": "缺按鈕。v1.5 新增指令（§2.5）。同步模式（mode=0）下可能需數秒才回應；SINR 換算公式 Y=X/2-23.5。"
+   },
+   {
+    "cmd": "AT+QCELLINFO=<mode>[,<interval1>][,<interval2>]",
+    "purpose": "設定取得小區資訊的模式（0 同步 / 1 定時快取 / 255 查詢目前設定）與快取更新週期。",
+    "status": "可命令列手動",
+    "note": "缺按鈕。文件 NOTE 2 明載 <mode> 不可設 2/3/4（非同步 URC 模式與兩種省電模式被模組韌體鎖住）—— 這是模組限制、非 NuModem 限制。設定立即生效但不儲存（斷電重開需重設）。"
+   },
+   {
+    "cmd": "AT+QCFG=\"qcellinfo/fmt\",<1|2>",
+    "purpose": "設定 AT+QCELLINFO? 的輸出格式，附加 RSRQ/freq_band/bandwidth/is_tdd/state 等擴充欄位。",
+    "status": "可命令列手動",
+    "note": "僅出現在 §2.5 NOTE 3，文件明言詳細參數需聯絡 Quectel 技術支援、且附加欄位依機型而異 —— EG800K 實際支援情況待確認（待實測）。無按鈕，命令列可試。"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "定時快取模式週期查詢流程（AT+QCELLINFO=1,<interval1>,<interval2> 後反覆 AT+QCELLINFO? 立即取快取）",
+    "feasible": true,
+    "note": "純單行指令序列，命令列可完整走完；注意 interval 僅在 mode=1 生效、服務小區與鄰區實際同時更新（無法分開設）、設定不儲存。"
+   },
+   {
+    "name": "非同步 URC 回報模式（mode=2，小區資訊以 +QCELLINFO URC 主動回報）",
+    "feasible": false,
+    "note": "文件 NOTE 2 明載 <mode> 不可設為 2/3/4 —— 模組韌體端鎖住，非 NuModem 限制。若未來韌體開放，本機 urcport 已設 uart1，URC 接收機制現成可用。"
+   },
+   {
+    "name": "擴充輸出格式流程（先 AT+QCFG=\"qcellinfo/fmt\",1 或 2，再 AT+QCELLINFO? 取得附加欄位）",
+    "feasible": true,
+    "note": "兩條單行指令即可，命令列可手動。附加欄位依機型而異且官方要求洽技術支援，EG800K 支援度待實測確認。"
+   },
+   {
+    "name": "無 SIM 基地台掃描（拔 SIM 後執行 AT+QCELL? 掃描周邊基地台）",
+    "feasible": true,
+    "note": "單行指令即可，屬使用前置條件而非工具限制：AT+QCELL? 僅在未插 SIM 或插卡後 idle 狀態可執行，官方建議拔 SIM 使用。"
+   }
+  ],
+  "summary": "本文件僅 3 條指令族（AT+QENG / AT+QCELL / AT+QCELLINFO）加 NOTE 提及的 AT+QCFG=\"qcellinfo/fmt\"，NuModem 217 顆按鈕中對應覆蓋為 0，但全部是單行查詢/設定指令，命令列皆可手動完成，無兩段式、無「無法實現」項。最大缺口是 AT+QENG=\"servingcell\"/\"neighbourcell\" 與 AT+QCELLINFO? 這類高頻基地台查詢無按鈕，建議在 Network 頁補 3-4 顆查詢鈕（QCELL? 按鈕需標註「拔 SIM 或 idle 才可用」）。另注意：檔名 v1-4 實為 v1.5 內容且明載適用 EG800K；QCELLINFO 非同步 URC 模式（mode=2/3/4）被模組韌體鎖住，屬模組限制而非本工具限制。"
+ },
+ {
+  "doc": "MQTT Application Note（ref/EG800K/Application Note/quectel_..._mqtt_application_note_v1-5.pdf；注意：檔名標 v1-5，PDF 內容實為 Version 1.6，2026-03-27）",
+  "applicable": true,
+  "applicable_note": "§1.1 Table 1 適用機型明列「EG800K Series」，適用。另 §1.1 NOTE：不同型號因 flash 大小對 MQTT 功能支援程度有差異，細節需洽 Quectel。附帶提醒：檔名版本號（v1-5）與內容版本（1.6）不一致，v1.6 變更（EG800AK/EG915K 擴為 series、刪 EC200N-LA）不影響 EG800K。",
+  "commands": [
+   {
+    "cmd": "AT+QMTCFG=?",
+    "purpose": "列出 QMTCFG 全部可設定項目與參數範圍",
+    "status": "可命令列手動",
+    "note": "缺按鈕；單行測試指令，命令列直接輸入即可"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"version\",<client_idx>[,<vsn>]",
+    "purpose": "查詢或設定 MQTT 協定版本（3=v3.1、4=v3.1.1）",
+    "status": "有按鈕",
+    "note": "查詢鈕（Version?）與設 v3.1.1 鈕（Ver 3.1.1）皆有；設 v3.1（<vsn>=3）需命令列"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"pdpcid\",<client_idx>[,<cid>]",
+    "purpose": "設定 MQTT client 使用的 PDP context（1–15，預設 1）",
+    "status": "可命令列手動",
+    "note": "缺按鈕"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"ssl\",<client_idx>[,<SSL_enable>,[<SSL_ctx_idx>]]",
+    "purpose": "啟用 MQTT SSL 模式並指定 SSL context index",
+    "status": "可命令列手動",
+    "note": "缺按鈕；MQTT over SSL 流程必經此設定，建議補按鈕"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"keepalive\",<client_idx>[,<keep_alive_time>]",
+    "purpose": "設定 keep-alive 時間（0–3600 秒，預設 120）",
+    "status": "有按鈕",
+    "note": "設定鈕（參數卡 {sec}）已有；省略參數之查詢需命令列"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"session\",<client_idx>[,<clean_session>]",
+    "purpose": "設定 session 型態（0=保留訂閱、1=clean session）",
+    "status": "可命令列手動",
+    "note": "缺按鈕"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"timeout\",<client_idx>[,<pkt_timeout>,<retry_times>,<timeout_notice>]",
+    "purpose": "設定封包傳送逾時、重試次數與逾時回報開關",
+    "status": "可命令列手動",
+    "note": "缺按鈕"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"will\",<client_idx>[,<will_fg>[,<will_qos>,<will_retain>,<will_topic>,<willmessage>]]",
+    "purpose": "單行設定遺囑（Will）訊息",
+    "status": "可命令列手動",
+    "note": "缺按鈕；willmessage 直接寫在同一行，命令列可完成"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"willex\",<client_idx>[,<will_fg>,<will_qos>,<will_retain>,<willtopic>,<will_len>]",
+    "purpose": "兩段式設定遺囑訊息（出現 > 後輸入內容，依 <will_len> 計長）",
+    "status": "需兩段式-已有機制",
+    "note": "無對應按鈕。> 提示後送資料且長度須符 <will_len>，命令列必加 CR、不會自動算長度，不可靠；建議沿用 QMTPUBEX 的兩段式機制補一顆按鈕。替代方案：用單行版 \"will\" 即可涵蓋多數情境"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"recv/mode\",<client_idx>[,<msg_recv_mode>[,<msg_len_enable>]]",
+    "purpose": "設定接收模式（訊息含在 URC 或存入 buffer）與是否附長度",
+    "status": "可命令列手動",
+    "note": "缺按鈕；§5 範例第一步即為此指令，建議補按鈕"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"aliauth\",<client_idx>[,<product key>,<device name>,<device secret>]",
+    "purpose": "設定 Alibaba Cloud 裝置三元組（設定後 QMTCONN 可免帳密）",
+    "status": "可命令列手動",
+    "note": "缺按鈕"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"close/time\"[,<time_interval>]",
+    "purpose": "設定心跳逾時回報 +QMTCLOSE 的最大間隔（5–60 秒）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；v1.5 起由舊名 \"qmtping\" 改為 \"close/time\""
+   },
+   {
+    "cmd": "AT+QMTCFG=\"send/mode\",<client_idx>[,<send_mode>]",
+    "purpose": "設定訊息傳送格式（0=字串、1=Hex）",
+    "status": "可命令列手動",
+    "note": "缺按鈕"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"onenet\",<client_idx>[,<product id>,<access key>]",
+    "purpose": "設定 OneNET 平台裝置資訊",
+    "status": "可命令列手動",
+    "note": "缺按鈕"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"dataformat\",<client_idx>[,<send_mode>,<recv_mode>]",
+    "purpose": "設定收發資料格式（字串/Hex）",
+    "status": "可命令列手動",
+    "note": "缺按鈕"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"view/mode\",<client_idx>[,<view_mode>]",
+    "purpose": "設定透傳模式下資料是否顯示",
+    "status": "可命令列手動",
+    "note": "缺按鈕；本文件僅列此設定，未描述進入透傳模式的流程"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"edit/timeout\",<client_idx>[,<edit_mode>,<edit_time>]",
+    "purpose": "設定兩段式輸入資料的逾時（1–120 秒）與逾時是否退出",
+    "status": "可命令列手動",
+    "note": "缺按鈕；與 QMTPUBEX/willex 兩段式輸入行為相關"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"protocol/check\",<client_idx>[,<protocol_check_enable>]",
+    "purpose": "開關 MQTT 協定檢查",
+    "status": "可命令列手動",
+    "note": "缺按鈕"
+   },
+   {
+    "cmd": "AT+QMTCFG=\"wakeup/topic\",<client_idx>[,<wakeup_topic_enable>[,<topic_string>]]",
+    "purpose": "設定指定主題的喚醒/回報功能（需先訂閱該主題）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；v1.5 新增項目"
+   },
+   {
+    "cmd": "AT+QMTOPEN=?",
+    "purpose": "查詢 QMTOPEN 支援參數範圍",
+    "status": "可命令列手動",
+    "note": "缺按鈕（低價值）"
+   },
+   {
+    "cmd": "AT+QMTOPEN?",
+    "purpose": "查詢目前已開啟的 MQTT 網路連線",
+    "status": "有按鈕",
+    "note": "Open? 鈕"
+   },
+   {
+    "cmd": "AT+QMTOPEN=<client_idx>,<host_name>,<port>",
+    "purpose": "為 MQTT client 開啟網路（TCP 連線至 broker）",
+    "status": "有按鈕",
+    "note": "Open Net 鈕（參數卡 host/port），結果由 +QMTOPEN URC 回報"
+   },
+   {
+    "cmd": "AT+QMTCLOSE=?",
+    "purpose": "查詢 QMTCLOSE 支援參數範圍",
+    "status": "可命令列手動",
+    "note": "缺按鈕（低價值）"
+   },
+   {
+    "cmd": "AT+QMTCLOSE=<client_idx>",
+    "purpose": "關閉 MQTT client 的網路連線",
+    "status": "有按鈕",
+    "note": "Close Net 鈕（固定 client 0）"
+   },
+   {
+    "cmd": "AT+QMTCONN=?",
+    "purpose": "查詢 QMTCONN 支援參數範圍",
+    "status": "可命令列手動",
+    "note": "缺按鈕（低價值）"
+   },
+   {
+    "cmd": "AT+QMTCONN?",
+    "purpose": "查詢 MQTT 連線狀態（初始化/連線中/已連線/斷線中）",
+    "status": "有按鈕",
+    "note": "Conn? 鈕"
+   },
+   {
+    "cmd": "AT+QMTCONN=<client_idx>,<clientid>[,<username>,<password>]",
+    "purpose": "以 clientid（可帶帳密）連上 MQTT server",
+    "status": "有按鈕",
+    "note": "Connect 鈕僅帶 clientid；需 username/password 認證時用命令列輸入完整參數即可"
+   },
+   {
+    "cmd": "AT+QMTDISC=?",
+    "purpose": "查詢 QMTDISC 支援參數範圍",
+    "status": "可命令列手動",
+    "note": "缺按鈕（低價值）"
+   },
+   {
+    "cmd": "AT+QMTDISC=<client_idx>",
+    "purpose": "送 DISCONNECT 封包與 server 斷線",
+    "status": "有按鈕",
+    "note": "Disconnect 鈕（固定 client 0）"
+   },
+   {
+    "cmd": "AT+QMTSUB=?",
+    "purpose": "查詢 QMTSUB 支援參數範圍",
+    "status": "可命令列手動",
+    "note": "缺按鈕（低價值）"
+   },
+   {
+    "cmd": "AT+QMTSUB=<client_idx>,<msgid>,<topic1>,<qos1>[,<topic2>,<qos2>...]",
+    "purpose": "訂閱一個或多個主題",
+    "status": "有按鈕",
+    "note": "Subscribe 鈕（參數卡 topic/qos）為單一 topic；一次訂閱多個 topic 用命令列"
+   },
+   {
+    "cmd": "AT+QMTUNS=?",
+    "purpose": "查詢 QMTUNS 支援參數範圍",
+    "status": "可命令列手動",
+    "note": "缺按鈕（低價值）"
+   },
+   {
+    "cmd": "AT+QMTUNS=<client_idx>,<msgid>,<topic1>[,<topic2>...]",
+    "purpose": "取消訂閱主題",
+    "status": "有按鈕",
+    "note": "Unsub 鈕；多 topic 用命令列"
+   },
+   {
+    "cmd": "AT+QMTPUBEX=?",
+    "purpose": "查詢 QMTPUBEX 支援參數範圍",
+    "status": "可命令列手動",
+    "note": "缺按鈕（低價值）"
+   },
+   {
+    "cmd": "AT+QMTPUBEX=<client_idx>,<msgid>,<qos>,<retain>,<topic>,<length>",
+    "purpose": "發佈固定長度訊息（> 提示後輸入 payload）",
+    "status": "有按鈕",
+    "note": "Publish 鈕已做成兩段式（等 > 再送資料），本文件核心指令已覆蓋；單次 payload 上限 1500 bytes、超過會被截斷；inflight 視窗上限 5 筆"
+   },
+   {
+    "cmd": "AT+QMTRECV=?",
+    "purpose": "測試 QMTRECV 指令存在",
+    "status": "可命令列手動",
+    "note": "缺按鈕（低價值）"
+   },
+   {
+    "cmd": "AT+QMTRECV?",
+    "purpose": "查詢 buffer 內 5 格訊息儲存狀態",
+    "status": "可命令列手動",
+    "note": "缺按鈕；搭配 recv/mode=1 的 buffer 接收模式使用，可考慮補按鈕"
+   },
+   {
+    "cmd": "AT+QMTRECV=<client_idx>[,<recv_id>]",
+    "purpose": "從 buffer 讀出 server 發來的訊息",
+    "status": "可命令列手動",
+    "note": "缺按鈕；單行指令，命令列即可；大量訊息在終端機顯示得出來但存不了檔（限制非阻斷）"
+   },
+   {
+    "cmd": "AT+QFUPL=\"UFS:<file>\",<size>,<timeout>",
+    "purpose": "上傳憑證檔至模組 UFS（CONNECT 後送原始檔案位元組）",
+    "status": "需兩段式-已有機制",
+    "note": "出現在 §5.2 SSL 範例，指令本體屬 AT 手冊 FILE 類。全站 217 顆按鈕皆無 QFUPL；CONNECT 後須送精確 <size> 位元組（PEM 換行與位元組數必須吻合），命令列每行加 CR 無法可靠完成，是 MQTT/SSL 雙向認證流程的最大缺口，建議補「憑證檔上傳」兩段式按鈕（含位元組計數）"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"cacert\",<ctx>,\"UFS:<file>\"",
+    "purpose": "指定 CA 憑證檔給 SSL context",
+    "status": "有按鈕",
+    "note": "SSL 面板有 cacert 鈕但 ctx 固定 1；§5.2 範例用 ctx 2 時需命令列。屬 SSL 文件範圍"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"clientcert\",<ctx>,\"UFS:<file>\"",
+    "purpose": "指定 client 憑證檔（雙向認證用）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；屬 SSL 文件範圍"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"clientkey\",<ctx>,\"UFS:<file>\"",
+    "purpose": "指定 client 私鑰檔（雙向認證用）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；屬 SSL 文件範圍"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"seclevel\",<ctx>,<level>",
+    "purpose": "設定 SSL 認證等級（0 不驗證/1 驗 server/2 雙向）",
+    "status": "有按鈕",
+    "note": "SSL 面板有（參數卡），但 ctx 固定 1；其他 ctx 用命令列"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"sslversion\",<ctx>,<ver>",
+    "purpose": "設定 SSL/TLS 版本",
+    "status": "有按鈕",
+    "note": "SSL 面板有（參數卡），ctx 固定 1"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"ciphersuite\",<ctx>,<suite>",
+    "purpose": "設定加密套件（如 0xFFFF 全部支援）",
+    "status": "有按鈕",
+    "note": "SSL 面板有（參數卡），ctx 固定 1"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"ignorelocaltime\",<ctx>,<ign>",
+    "purpose": "忽略憑證有效期與 RTC 時間比對",
+    "status": "有按鈕",
+    "note": "SSL 面板有（參數卡），ctx 固定 1"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "MQTT 無 SSL 基本操作流程（§5.1：recv/mode → [aliauth] → QMTOPEN → QMTCONN → QMTSUB → QMTPUBEX → QMTUNS → QMTDISC）",
+    "feasible": true,
+    "note": "主線 12 顆按鈕齊全（含 QMTPUBEX 兩段式），今日即可全程走完；recv/mode 與 aliauth 兩個前置設定靠命令列手動"
+   },
+   {
+    "name": "MQTT over SSL 操作流程（§5.2：QMTCFG=\"ssl\" → QFUPL 上傳三張憑證 → QSSLCFG 配置 → QMTOPEN 8883 → QMTCONN）",
+    "feasible": false,
+    "note": "卡在 AT+QFUPL 憑證上傳：CONNECT 後須送精確位元組數的原始檔案內容，無按鈕、命令列不可靠。若用 seclevel=0（不驗證憑證）則可跳過上傳、全程手動完成；要做 server/雙向認證就必須補 QFUPL 兩段式按鈕"
+   },
+   {
+    "name": "QoS 1/2 發佈之重傳與逾時機制（§2 互動圖：T1 逾時、retry_times 重送、timeout_notice 回報）",
+    "feasible": true,
+    "note": "重傳由模組韌體自動處理，工具端只需下 QMTPUBEX 並觀察 +QMTPUBEX: <result>=1（重傳中）等回報；參數用 QMTCFG=\"timeout\" 命令列調整"
+   },
+   {
+    "name": "buffer 接收模式（QMTCFG=\"recv/mode\",0,1 → +QMTRECV: <idx>,<recv_id> URC → AT+QMTRECV 讀取，buffer 上限 5 則）",
+    "feasible": true,
+    "note": "全部單行指令，命令列可完成；建議把 recv/mode 設定與 QMTRECV 讀取做成按鈕以利常用操作"
+   },
+   {
+    "name": "URC 接收（+QMTSTAT 狀態變化含 err_code 1–8、+QMTRECV 收訊、+QMTPING 心跳失敗）",
+    "feasible": true,
+    "note": "本機 urcport 已設 uart1，三種 URC 終端機皆直接顯示，無需額外機制"
+   },
+   {
+    "name": "Alibaba Cloud / OneNET 平台快速接入（QMTCFG=\"aliauth\" 或 \"onenet\" 設定後 QMTCONN 免帳密）",
+    "feasible": true,
+    "note": "單行設定指令，命令列可完成；無按鈕"
+   },
+   {
+    "name": "遺囑（Will）訊息設定（單行 \"will\" 或兩段式 \"willex\"）",
+    "feasible": true,
+    "note": "單行版 \"will\" 命令列可完成即涵蓋功能；兩段式 \"willex\"（依 <will_len> 計長）無按鈕不可靠，屬次要缺口"
+   },
+   {
+    "name": "wakeup/topic 指定主題喚醒回報（先 QMTSUB 訂閱該主題 → QMTCFG=\"wakeup/topic\" 啟用）",
+    "feasible": true,
+    "note": "皆為單行指令，命令列可完成"
+   }
+  ],
+  "summary": "EG800K 明列於適用機型，MQTT 面板 12 顆按鈕已完整覆蓋文件主線流程（開網/連線/訂閱/兩段式發佈/退訂/斷線），其餘約 20 條 QMTCFG 設定與 QMTRECV 讀取皆為單行指令可命令列手動完成，無「無法實現」項目。最大缺口是兩個無按鈕的兩段式指令：AT+QFUPL 憑證上傳（卡死 SSL server/雙向認證流程，須送精確位元組數）與 QMTCFG=\"willex\"（可用單行 \"will\" 替代、次要）。建議補 QFUPL 憑證上傳兩段式按鈕（含位元組計數），並考慮把 QMTCFG=\"ssl\"、\"recv/mode\" 與 AT+QMTRECV 做成按鈕；另注意此 PDF 檔名 v1-5 但內容實為 v1.6（2026-03-27）。"
+ },
+ {
+  "doc": "GNSS Application Note（ECx00x&EG800AK&EG800K&EG810M&EG915K&EG915N&EG950A Series，檔名 v1-0 但 PDF 內文為 Version 1.1，2026-03-09）",
+  "applicable": true,
+  "applicable_note": "Table 1 適用機型明列 EG800K-CN，適用本機。但 §1.1 註明 GNSS 為「選配功能」（optional GNSS functionality），是否配備需依實際模組型號向 Quectel 確認；另注意檔名標 v1-0、PDF 內文版本實為 1.1（2026-03-09 Released）。",
+  "commands": [
+   {
+    "cmd": "AT+QGPSCFG=?",
+    "purpose": "列出所有 GNSS 設定項與可用值範圍",
+    "status": "有按鈕",
+    "note": "GNSS 頁「CFG List」按鈕"
+   },
+   {
+    "cmd": "AT+QGPSCFG=\"outport\"[,<out_port>]",
+    "purpose": "查詢/設定 NMEA 語句輸出埠",
+    "status": "可命令列手動",
+    "note": "缺按鈕。可選埠僅 none/usbnmea/uartdebug，無 AT 主埠（UART1）選項——即使設定成功，NMEA 串流也只會從 USB NMEA 埠或 debug UART 出來，本工具只看 UART AT 埠、看不到串流；要在 NuModem 看 NMEA 只能走 nmeasrc+QGPSGNMEA 輪詢"
+   },
+   {
+    "cmd": "AT+QGPSCFG=\"nmeasrc\"[,<NMEA_src>]",
+    "purpose": "啟閉以 AT+QGPSGNMEA 從 AT 埠取 NMEA 語句",
+    "status": "有按鈕",
+    "note": "僅「nmeasrc,1」（NMEA Src On）有按鈕；查詢（不帶參數）與關閉（,0）無按鈕，可命令列手動"
+   },
+   {
+    "cmd": "AT+QGPSCFG=\"gpsnmeatype\"[,<type>]",
+    "purpose": "設定 NMEA 語句輸出類型遮罩（0–127，GGA/RMC/GSV/GSA/VTG/GLL/GST）",
+    "status": "有按鈕",
+    "note": "「NMEA Type」參數卡按鈕；查詢（不帶參數）可命令列手動。部分機型不支援 GST 語句"
+   },
+   {
+    "cmd": "AT+QGPSCFG=\"gnssconfig\"[,<GNSS_config>]",
+    "purpose": "查詢/設定啟用的衛星星系組合",
+    "status": "有按鈕",
+    "note": "查詢（Const?）與設定（Set Const 參數卡）皆有按鈕。EG800K-CN 支援值為 0/1/4/7/8（GPS、GPS+BDS、GPS+GLONASS、BDS、GPS+BDS+GLONASS），無 Galileo 組合；GNSS 未啟用時讀值固定 0 無意義"
+   },
+   {
+    "cmd": "AT+QGPSCFG=\"autogps\"[,<autoGPS>]",
+    "purpose": "開機後自動啟動 GNSS",
+    "status": "可命令列手動",
+    "note": "缺按鈕；設定重開機後生效、存 NVRAM"
+   },
+   {
+    "cmd": "AT+QGPSCFG=\"apflash\"[,<mode>]",
+    "purpose": "啟閉 AP-Flash 快速熱啟動（星曆本地快取，1 小時有效）",
+    "status": "有按鈕",
+    "note": "查詢（APFlash?）、開（APFlash On）、關（APFlash Off）三顆按鈕齊全"
+   },
+   {
+    "cmd": "AT+QGPSCFG=\"urc\"[,<bitmap>]",
+    "purpose": "設定 GNSS URC 回報類型（0x1 韌體載入／0x4 AGNSS／0xFF 全部）",
+    "status": "有按鈕",
+    "note": "僅查詢按鈕（URC?）；設定 bitmap（如 =\"urc\",0x4）缺按鈕，可命令列手動。本機 urcport 已設 uart1，+QGPS: \"firmware\"/\"agps\" URC 收得到"
+   },
+   {
+    "cmd": "AT+QGPSCFG=\"ntp\"[,<NTP_server>]",
+    "purpose": "查詢/設定 GNSS NTP 伺服器位址",
+    "status": "可命令列手動",
+    "note": "缺按鈕。文件註明 EC200A-CN/EC200A-CNV1/EG950A 不支援本子命令；EG800K-CN 未列入排除清單，實際支援與否待實測確認"
+   },
+   {
+    "cmd": "AT+QGPS=? / AT+QGPS? / AT+QGPS=<state>",
+    "purpose": "啟用/停用 GNSS 功能（設定不儲存）",
+    "status": "有按鈕",
+    "note": "讀取（GPS?）與啟用（GPS On＝AT+QGPS=1）有按鈕；AT+QGPS=0 無專屬按鈕，但停用可用 GPS Off（QGPSEND）按鈕替代，=? 與 =0 亦可命令列手動"
+   },
+   {
+    "cmd": "AT+QGPSEND",
+    "purpose": "停用 GNSS 功能",
+    "status": "有按鈕",
+    "note": "「GPS Off」按鈕"
+   },
+   {
+    "cmd": "AT+QGPSLOC=<mode>",
+    "purpose": "直接取得定位資訊（UTC/經緯度/HDOP/高度/速度/衛星數）",
+    "status": "有按鈕",
+    "note": "mode 2（十進位度）與 mode 0（度分）各有按鈕；mode 1 與 =? 可命令列手動。未定位時回 +CME ERROR: 516"
+   },
+   {
+    "cmd": "AT+QGPSGNMEA=<NMEA_type>",
+    "purpose": "從 AT 埠取指定 NMEA 語句（需先 nmeasrc=1）",
+    "status": "有按鈕",
+    "note": "GGA/RMC/GSV 三型有按鈕；GSA/VTG/GLL/GST 四型缺按鈕，可命令列手動（單行指令）。建議補齊四顆取句鈕"
+   },
+   {
+    "cmd": "AT+QAGPS=? / AT+QAGPS? / AT+QAGPS=<enable>",
+    "purpose": "啟閉 AGNSS 輔助定位（下載輔助星曆加速定位）",
+    "status": "有按鈕",
+    "note": "AGNSS?、AGNSS On、AGNSS Off 三顆齊全。重開機後生效；啟用前需先啟用一個 PDP context，會消耗行動數據"
+   },
+   {
+    "cmd": "AT+QAGPSCFG（=? / ? / =<profile>[,<URL>...]）",
+    "purpose": "查詢/設定 AGNSS 伺服器參數（URL/帳號/密碼）",
+    "status": "有按鈕",
+    "note": "僅讀取按鈕（AGNSS Srv?＝AT+QAGPSCFG?）；寫入缺按鈕，可命令列手動（單行）。文件註明僅部分機型支援本命令、重開機後生效；EG800K 支援與否待實測確認"
+   },
+   {
+    "cmd": "AT+QGPSVBCKP（=? / ? / =<enable>）",
+    "purpose": "設定 GNSS 備援電源（VBCKP）功能",
+    "status": "不適用本機",
+    "note": "Table 17 載明 EG800K-CN 因 GNSS 晶片差異不支援 backup power 功能，且需硬體設計階段配置備援電源腳位。指令本身單行、可命令列手動下測，預期回錯誤；文件另註明僅部分機型支援"
+   },
+   {
+    "cmd": "AT+QIACT=1",
+    "purpose": "啟用 PDP context（§5.4/5.6 AGNSS 範例之前置步驟）",
+    "status": "有按鈕",
+    "note": "TCP/IP 頁「Act PDP」按鈕（此指令屬 TCP/IP 手冊，本文件僅引用）"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "GNSS 基本定位流程（§1.2：QGPSCFG 設定 → QGPS=1 → QGPSLOC/QGPSGNMEA 取位 → QGPSEND）",
+    "feasible": true,
+    "note": "全程可用現有按鈕完成：GPS On → Loc (deg)/Loc (dm) 或 NMEA Src On + Get GGA/RMC/GSV → GPS Off。皆為單行指令、無兩段式"
+   },
+   {
+    "name": "NMEA 連續串流觀察（QGPSCFG=\"outport\" 導出即時 NMEA 流）",
+    "feasible": false,
+    "note": "無法實現：outport 僅有 none/usbnmea/uartdebug 三選項，沒有 AT 主埠（UART1）選項。usbnmea 要觀察模組 USB 埠輸出（本工具只看 UART）、uartdebug 是另一條實體 debug UART——兩者 NuModem 都接不到。替代方案：nmeasrc=1 後用 AT+QGPSGNMEA 逐句輪詢（現有按鈕可做），但這是輪詢不是串流"
+   },
+   {
+    "name": "AGNSS 啟用流程（§5.4：QIACT=1 → QAGPS=1 → 重開機生效 → QGPS=1）",
+    "feasible": true,
+    "note": "按鈕齊全：Act PDP → AGNSS On → 重啟可用 Network 頁 Reboot（AT+CFUN=1,1）→ GPS On。成功後 URC +QGPS: \"agps\",0,0 會出現在 UART1（urcport 已設）"
+   },
+   {
+    "name": "GNSS URC 回報（§5.5 韌體載入 URC／§5.6 AGNSS URC）",
+    "feasible": true,
+    "note": "urcport 已設 uart1，URC 收得到。查詢 bitmap 有按鈕（URC?）；設定 bitmap（AT+QGPSCFG=\"urc\",0x4 等）缺按鈕、需命令列手動輸入，單行可行"
+   },
+   {
+    "name": "AP-Flash 快速熱啟動（§4.3：QGPSVBCKP=0 停備援電源 → apflash,1 → 定位後星曆存本地 flash）",
+    "feasible": true,
+    "note": "APFlash On/Off/查詢按鈕已有。文件要求先以 AT+QGPSVBCKP=0 停用備援電源，但 EG800K-CN 本就不支援備援電源功能，此前置步驟預期可略過（拿不準處：實機是否仍需下 QGPSVBCKP=0，待實測確認）"
+   }
+  ],
+  "summary": "EG800K-CN 在適用機型表內，文件 16 條 GNSS 指令中約 10 條主要指令有按鈕（開關/定位/取句/星系/AP-Flash/AGNSS 齊全），其餘皆單行可命令列手動，全文件無兩段式指令。最大缺口是 NMEA 連續串流：outport 只能導向 USB NMEA 或 debug UART，NuModem 的 AT 主埠永遠看不到串流，只能以 QGPSGNMEA 輪詢替代；QGPSVBCKP 備援電源則是 EG800K 硬體不支援。建議補四顆取句鈕（GSA/VTG/GLL/GST）與 \\\"urc\\\" bitmap、\\\"outport\\\"、\\\"autogps\\\"、\\\"ntp\\\" 設定鈕即可近乎全覆蓋。"
+ },
+ {
+  "doc": "ref/EG800K/Application Note/quectel_ecx00xeg800keg810meg91xneg915keg950a_series_dfota_upgrade_guide_v1-5.pdf（注意：檔名標 v1-5，PDF 內容實為 Version 1.6，2026-02-25，41 頁）",
+  "applicable": true,
+  "applicable_note": "Table 1（§1.2 Applicable Modules）明列「EG800K Series」（v1.5 起加入、v1.6 仍在列）。另注意本文件依 flash 大小分流：16 MB 模組走 DFOTA、2/4/8 MB 走 MiniFOTA（由韌體包名尾碼 M02/M04/M08/M16 判別）；手上 EG800K 實機屬哪一種，需以 ATI 回報的韌體版本名尾碼確認（待確認）。",
+  "commands": [
+   {
+    "cmd": "AT+QFOTADL=?",
+    "purpose": "查詢 QFOTADL 支援的 URL 與各參數範圍",
+    "status": "可命令列手動",
+    "note": "缺按鈕。單行指令，命令列直接輸入即可。"
+   },
+   {
+    "cmd": "AT+QFOTADL=<FTP_URL>[,<upgrade_mode>[,<download_URC_max>[,<update_URC_max>]]]",
+    "purpose": "從使用者自建 FTP 伺服器下載 delta 韌體包並自動升級",
+    "status": "可命令列手動",
+    "note": "缺按鈕（建議補 URL 參數卡）。單行下達後全自動，+QIND: \"FOTA\" 系列 URC 經 uart1 可見。注意：升級中模組會自動重開機（Web Serial 可能斷線需重連）、全程不可斷電否則無法復原；URL 上限 255 字元（MiniFOTA 128）；2/4 MB flash 模組不支援本指令；部分 EG915N 不支援 FTP 路徑（與 EG800K 無關）。"
+   },
+   {
+    "cmd": "AT+QFOTADL=<HTTP_URL>[,<upgrade_mode>[,<download_URC_max>[,<update_URC_max>]]]",
+    "purpose": "從使用者自建 HTTP(S) 伺服器下載 delta 韌體包並自動升級",
+    "status": "可命令列手動",
+    "note": "缺按鈕（建議補 URL 參數卡）。同 FTP 路徑，單行即可、URC 可見。MiniFOTA 模式下 2 MB flash 版不支援 HTTPS；MiniFOTA 不支援 <download_URC_max>/<update_URC_max> 設定。"
+   },
+   {
+    "cmd": "AT+QFOTADL=\"FILE:<length>\"[,<upgrade_mode>[,<download_URC_max>[,<update_URC_max>]]]",
+    "purpose": "delta 包存於主機端，經主 UART（需硬體流控）送入模組升級",
+    "status": "需兩段式-已有機制",
+    "note": "無按鈕，且現有兩段式機制不足：第一段指令可下，但第二段是把整包 delta 韌體（數 MB 二進位檔）串流進 UART——需先 AT+IFC=2,2 開硬體流控，且 Web Serial 開埠須帶 flowControl:\"hardware\"（NuModem 目前開埠設定待確認）；無流控時須限速 15 KB/s、每次 ≤32 bytes。現有兩段式按鈕機制只處理文字 payload，需另開發「選檔＋分塊串流」專用按鈕才可靠。MiniFOTA 不支援本指令。"
+   },
+   {
+    "cmd": "AT+QFOTADL=\"FILE:<length>\",<n>（<n>=2）",
+    "purpose": "無硬體流控 UART 時啟用 protocol-download file mode 升級",
+    "status": "無法實現",
+    "note": "回應 010003 後模組進入專有 protocol-download 模式，主機端須實作 Quectel 未公開的下載協定（文件僅寫「洽 Quectel 技術支援」）。協定規格不明，瀏覽器端無從實作；指令本身雖可單行輸入，但下了之後無後續協定支援反而讓模組卡在等待狀態，不應使用。MiniFOTA 亦不支援本指令。"
+   },
+   {
+    "cmd": "ATI",
+    "purpose": "升級前查現行韌體版本（向 Quectel 申請 delta 包所需）",
+    "status": "有按鈕",
+    "note": "Hardware 頁 Info 鈕。"
+   },
+   {
+    "cmd": "AT+QFLDS",
+    "purpose": "查 UFS 剩餘空間，確認容得下 delta 韌體包",
+    "status": "可命令列手動",
+    "note": "缺按鈕。本文件僅提及（§2.3.1.1），細節在 FILE Application Note（文件 [1]）。"
+   },
+   {
+    "cmd": "AT+QICSGP=<cid>,1,\"<APN>\",\"<user>\",\"<pass>\",1",
+    "purpose": "設定升級下載用 PDP context 的 APN 與認證",
+    "status": "有按鈕",
+    "note": "TCP/IP 頁 Set APN 參數卡，但按鈕固定 contextID=1；文件範例用 cid=2，需其他 cid 時命令列手動即可。"
+   },
+   {
+    "cmd": "AT+QCFG=\"fota/cid\",<cid>",
+    "purpose": "指定 FOTA 下載走哪個 PDP context",
+    "status": "可命令列手動",
+    "note": "缺按鈕。MiniFOTA 升級不支援此設定（僅 DFOTA 需要）。"
+   },
+   {
+    "cmd": "AT+QIACT=<cid>",
+    "purpose": "啟用 PDP context（升級下載前置）",
+    "status": "有按鈕",
+    "note": "TCP/IP 頁 Act PDP 鈕固定 cid=1；文件範例 cid=2 需命令列手動。MiniFOTA 不需此步。"
+   },
+   {
+    "cmd": "AT+IFC=2,2",
+    "purpose": "開啟主 UART 硬體流控（FILE 本機升級路徑前置）",
+    "status": "可命令列手動",
+    "note": "缺按鈕。指令可下，但要真正生效，主機端 Web Serial 也必須以 flowControl:\"hardware\" 開埠；NuModem 目前開埠是否啟用硬體流控待確認——若未啟用，模組端開了 RTS/CTS 反而可能使後續傳輸卡死。"
+   },
+   {
+    "cmd": "AT+QCFG=\"usbifc\",2,2（查詢：AT+QCFG=\"usbifc\"）",
+    "purpose": "開啟 Quectel USB AT 埠硬體流控（USB 路徑本機升級前置）",
+    "status": "可命令列手動",
+    "note": "指令本身可經 UART 單行下達，但其對應流程是「經 USB AT 埠送韌體包」——本工具只看 UART，該路徑用不到；走 UART 路徑時用 AT+IFC=2,2 即可。"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "DFOTA 升級（delta 包放 FTP/HTTP(S) 伺服器）",
+    "feasible": true,
+    "note": "主流程：ATI 確認版本→向 Quectel 取 delta 包→上傳自家伺服器→AT+QICSGP 設 APN→AT+QCFG=\"fota/cid\"→AT+QIACT→AT+QFOTADL=<URL>→看 +QIND: \"FOTA\" URC（FTPSTART/HTTPSTART→DOWNLOADING→FTPEND/HTTPEND→START→UPDATING→END）。全部單行指令，命令列即可完成；urcport 已設 uart1，URC 收得到。注意：升級中模組自動重開機、Web Serial 需重連（智慧連線可幫忙）；全程斷電＝升級失敗且無法復原。"
+   },
+   {
+    "name": "DFOTA 升級（delta 包放本機，經 UART＋硬體流控串流）",
+    "feasible": false,
+    "note": "目前做不到：需「選檔＋數 MB 二進位分塊串流」機制與硬體流控開埠（Web Serial flowControl:\"hardware\"），NuModem 皆未實作。技術上瀏覽器可行（無流控時亦可 15 KB/s、32-byte 分塊限速），要用需開發專用檔案上傳功能。"
+   },
+   {
+    "name": "DFOTA 升級（protocol-download file mode，無流控 UART）",
+    "feasible": false,
+    "note": "主機端須跑 Quectel 未公開的專有下載協定（文件僅要求洽技術支援），規格不明無從實作。EG800K 若需本機升級，應改走硬體流控路徑（前一項）。"
+   },
+   {
+    "name": "MiniFOTA 升級（2/4/8 MB flash 模組適用）",
+    "feasible": true,
+    "note": "僅支援 AT+QFOTADL=<FTP_URL>/<HTTP_URL> 觸發（單行可下，命令列可行）；不支援 FILE 路徑、不支援 fota/cid 與 URC 參數。特性：URL ≤128 字元、全程自動重開機 4 次、只有升級進度 URC（前 60% 是 .mini_1、後 40% 是 .mini_2）、.mini_1/.mini_2 兩包同名成對缺一不可。EG800K 實機是否走 MiniFOTA 取決於 flash 版本（包名尾碼 M08/M16 判別）——待確認。"
+   },
+   {
+    "name": "MiniFOTA 異常復原（download mode 中重新觸發）",
+    "feasible": true,
+    "note": "包錯或下載失敗時：換上正確包後在 mini 系統 download mode 直接重下 AT+QFOTADL 續傳升級，命令列即可。注意 §5.1 情境 3/4：.mini_1 下載中斷或 .mini_2 階段異常時模組會卡在 mini 系統反覆重試，只能等網路恢復完成下載，無法退回大系統。"
+   },
+   {
+    "name": "升級進度 URC 監看（+QIND: \"FOTA\",...）",
+    "feasible": true,
+    "note": "被動接收即可，urcport 已設 uart1，終端機直接顯示各階段 URC 與結果碼（<FTP_err> 0/601–629、<HTTP_err> 0/701–730、<file_err> 0/500、<err> 0/504–507/552/553，見 §6）。註：8 MB flash 版不回報下載 URC。"
+   }
+  ],
+  "summary": "EG800K 在適用機型表內（檔名 v1-5 但內容實為 v1.6）；文件 12 條指令中僅 3 條有現成按鈕（ATI、QICSGP、QIACT，後兩者 cid 固定 1），但主流程「伺服器下載升級」全是單行指令，命令列今天就能完整走完。最大缺口是本機檔案升級：硬體流控路徑缺「選檔＋二進位串流＋flowControl 開埠」機制，protocol-download 路徑則因協定未公開而根本無法實作。建議補一顆 AT+QFOTADL=<URL> 參數卡按鈕即可覆蓋實用主流程，並實測確認 EG800K 實機 flash 版本（M08/M16）以判定走 DFOTA 或 MiniFOTA。"
+ },
+ {
+  "doc": "FTP(S) Application Note（ECx00x&EG800AK&EG800K&EG810M&EG91xN&EG915K&EG950A Series）。注意：磁碟檔名為 v1-5，但 PDF 內文版本為 1.6（2026-04-23）；ref/EG800K/Application Note/quectel_ecx00xeg800keg810meg91xneg915keg950a_series_ftps_application_note_v1-5.pdf",
+  "applicable": true,
+  "applicable_note": "EG800K Series 明列於 §1.1 Table 1 適用機型（v1.4 於 2024-05-22 加入）。附帶提醒：文件註明各機型因 flash 大小對 FTP(S) 支援程度不同，細節需洽 Quectel；且檔名 v1-5 與內文 v1.6 不一致，引用版本號時以內文為準。",
+  "commands": [
+   {
+    "cmd": "AT+QFTPCFG=?",
+    "purpose": "列出 FTP(S) 所有可設定項與參數範圍",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPCFG=\"account\"[,<user>,<pass>]",
+    "purpose": "設定或查詢 FTP(S) 登入帳號密碼",
+    "status": "有按鈕",
+    "note": "設定與查詢兩種形式皆有獨立按鈕"
+   },
+   {
+    "cmd": "AT+QFTPCFG=\"filetype\"[,<type>]",
+    "purpose": "設定傳輸資料型別（0 binary / 1 ASCII）",
+    "status": "有按鈕",
+    "note": "設定形有按鈕；查詢形（不帶參數）無按鈕，可命令列手動"
+   },
+   {
+    "cmd": "AT+QFTPCFG=\"transmode\"[,<mode>]",
+    "purpose": "設定主動/被動傳輸模式（FTPS 必須被動 =1）",
+    "status": "有按鈕",
+    "note": "設定形有按鈕；查詢形可命令列手動"
+   },
+   {
+    "cmd": "AT+QFTPCFG=\"contextid\"[,<id>]",
+    "purpose": "指定 FTP(S) 使用的 PDP context ID（1–15）",
+    "status": "有按鈕",
+    "note": "設定與查詢兩形皆有按鈕"
+   },
+   {
+    "cmd": "AT+QFTPCFG=\"rsptimeout\"[,<sec>]",
+    "purpose": "設定 +QFTPxxx URC 回應逾時（20–180 秒）",
+    "status": "有按鈕",
+    "note": "設定形有按鈕；查詢形可命令列手動"
+   },
+   {
+    "cmd": "AT+QFTPCFG=\"ssltype\"[,<type>]",
+    "purpose": "設定 FTP 純文字 / FTPS 隱式 / FTPS 顯式加密",
+    "status": "有按鈕",
+    "note": "設定形有按鈕；查詢形可命令列手動"
+   },
+   {
+    "cmd": "AT+QFTPCFG=\"sslctxid\"[,<id>]",
+    "purpose": "指定 FTPS 使用的 SSL context ID（0–5）",
+    "status": "有按鈕",
+    "note": "設定形有按鈕；v1.6 起參數名由 SSL_ctxID 改為 sslctxid，本機按鈕已是新寫法"
+   },
+   {
+    "cmd": "AT+QFTPCFG=\"data_address\"[,<type>[,<data_timeout>]]",
+    "purpose": "設定資料連線位址策略（伺服器派發或沿用控制連線位址）",
+    "status": "有按鈕",
+    "note": "按鈕僅帶第一參數 <type>；<data_timeout>（type=2 時有效）需命令列手動補"
+   },
+   {
+    "cmd": "AT+QFTPCFG=\"restenable\"[,<en>]",
+    "purpose": "設定資料會話關閉方式（揮手或送 RST）",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPCFG=\"cache\"[,<type>]",
+    "purpose": "設定 WM 快取模式（64K/128K/128K 續傳）",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPOPEN=<host>[,<port>]",
+    "purpose": "登入 FTP(S) 伺服器（FTP 常用 21、FTPS 常用 990）",
+    "status": "有按鈕",
+    "note": "結果以 +QFTPOPEN URC 回報，urcport 已設 uart1 可收到"
+   },
+   {
+    "cmd": "AT+QFTPCWD=<path>",
+    "purpose": "設定 FTP(S) 伺服器上的當前目錄",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPPWD",
+    "purpose": "查詢 FTP(S) 伺服器上的當前目錄",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPPUT=<file>,\"COM:\",<startpos>,<uploadlen>,<beof>",
+    "purpose": "經 COM 埠分塊上傳定長資料到伺服器",
+    "status": "有按鈕",
+    "note": "兩段式按鈕已具（等 CONNECT 再送資料、長度自動配合），是本機唯一可靠的上傳路徑"
+   },
+   {
+    "cmd": "AT+QFTPPUT=<file>,\"COM:\"[,<startpos>]（開放式，+++ 結束）",
+    "purpose": "經 COM 埠串流上傳直到 +++ 逃逸為止",
+    "status": "需兩段式-已有機制",
+    "note": "此變體無按鈕；終端輸入每行自動加 CR、binary 不可靠，結束需 +++ 鈕（已有）。建議改用現有定長分塊鈕；若要開放式串流需補專用按鈕"
+   },
+   {
+    "cmd": "AT+QFTPPUT=<file>,\"UFS:xxx\"/\"SD:xxx\"[,<startpos>]",
+    "purpose": "把模組 UFS/SD 上的檔案上傳到伺服器",
+    "status": "可命令列手動",
+    "note": "單行指令可手動；但檔案要先用 AT+QFUPL 傳入 UFS/SD，QFUPL 缺兩段式按鈕（見下）"
+   },
+   {
+    "cmd": "AT+QFTPGET=<file>,\"COM:\"[,<startpos>[,<downloadlen>]]",
+    "purpose": "從伺服器下載檔案並輸出至 COM 埠",
+    "status": "有按鈕",
+    "note": "整檔與分段（startpos,len）兩顆按鈕皆有。binary 下載進終端機顯示得出來但目前存不了檔——是限制不是不可行"
+   },
+   {
+    "cmd": "AT+QFTPGET=<file>,\"UFS:xxx\"/\"SD:xxx\"[,<startpos>]",
+    "purpose": "下載檔案存到模組 UFS/SD",
+    "status": "可命令列手動",
+    "note": "單行指令；缺按鈕。之後可用 AT+QFREAD 讀出"
+   },
+   {
+    "cmd": "AT+QFTPSIZE=<file>",
+    "purpose": "查詢伺服器上檔案大小",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPDEL=<file>",
+    "purpose": "刪除伺服器上的檔案",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPMKDIR=<folder>",
+    "purpose": "在伺服器上建立資料夾",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPRMDIR=<folder>",
+    "purpose": "刪除伺服器上的資料夾",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPLIST=<dir>[,<local>]",
+    "purpose": "列出目錄內容（詳細格式）",
+    "status": "有按鈕",
+    "note": "有 \".\" 與 {dir},\"COM:\" 兩顆按鈕；輸出至 UFS/SD 的變體可命令列手動"
+   },
+   {
+    "cmd": "AT+QFTPNLST=<dir>[,<local>]",
+    "purpose": "列出目錄內的檔名清單",
+    "status": "有按鈕",
+    "note": "僅 \".\" 一顆按鈕；指定目錄或輸出至 UFS/SD 的變體可命令列手動"
+   },
+   {
+    "cmd": "AT+QFTPMLSD=<dir>[,<local>]",
+    "purpose": "列出標準化（RFC 3659）檔案與目錄資訊",
+    "status": "有按鈕",
+    "note": "僅 \".\" 一顆按鈕；指定目錄變體可命令列手動"
+   },
+   {
+    "cmd": "AT+QFTPMDTM=<file>",
+    "purpose": "查詢伺服器上檔案的修改時間",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPRENAME=<old>,<new>",
+    "purpose": "重新命名伺服器上的檔案或資料夾",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPLEN",
+    "purpose": "查詢最近一次 PUT/GET/LIST/NLST 已傳輸的資料長度",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPSTAT",
+    "purpose": "查詢 FTP(S) 連線目前狀態（0–4）",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPCLOSE",
+    "purpose": "登出 FTP(S) 伺服器",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QFTPxxx=?（各指令測試形）",
+    "purpose": "查詢各 QFTP 指令的參數格式",
+    "status": "可命令列手動",
+    "note": "18 個指令的測試形均為單行，除 QFTPCFG=? 外無獨立按鈕，命令列皆可下"
+   },
+   {
+    "cmd": "+++",
+    "purpose": "退出資料模式（前後各 1 秒不得輸入其他字元）",
+    "status": "有按鈕",
+    "note": "ftp 區已有 +++ 逃逸鈕；守時要求（前後 1 秒靜默）由使用者自行留意"
+   },
+   {
+    "cmd": "ATO",
+    "purpose": "重新進入資料模式續傳",
+    "status": "有按鈕",
+    "note": "文件限制：QFTPGET/QFTPLIST/QFTPNLST 後可用，QFTPPUT 後不可用 ATO 重入（模組行為，非本機限制）"
+   },
+   {
+    "cmd": "AT&D1",
+    "purpose": "設定 DTR 由低變高時退出資料模式",
+    "status": "可命令列手動",
+    "note": "單行指令；DTR 準位本身可由 NuModem RS-232 訊號列直接切換，構成第二種退出資料模式手段"
+   },
+   {
+    "cmd": "AT+QICSGP=1,1,<apn>,<user>,<pass>,1",
+    "purpose": "設定 PDP context 的 APN 與認證（前置步驟）",
+    "status": "有按鈕",
+    "note": "tcpip 區 Set APN 按鈕"
+   },
+   {
+    "cmd": "AT+QIACT=1 / AT+QIACT?",
+    "purpose": "啟用並查詢 PDP context（登入前必須）",
+    "status": "有按鈕",
+    "note": "tcpip 區與 ftp 區皆有"
+   },
+   {
+    "cmd": "AT+QIDEACT=1",
+    "purpose": "FTP 用畢停用 PDP context",
+    "status": "有按鈕",
+    "note": "tcpip 區 Deact PDP 按鈕"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"ciphersuite\"/\"seclevel\"/\"sslversion\",<ctxid>,...",
+    "purpose": "設定 FTPS 所用 SSL context 的加密參數",
+    "status": "有按鈕",
+    "note": "ssl 區已有對應按鈕；文件 §3.2 範例（seclevel=0 免憑證）全程可按鈕完成"
+   },
+   {
+    "cmd": "AT+QFUPL=<name>,<size>,<timeout>,<ack>",
+    "purpose": "把檔案經 COM 埠上傳到模組 UFS/SD（中轉上傳的前置）",
+    "status": "需兩段式-已有機制",
+    "note": "文件 §3.6 Solution 2/3 必需，屬 FILE 文件指令。兩段式（CONNECT 後送定長資料），無按鈕；命令列會加 CR 且長度不會自動算，需補兩段式按鈕才可靠"
+   },
+   {
+    "cmd": "AT+QFDEL=<name>",
+    "purpose": "刪除 UFS/SD 上的暫存檔",
+    "status": "可命令列手動",
+    "note": "單行；缺按鈕"
+   },
+   {
+    "cmd": "AT+QFLST=\"UFS:*\"/\"SD:*\"",
+    "purpose": "列出 UFS/SD 上的檔案",
+    "status": "可命令列手動",
+    "note": "單行；缺按鈕"
+   },
+   {
+    "cmd": "AT+QFREAD",
+    "purpose": "讀出 UFS/SD 檔案內容至 COM 埠",
+    "status": "可命令列手動",
+    "note": "單行、輸出方向免輸入資料；binary 內容顯示得出但存不了檔（限制）"
+   },
+   {
+    "cmd": "AT+CPIN?",
+    "purpose": "錯誤排查：確認 SIM 就緒（§4.1）",
+    "status": "有按鈕",
+    "note": "basic 區"
+   },
+   {
+    "cmd": "AT+CGATT? / AT+CGATT=1",
+    "purpose": "錯誤排查：查詢/執行 PS 網域附著（§4.2）",
+    "status": "有按鈕",
+    "note": "network 區"
+   },
+   {
+    "cmd": "AT+CGREG?",
+    "purpose": "錯誤排查：確認 PS 網域已註冊（§4.2）",
+    "status": "有按鈕",
+    "note": "network 區"
+   },
+   {
+    "cmd": "AT+CGQMIN / AT+CGEQMIN / AT+CGQREQ / AT+CGEQREQ",
+    "purpose": "更新 PDP QoS 設定（§1.4 僅提及，細節在 AT 手冊）",
+    "status": "可命令列手動",
+    "note": "單行；缺按鈕，屬邊緣用途"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "FTP 標準登入流程（§1.4 Step1-3 / §3.1：QICSGP→QIACT→contextid→account/filetype/transmode/rsptimeout→QFTPOPEN）",
+    "feasible": true,
+    "note": "全程按鈕覆蓋，URC（+QFTPOPEN: 0,0）經 uart1 收得到"
+   },
+   {
+    "name": "FTPS 登入流程（§3.2：ssltype=1 + sslctxid + QSSLCFG 三項 → QFTPOPEN :990）",
+    "feasible": true,
+    "note": "文件範例採 seclevel=0 免憑證，全程按鈕可完成。若要憑證驗證（seclevel≥1）需先以 QFUPL 上傳 CA 憑證——該段卡在 QFUPL 缺兩段式按鈕（屬 SSL/FILE 文件範疇）。另 FTPS 強制 transmode=1"
+   },
+   {
+    "name": "資料模式切換（+++ 逃逸 / DTR 拉高 / ATO 重返）",
+    "feasible": true,
+    "note": "+++ 鈕與 ATO 鈕皆有；DTR 可由 RS-232 訊號列切換（需先下 AT&D1）。+++ 前後 1 秒靜默由使用者留意；QFTPPUT 後 ATO 無效是模組限制"
+   },
+   {
+    "name": "COM 埠分塊上傳（QFTPPUT uploadlen/beof 兩段式，§3.6 Solution 1）",
+    "feasible": true,
+    "note": "既有兩段式按鈕（0,{len},1），等 CONNECT 再送資料、長度可控，為本機可靠上傳路徑；多塊續傳時 startpos 由參數卡調整"
+   },
+   {
+    "name": "COM 埠開放式上傳（QFTPPUT 不帶長度、+++ 終止，§2.5/§3.6）",
+    "feasible": true,
+    "note": "機制上可行（CONNECT 後送資料、+++ 鈕結束）但僅適合 ASCII 短文字測試：終端輸入每行補 CR、binary 位元組不保真。正式使用建議走分塊鈕或補開放式串流按鈕"
+   },
+   {
+    "name": "UFS/SD 中轉上傳（QFUPL→QFLST→QFTPPUT→QFDEL，§3.6 Solution 2/3）",
+    "feasible": false,
+    "note": "卡在 QFUPL：兩段式（CONNECT 後送定長資料）無按鈕，命令列必加 CR 且不自動算長度，binary 檔無法可靠塞入 UFS/SD。後半段 QFTPPUT/QFDEL 為單行可手動。補一顆 QFUPL 兩段式按鈕即可全通"
+   },
+   {
+    "name": "COM 埠下載（QFTPGET \"COM:\" 整檔與 startpos/downloadlen 分段，§3.7 Solution 1）",
+    "feasible": true,
+    "note": "兩顆按鈕皆有；大量 binary 資料顯示得出來但存不了檔——建議日後補「下載擷取存檔」功能，屬限制非不可行"
+   },
+   {
+    "name": "下載存 UFS/SD 再讀出（QFTPGET \"UFS:/SD:\"→QFLST→QFREAD，§3.7 Solution 2/3）",
+    "feasible": true,
+    "note": "全為單行指令，可命令列手動完成（無按鈕）；QFREAD 讀出同樣受終端無法存檔的限制"
+   },
+   {
+    "name": "斷點續傳（startpos 分段下載/上傳 + cache=2 慢速續傳模式 + restenable）",
+    "feasible": true,
+    "note": "相關設定與分段按鈕皆有；startpos 接續值需使用者依 +QFTPLEN / +QFTPGET 回報自行計算填入參數卡"
+   },
+   {
+    "name": "錯誤處理流程（§4：CPIN?→CGATT?→CGREG?→QICSGP→QIACT? 逐項檢查；601–631 錯誤碼與 FTP 協定 4xx/5xx 對照）",
+    "feasible": true,
+    "note": "檢查用指令全部有按鈕；錯誤碼判讀為人工對照文件 Table 3/4"
+   }
+  ],
+  "summary": "EG800K 在本文件適用機型內；文件 18 個 QFTP 指令 NuModem ftp 區 35 顆按鈕全數覆蓋，含兩段式分塊上傳、+++/ATO 資料模式機制與 FTPS（免憑證）全流程。最大缺口是 AT+QFUPL（UFS/SD 中轉上傳的前置兩段式指令）無按鈕導致 §3.6 Solution 2/3 流程斷路，其次是開放式 QFTPPUT 串流僅堪 ASCII 測試、binary 下載顯示得出但存不了檔。建議補 QFUPL 兩段式按鈕與下載內容擷取存檔功能，並留意檔名 v1-5 與 PDF 內文 v1.6 不一致。"
+ },
+ {
+  "doc": "ref/EG800K/Application Note/quectel_ecx00xeg800keg810meg91xneg915keg950a_series_https_application_note_v1-6.pdf（檔內實為 v1.7，2026-05-13，47 頁）",
+  "applicable": true,
+  "applicable_note": "Table 1（§1.1）明列 EG800K Series，適用。注意：檔名標 v1-6，但 PDF 內容已是 v1.7（2026-05-13）——v1.7 更新了 QHTTPURL 的 <URL_length> 範圍（7–2048）並為 QHTTPREAD 新增分段讀取形式、QHTTPPOSTFILE 新增 <post_mode> 分段送檔參數。文件另註明：不同型號因 flash 大小對 HTTP(S) 支援度不同。",
+  "commands": [
+   {
+    "cmd": "AT+QHTTPCFG=? / AT+QHTTPCFG?",
+    "purpose": "查詢 HTTP(S) 組態的支援範圍與目前全部設定值。",
+    "status": "有按鈕",
+    "note": "HTTP 面板 Config 群組兩顆按鈕皆有。"
+   },
+   {
+    "cmd": "AT+QHTTPCFG=\"contextid\"[,<id>]",
+    "purpose": "設定或查詢 HTTP(S) 使用的 PDP context ID（1–15）。",
+    "status": "有按鈕",
+    "note": "參數卡按鈕；省略參數之查詢形式可命令列手動。"
+   },
+   {
+    "cmd": "AT+QHTTPCFG=\"requestheader\"[,<0|1>]",
+    "purpose": "啟用或停用自訂 HTTP(S) request header。",
+    "status": "有按鈕",
+    "note": "參數卡按鈕。設 1 後 GET/POST 進入需輸入完整 header 的兩段式形式（見 QHTTPGET 自訂 header 列）。"
+   },
+   {
+    "cmd": "AT+QHTTPCFG=\"responseheader\"[,<0|1>]",
+    "purpose": "啟用或停用輸出 HTTP(S) response header。",
+    "status": "有按鈕",
+    "note": "參數卡按鈕。"
+   },
+   {
+    "cmd": "AT+QHTTPCFG=\"sslctxid\"[,<id>]",
+    "purpose": "設定 HTTPS 所用的 SSL context ID（0–5）。",
+    "status": "有按鈕",
+    "note": "HTTP 面板 Connect 群組有參數卡按鈕。"
+   },
+   {
+    "cmd": "AT+QHTTPCFG=\"contenttype\"[,<0-5>]",
+    "purpose": "設定 HTTP(S) body 的 Content-Type（urlencoded/text/octet-stream/form-data/json/jpeg）。",
+    "status": "有按鈕",
+    "note": "參數卡按鈕。"
+   },
+   {
+    "cmd": "AT+QHTTPCFG=\"rspout/auto\"[,<0|1>]",
+    "purpose": "啟用後 HTTP(S) 回應自動輸出（此時 QHTTPREAD/READFILE 會失敗）。",
+    "status": "有按鈕",
+    "note": "參數卡按鈕。"
+   },
+   {
+    "cmd": "AT+QHTTPCFG=\"closed/ind\"[,<0|1>]",
+    "purpose": "啟用或停用連線關閉 URC +QHTTPURC: \"closed\" 的回報。",
+    "status": "有按鈕",
+    "note": "參數卡按鈕；本機 urcport 已設 uart1，URC 收得到。"
+   },
+   {
+    "cmd": "AT+QHTTPCFG=\"reqheader/add\"[,<name>[,<str>]]",
+    "purpose": "新增或查詢自訂 request header 欄位。",
+    "status": "有按鈕",
+    "note": "查詢與設定兩形式皆有按鈕。"
+   },
+   {
+    "cmd": "AT+QHTTPCFG=\"reqheader/remove\",<name>",
+    "purpose": "移除已新增的自訂 request header 欄位。",
+    "status": "有按鈕",
+    "note": "參數卡按鈕。"
+   },
+   {
+    "cmd": "AT+QHTTPURL? ",
+    "purpose": "查詢目前設定的 HTTP(S) 伺服器 URL。",
+    "status": "有按鈕",
+    "note": "HTTP 面板 Transfer 群組。"
+   },
+   {
+    "cmd": "AT+QHTTPURL=<URL_length>[,<timeout>]",
+    "purpose": "設定 HTTP(S) 伺服器 URL（CONNECT 後輸入 URL，長度 7–2048）。",
+    "status": "有按鈕",
+    "note": "兩段式，按鈕已含兩段式機制（等 CONNECT 再送 URL、依長度自動結束）。v1.7 將 <URL_length> 下修為 7–2048。"
+   },
+   {
+    "cmd": "AT+QHTTPGET[=<rsptime>]（requestheader=0）",
+    "purpose": "送出 HTTP(S) GET 請求，回應以 URC +QHTTPGET 回報。",
+    "status": "有按鈕",
+    "note": "單行形式已有參數卡按鈕。"
+   },
+   {
+    "cmd": "AT+QHTTPGET=<rsptime>,<data_length>[,<input_time>]（requestheader=1）",
+    "purpose": "自訂 header 模式下送 GET：CONNECT 後輸入完整 request header。",
+    "status": "需兩段式-已有機制",
+    "note": "缺此形式的按鈕。CONNECT 後需送出位元組數精確等於 <data_length> 的 header（且須以 CR LF 結尾），命令列每行自動加 CR、長度不會自動計算，不可靠；建議沿用 QHTTPURL/QHTTPPOST 既有兩段式機制補一顆按鈕。"
+   },
+   {
+    "cmd": "AT+QHTTPGETEX=<rsptime>,<start_position>,<read_len>",
+    "purpose": "以指定起點與長度做範圍下載（伺服器回 206），僅 requestheader=0 時可用。",
+    "status": "有按鈕",
+    "note": "參數卡按鈕已有。"
+   },
+   {
+    "cmd": "AT+QHTTPPOST=<data_length>[,<input_time>,<rsptime>]",
+    "purpose": "經 UART 送 POST：CONNECT 後輸入 body（requestheader=1 時輸入 header+body），長度 1–1024000。",
+    "status": "有按鈕",
+    "note": "兩段式按鈕已有（等 CONNECT 再送資料、依長度結束）。requestheader=1 時同一按鈕即可，資料改填 header+body。"
+   },
+   {
+    "cmd": "AT+QHTTPPOSTFILE=<file_name>[,<rsptime>,<post_mode>]",
+    "purpose": "以模組 UFS 檔案系統中的檔案作為 POST body（或 header+body）送出請求。",
+    "status": "有按鈕",
+    "note": "按鈕涵蓋 file+rsptime 兩參數；v1.7 新增第三參數 <post_mode>（0 直接送／1 記錄待送／2 兩檔合併依序送）按鈕未涵蓋，單行指令可命令列手動。前提是檔案已在模組 UFS 內（上傳需 AT+QFUPL，見該列）。"
+   },
+   {
+    "cmd": "AT+QHTTPREAD[=<wait_time>]",
+    "purpose": "GET/POST 完成後經 UART 讀出 HTTP(S) 回應（CONNECT 後輸出全部內容）。",
+    "status": "有按鈕",
+    "note": "參數卡按鈕已有。限制：大量或二進位回應會輸出到終端機，顯示得出來但存不了檔（可另用 QHTTPREADFILE 存 UFS）。"
+   },
+   {
+    "cmd": "AT+QHTTPREAD=<wait_time>,<read_len>（v1.7 新形式）",
+    "purpose": "分段讀取回應；<read_len>=0 時查詢 HTTP buffer 大小與現存資料長度。",
+    "status": "可命令列手動",
+    "note": "缺按鈕，但為單行指令，命令列手動即可；分段讀取對大回應較友善，可考慮補參數卡按鈕。"
+   },
+   {
+    "cmd": "AT+QHTTPREADFILE=<file_name>[,<wait_time>]",
+    "purpose": "將 HTTP(S) 回應直接存入模組 UFS 檔案。",
+    "status": "有按鈕",
+    "note": "參數卡按鈕已有。存入 UFS 後要取回主機須用 FILE 文件的 AT+QFDWL（非本文件範疇；二進位下載進終端機同樣顯示得出但存不了檔）。"
+   },
+   {
+    "cmd": "AT+QHTTPSTOP",
+    "purpose": "取消進行中的 HTTP(S) GET/POST 並斷開與伺服器的連線。",
+    "status": "有按鈕",
+    "note": "Close 群組按鈕已有。"
+   },
+   {
+    "cmd": "AT+QHTTPURL=? 等各指令 Test 形式（GET/GETEX/POST/POSTFILE/READ/READFILE/STOP 之 =?）",
+    "purpose": "查詢各 HTTP(S) 指令的參數支援範圍。",
+    "status": "可命令列手動",
+    "note": "僅 AT+QHTTPCFG=? 有按鈕；其餘 Test 形式皆單行，命令列手動即可，價值低不必補按鈕。"
+   },
+   {
+    "cmd": "AT+QFUPL=\"<file>\"（§3.2.2 憑證上傳）",
+    "purpose": "上傳 CA 憑證、client 憑證與私鑰到模組 UFS（HTTPS seclevel=2 必要前置）。",
+    "status": "需兩段式-已有機制",
+    "note": "屬 FILE 文件指令，本文件 HTTPS 範例直接使用。全站 217 顆按鈕皆無此指令。CONNECT 後需送檔案原始內容且以位元組數／timeout 判定結束並回報 checksum，命令列逐行加 CR 會破壞內容，不可靠；建議補「檔案上傳」兩段式按鈕（搭配瀏覽器檔案選擇器精確送位元組）。"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"sslversion\"/\"ciphersuite\"/\"seclevel\"/\"cacert\"（§3.2 引用）",
+    "purpose": "設定 HTTPS 所用 SSL context 的版本、加密套件、驗證等級與 CA 憑證路徑。",
+    "status": "有按鈕",
+    "note": "屬 SSL 文件指令；HTTP 面板與 SSL 面板均有對應參數卡按鈕（cacert 設定鈕在 SSL 面板）。"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"clientcert\"/\"clientkey\",<sid>,\"UFS:<file>\"（§3.2.2 引用）",
+    "purpose": "設定雙向驗證用的 client 憑證與私鑰檔案路徑。",
+    "status": "可命令列手動",
+    "note": "SSL/HTTP 面板皆無此二子命令按鈕；單行指令可手動，若要完整支援 seclevel=2 流程建議連同 QFUPL 一起補。"
+   },
+   {
+    "cmd": "AT+QICSGP=1,1,\"<APN>\",...（§1.2/§3 引用）",
+    "purpose": "設定 PDP context 的 APN、帳號與密碼。",
+    "status": "有按鈕",
+    "note": "屬 TCP/IP 文件指令；TCP/IP 面板有參數卡按鈕。"
+   },
+   {
+    "cmd": "AT+QIACT=1 / AT+QIACT? / AT+QIDEACT=1（§1.2/§3 引用）",
+    "purpose": "啟用、查詢與停用 PDP context。",
+    "status": "有按鈕",
+    "note": "TCP/IP 面板齊備，HTTP 面板亦有 AT+QIACT? 快捷。"
+   },
+   {
+    "cmd": "AT+CPIN? / AT+CGATT? / AT+CGATT=1 / AT+CGREG?（§4 除錯引用）",
+    "purpose": "除錯用：確認 SIM 就緒、PS 域附著與註冊狀態。",
+    "status": "有按鈕",
+    "note": "Basic／Network 面板皆有，HTTP 面板 Connect 群組另有快捷。"
+   },
+   {
+    "cmd": "AT+QIDNSCFG=<cid>（§4.3 引用）",
+    "purpose": "查詢或重設 DNS 伺服器位址（DNS 解析失敗時除錯）。",
+    "status": "有按鈕",
+    "note": "查詢形式有參數卡按鈕；重設 DNS 的多參數設定形式無按鈕，單行可命令列手動。"
+   },
+   {
+    "cmd": "AT+CFUN=1,1（§3 範例引用）",
+    "purpose": "重啟模組使 QICSGP 設定生效。",
+    "status": "有按鈕",
+    "note": "Network 面板 Reboot 按鈕。"
+   },
+   {
+    "cmd": "+++ / DTR 拉高 / AT&D1 / ATO（§1.4 資料模式）",
+    "purpose": "退出資料模式（+++ 或拉 DTR，後者需先 AT&D1）；HTTP 資料模式被中斷後 ATO 無法重入。",
+    "status": "有按鈕",
+    "note": "+++ 逃逸鈕與 ATO 按鈕已有；DTR 可由 RS-232 訊號列控制；AT&D1 無按鈕但單行可命令列手動。文件明確警告：QHTTPURL/POST/READ 進行中若以 +++ 或 DTR 中斷，該次執行作廢且 ATO 不能重入資料模式。"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "HTTP 標準存取流程（QICSGP→QIACT→QHTTPCFG→QHTTPURL→GET/POST→READ/READFILE→QIDEACT）",
+    "feasible": true,
+    "note": "§1.2/§3.1 全流程所需按鈕齊備，含 QHTTPURL 與 QHTTPPOST 的兩段式機制，可全程按鈕操作。"
+   },
+   {
+    "name": "HTTPS 存取（seclevel=0 免驗證）",
+    "feasible": true,
+    "note": "§3.2.1：sslctxid + QSSLCFG sslversion/ciphersuite/seclevel 皆有按鈕，流程完整可行。"
+   },
+   {
+    "name": "HTTPS 雙向驗證（seclevel=2）憑證上傳流程（QFUPL×3 + QSSLCFG cacert/clientcert/clientkey）",
+    "feasible": false,
+    "note": "卡點：AT+QFUPL 全站無按鈕且屬兩段式（CONNECT 後送檔案內容、以位元組數與 checksum 驗證），命令列逐行加 CR 不可靠；clientcert/clientkey 設定鈕亦缺（單行可手動）。補一顆 QFUPL 檔案上傳兩段式按鈕（含檔案選擇器）後即全流程可行。"
+   },
+   {
+    "name": "自訂 request header（requestheader=1 後兩段式輸入完整 header）",
+    "feasible": true,
+    "note": "POST 走現有 QHTTPPOST 兩段式按鈕可行（header+body 一起輸入）；GET 的自訂 header 形式（QHTTPGET=<rsptime>,<data_length>）缺按鈕，需補。另 reqheader/add/remove 單行替代方案已有按鈕，多數自訂 header 需求可繞過兩段式。"
+   },
+   {
+    "name": "資料模式進入／退出（CONNECT 進入；+++ 或 DTR 退出；前後 1 秒靜默）",
+    "feasible": true,
+    "note": "+++ 逃逸鈕已有、DTR 可由訊號列控制、AT&D1 可命令列手動。注意文件警告：中斷 QHTTPURL/POST/READ 後 ATO 無法重入資料模式，該次請求需重來；且模組同一時間僅允許一個埠處於資料模式（否則 +CME ERROR: 704）。"
+   },
+   {
+    "name": "經檔案系統收發（QHTTPPOSTFILE 上行／QHTTPREADFILE 下行）",
+    "feasible": true,
+    "note": "兩指令按鈕皆有；但檔案進出模組 UFS 依賴 FILE 文件的 QFUPL/QFDWL（本文件未涵蓋）：上傳卡 QFUPL 無按鈕，下載 QFDWL 為二進位+checksum，終端機顯示得出但存不了檔——實務上此路徑目前只適合「模組端自產自用」的檔案。"
+   },
+   {
+    "name": "錯誤處理流程（§4：CPIN→CGATT→CGREG→QIACT→QIDNSCFG 逐層排查）",
+    "feasible": true,
+    "note": "除錯鏈所需查詢按鈕齊備；錯誤碼 701–730（Table 3）與 HTTP 回應碼（Table 4）為純判讀，無需按鈕。"
+   }
+  ],
+  "summary": "EG800K 適用本文件（實為 v1.7），9 條核心 HTTP(S) 指令的常用形式在 HTTP 面板幾乎全數有按鈕，含 QHTTPURL/QHTTPPOST 兩顆關鍵兩段式按鈕，標準 HTTP 與免驗證 HTTPS 流程可全按鈕完成。最大缺口是 HTTPS 雙向驗證（seclevel=2）：AT+QFUPL 憑證上傳為兩段式且全站無按鈕，導致該流程目前不可靠；次要缺口為 QHTTPGET 自訂 header 兩段式形式與 v1.7 新增的 QHTTPREAD 分段讀取／QHTTPPOSTFILE <post_mode>（後兩者單行可手動）。建議補 QFUPL 檔案上傳鈕（含檔案選擇器）與 GET 自訂 header 兩段式鈕，並注意檔名版本標示（v1-6）與內容（v1.7）不符。"
+ },
+ {
+  "doc": "quectel_ecx00xeg800keg810meg91xneg915keg950a_series_low_power_mode_application_note_v1-1.pdf（注意：檔名標 v1-1，PDF 內文版本為 1.2，日期 2026-02-25，共 17 頁 / 內文 16 頁）",
+  "applicable": true,
+  "applicable_note": "EG800K Series 明確列於 §1.1 Table 1 適用機型（p.7）。v1.2 修訂另新增 EG800AK 系列並將 EG915K-EU 更新為 EG915K 系列，均不影響 EG800K 適用性。",
+  "commands": [
+   {
+    "cmd": "AT+QSCLK=1",
+    "purpose": "允許模組進入睡眠模式（睡眠投票機制的軟體開關，UART 與 USB 兩種方案皆需先下此指令）",
+    "status": "可命令列手動",
+    "note": "面板 Power 群組僅有「Sleep?」查詢鈕（AT+QSCLK?），缺 AT+QSCLK=1 / AT+QSCLK=0 設定鈕。單行指令，命令列手動輸入即可；建議補一組 On/Off 鈕以完整支援低功耗流程。"
+   },
+   {
+    "cmd": "AT+QURCCFG=\"urcport\",\"uart1\"",
+    "purpose": "指定 URC 由 UART 介面上報（§4.1.2 UART 低功耗方案的軟體初始化步驟；模組預設為 USB AT port）",
+    "status": "有按鈕",
+    "note": "對應參數卡按鈕「URC → UART」（AT+QURCCFG=\"urcport\",\"{port}\"）；另有「URC Port?」查詢鈕與「URC Ports」能力清單鈕。本機 urcport 已設 uart1，URC 收得到。"
+   },
+   {
+    "cmd": "AT+QINDCFG",
+    "purpose": "啟用/停用各類 URC 事件上報，讓主機睡眠前篩掉不必要的 URC 以提升省電效率（§3.2）",
+    "status": "有按鈕",
+    "note": "已有「URC Switch」（AT+QINDCFG=\"all\" 查詢）、「URC On/Off」（\"all\",1 / \"all\",0）及 \"csq\"、\"sqi\" 按鈕。文件建議的個別型別篩選（如簡訊、來電類 URC）無專屬按鈕，均為單行指令可命令列手動輸入；細項參數需查 AT 手冊 [1]。"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "UART 介面低功耗方案（§4.1：AT+QSCLK=1 + urcport=uart1 初始化，MAIN_DTR 拉高允許睡眠 / 拉低喚醒，MAIN_RI 低脈衝通知主機）",
+    "feasible": true,
+    "note": "兩條初始化指令皆可下達（一有按鈕、一可手動）。DTR 電平可由 Web Serial setSignals() 控制——NuModem 既有 RTS/DTR 控制即 EG800K 開機程序所用，故「拉高睡眠 / 拉低喚醒」可操作。限制：(1) MAIN_RI 的 120 ms 低脈衝靠訊號狀態列輪詢 getSignals() 觀察，輪詢間隔若大於 120 ms 會漏抓（實際輪詢間隔待確認）；(2) DTR/RI 是否真的接到模組 MAIN_DTR/MAIN_RI 及電平轉換方向，取決於 USB-UART 轉接板接線，需實測驗證。"
+   },
+   {
+    "name": "USB Suspend/Resume 低功耗方案（§4.2：主機將模組 USB 埠設為 suspend 使其睡眠、以 USB resume 喚醒）",
+    "feasible": false,
+    "note": "需主機 OS 層對模組 USB 埠執行 suspend/resume（global/selective suspend）。本工具是瀏覽器 + Web Serial + UART，無法控制也無法觀察模組的 USB 埠，此方案整段無法實現——屬工具定位限制，非缺按鈕。"
+   },
+   {
+    "name": "URC 埠設定與事件上報管理（§3：AT+QURCCFG 設上報埠 + AT+QINDCFG 篩選事件類型）",
+    "feasible": true,
+    "note": "兩指令均有按鈕；本機 urcport 已設 uart1，URC 經 UART 正常接收。MAIN_RI 硬體脈衝通知屬輔助（供睡眠中的主機喚醒用），對本工具非必要。"
+   },
+   {
+    "name": "模組睡眠投票機制（§5.1–5.2：QSCLK、RF、USB、UART 各服務投票決定能否入睡；睡眠中 RF 仍以 DRX 週期運作）",
+    "feasible": true,
+    "note": "此為原理說明非操作流程，無需按鈕。實務提醒：只要 NuModem 持續佔用 UART 通訊，UART 服務可能投反對票，實際能否入睡需以 DTR 電平配合並實測確認。"
+   }
+  ],
+  "summary": "本文件僅含 3 條 AT 指令（QSCLK / QURCCFG / QINDCFG），其中 URC 兩條已有按鈕，QSCLK 只有查詢鈕、缺 =1/=0 設定鈕（單行可手動輸入），指令面覆蓋率高。最大缺口在硬體面而非 AT：UART 睡眠/喚醒靠 MAIN_DTR 電平（Web Serial 可控）與 MAIN_RI 120 ms 脈衝（輪詢恐漏抓），USB Suspend/Resume 方案在瀏覽器架構下完全無法實現。建議補 QSCLK=1/0 設定鈕與一顆 DTR 睡眠切換快捷鈕，即可完整支援 UART 低功耗流程。"
+ },
+ {
+  "doc": "quectel_ecx00xeg800keg810meg91xneg915keg950a_series_ppp_application_note_v1-6.pdf（內文實為 Version 1.7，2026-03-18）",
+  "applicable": true,
+  "applicable_note": "適用。Table 1 適用機型含 EG800K Series（v1.5 於 2023-09-25 加入，v1.7 仍在列）。注意兩點：(1) 檔名標 v1-6，PDF 內文實為 Version 1.7（2026-03-18），引用版本號時以內文為準；(2) 文件註明「受模組 flash 容量限制，不同型號對 PPP 功能支援程度不同」，EG800K 實際支援細節需洽 Quectel 技術支援。",
+  "commands": [
+   {
+    "cmd": "AT+CGDCONT=1,\"IP\",\"CMNET\"",
+    "purpose": "定義 PDP context（CID/PDP 類型/APN），PPP 撥號前必設",
+    "status": "可命令列手動",
+    "note": "只有查詢鈕 AT+CGDCONT?（Contexts），缺 set 形式的參數卡按鈕；單行指令可在命令列手動輸入。TCP/IP 頁的 AT+QICSGP 設 APN 鈕是另一套機制，不等同本指令。"
+   },
+   {
+    "cmd": "ATD*99#",
+    "purpose": "啟動 PPP 撥號，模組回 CONNECT 後進入 PPP 訊框協商",
+    "status": "無法實現",
+    "note": "指令本身可在命令列送出、也看得到 CONNECT 與後續 7E FF 7D 23… PPP 訊框（顯示為亂碼），但瀏覽器無 PPP 協定堆疊，LCP/AUTH(PAP/CHAP)/IPCP 二進位協商無法由 NuModem 進行，文件載明 IPCP 90 秒未完成即應終止，模組最終回 NO CARRIER。真要 PPP 上網須用 OS 撥號程式（會獨占 COM 埠，與 NuModem 互斥）。僅可當診斷用：確認模組願意進入 PPP 模式。"
+   },
+   {
+    "cmd": "AT+CPIN?",
+    "purpose": "查詢 (U)SIM 卡狀態，撥號前必查（20 秒內未 ready 應退出）",
+    "status": "有按鈕",
+    "note": "Basic 頁 SIM 群組「SIM PIN」鈕。"
+   },
+   {
+    "cmd": "AT+CREG?",
+    "purpose": "查詢 CS 網路註冊狀態（回 1 或 5 表已註冊，60 秒內未註冊建議重啟）",
+    "status": "有按鈕",
+    "note": "Network 頁「CS Reg」鈕。"
+   },
+   {
+    "cmd": "AT+CGREG?",
+    "purpose": "查詢 PS 網路註冊狀態（回 1 或 5 表已註冊）",
+    "status": "有按鈕",
+    "note": "Network 頁「PS Reg」鈕。"
+   },
+   {
+    "cmd": "AT+CGACT?",
+    "purpose": "AT+CGDCONT 回 error 時檢查目前 context 是否已被啟用",
+    "status": "有按鈕",
+    "note": "Network 頁 PDP 群組「Activated?」鈕。"
+   },
+   {
+    "cmd": "AT+IPR=xxx;&W",
+    "purpose": "設定並儲存 UART 波特率（MCU 與模組同步後固定波特率）",
+    "status": "有按鈕",
+    "note": "Hardware 頁「Set Baud」參數卡鈕（AT+IPR={rate};&W）形式與文件一致。改速後需以新波特率重連 Web Serial。"
+   },
+   {
+    "cmd": "ATO",
+    "purpose": "由命令模式切回資料模式（回 CONNECT，之後輸入皆視為 PPP 訊框）",
+    "status": "有按鈕",
+    "note": "FTP 頁 Transfer 群組已有 ATO 鈕，功能通用。"
+   },
+   {
+    "cmd": "+++",
+    "purpose": "由資料模式切換到命令模式（前後各需 1 秒靜默）",
+    "status": "有按鈕",
+    "note": "已有 +++ 逃逸鈕（escape 專用，不加 CR）。前後 1 秒靜默的 guard time 由使用者自行掌握即可。"
+   },
+   {
+    "cmd": "AT&D1",
+    "purpose": "設定 DTR 功能：DTR 準位由低變高時，資料模式切回命令模式",
+    "status": "可命令列手動",
+    "note": "缺按鈕；單行指令可手動輸入。搭配 RS-232 訊號列的 DTR 切換即可完成整套切換（本工具具 DTR 控制，模組開機程序即靠 RTS/DTR）。"
+   },
+   {
+    "cmd": "AT&D2",
+    "purpose": "設定 DTR 功能：DTR 準位由低變高時，自動終止資料連線並回命令模式",
+    "status": "可命令列手動",
+    "note": "缺按鈕；單行指令可手動輸入，配合訊號列 DTR 切換執行終止。"
+   },
+   {
+    "cmd": "AT&C0",
+    "purpose": "DCD 腳位不指示資料載波狀態（恆定）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；單行指令可手動輸入。"
+   },
+   {
+    "cmd": "AT&C1",
+    "purpose": "DCD 腳位指示資料載波狀態（有載波或 PPP 協商開始時為低準位）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；單行指令可手動輸入。DCD 狀態可在 RS-232 訊號列直接觀察，此指令與訊號列是天生搭配。"
+   },
+   {
+    "cmd": "AT",
+    "purpose": "開機同步探測：每 100 ms 送一次直到模組回 OK（UART 自動鑑速）",
+    "status": "可命令列手動",
+    "note": "命令列隨時可送；NuModem 智慧連線已有自動探測機制，是否等效於 100 ms 週期重送待確認。"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "PPP 連線建立完整流程（§3.1/§3.2：CPIN?→CREG?/CGREG?→CGDCONT→ATD*99#→LCP/AUTH/IPCP 協商→IP 傳輸）",
+    "feasible": false,
+    "note": "AT 指令階段每一步都做得到（多數有按鈕），但 CONNECT 之後的 LCP/AUTH/IPCP 是二進位 PPP 訊框協商（含 FCS 計算與逐訊框應答），瀏覽器無 PPP 協定堆疊，屬工具本質限制、無法以補按鈕解決。文件建議的失敗退避策略（3 次失敗重啟，之後 10/30/60 分鐘）屬 MCU 端邏輯，亦不在本工具範圍。"
+   },
+   {
+    "name": "資料模式→命令模式切換：+++ 逃逸序列（§4.1.1.2）",
+    "feasible": true,
+    "note": "已有 +++ 逃逸鈕。要求：按前 1 秒不輸入任何字元、1 秒內只送 +++、送後 1 秒靜默；成功回 OK 且 PPP 連線保持。此機制同時服務 FTP COM: 透傳模式，非 PPP 專屬。"
+   },
+   {
+    "name": "資料模式→命令模式切換：DTR 準位法（§4.1.1.1，需先 AT&D1）",
+    "feasible": true,
+    "note": "AT&D1 命令列手動送出後，用 RS-232 訊號列把 DTR 由低切高即可，成功回 OK。本工具具 DTR/RTS 硬體控制（模組開機程序即用之）。"
+   },
+   {
+    "name": "命令模式→資料模式切換：ATO（§4.1.2.1）",
+    "feasible": true,
+    "note": "ATO 已有按鈕，回 CONNECT 後所有輸入視為 PPP 訊框。"
+   },
+   {
+    "name": "PPP 連線終止（§5：LCP Terminate-Request 或 AT&D2＋DTR 準位）",
+    "feasible": true,
+    "note": "文件建議法（送 LCP Terminate-Request 封包）不可行——需組二進位 PPP 訊框含 FCS，本工具僅有 Ctrl+Z/ESC 兩顆原始位元組鈕。替代法可行：AT&D2（命令列手動）＋訊號列 DTR 低→高切換即自動終止並回命令模式。"
+   },
+   {
+    "name": "資料模式中的 URC 處理（§4.2：RI 腳位 120 ms 脈衝指示來電/簡訊）",
+    "feasible": true,
+    "note": "RS-232 訊號列可觀察 RI，但 120 ms 脈衝以輪詢方式可能漏抓（輪詢週期是否足夠快待確認）。本機 urcport 已設 uart1，命令模式下 URC 可直接收；此程序僅在 PPP 資料模式下才有意義，實務上罕用。"
+   },
+   {
+    "name": "DCD 載波指示模式（§4.3：AT&C0/AT&C1 後觀察 DCD 腳位）",
+    "feasible": true,
+    "note": "AT&C 指令命令列手動送出，DCD 狀態直接看 RS-232 訊號列；+++ 切回命令模式時 DCD 狀態不變（文件註明）。"
+   },
+   {
+    "name": "開機同步與波特率固定（§3.2 NOTE：AT 每 100 ms 重送至收到 OK，再 AT+IPR=xxx;&W）",
+    "feasible": true,
+    "note": "手動可完整執行；Set Baud 按鈕已有。智慧連線是否已自動涵蓋同步探測，待確認。"
+   },
+   {
+    "name": "Windows 10 撥號上網設定（§6：新增標準 19200 bps 數據機→Extra Settings 填 AT+CGDCONT→建撥號連線撥 *99#）",
+    "feasible": false,
+    "note": "整段是 Windows 控制台操作，不經過 NuModem；且 Windows 撥號會獨占 COM 埠，與 NuModem 不能同時開同一埠。屬「不適用本工具」而非缺陷——這正是 PPP 上網的正規替代路徑，可寫入使用說明引導使用者。"
+   }
+  ],
+  "summary": "文件 14 個 AT 指令中 7 個已有按鈕、6 個單行指令可命令列手動補足，指令面覆蓋率高；唯一無法實現的是 ATD*99# 之後的 PPP 二進位協商（LCP/AUTH/IPCP）——瀏覽器無 PPP 堆疊，這是本文件的核心功能、屬工具本質限制。模式切換配套反而完整：+++ 逃逸鈕、ATO 鈕、RS-232 訊號列的 DTR 控制與 DCD/RI 觀察，正好覆蓋 §4/§5 全部切換與終止程序（LCP Terminate-Request 封包法除外）。建議：只補 AT&D1/AT&D2、AT&C0/AT&C1 與 AT+CGDCONT set 形式共 5 顆低成本按鈕作為模式控制輔助，PPP 上網功能本身不投資，改在說明文件引導使用者走 Windows 撥號（§6）路徑。"
+ },
+ {
+  "doc": "ref/EG800K/Application Note/quectel_ecx00xeg800keg810meg91xneg915keg950a_series_ssl_application_note_v1-3.pdf",
+  "applicable": true,
+  "applicable_note": "適用。Table 1（§1.1）明列 EG800K Series。注意：檔名標 v1-3，但 PDF 內容實為 Version 1.4（2026-06-10），v1.4 新增 EG800AK、更新 clientkey 與 QSSLOPEN 之 PDP_ctxID 範圍；v1.3 起即已納入 EG800K。",
+  "commands": [
+   {
+    "cmd": "AT+QSSLCFG=?",
+    "purpose": "列出 SSL context 全部可設定參數與範圍",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"sslversion\",<ctx>[,<ver>]",
+    "purpose": "查詢/設定 SSL 版本（SSL3.0–TLS1.2/All）",
+    "status": "有按鈕",
+    "note": "查詢與設定兩形式皆有按鈕（ctx 固定 1）"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"ciphersuite\",<ctx>[,<cs>]",
+    "purpose": "查詢/設定加密套件（0X0035–0XFFFF）",
+    "status": "有按鈕",
+    "note": "僅設定形式有按鈕；查詢形式（省略 <cs>）可命令列手動"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"cacert\",<ctx>[,<path>]",
+    "purpose": "查詢/設定信任 CA 憑證路徑（UFS:）",
+    "status": "有按鈕",
+    "note": "查詢與設定皆有按鈕；憑證檔本身需先以 AT+QFUPL 上傳（見該條）"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"cacertex\"[,<ctx>[,<path>]]",
+    "purpose": "查詢/設定 CA 憑證路徑（可一次列出全部 6 個 context）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；單行指令，命令列可直接輸入"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"clientcert\",<ctx>[,<path>]",
+    "purpose": "查詢/設定用戶端憑證路徑（雙向認證用）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；雙向認證（seclevel=2）必用，建議補按鈕"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"clientkey\",<ctx>[,<path>[,<pwd>]]",
+    "purpose": "查詢/設定用戶端私鑰路徑與密碼",
+    "status": "可命令列手動",
+    "note": "缺按鈕；v1.4 新增 <key_pwd> 參數"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"seclevel\",<ctx>[,<lvl>]",
+    "purpose": "查詢/設定認證模式（0 不驗證/1 驗伺服器/2 雙向）",
+    "status": "有按鈕",
+    "note": "查詢與設定皆有按鈕"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"ignorelocaltime\",<ctx>[,<ign>]",
+    "purpose": "設定是否忽略憑證有效期檢查",
+    "status": "有按鈕",
+    "note": "僅設定形式有按鈕；查詢形式可命令列手動"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"negotiatetime\",<ctx>[,<sec>]",
+    "purpose": "查詢/設定 SSL 交握逾時（10–300 秒）",
+    "status": "有按鈕",
+    "note": "查詢與設定皆有按鈕"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"sni\",<ctx>[,<en>]",
+    "purpose": "啟閉 Server Name Indication（僅 TLS）",
+    "status": "有按鈕",
+    "note": "僅設定形式有按鈕；查詢形式可命令列手動"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"closetimemode\",<ctx>[,<mode>]",
+    "purpose": "設定 QSSLCLOSE 逾時單位（0 秒/1 毫秒）",
+    "status": "可命令列手動",
+    "note": "缺按鈕"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"ignoremulticertchainverify\",<ctx>[,<x>]",
+    "purpose": "設定是否忽略多層憑證鏈驗證",
+    "status": "可命令列手動",
+    "note": "缺按鈕"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"ignoreinvalidcertsign\",<ctx>[,<x>]",
+    "purpose": "設定是否忽略無效憑證簽章",
+    "status": "可命令列手動",
+    "note": "缺按鈕"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"session_cache\",<ctx>[,<en>]",
+    "purpose": "啟閉 SSL session 恢復（session resumption）",
+    "status": "可命令列手動",
+    "note": "缺按鈕"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"psk\",<ctx>[,<identity>,<key>]",
+    "purpose": "設定交握用 PSK（identity 與 key，各 0–255 字元）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；v1.3 新增指令"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"alpn\",<ctx>[,<name>]",
+    "purpose": "設定 TLS ALPN 擴充協定名稱",
+    "status": "可命令列手動",
+    "note": "缺按鈕；v1.3 新增指令"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"renegotiation\",<ctx>[,<en>]",
+    "purpose": "啟閉 TLS 重新協商功能",
+    "status": "可命令列手動",
+    "note": "缺按鈕；v1.3 新增指令"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"dtls\",<ctx>[,<en>]",
+    "purpose": "啟閉 DTLS 功能",
+    "status": "可命令列手動",
+    "note": "缺按鈕；v1.3 新增指令"
+   },
+   {
+    "cmd": "AT+QSSLCFG=\"dtlsversion\",<ctx>[,<ver>]",
+    "purpose": "設定 DTLS 版本（0=1.0/1=1.2）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；v1.3 新增指令"
+   },
+   {
+    "cmd": "AT+QSSLOPEN=<pdp>,<ctx>,<cid>,<addr>,<port>,0",
+    "purpose": "開啟 SSL 連線（buffer access mode）",
+    "status": "有按鈕",
+    "note": "結果以 +QSSLOPEN: <cid>,<err> URC 回報，urcport=uart1 收得到"
+   },
+   {
+    "cmd": "AT+QSSLOPEN=<pdp>,<ctx>,<cid>,<addr>,<port>,1",
+    "purpose": "開啟 SSL 連線（direct push mode）",
+    "status": "有按鈕",
+    "note": ""
+   },
+   {
+    "cmd": "AT+QSSLOPEN=<pdp>,<ctx>,<cid>,<addr>,<port>,2",
+    "purpose": "開啟 SSL 連線並進入透傳模式（回 CONNECT）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；單行指令可手動。進透傳後命令列每次送出都附加 CR，文字資料可用、二進位資料不純（限制，非無法實現）；退出用既有 +++ 鈕或 DTR"
+   },
+   {
+    "cmd": "AT+QSSLSEND=<cid>,<sendlen>",
+    "purpose": "送出固定長度資料（等 > 後輸入，滿長度即送，上限 1460 bytes）",
+    "status": "有按鈕",
+    "note": "兩段式按鈕已有（cid 固定 4）"
+   },
+   {
+    "cmd": "AT+QSSLSEND=<cid>",
+    "purpose": "送出變動長度資料（等 > 後輸入，Ctrl+Z 送出/ESC 取消）",
+    "status": "需兩段式-已有機制",
+    "note": "SSL 群組缺此變長按鈕；Ctrl+Z(0x1A)/ESC(0x1B) 原始位元組鈕已存在（TCP/IP 群組 QISEND 有同型「續寫」按鈕可仿做），建議補一顆 QSSLSEND 變長鈕"
+   },
+   {
+    "cmd": "AT+QSSLRECV=<cid>,<readlen>",
+    "purpose": "從緩衝區讀取收到的資料（0–1500 bytes）",
+    "status": "有按鈕",
+    "note": "大量二進位資料顯示得出來但存不了檔（限制）"
+   },
+   {
+    "cmd": "AT+QSSLCLOSE=<cid>[,<timeout>]",
+    "purpose": "關閉 SSL 連線（逾時 0–65535，預設 10）",
+    "status": "有按鈕",
+    "note": "無逾時與帶逾時兩形式皆有按鈕"
+   },
+   {
+    "cmd": "AT+QSSLSTATE[=<cid>]",
+    "purpose": "查詢 SSL 連線狀態（全部或指定 socket）",
+    "status": "有按鈕",
+    "note": "執行與帶參數兩形式皆有按鈕"
+   },
+   {
+    "cmd": "AT+QSSLOPEN=? / AT+QSSLSEND=? / AT+QSSLRECV=? / AT+QSSLCLOSE=? / AT+QSSLSTATE=?",
+    "purpose": "各指令之測試形式，回參數範圍",
+    "status": "可命令列手動",
+    "note": "僅 QSSLCFG=? 有按鈕，其餘測試指令單行可手動"
+   },
+   {
+    "cmd": "AT+QICSGP=<cid>,1,<apn>,<user>,<pass>,1",
+    "purpose": "設定 PDP context 之 APN/帳密（§3.1.1 前置）",
+    "status": "有按鈕",
+    "note": "TCP/IP 群組 Set APN 按鈕"
+   },
+   {
+    "cmd": "AT+QIACT=<cid>",
+    "purpose": "啟用 PDP context（§3.1.2）",
+    "status": "有按鈕",
+    "note": "TCP/IP 群組 Act PDP 按鈕"
+   },
+   {
+    "cmd": "AT+QIACT?",
+    "purpose": "查詢 PDP 啟用狀態與取得之 IP",
+    "status": "有按鈕",
+    "note": "SSL 與 TCP/IP 群組皆有"
+   },
+   {
+    "cmd": "AT+QIDEACT=<cid>",
+    "purpose": "停用 PDP context（§3.1.3）",
+    "status": "有按鈕",
+    "note": "TCP/IP 群組 Deact PDP 按鈕"
+   },
+   {
+    "cmd": "AT+QISWTMD",
+    "purpose": "連線建立後切換資料存取模式（含切回透傳，回 CONNECT）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；單行指令可手動，詳細參數在 TCP/IP 手冊（文件[1]）"
+   },
+   {
+    "cmd": "ATO",
+    "purpose": "退出透傳後切回透傳模式（回 CONNECT，無連線回 NO CARRIER）",
+    "status": "有按鈕",
+    "note": "FTP 群組已有 ATO 按鈕，終端機通用"
+   },
+   {
+    "cmd": "+++",
+    "purpose": "逃逸序列：退出透傳模式回 buffer access mode（前後需 1 秒靜默）",
+    "status": "有按鈕",
+    "note": "已有 +++ 逃逸鈕"
+   },
+   {
+    "cmd": "AT&D1",
+    "purpose": "設定 DTR 由 LOW→HIGH 時退出透傳（進透傳前先設）",
+    "status": "可命令列手動",
+    "note": "缺按鈕；單行可手動。DTR 電平切換可用 NuModem 的 RS-232 訊號列操作"
+   },
+   {
+    "cmd": "AT+CCLK=<time>",
+    "purpose": "設定模組時鐘至憑證有效期內（§1.5 憑證驗期前置）",
+    "status": "可命令列手動",
+    "note": "查詢鈕 AT+CCLK? 已有（Basic 群組）；設定形式缺按鈕，單行可手動"
+   },
+   {
+    "cmd": "AT+QIDNSCFG=<cid>",
+    "purpose": "查 DNS 伺服器位址是否有效（§4 排查步驟 2）",
+    "status": "有按鈕",
+    "note": "HTTP(S) 群組已有"
+   },
+   {
+    "cmd": "AT+QFUPL=<file>,<size>,<timeout>",
+    "purpose": "上傳 CA/用戶端憑證與私鑰檔至模組 UFS（§4；seclevel 1/2 必要前置）",
+    "status": "需兩段式-已有機制",
+    "note": "缺按鈕。兩段式：CONNECT 後需送「剛好 <size> bytes」的檔案原始內容；命令列每行加 CR 且不會自動算長度，文字 PEM 勉強可貼但長度須含換行字元、極易失敗。建議補「憑證上傳」按鈕（檔案選擇器自動算 byte 數）。指令細節在 FILE 手冊（文件[2]）"
+   },
+   {
+    "cmd": "AT+QIGETERROR",
+    "purpose": "查詢最後一次 SSL 指令的錯誤碼（550–574，§5）",
+    "status": "有按鈕",
+    "note": "SSL 與 TCP/IP 群組皆有"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "SSL 基本使用七步驟（§1.3：QICSGP→QIACT→QSSLCFG→QSSLOPEN→收發→QSSLCLOSE→QIDEACT）",
+    "feasible": true,
+    "note": "全程按鈕覆蓋（QSSLCFG 進階參數走命令列），可完整走通"
+   },
+   {
+    "name": "Buffer access mode 收發（§3.3：開連線→QSSLSEND 兩段式→+QSSLURC recv→QSSLRECV→關閉）",
+    "feasible": true,
+    "note": "固定長度送出按鈕已有；變長送出缺按鈕（見指令表）。URC 走 uart1 收得到"
+   },
+   {
+    "name": "Direct push mode 收發（§3.4：資料隨 +QSSLURC \"recv\" 直接推到終端機）",
+    "feasible": true,
+    "note": "可行；大量二進位推送顯示得出來但存不了檔（限制）"
+   },
+   {
+    "name": "透傳模式（§3.5+§1.4：QSSLOPEN mode 2→CONNECT→裸資料；+++ 或 DTR 退出；ATO/QISWTMD 返回）",
+    "feasible": true,
+    "note": "進出機制齊全（+++ 鈕、ATO 鈕、RS-232 訊號列可操作 DTR、AT&D1 手動）。限制：透傳中命令列每次送出附加 CR，僅適合行導向文字資料，二進位透傳不純"
+   },
+   {
+    "name": "憑證上傳流程（seclevel 1/2 前置：QFUPL 上傳 cacert/clientcert/clientkey→QSSLCFG 指路徑）",
+    "feasible": false,
+    "note": "目前不可靠：AT+QFUPL 為兩段式檔案上傳（CONNECT 後送精確 byte 數的原始內容），無按鈕、命令列會被 CR 污染且不算長度。這是本文件最大缺口——沒有它 seclevel 1/2（伺服器驗證/雙向認證）整條路走不通。建議補兩段式憑證上傳按鈕"
+   },
+   {
+    "name": "憑證有效期檢查設定（§1.5：AT+CCLK 校時，或 ignorelocaltime=1 跳過）",
+    "feasible": true,
+    "note": "CCLK 設定走命令列；ignorelocaltime 有按鈕。亦可用既有 NTP Sync 按鈕（AT+QNTP）自動校時"
+   },
+   {
+    "name": "SSL 連線失敗排查（§4：QIACT?→QIDNSCFG→QSSLCFG 核對→QIGETERROR 讀錯誤碼）",
+    "feasible": true,
+    "note": "四步全部有按鈕或可手動；錯誤碼表（550–574）在 §5"
+   },
+   {
+    "name": "URC 接收（+QSSLURC \"recv\"/\"closed\"、+QSSLOPEN: <cid>,<err>）",
+    "feasible": true,
+    "note": "本機 urcport 已設 uart1，三種 URC 皆會出現在終端機；\"closed\" 後須手動 QSSLCLOSE 使狀態回 initial（有按鈕）"
+   }
+  ],
+  "summary": "EG800K 在適用機型表內（注意 PDF 實為 v1.4，檔名 v1-3 過時）；核心六指令（QSSLCFG/QSSLOPEN/QSSLSEND/QSSLRECV/QSSLCLOSE/QSSLSTATE）按鈕覆蓋完整，40 個指令項中 22 有按鈕、16 可命令列手動、2 需補兩段式按鈕、0 無法實現。最大缺口是 AT+QFUPL 憑證上傳（兩段式、需精確 byte 數）無按鈕，導致 seclevel 1/2 的伺服器驗證與雙向認證流程實務上走不通。建議補「QFUPL 憑證上傳（檔案選擇器）」與「QSSLSEND 變長續寫」兩顆兩段式按鈕，並考慮把 v1.3 新增的 psk/alpn/dtls 等 QSSLCFG 子參數補進參數卡。"
+ },
+ {
+  "doc": "quectel_ecx00xeg800keg810meg91xneg950a_series_usb_descriptor_introduction_v1-3.pdf（注意：檔名標 v1-3，PDF 內文實為 Version 1.4，2026-02-05，26 頁）",
+  "applicable": true,
+  "applicable_note": "§1.1 Table 1 適用機型明列 EG800K Series（v1.3 起加入；內文 v1.4 又增列 EG800AK/EG915K）。文件描述的是模組 USB 埠列舉出的 6 個介面（Interface 0/1 ECM、2 DM、3 AT、4 Modem/PPP、5 NMEA）之描述符，適用 EG800K，但內容幾乎全屬 USB host 端範疇，與 NuModem 的 UART 通道無交集。",
+  "commands": [
+   {
+    "cmd": "AT+QGPSCFG=\"outport\",\"usbnmea\"",
+    "purpose": "將 GNSS NMEA 輸出導向 USB NMEA 埠（Interface 5），讓 USB host 端接收 NMEA 資訊（§3.3.6 NOTE）",
+    "status": "可命令列手動",
+    "note": "全文件唯一 AT 指令。單行指令、可在命令列手動輸入；inventory 有多顆 QGPSCFG 按鈕（nmeasrc/gpsnmeatype/urc/apflash/gnssconfig）但無 outport 鈕。限制：設定後的 NMEA 串流只出現在模組 USB 埠（Interface 5，endpoint 0x85/0x04），NuModem 只接 UART、無法觀察驗證其效果；在 NuModem 內看 NMEA 應維持既有 nmeasrc + AT+QGPSGNMEA 按鈕路徑。"
+   }
+  ],
+  "procedures": [
+   {
+    "name": "USB NMEA 埠輸出流程（設 outport=usbnmea 後由 USB Interface 5 讀取 NMEA，需另裝驅動）",
+    "feasible": false,
+    "note": "AT 指令本身可從 UART 下達，但接收端是模組 USB 埠且需 host 端專用驅動——NuModem 是瀏覽器 + Web Serial 的 UART 工具，看不到模組 USB 埠輸出。替代：NuModem 已有 nmeasrc/QGPSGNMEA 按鈕可在 UART 側取 NMEA，功能不缺。"
+   },
+   {
+    "name": "PPP 撥號連線（Interface 4 Modem 介面之用途，Table 3）",
+    "feasible": false,
+    "note": "文件只說明該 USB 介面「For PPP connection」，未給任何 AT 指令。無法實現原因有二：PPP 需主機端跑二進位協定堆疊，瀏覽器無 PPP stack；且此介面是模組 USB 埠，本工具僅接 UART。"
+   },
+   {
+    "name": "USB 描述符列舉／驅動安裝（OS 自動讀取 device/configuration/interface/endpoint descriptor；§3 NOTE：ECM 模式下 Windows 需另裝 ECM 驅動、RNDIS 模式 Windows/Linux 皆可自動讀取）",
+    "feasible": false,
+    "note": "純 USB host 端（作業系統）行為，透過 GetDescriptor() 等 USB 控制傳輸完成，與 AT/UART 完全無關，本就不屬 NuModem 實作範圍。文件亦未給切換 ECM/RNDIS 的 AT 指令（該指令在其他手冊，不在本 PDF，依誠實原則不列）。"
+   }
+  ],
+  "summary": "本文件為純 USB 描述符參考資料，全文僅 1 條 AT 指令（AT+QGPSCFG=\"outport\",\"usbnmea\"，無按鈕但可命令列手動，惟其效果在模組 USB 埠、UART 側無法觀察），其餘全是 USB host 端的描述符表與介面說明，與 NuModem 的 UART 架構無交集。不存在需補按鈕的缺口，建議不為本文件新增任何 UI；價值僅在背景知識（EG800K USB 列舉出 ECM/DM/AT/Modem/NMEA 六埠、VID 0x2C7C/PID 0x6002）。另提醒：檔名標 v1-3 但內文已是 v1.4（2026-02-05），引用時以內文版本為準。"
+ }
+]

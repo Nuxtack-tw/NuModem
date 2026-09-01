@@ -1,0 +1,16 @@
+{
+ " 秒": " giây",
+ "125 秒": "125 giây",
+ "BSSID 上限": "Giới hạn BSSID",
+ "{0} 成功": "{0} thành công",
+ "{0}成功": "{0} thành công",
+ "例：mqttgo.io": "ví dụ: mqttgo.io",
+ "充電中": "Đang sạc",
+ "列出全部 FTP 設定子項：9 項回支援值範圍。account 那行的密碼會被模組遮成 *（2026-08-07 P6 實測），帳號則是明文": "Liệt kê toàn bộ mục con cấu hình FTP: 9 dòng trả về phạm vi giá trị được hỗ trợ. Ở dòng account, mô-đun che mật khẩu thành * (đo thực tế 2026-08-07, P6); tên đăng nhập vẫn ở dạng rõ",
+ "失敗": "Thất bại",
+ "字串，最大 255 bytes。查詢指令讀回時密碼會被模組遮成 *（2026-08-07 P6 實測），但你在這裡輸入的原文仍是明碼": "Chuỗi, tối đa 255 byte. Khi đọc lại bằng lệnh truy vấn, mô-đun che mật khẩu thành * (đo thực tế 2026-08-07, P6), nhưng nội dung bạn nhập ở đây vẫn là văn bản rõ",
+ "成功": "Thành công",
+ "查詢目前帳密設定；密碼會被模組遮成 *（2026-08-07 P6 實測）": "Truy vấn thiết lập tài khoản hiện tại; mô-đun che mật khẩu thành * (đo thực tế 2026-08-07, P6)",
+ "查詢目前設定的 FTP 帳號與密碼。⚠ 手冊寫「回應會把密碼原樣印出」，但 2026-08-07 P6 實測本機韌體是遮成 * 的 —— 以實測為準，不要因為手冊那句話就不敢查。": "Truy vấn tên đăng nhập và mật khẩu FTP đang được đặt. ⚠ Sổ tay ghi \"phản hồi in nguyên mật khẩu\", nhưng phép đo P6 ngày 2026-08-07 cho thấy firmware máy này che thành * —— hãy tin vào phép đo, đừng vì câu đó trong sổ tay mà ngại truy vấn.",
+ "（空）": "(trống)"
+}

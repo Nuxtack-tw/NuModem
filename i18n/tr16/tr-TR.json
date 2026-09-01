@@ -1,0 +1,16 @@
+{
+ " 秒": " sn",
+ "125 秒": "125 sn",
+ "BSSID 上限": "BSSID üst sınırı",
+ "{0} 成功": "{0} başarılı",
+ "{0}成功": "{0} başarılı",
+ "例：mqttgo.io": "örn. mqttgo.io",
+ "充電中": "Şarj oluyor",
+ "列出全部 FTP 設定子項：9 項回支援值範圍。account 那行的密碼會被模組遮成 *（2026-08-07 P6 實測），帳號則是明文": "Tüm FTP yapılandırma alt maddelerini listeler: 9 satır desteklenen değer aralığı döner. account satırında modül parolayı * ile maskeler (2026-08-07, P6 ölçümü); kullanıcı adı açık metindir",
+ "失敗": "Başarısız",
+ "字串，最大 255 bytes。查詢指令讀回時密碼會被模組遮成 *（2026-08-07 P6 實測），但你在這裡輸入的原文仍是明碼": "Dizgi, en fazla 255 bayt. Sorgu komutuyla geri okunduğunda modül parolayı * ile maskeler (2026-08-07, P6 ölçümü), ancak buraya yazdığınız metin açık kalır",
+ "成功": "Başarılı",
+ "查詢目前帳密設定；密碼會被模組遮成 *（2026-08-07 P6 實測）": "Geçerli hesap ayarlarını sorgular; modül parolayı * ile maskeler (2026-08-07, P6 ölçümü)",
+ "查詢目前設定的 FTP 帳號與密碼。⚠ 手冊寫「回應會把密碼原樣印出」，但 2026-08-07 P6 實測本機韌體是遮成 * 的 —— 以實測為準，不要因為手冊那句話就不敢查。": "Hâlihazırda ayarlı FTP kullanıcı adı ve parolasını sorgular. ⚠ Kılavuz \"yanıt parolayı olduğu gibi yazdırır\" diyor, ancak 2026-08-07 tarihli P6 ölçümü bu ürün yazılımının parolayı * ile maskelediğini gösterdi —— ölçümü esas alın; kılavuzdaki o cümle yüzünden bu sorguyu yapmaktan çekinmeyin.",
+ "（空）": "(boş)"
+}

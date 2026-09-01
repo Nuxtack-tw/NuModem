@@ -1,0 +1,185 @@
+<h3 id="tab-hardware">Hardware — arranque y puerto serie</h3>
+            <p><strong>Funcionamiento:</strong> esta página es los cimientos de toda la herramienta:
+            Control son los dos botones del ritual de arranque (Power/Reset), Module es la identificación del producto,
+            Serial es la configuración del UART, Power es el bajo consumo, URC gestiona el puerto de salida
+            de los mensajes espontáneos del módulo, y hay además una fila de <strong>botones de bytes crudos</strong>
+            (Ctrl+Z/ESC/+++) como salida de emergencia del modo de datos.
+            Las demás pestañas se apoyan en dos premisas: <strong>el módulo se ha arrancado según el ritual</strong>
+            y <strong>los URC salen por uart1</strong> — ambas cosas se hacen en esta página.
+            Los comportamientos y cifras de esta sección son mediciones reales de agosto de 2026 sobre un EG800K físico.</p>
+
+            <h4>Por qué existe el ritual de arranque: RTS = alimentación, DTR = Reset</h4>
+            <p>La placa de control que acompaña a esta herramienta reutiliza dos señales de handshake RS-232
+            para otro fin; esta es la clave para entender toda la página:</p>
+            <table>
+                <tr><th>Señal</th><th>Conectada en realidad a</th><th>Lógica</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Interruptor de alimentación del módulo</td>
+                    <td><strong>Lógica negativa</strong>: RTS OFF = con alimentación, RTS ON = sin alimentación</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Patilla de Reset del módulo</td>
+                    <td>DTR ON = Reset en alto (puede arrancar), DTR OFF = Reset en bajo</td></tr>
+            </table>
+            <p>Particularidad del circuito (confirmada en pruebas): en la primera conexión, RTS debe pasar
+            <strong>primero a ON y luego a OFF</strong> para que la alimentación se encienda de verdad —
+            ponerlo directamente en OFF no garantiza que haya corriente; DTR también debe recorrer
+            <strong>ON→OFF→ON</strong> para que el Reset quede realmente en alto. El corte de alimentación
+            (RTS ON) es un corte duro: el módulo <strong>no envía ningún mensaje de despedida</strong>.</p>
+            <div class="warning">
+                <strong>Recargar la página = cortar la alimentación.</strong> Al reabrir el puerto serie,
+                el navegador vuelve a levantar RTS y el módulo se queda sin corriente — tras completarse
+                la reconexión automática <strong>hay que repetir el ritual de arranque</strong>.
+                Comprobado por las malas: saltándose el ritual se enviaron 17 comandos seguidos y todos
+                se fueron sin volver (solo líneas TX, cero RX).
+                Ante cualquier «hace un momento funcionaba y ahora no responde nada», piensa primero en esto.
+            </div>
+
+            <h4>Botones Power y Reset: cómo pulsarlos y qué verás</h4>
+            <p>Los dos botones son la encarnación de las dos señales de la tabla anterior, y están
+            <strong>sincronizados en ambos sentidos</strong> con los indicadores RTS/DTR de la barra de señales
+            (aparecen atenuados y no pulsables sin conexión). Web Serial no puede leer el estado real
+            de las señales de salida: la barra muestra el valor que esta herramienta cree haber enviado.</p>
+            <ol>
+                <li><strong>Power</strong> (conmutador): verde encendido = alimentación ON (= RTS OFF).
+                    El ritual de arranque exige que RTS pase por ON→OFF: si el botón ya está encendido,
+                    primero apágalo y luego enciéndelo.</li>
+                <li><strong>Reset</strong> (momentáneo): pulsado = DTR OFF, soltado = DTR ON;
+                    pulsar y soltar es un Reset (la secuencia estándar hace una pausa de 0.3 segundos en medio).</li>
+                <li><strong>Espera el RDY</strong>: en pocos segundos aparecerá en el terminal el anuncio
+                    de arranque del módulo, <code>RDY</code>.</li>
+                <li><strong>Verifica con ATI</strong>: debe responder <code>Quectel</code>/<code>EG800K</code>/
+                    <code>Revision: …</code>/<code>OK</code>. Si responde, el UART y el módulo están vivos.</li>
+            </ol>
+            <div class="tip">
+                Tras arrancar conviene confirmar primero que el eco (ATE) está activado (de fábrica lo está)
+                y después enviar <code>AT+CMEE=2</code> — sin él solo verás un escueto <code>ERROR</code>;
+                con él obtienes el texto legible de <code>+CME ERROR: …</code>. Ambos son solo de sesión:
+                hay que reenviarlos cada vez que el módulo rearranca.
+            </div>
+
+            <h4>Module: cinco botones de identificación</h4>
+            <table>
+                <tr><th>Botón</th><th>Comando</th><th>Qué verás</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>Fabricante/modelo/versión de firmware, tres en uno — el primer comando que enviar tras arrancar</td></tr>
+                <tr><td>Vendor/Model/FW Ver</td>
+                    <td><code>AT+GMI</code>/<code>AT+GMM</code>/<code>AT+GMR</code></td>
+                    <td>Consultan por separado las tres líneas de ATI (equivalentes a CGMI/CGMM/CGMR respectivamente).
+                        Versión de firmware medida en este equipo: <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>IMEI del módulo (15 dígitos). Cero tráfico, se puede pedir en cualquier momento</td></tr>
+            </table>
+
+            <h4>Serial: AT&amp;V lee los parámetros, IPR cambia la velocidad</h4>
+            <p><strong>AT Params (<code>AT&amp;V</code>)</strong>: lista el valor actual de todos los parámetros AT
+            de una letra. Los comandos de una letra como <code>ATE</code>/<code>ATQ</code>/<code>ATV</code>
+            <strong>no tienen forma de consulta propia; solo con este comando se pueden leer</strong>.
+            Medido en este equipo: <code>E:1 Q:0 V:1 S3:13 S4:10</code> —
+            eco activado, códigos de resultado en modo texto, fin de línea = CR (ASCII 13),
+            exactamente las premisas con las que esta herramienta analiza las respuestas.</p>
+            <p><strong>Baud? (<code>AT+IPR?</code>)</strong>: consulta la velocidad actual del UART; de fábrica, 115200.<br>
+            <strong>Baud List (<code>AT+IPR=?</code>)</strong>: devuelve dos listas —
+            la primera son las velocidades autodetectables y la segunda las disponibles solo en modo fijo.
+            Tras pulsar este botón, el desplegable de Set Baud se sustituye por la lista que este equipo
+            reporta realmente. En este equipo la segunda lista llega hasta
+            <strong>1000000 bps — un valor que no figura en la tabla del §3.4 del manual</strong>.</p>
+            <p><strong>Set Baud (<code>AT+IPR={rate};&amp;W</code>, tarjeta de parámetros)</strong>:
+            al pulsarlo salta primero un cuadro de confirmación — es el botón de toda la página con el que
+            más fácil resulta dejarse a uno mismo fuera.</p>
+            <div class="warning">
+                <strong>La triple trampa de cambiar la velocidad (las tres confirmadas en pruebas):</strong><br>
+                ① En cuanto llega el <code>OK</code>, <strong>surte efecto de inmediato</strong>:
+                al instante siguiente esta herramienta y el módulo hablan idiomas distintos;<br>
+                ② <code>AT&amp;F</code> (restauración de fábrica) <strong>no</strong> devuelve la velocidad
+                a su valor anterior — no cuentes con que te rescate;<br>
+                ③ Sin <code>&amp;W</code> no se guarda — y reconectar = cortar la alimentación: el módulo
+                despertará con la velocidad antigua mientras tu puerto se queda en la nueva,
+                <strong>doble incomunicación</strong>.
+                Por eso esta herramienta impone la forma combinada <code>;&amp;W</code>.<br>
+                Recuperación en cuatro pasos (el cuadro de confirmación también lo recuerda):
+                desconectar → cambiar la velocidad en la zona de conexión → reconectar → repetir el ritual de arranque.
+            </div>
+
+            <h4>Power: bajo consumo con QSCLK</h4>
+            <p><strong>Sleep? (<code>AT+QSCLK?</code>)</strong>: consulta si el módulo tiene permitido dormir.
+            Medido en este equipo, de fábrica es <code>0</code> = desactivado, el módulo permanece despierto.
+            Esta página solo ofrece el botón de consulta: un módulo dormido <strong>deja de responder a AT</strong>,
+            y el método de despertar del manual es bajar DTR — pero en esta placa el DTR ya está conectado
+            como patilla de Reset (ver el inicio de esta sección). Si activas el sueño por tu cuenta desde
+            la línea de comandos y no consigues despertarlo, basta con repetir el ritual de arranque
+            (cortar y devolver la alimentación) para salir del apuro; los detalles están en la nota
+            de aplicación oficial de bajo consumo.</p>
+
+            <h4>URC: cuando no llegan mensajes, ven aquí primero</h4>
+            <p>Un <strong>URC (Unsolicited Result Code, código de resultado no solicitado)</strong> es un mensaje
+            que el módulo «suelta por iniciativa propia, sin que se le pida», y no es la respuesta a ningún comando —
+            el <code>RDY</code> del arranque, la llegada de datos TCP, los mensajes MQTT,
+            los resultados del escaneo Wi-Fi y el aviso de carga del firmware GNSS lo son todos.
+            Su puerto de salida <strong>de fábrica es el puerto USB (usbat)</strong> —
+            esta herramienta, que va por UART, no recibiría ni uno,
+            con un síntoma muy característico: <strong>todos los comandos responden OK, pero los mensajes nunca llegan</strong>.</p>
+            <table>
+                <tr><th>Botón</th><th>Comando</th><th>Uso</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>Consulta adónde se están enviando ahora los URC — cuando no llegan URC,
+                        <strong>este es el primer comando que lanzar</strong>;
+                        debe responder <code>"uart1"</code> para que se reciban</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>Qué puertos de salida admite este equipo. Medido: responde <code>("usbat","usbmodem","uart1")</code>,
+                        <strong>sin el "all" que menciona el manual</strong> (el manual anota que algunos modelos no lo admiten)</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>Cambia al UART principal. Se escribe en NVRAM y sobrevive a los rearranques:
+                        <strong>basta con cambiarlo una vez</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>Interruptor general de los URC, la otra gran causa de «no llegan URC».
+                        Medido en este equipo, de fábrica ya viene a 1 (activado);
+                        el problema casi siempre está en el puerto de salida</td></tr>
+            </table>
+
+            <h4>Botones de bytes crudos: la salida de emergencia del modo de datos</h4>
+            <p>Bastantes comandos son <strong>en dos fases</strong>: primero se envía el comando, se espera
+            a que el módulo responda con el aviso <code>&gt;</code> y después se envía el cuerpo.
+            Una vez dentro de ese <strong>modo de datos</strong>, el módulo se traga como datos cada carácter
+            que teclees — incluidos los comandos AT que quieras enviar. Cuando la longitud está mal calculada,
+            te arrepientes a mitad o el comando se queda atascado, las teclas normales no pueden rescatarte:
+            hacen falta estos botones que envían un único byte crudo:</p>
+            <table>
+                <tr><th>Botón</th><th>Envía</th><th>Cuándo usarlo</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td>El <strong>terminador</strong> del modo de datos: envía de verdad el contenido acumulado</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td><strong>Cancela</strong> el modo de datos y descarta el contenido acumulado.
+                        La tecla de escape preferida cuando un comando en dos fases se atasca
+                        y el puerto AT deja de responder (manual §2.3.8)</td></tr>
+                <tr><td>+++</td><td>Tres signos + (bytes crudos)</td>
+                    <td>Para escapar del <strong>modo de datos transparente</strong> (como la transferencia COM: de FTP)
+                        de vuelta al modo AT. La regla es estricta: <strong>1 segundo de silencio antes y después,
+                        y jamás con CR/LF</strong> — medido: con un CR añadido no surte efecto;
+                        hay que enviarlo con este botón, no tecleándolo en la línea de comandos</td></tr>
+            </table>
+            <div class="warning">
+                <strong>La medición desmiente al manual: +++ es «abortar», no «pausar».</strong>
+                La nota de aplicación de FTPS v1.5, página 13, dice que tras +++ se puede volver al modo
+                de datos con <code>ATO</code> y continuar la transferencia; en el equipo real <code>ATO</code>
+                solo responde <code>NO CARRIER</code> y la transferencia ya ha quedado abortada.
+                Usa +++ como freno de emergencia y no esperes poder seguir conduciendo después de frenar.
+            </div>
+
+            <h4>Solución de problemas</h4>
+            <table>
+                <tr><th>Síntoma</th><th>Causa y solución</th></tr>
+                <tr><td>Ningún comando responde</td>
+                    <td>Revisa los tres sospechosos en orden: ① no se ha ejecutado el ritual de arranque
+                        (si has recargado la página, es esto seguro);
+                        ② el fin de línea está en LF — el módulo <strong>solo reconoce CR</strong>,
+                        con LF no responde en absoluto;
+                        ③ la velocidad no coincide (ver la recuperación en cuatro pasos)</td></tr>
+                <tr><td>Pulsas Reset pero el RDY no llega</td>
+                    <td>Mira primero si el botón Power está encendido — sin alimentación,
+                        por muchas veces que pulses Reset no servirá;
+                        en la primera conexión la alimentación debe pasar por ON→OFF</td></tr>
+                <tr><td>Los comandos responden OK, pero los URC no llegan</td>
+                    <td>Casi seguro que urcport sigue en el usbat de fábrica: consulta con URC Port?
+                        y cámbialo con URC → UART; si aun así nada, revisa el interruptor general URC Switch</td></tr>
+                <tr><td>El puerto AT de repente «se traga los comandos» y no responde a nada</td>
+                    <td>Está atascado en modo de datos: todo lo que tecleas se recoge como datos —
+                        pulsa ESC para escapar</td></tr>
+            </table>

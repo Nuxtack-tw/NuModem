@@ -1,0 +1,148 @@
+<h3 id="tab-wifi">WiFiScan —— Wi-Fi スキャンとネットワーク測位</h3>
+            <p><strong>動作原理：</strong>EG800K は LTE モジュールで、<strong>Wi-Fi でネットに出る能力はありません</strong>が、
+            「スキャンするだけで接続しない」Wi-Fi 受信機を内蔵しています：周辺の 2.4GHz アクセスポイントが放送する
+            beacon フレームを受動的に受信し、各アクセスポイントの MAC アドレス（BSSID）、RSSI（信号強度）、チャネルを報告します。
+            スキャンは純粋な RF 受信で、<strong>データ通信量ゼロ</strong>です。それ自体は座標を生みません ——
+            MAC＋RSSI のリストをクラウドのアクセスポイント位置データベースへ送って照会し、はじめて緯度経度に換えられます。
+            これが<strong>屋内でも使え、衛星に頼らない</strong>ネットワーク測位です。
+            本節のすべての数値と挙動は 2026 年 8 月に実機 EG800K で実測した値です。</p>
+
+            <h4>このページの 2 グループのボタン</h4>
+            <p>上半分は <strong>Wi-Fi Scan</strong> の 4 ボタン（純粋なスキャン）、下半分は
+            <strong>QuecLocator (QLBS)</strong> の 13 ボタン（後の「真相」の段落を読んでから押してください）：</p>
+            <table>
+                <tr><th>ボタン</th><th>コマンド</th><th>働きと実測の要点</th></tr>
+                <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>パラメータ範囲を照会。本機の実際の応答は
+                        <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+                <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+                    <td>現在のパラメータを読み出し。本機の出荷値は <code>12000,1,5,5,0</code>＝
+                        時間制限 12 秒、1 巡、アクセスポイント上限 5、RRC タイムアウト 5 秒、優先度 0</td></tr>
+                <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+                    <td>現在のパラメータで 1 回スキャン。結果は <code>OK</code> の後に<strong>非同期</strong>で報告され、
+                        最長 13 秒待ちます</td></tr>
+                <tr><td>Scan (custom)</td><td>パラメータカード</td>
+                    <td>時間制限（ミリ秒）／巡回数／アクセスポイント上限／RRC タイムアウト／優先度を指定してスキャン</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="WiFiScan タブと QuecLocator グループ">
+                <figcaption>WiFiScan ページ：スキャンの 4 ボタンと QuecLocator（QLBS）グループ。</figcaption>
+            </figure>
+
+            <h4>初回スキャン：押し方と、何が見えるか</h4>
+            <ol>
+                <li><strong>起動シーケンスを実行する</strong>（〈起動シーケンス〉の節を参照）。</li>
+                <li><strong>URC が UART を通っていることを確認する</strong>：<code>AT+QURCCFG="urcport"</code> が
+                    <code>"uart1"</code> を返すこと。出荷値は <code>"usbat"</code> ——
+                    スキャン結果は全部 USB ポートへ送られ、ここでは <code>OK</code> しか見えず、
+                    TIMEOUT さえ待てません（設定は NVRAM に書かれるので変更は 1 回だけ）。</li>
+                <li><strong><code>Scan</code> を押す</strong>：モジュールはまず <code>OK</code> を返します。
+                    これは「スキャン開始」であって、<strong>結果ではありません</strong>。数秒以内（最長でスキャン時間制限まで）に
+                    結果が 1 行ずつ報告され、各行に自動注釈（MAC／RSSI／チャネル）が付きます。</li>
+            </ol>
+
+            <h4>スキャン結果の読み方</h4>
+            <p>実測の報告はこのような形です（2026-08-29、7 個のアクセスポイントを検出、RSSI -37 ~ -89 dBm）：</p>
+            <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+            <p>フィールドの順序は <code>(ecn, ssid, rssi, mac, channel)</code> です。
+            <strong>本機のファームウェアは ecn と ssid を常に <code>-</code> で返します</strong>（2026-08-02 実測）。
+            リストからは「どこの家の Wi-Fi か」は分かりません ——
+            測位にはちょうど十分で、データベースが受け取るのはもともと MAC＋RSSI です。
+            RSSI の直感：-30 ~ -50 はとても近い、-60 ~ -75 は普通、-80 以下はとても弱い。</p>
+            <p>時間制限内に 1 個も検出できないと <code>+QWIFISCAN:TIMEOUT</code> が返ります ——
+            <strong>正常終了であり、エラーではありません</strong>（コロンの後に空白が無い点は本ツールの解析で処理済み）。
+            もっと多く検出したいとき：パラメータカードでアクセスポイント上限を出荷値の 5 から引き上げ（本機の上限は 10）、
+            巡回数を 2-3 にします（実測では巡回をまたぐ結果は重複排除されます）。</p>
+            <div class="warning">
+                <strong>検出したアクセスポイントのすべてが測位に使えるわけではありません。</strong>2026-08-29 の実測では 7 個のうち
+                4 個が「ローカル管理アドレス」でした（<code>C2:</code>／<code>62:</code>／<code>9E:</code>
+                で始まり、第 1 バイトの 0x02 ビットが 1 —— マルチ SSID の分身である仮想 BSSID）。
+                <strong>測位データベースは通常この種のアドレスをそのまま無視する</strong>ため、実際に使える素材は全域アドレスの 3 個だけでした。
+            </div>
+            <div class="warning">
+                <strong>アプリケーションノート V1.2 のパラメータ範囲は本機には誤りです。</strong>
+                文書は巡回数を 1-6、アクセスポイント上限を 4-30 まで緩めていますが、本機ファームウェアが実際に返す範囲は今も
+                <strong>巡回数 1-3、アクセスポイント上限 4-10</strong> です（2026-08-06 実測）。
+                <code>Support?</code> の実際の応答を基準にし、文書の数字を写さないでください。
+            </div>
+
+            <h4>QuecLocator（QLBS）ボタン群：押す前にまず真相を</h4>
+            <p>QuecLocator は Quectel のクラウド測位サービスです：<code>AT+QLBS</code>（<code>Locate</code>
+            ボタン）の 1 本で、ファームウェアが自分で素材を集め、サーバーへ送って照会し、座標を返します。3 つの現実：</p>
+            <ol>
+                <li><strong>token が必要で、しかも有料サービスです。</strong>公式文書には Quectel
+                    テクニカルサポートへ連絡して申請するよう明記されています（セルフ登録なし）。本機の token は出荷時空です。</li>
+                <li><strong>EG800K の公式文書 16 部のどれも QuecLocator に触れていません。</strong>
+                    手元のアプリケーションノートは EC200U／EG915U 用です（構文とエラーコードは実測で一致）。
+                    本機の公式文書ではありません。</li>
+                <li><strong>本プロジェクトは不採用と裁定済み</strong>（2026-08-29）：測位ロジックはファームウェアに閉じ込められており、
+                    サービスが店じまいすれば AT コマンドごと即無効になり、ベンダーを差し替えられません
+                    （Quectel フォーラムで BG95 系列のサポート終了が実証済み）。
+                    ボタンは「無料 token が手に入ればついでに検証する」ためだけに残してあります。</li>
+            </ol>
+            <div class="warning">
+                <strong><code>+QLBS: 702</code> は「サーバータイムアウト」であって、token の問題ではありません。</strong>
+                本プロジェクトは 702 を「token が無い」とまるまる 3 週間誤判定していました —— 真相は、そのとき
+                PDP を先に有効化するのを忘れており、モジュールはそもそもサーバーへつながれず、タイムアウト（出荷時 60 秒）を待ち切って 702 を返していたのです。
+                2026-08-29 の対照実験（token は終始空）：
+                PDP 未有効化で <code>702</code>、有効化後は <code>10002</code>（token が存在しない）——
+                <strong>サーバーへは台湾からつながります。欠けているのは token だけです</strong>。
+                <code>AT+QLBS</code> の前には必ず <code>AT+QIACT=1</code> を（通信量が発生します）。
+            </div>
+            <p>7 つの設定サブ項目の照会／設定にはすべてボタンがあり、<code>Cfg?</code>（<code>AT+QLBSCFG=?</code>）
+            はワンキーで全範囲を一覧します（通信量ゼロ）。本機の出荷値と実測の要点：</p>
+            <table>
+                <tr><th>サブ項目（ボタン）</th><th>出荷値</th><th>実測の要点</th></tr>
+                <tr><td><code>token</code>（Set Token／Token?）</td><td>空</td>
+                    <td>読み出しは常に <code>*</code> でマスクされます。設定経路は実測で通っています</td></tr>
+                <tr><td><code>server</code>（Server?／Set Server）</td>
+                    <td><code>www.queclocator.com:80</code></td><td>測位サーバーのアドレス</td></tr>
+                <tr><td><code>timeout</code>（Timeout?／Set Timeout）</td><td>60 秒</td>
+                    <td>702 が待つあのタイムアウトそのもの。範囲 10-120</td></tr>
+                <tr><td><code>asynch</code>（Async?／Set Async）</td><td>0</td>
+                    <td>同期／非同期の切替</td></tr>
+                <tr><td><code>latorder</code>（LatOrder?）</td><td>0</td>
+                    <td>緯度経度の出力順。⚠ 設定は小文字キーなのに、読み出しはキャメルケースの <code>latOrder</code></td></tr>
+                <tr><td><code>withtime</code>（WithTime?）</td><td>0</td>
+                    <td>応答に時刻を付けるか。読み出しキー名は <code>withTime</code></td></tr>
+                <tr><td><code>timeupdate</code>（TimeUpd?）</td><td>0</td>
+                    <td>測位結果でモジュールの時計を校正するか。読み出しキー名は <code>timeUpdate</code></td></tr>
+            </table>
+            <p>本当に token を入手したら：<code>Set Token</code> に記入 → <code>Token?</code>
+            で確認（<code>*</code> と表示）→ TCP/IP ページで PDP を有効化 → <code>Locate</code>。</p>
+
+            <h4>代替ルート：token 不要のネットワーク測位（実測 71 メートル）</h4>
+            <p>ネットワーク測位は QuecLocator に頼らなくてもできます。代替ルートは 2026-08-29 にエンドツーエンドで開通済み：
+            モジュールは素材を出すだけ（本ページでアクセスポイントをスキャン、<code>AT+QENG="servingcell"</code> で基地局を読む）、
+            ターミナル出力を保存して <code>tools/wifi_geolocate.py</code> に渡し、PC 側で公開データベースを照会します ——
+            <strong>モジュールは通信量ゼロ、Quectel のサービス不要</strong>。
+            実測（同日の GNSS 真値と比較）：基地局の照会は Unwired Labs（無料登録）で<strong>誤差
+            71 メートル</strong>（測位ルートの締めくくりの結論）、beaconDB（キー不要）で 632 メートル。
+            Wi-Fi の照会はベンダーで足止め —— 無料エコシステムは崩壊済みです（beaconDB は当地域のカバー無し、
+            Unwired Labs の無料プランは Wi-Fi を含まず、Google／HERE はカード登録必須）。保留としました。</p>
+            <div class="tip">
+                <strong>71 メートルは「照会のヒット」であって「測定精度」ではありません。</strong>
+                基地局測位は Cell ID でその基地局の登録座標を引くもので、同じ cell なら永遠に同じ点が返ります ——
+                基地局が替われば誤差はキロメートル級になり得ます。サービス自身が報告する ±1051 メートルこそ誠実な見積もりです。
+                また Cell ID と TAC は<strong>16 進</strong>なので、
+                照会前に 10 進へ変換する必要があります（ツールに処理を内蔵済み）。
+            </div>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td><code>Scan</code> を押しても <code>OK</code> だけで、結果が永遠に現れない</td>
+                    <td>URC が USB ポートへ送られています —— <code>AT+QURCCFG="urcport"</code> で照会し、
+                        <code>"uart1"</code> でなければ変更（NVRAM に書かれます）</td></tr>
+                <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+                    <td>時間制限内にアクセスポイントを検出できず。正常終了でありエラーではありません。場所を変えるか時間制限を延ばす</td></tr>
+                <tr><td><code>+QLBS: 702</code></td>
+                    <td>サーバータイムアウト —— ほぼすべて <code>AT+QIACT=1</code> のし忘れで、token の問題ではありません</td></tr>
+                <tr><td><code>+QLBS: 10002</code></td>
+                    <td>token が存在しない —— Quectel へ有料で申請する必要があります。本プロジェクトは不採用と裁定済みで、
+                        上記の代替ルートを使います</td></tr>
+                <tr><td><code>AT+QCELLLOC</code> を使いたい</td>
+                    <td>本機は<strong>非対応</strong>（ERROR が返ります）—— あれは EC2x 系列のコマンドです</td></tr>
+            </table>

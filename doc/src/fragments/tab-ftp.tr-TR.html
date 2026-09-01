@@ -1,0 +1,138 @@
+<h3 id="tab-ftp">FTP —— dosya aktarımı</h3>
+            <p><strong>Çalışma prensibi:</strong> FTP'nin <strong>iki kanalı</strong> vardır: kontrol kanalı komutları taşır,
+            veri kanalı dosya içeriğini taşır. Oturum açma, ad değiştirme, silme, boyut sorgusu yalnızca kontrol kanalından geçer;
+            LIST, yükleme, indirme ise <strong>ayrı bir veri bağlantısı açar</strong> ——
+            bu bölümdeki tuhaflıkların çoğu (art arda 615, 603) buradan doğar.
+            Bölüm boyunca geçerli Quectel genel kuralı: <strong><code>OK</code> yalnızca "komut alındı" demektir</strong>;
+            gerçek sonuç sonradan URC olarak ulaşır. Buradaki yanıtlar ve sayılar, Ağustos 2026'da gerçek bir EG800K üzerinde ölçülmüştür.</p>
+
+            <h4>Başlamadan önce: iki ön koşul</h4>
+            <ul>
+                <li><strong>PDP önce etkinleştirilmeli</strong>: bu sayfanın ilk düğmesi <code>AT+QIACT?</code> tam da bu denetimi yapar ——
+                    <code>+QIACT: 1,1,…,"IP"</code> dönerse devam edilir; yalnızca OK dönüyorsa önce TCP/IP sayfasında
+                    Act PDP'ye basın (PDP kapalıyken QFTPOPEN kesin başarısız olur).</li>
+                <li><strong>URC UART'tan gelmeli</strong>: FTP komutlarının neredeyse hepsi "önce OK, sonuç sonra URC ile" düzenindedir;
+                    <code>AT+QURCCFG="urcport"</code> <code>"uart1"</code> değilse
+                    burada yalnızca bir yığın OK görürsünüz (ayar Hardware sayfasında).</li>
+            </ul>
+
+            <h4>Oturum açma akışı: ayarla → aç → URC'yi bekle</h4>
+            <ol>
+                <li><strong>PDP context'ini bağlayın</strong>: <code>AT+QFTPCFG="contextid",1</code>
+                    (fabrikadan zaten 1; sorgu düğmesiyle geri okuyup doğrulayabilirsiniz).</li>
+                <li><strong>Kimlik bilgilerini ayarlayın</strong>: <code>AT+QFTPCFG="account","kullanıcı","parola"</code>;
+                    <strong>mutlaka QFTPOPEN'dan önce</strong> ayarlanmalıdır.</li>
+                <li><strong>Mod ve tür</strong>: <code>transmode</code> için 1
+                    (pasif; NAT arkasında her zaman bunu kullanın, FTPS için zorunlu);
+                    <code>filetype</code> için düz metin dosyada 1, ötekilerde 0.</li>
+                <li><strong>Oturum açın</strong>: <code>AT+QFTPOPEN="sunucu",21</code> anında OK döndürür (yalnızca alındı demektir);
+                    <code>+QFTPOPEN: 0,0</code> gelince oturum açılmıştır (en fazla 125 saniye).
+                    Sonra <code>AT+QFTPSTAT</code> 1 dönmelidir (boşta; 2 = aktarımda, 3 = kapanıyor).</li>
+            </ol>
+            <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK                ← yalnızca komutun alındığını gösterir
++QFTPOPEN: 0,0    ← oturumun açıldığını gösteren satır budur</pre>
+            <p>Öteki ayar maddeleri: <code>AT+QFTPCFG=?</code> tüm 10 ayarlanabilir maddeyi ve aralıklarını tek tuşla listeler (sıfır trafik).
+            <code>rsptimeout</code> (20–180, varsayılan 90 saniye) çoğu komutun en uzun yanıt süresidir;
+            veri modunda iki paket arasındaki en uzun aralık da odur. <code>ssltype</code> / <code>sslctxid</code>
+            FTPS içindir (düz FTP'de 0'da bırakın; SSL parametreleri SSL sayfasında ayarlanır);
+            <code>data_address</code> / <code>cache</code> / <code>restenable</code>
+            özel ortam ince ayarlarıdır; kullanımları düğme açıklamalarında ve kılavuzdadır.</p>
+            <div class="tip">
+                <strong>Parola maskeleme (ölçüm, kılavuzla çelişir):</strong> <code>AT+QFTPCFG="account"</code>
+                sorgusunda parola <code>*</code> ile maskelenmiş döner (kılavuz olduğu gibi basıldığını yazar). Ama kullanıcı adı yine düz metindir ve
+                <strong>ayar satırındaki parola da açık yazılıdır</strong>; ekran görüntüsü ve kayıt alırken dikkat edilecek olan ayar satırıdır.
+            </div>
+            <div class="warning">
+                <strong>🔴 <code>AT+QFTPCLOSE</code> eşzamansızdır —— <code>OK</code> kapandığı anlamına gelmez.</strong>
+                Oturumun kapandığı ancak <code>+QFTPCLOSE: 0,0</code> gelince kesinleşir; bu sırada <code>AT+QFTPSTAT</code>
+                3 döner (kapanıyor) ve gönderilen her FTP komutu <strong>istisnasız <code>+CME ERROR: 603</code></strong> (sunucu meşgul) alır.
+                <br><br>
+                Belirti son derece yanıltıcıdır: art arda 603'ler modül bozulmuş ya da sunucu engellemiş gibi görünür;
+                oysa yalnızca kapanış bitmemiştir (ölçüm günü tam da bu yüzden büyük bir tur atıldı). Bekleme üst sınırı = rsptimeout.
+                Ayrıca yalnızca FTP oturumunu kapatır; ağı kökten sıfırlamak için TCP/IP sayfasında Deact PDP'ye basın.
+            </div>
+
+            <h4>Dizin ve dosya yönetimi: sunucuyu dosya yöneticisi gibi kullanmak</h4>
+            <p>Sunucu tarafı dosya işlemlerinin tamamı (LIST / NLST / MLSD veri bağlantısı açar, ötekiler yalnızca kontrol kanalından geçer).
+            Başarı yanıtı her zaman <code>+QFTPXXX: 0,…</code> biçimindedir —— ilk sayı 0 ise başarıdır:</p>
+            <table>
+                <tr><th>Komut</th><th>Ne yapar</th><th>Başarı yanıtı (ölçüm)</th></tr>
+                <tr><td><code>AT+QFTPPWD</code></td><td>Güncel çalışma dizinini sorgular</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+                <tr><td><code>AT+QFTPCWD</code></td><td>Çalışma dizinini değiştirir; sonraki işlemler buna göredir</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPLIST</code></td><td>Tam listeyi doğrudan terminale döker (iki düğme: güncel dizin / belirtilen dizin)</td><td>İçerikten sonra <code>+QFTPLIST: 0,1175</code> (son sayı = bayt sayısı)</td></tr>
+                <tr><td><code>AT+QFTPNLST</code> / <code>AT+QFTPMLSD</code></td><td>Yalnızca dosya adları (trafik kazandırır) / MLSD standart biçimi (kolay çözümlenir)</td><td>LIST ile aynı</td></tr>
+                <tr><td><code>AT+QFTPSIZE</code></td><td>Dosya boyutunu sorgular, içeriği indirmez</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+                <tr><td><code>AT+QFTPMDTM</code></td><td>Dosya değiştirilme zamanını sorgular, içeriği indirmez</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+                <tr><td><code>AT+QFTPMKDIR</code> / <code>AT+QFTPRMDIR</code></td><td>Klasör oluşturur / siler</td><td><code>…: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPRENAME</code></td><td>Dosya ya da klasör adını değiştirir</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPDEL</code></td><td>Dosya siler</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+            </table>
+            <p>Bir hüner (ölçümde zincirin tamamı geçti): <strong>SIZE'ı varlık denetimi olarak kullanın</strong> ——
+            ad değişikliğinden sonra eski ad <code>+QFTPSIZE: 627,550</code> döndürdü, yeni ad <code>0,20</code>;
+            silmeden sonra sorgu yine <code>627,550</code> —— tek bayt indirmeden her adım doğrulandı.
+            <code>627,550</code> <strong>iki katmanlı hata kodudur</strong>: 627 = modül katmanı "FTP istenen eylemi yerine getirmedi",
+            550 = FTP protokol katmanında sunucunun "dosya ya da dizin yok" yanıtı; bu aracın açıklamaları katman katman çevirir.</p>
+
+            <h4>İndirme: içerik doğrudan terminale basılır (COM:)</h4>
+            <p><code>AT+QFTPGET="dosyaadı","COM:"</code> —— <code>CONNECT</code>'ten sonra dosya içeriği doğrudan terminale dökülür;
+            sonda <code>+QFTPGET: 0,&lt;bayt sayısı&gt;</code> (ölçümde readme.txt için 0,379).
+            Öbür düğme olan <strong>parçalı indirme</strong> başlangıç ve uzunluk parametresi de taşır ve en çok önerilen indirme yoludur:
+            önce SIZE ile boyutu öğrenin, sonra parça parça alın; tüm dosyayla trafiği patlatmaktan kaçının.
+            <code>AT+QFTPLEN</code> son PUT / GET / LIST / NLST işleminin gerçekte kaç bayt aktardığını sorgular.</p>
+
+            <h4>Yükleme: iki aşamalı, bildirilen uzunluk dolunca kendiliğinden biter</h4>
+            <p><code>AT+QFTPPUT="dosyaadı","COM:",0,&lt;uzunluk&gt;,1</code> iki aşamalı bir komuttur:
+            <code>CONNECT</code> beklenir (veri moduna girilir), sonra <strong>tam olarak</strong> bildirilen uzunluk kadar bayt gönderilir;
+            modül sayı dolunca veri modundan kendiliğinden çıkar; Ctrl+Z göndermek gerekmez. Bu araç uzunluğu kendisi hesaplar; içeriği parametre kartına yapıştırmanız yeter.</p>
+            <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT                        ← veri moduna girildi
+NuModem-P6-FTP-test\n          ← tam 20 bytes gönderilir
+OK
++QFTPPUT: 0,20                 ← sunucu 20 bytes aldı</pre>
+            <p>Bu 20 bytes, ölçüm sırasında bilgisayar tarafından Python ftplib ile geri çekilip bayt bayt karşılaştırıldı —— birebir aynıydı.
+            <strong>UFS aktarma biçimi</strong>: kılavuz, dosya adının <code>"UFS:xxx"</code> yazılmasını ve
+            modülün yerleşik deposu üzerinden aktarmayı da destekler; ayrıntılar FTPS uygulama notundadır. Bilgisayardaki dosyayı önce UFS'e koymak için
+            SSL sayfasındaki "UFS dosyaları" grubunun Upload düğmesini kullanın (<code>AT+QFUPL</code>; UART'tan gider, sıfır trafik,
+            checksum kendiliğinden karşılaştırılır).</p>
+            <div class="warning">
+                <strong>⚠ <code>+++</code> FTP için "iptal"dir, "duraklatma" değildir.</strong>
+                Kılavuz (FTPS AN v1.5 p13), kaçıştan sonra <code>ATO</code> ile veri moduna dönülüp aktarıma devam edilebileceğini yazar;
+                <strong>ölçümde tutmadı</strong> (iki denemede sonuç aynı): kaçıştan sonra <code>AT+QFTPSTAT</code>
+                1 döndürdü (boşta), 2 değil (aktarımda); <code>ATO</code> ise <code>NO CARRIER</code> ——
+                aktarım tümüyle iptal edilmiştir, dönülecek bağlantı yoktur. Dolayısıyla <code>+++</code> yalnızca kontrolden çıkan
+                veri modundan kaçmak içindir; büyük dosya indirmesini duraklatmak için kullanılamaz.
+                <br><br>
+                Doğru gönderim: <strong>öncesinde ve sonrasında 1'er saniye sessizlik, ham bayt olarak, CR eklemeden</strong> (eklenirse işlemez) ——
+                bu sayfadaki <code>+++</code> düğmesi bu kurala göre gönderir; <code>ATO</code> düğmesi kılavuzdaki anlamıyla tutuldu.
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="FTP sekmesi">
+                <figcaption>FTP sayfası: oturum ayarları, dizin ve dosya yönetimi, yükleme-indirme.</figcaption>
+            </figure>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td>Art arda <code>+CME ERROR: 603</code></td>
+                    <td>① QFTPCLOSE sonrası hâlâ kapanıyor (QFTPSTAT 3 dönüyor) —— <code>+QFTPCLOSE: 0,0</code> bekleyin;
+                        ② daha önce 615 yaşandı —— <strong>615'ten sonra tüm FTP komutları istisnasız 603 döner</strong>, düzgün kapatılana kadar</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>Veri bağlantısı açılamadı: <strong>kontrol kanalı sağlam, veri kanalı topyekûn ölü</strong>
+                        (SIZE yanıt veriyor; PUT / GET / LIST hepsi düşüyor). Çoğunlukla sunucu tarafı sorunudur ——
+                        dlptest iki ayrı ağ yolundan da başarısız oldu, rebex baştan sona sıfır hata verdi;
+                        okuma için rebex, yazma için dlptest kullanın ve işi tek seferde bitirin</td></tr>
+                <tr><td><code>627,550</code></td>
+                    <td>Dosya ya da dizin yok —— ad ya da yol yanlış yazılmış; önce QFTPPWD / QFTPLIST ile nerede olduğunuzu doğrulayın</td></tr>
+                <tr><td>Yeniden başlatmadan sonra ilk PUT bile 615</td>
+                    <td>Veri yığını dejenerasyonu: QFTPCLOSE de PDP'yi yeniden başlatmak da kurtarmaz;
+                        <strong>yalnızca tam açılış prosedürü düzeltir</strong>. Ayırt etme: TCP/IP sayfasındaki
+                        <code>AT+QIOPEN</code> ile aynı hedefe vurun —— o da başarısızsa yığının tamamı bozuktur; FTP ayarlarını kurcalamayı bırakın</td></tr>
+                <tr><td>Komut OK döndü, sonra hiçbir şey olmadı</td>
+                    <td>Sonuç URC'leri USB portuna gitti —— <code>AT+QURCCFG="urcport"</code>
+                        uart1 mi diye bakın</td></tr>
+                <tr><td><code>AT+QFTPOPEN</code> doğrudan başarısız</td>
+                    <td>PDP etkin değil —— önce bu sayfadaki <code>AT+QIACT?</code>'a basın; IP yoksa TCP/IP sayfasında Act PDP</td></tr>
+            </table>

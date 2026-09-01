@@ -1,0 +1,17 @@
+{
+ "⚠ 本機出廠為空，沒有它 AT+QLBS 會回 10002（token 不存在）。⚠ 若回 702 那是伺服器逾時、不是 token 問題 —— 先確認 AT+QIACT? 有 PDP。設定後讀回會被模組遮成 *，跟 FTP 密碼一樣": "⚠ Vuoto di fabbrica su questa unità: senza di esso AT+QLBS risponde 10002 (token inesistente). ⚠ Se invece risponde 702 si tratta di un timeout del server, non di un problema di token —— controlla prima con AT+QIACT? che ci sia un PDP attivo. Una volta impostato, in lettura si vedono solo *, esattamente come per la password FTP",
+ "設定 QuecLocator token。⚠ 這串要向 Quectel 申請，本機出廠是空的 —— 沒有它 AT+QLBS 會回 10002（token 不存在）。⚠ 若回的是 702 那是「伺服器逾時」不是 token 問題 —— 先查 AT+QIACT? 有沒有 PDP。讀回時會被模組遮成 *": "Imposta il token di QuecLocator. ⚠ Questa stringa va richiesta a Quectel e questa unità ne è priva di fabbrica —— senza di essa AT+QLBS risponde 10002 (token inesistente). ⚠ Se invece la risposta è 702 si tratta di un «timeout del server», non di un problema di token —— controlla prima con AT+QIACT? se c'è un PDP. In lettura il modulo la maschera con *",
+ "網路定位失敗 —— 錯誤 {0}：伺服器逾時未回應": "Localizzazione di rete fallita —— errore {0}: timeout del server, nessuna risposta",
+ "定位失敗": "Localizzazione fallita",
+ "IMEI 不合法": "IMEI non valido",
+ "token 不存在": "Token inesistente",
+ "同一 token 的裝置數超過上限": "Superato il limite di dispositivi per lo stesso token",
+ "同一裝置單日定位次數超過上限": "Superato il limite giornaliero di localizzazioni per lo stesso dispositivo",
+ "同一 token 的總定位次數超過上限": "Superato il limite totale di localizzazioni per lo stesso token",
+ "token 已過期": "Token scaduto",
+ "伺服器不接受此 IMEI": "Il server non accetta questo IMEI",
+ "同一 token 單日定位次數超過上限": "Superato il limite giornaliero di localizzazioni per lo stesso token",
+ "（QuecLocator 走 HTTP，此碼可能是 HTTP 層錯誤；官方 10000-10008 表未收錄）": " (QuecLocator viaggia su HTTP, quindi questo codice potrebbe essere un errore a livello HTTP; non compare nella tabella ufficiale 10000-10008)",
+ "（不是 token 問題！先確認 AT+QIACT? 回得出 IP —— 沒有 PDP 就連不到 QuecLocator 伺服器。逾時秒數見 AT+QLBSCFG=\"timeout\"）": " (Non è un problema di token! Controlla prima che AT+QIACT? restituisca un IP —— senza PDP non si raggiunge il server di QuecLocator. Per i secondi di timeout vedi AT+QLBSCFG=\"timeout\")",
+ "（模組讀回時會遮成 *；沒設 token 時 AT+QLBS 回 10002）": " (il modulo lo maschera con * in lettura; senza token impostato AT+QLBS risponde 10002)"
+}

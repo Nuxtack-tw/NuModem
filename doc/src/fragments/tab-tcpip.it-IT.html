@@ -1,0 +1,148 @@
+<h3 id="tab-tcpip">TCP/IP —— la radice delle connessioni dati</h3>
+            <p><strong>Principio di funzionamento:</strong> questa pagina è il fondamento di tutti i protocolli dati. <strong>Il PDP context
+            (il canale dati assegnato dalla rete mobile) si attiva e si disattiva solo in questa pagina</strong>: le pagine SSL/HTTP/MQTT/FTP
+            contengono soltanto interrogazioni in sola lettura, per evitare che lo stesso comando venga pestato da due posti diversi.
+            Trappole e tempi di questa sezione sono misure di agosto 2026 sull'unità reale.</p>
+            <figure class="shot">
+                <img src="img/03-tcpip.png" alt="Scheda TCP/IP">
+                <figcaption>Pagina TCP/IP: PDP, invio/ricezione sui socket e strumenti di diagnostica.</figcaption>
+            </figure>
+
+            <h4>Primo passo: attivare il PDP (QICSGP/QIACT/QIDEACT)</h4>
+            <p>Premi <strong>Act PDP</strong> (<code>AT+QIACT=1</code>): blocca fino a 150 secondi,
+            nel frattempo non inviare altri comandi, e da qui in poi si genera traffico (in roaming occhio ai costi). A successo ottenuto
+            <strong>premi sempre Query IP</strong> (<code>AT+QIACT?</code>) e verifica che risponda <code>+QIACT: 1,1,1,"indirizzo IP"</code>
+            —— prima dell'attivazione risponde solo OK. Per chiudere premi <strong>Deact PDP</strong> (<code>AT+QIDEACT=1</code>,
+            fino a 40 secondi): chiude d'autorità tutte le connessioni sottostanti. <strong>Set APN</strong>
+            (<code>AT+QICSGP</code>) di norma non serve —— il modulo sincronizza da sé l'APN assegnato dalla rete
+            (misurato: la carta 1NCE all'accensione riporta già <code>iot.1nce.net</code>); serve solo con gli APN aziendali con credenziali.</p>
+            <div class="warning">
+                <strong>Act PDP risponde ERROR, Last Error 572? Questa carta ammette un solo PDP.</strong>
+                All'accensione la rete ne ha già attivato uno e <strong>il numero fluttua</strong> (misurati sia 9 sia 1),
+                mentre <code>AT+QIACT</code> arriva solo da 1 a 8. Rimedio: nella pagina Network <code>AT+CGACT?</code>
+                per vedere il numero → <code>AT+CGACT=0,&lt;numero&gt;</code> per liberare il posto → poi di nuovo Act PDP.
+                <br><br>
+                <strong>A metà test crolla tutto? <code>AT+QIACT?</code> mente</strong> —— quando il PDP deriva
+                continua a rispondere con l'IP: si scopre solo incrociando con <code>AT+CGACT?</code>. Ripristino:
+                Deact PDP → <code>AT+CGACT=0,&lt;numero della deriva&gt;</code> → Act PDP → verifica con Ping.
+            </div>
+
+            <h4>Aprire la connessione: OK significa solo "comando accettato"</h4>
+            <p>Premi <strong>Open TCP</strong> e compila host e porta nella scheda parametri
+            (<code>AT+QIOPEN=1,0,"TCP","host",porta,0,0</code>; context 1, connectID 0 e
+            modalità buffer sono già fissi). <strong>OK significa solo che il comando è stato accettato</strong>: l'esito è nell'URC
+            <code>+QIOPEN: 0,&lt;err&gt;</code>: 0 = riuscito, fino a 150 secondi;
+            <strong>563 = il connectID è ancora aperto</strong>, prima premi Close Sock.
+            <strong>All Socks</strong> (<code>AT+QISTATE</code>) elenca tutti i socket:
+            state 2 = connesso.</p>
+
+            <h4>Inviare dati: tre modi</h4>
+            <table>
+                <tr><th>Pulsante</th><th>Spiegazione</th></tr>
+                <tr><td><strong>Send Text</strong><br><code>AT+QISEND=0,&lt;len&gt;</code></td>
+                    <td>Due fasi a lunghezza fissa: attende il <code>&gt;</code> e poi invia il testo; la lunghezza si calcola da sola,
+                        <strong>niente Ctrl+Z</strong>. La prima scelta per il testo puro; limite 1460 bytes,
+                        supporta gli escape <code>\n \r \t \xHH</code></td></tr>
+                <tr><td><strong>I tre pulsanti Send Var</strong><br><code>AT+QISEND=0</code></td>
+                    <td>A lunghezza variabile: entra in modalità dati e continua a raccogliere finché non vede Ctrl+Z (0x1A) ——
+                        si può scrivere in più riprese, vedi il paragrafo seguente</td></tr>
+                <tr><td><strong>Send Hex</strong><br><code>AT+QISENDEX=0,"hex"</code></td>
+                    <td>A riga singola, senza entrare in modalità dati. Può inviare byte arbitrari (0x00 incluso);
+                        limite hex 512 caratteri = 256 bytes reali</td></tr>
+            </table>
+            <p><strong>Invia (continua)</strong>: alla prima pressione entra in modalità dati, a ogni pressione successiva accoda un segmento
+            (se sei già in modalità dati il comando non viene rispedito: rispedirlo diventerebbe dato); <strong>Invia e chiudi</strong>
+            accoda e aggiunge il Ctrl+Z, il più rapido quando il segmento è uno solo; <strong>Termina (Ctrl+Z)</strong> spedisce in un colpo
+            tutto il contenuto accumulato. In modalità dati il terminale lo segnala; per rinunciare premi
+            <strong>ESC Cancel</strong> (0x1B, il tasto di fuga quando le due fasi si incastrano).
+            ⚠ I dati non possono contenere 0x1A (verrebbe letto come chiusura anticipata): per i caratteri di controllo usa Send Hex.</p>
+            <div class="tip">
+                <strong>SEND OK non significa che la controparte abbia ricevuto</strong>: dice solo che i dati sono passati al modulo. Premi
+                <strong>Check ACK</strong> (<code>AT+QISEND=0,0</code>) per vedere inviati/ACKed:
+                <strong>conta solo il valore acked</strong>.
+            </div>
+
+            <h4>Ricevere dati: non compaiono da soli, serve Read Data</h4>
+            <p>In modalità buffer i dati ricevuti <strong>non</strong> compaiono da soli nel terminale: il modulo emette solo la notifica
+            <code>+QIURC: "recv",0</code>, e va premuto <strong>Read Data</strong>
+            (<code>AT+QIRD=0,1500</code>) per estrarli, <strong>ripetendo la lettura finché non risponde <code>+QIRD: 0</code></strong>
+            —— finché non hai svuotato tutto, la notifica successiva non arriva.
+            <strong>Unread Len</strong> (<code>AT+QIRD=0,0</code>) interroga totale ricevuto/letto/non letto.
+            Finito lo scambio premi <strong>Close Sock</strong> (<code>AT+QICLOSE=0</code>, fino a 10 secondi).
+            ⚠ <strong>Le notifiche recv non arrivano affatto?</strong> Nella pagina Hardware controlla che
+            <code>AT+QURCCFG="urcport"</code> sia <code>uart1</code> ——
+            il valore di fabbrica è la porta USB, e gli URC finiscono tutti là.</p>
+
+            <h4>I due capricci del peer predefinito tcpbin.com</h4>
+            <p>Il peer predefinito di Open TCP è il server echo gratuito <code>tcpbin.com:4242</code>;
+            due capricci misurati:</p>
+            <ul>
+                <li><strong>Echo riga per riga, con a capo finale (0A) obbligatorio</strong>: inviando Hello senza 0A, 6 secondi
+                    senza risposta; aggiunto lo 0A, risposta in 0.1 secondi. Con Send Text chiudi con <code>\n</code>,
+                    con Send Hex aggiungi <code>0A</code> in coda.</li>
+                <li><strong>Timeout di inattività di 15 secondi</strong>: se resti fermo vieni scollegato e ricevi
+                    <code>+QIURC: "closed",0</code>. Il QIRD non c'entra (legge solo il buffer locale,
+                    non tocca la rete). Per tenere viva la connessione invia dati veri almeno ogni 10 secondi. Dopo il closed il socket resta in closing:
+                    <strong>bisogna prima premere Close Sock</strong> per riusarlo, altrimenti QIOPEN risponde 563.</li>
+            </ul>
+
+            <h4>Il tris diagnostico: Ping/DNS Lookup/NTP Sync</h4>
+            <table>
+                <tr><th>Pulsante (tutti richiedono prima Act PDP)</th><th>Comportamento e misure</th></tr>
+                <tr><td><strong>Ping</strong><br><code>AT+QPING</code></td>
+                    <td>Timeout 4 secondi ×4, già fissi. Misurato su 8.8.8.8: tutto passa, RTT 160–270 ms.
+                        ⚠ Molti server bloccano l'ICMP: <strong>ping fallito non significa TCP irraggiungibile</strong>;
+                        per la connettività fai direttamente Open TCP</td></tr>
+                <tr><td><strong>DNS Lookup</strong><br><code>AT+QIDNSGIP</code></td>
+                    <td>Il risultato arriva con l'URC <code>+QIURC: "dnsgip"</code> (fino a 60 secondi);
+                        misurato: arriva in due parti e con più IP</td></tr>
+                <tr><td><strong>NTP Sync</strong><br><code>AT+QNTP</code></td>
+                    <td>Fino a 125 secondi, porta 123 già fissa, esito nell'URC <code>+QNTP</code>.
+                        ⚠ <strong>L'ora è UTC ma porta il marcatore del fuso locale</strong> (+32 quarti = GMT+8; misurata una differenza
+                        di esattamente 8 ore); per l'ora locale usa <code>AT+CCLK?</code></td></tr>
+            </table>
+
+            <h4>Qualcosa è andato storto: prima Last Error, poi la discriminazione in 30 secondi</h4>
+            <p>Appena un comando risponde ERROR premi <strong>subito</strong> <strong>Last Error</strong>
+            (<code>AT+QIGETERROR</code>) —— conserva solo l'ultimo errore: se il successivo lo sovrascrive, non lo ritrovi più.
+            Interroga il livello dello stack Quectel; per il livello di rete usa <code>AT+CEER</code> nella pagina Network.</p>
+            <div class="warning">
+                <strong>🔴 Degrado dello stack dati —— la trappola che costa più tempo.</strong> Sintomo: tutte le connessioni
+                falliscono, ma gli autotest dicono che va tutto bene (QIACT? con IP, QIGETERROR a 0). Misurato: scatta dopo circa 20 cicli
+                di apertura/chiusura SSL, e perfino il QIOPEN del TCP puro risponde 552; QIDEACT + QIACT non lo recuperano,
+                <strong>solo rieseguire il rituale di accensione ripristina</strong>.<br><br>
+                <strong>Discriminazione in 30 secondi</strong>: colpisci lo stesso bersaglio con Open TCP —— fallisce anche lui = lo stack
+                è rotto tutto, riesegui il rituale di accensione; riesce = il problema è nel protocollo di livello superiore, continua a indagare.
+            </div>
+
+            <h4>Keepalive: regge il NAT dell'operatore, non regge tcpbin</h4>
+            <p><strong>QICFG=?</strong> elenca sottovoci e intervalli, <strong>Keepalive?</strong> legge il valore attuale,
+            <strong>Keepalive On/Off</strong> lo commuta —— questi quattro comandi <strong>in sé</strong> sono a traffico zero;
+            una volta abilitato, con un socket lasciato inattivo i pacchetti di sonda contano come traffico mobile.
+            <strong>Non regge il timeout di 15 secondi di tcpbin</strong>: misurato, anche attivo la chiusura arriva a 15.1 secondi ——
+            il keepalive è una sonda vuota a livello TCP, l'applicazione non la vede; e l'interval minimo è 25 secondi,
+            già di suo maggiore di 15. Per reggere i timeout applicativi bisogna inviare dati veri (per esempio ogni 10 secondi un
+            <code>0A</code> con Send Hex). Il suo vero uso è il <strong>mantenimento del NAT
+            dell'operatore</strong> (con le carte IoT il NAT inattivo viene riciclato in pochi minuti).</p>
+            <p>Conto del traffico (<strong>stima, non misura</strong>): una sonda con ritorno è circa 80 bytes;
+            con idle predefinito = 30 secondi e inattività continua → circa 9.4 KB l'ora, circa 225 KB al giorno,
+            <strong>circa 6.8 MB al mese</strong>; con idle = 600 secondi → circa 11 KB al giorno.
+            Con le carte prepagate a volume come 1NCE conviene alzare l'idle. Senza socket aperti il consumo è zero.</p>
+
+            <h4>Risoluzione dei problemi</h4>
+            <table>
+                <tr><th>Sintomo</th><th>Causa e rimedio</th></tr>
+                <tr><td><code>+QIOPEN: 0,563</code></td>
+                    <td>Il connectID è ancora aperto —— prima Close Sock</td></tr>
+                <tr><td>Non arriva <code>+QIURC: "recv"</code></td>
+                    <td>① urcport non è uart1 (pagina Hardware)
+                        ② non hai letto fino a <code>+QIRD: 0</code> e la notifica è soppressa</td></tr>
+                <tr><td>Spunta <code>+QIURC: "closed",0</code></td>
+                    <td>Timeout di inattività di 15 secondi di tcpbin; dopo Close Sock si può riaprire</td></tr>
+                <tr><td>Due fasi incastrate, porta AT muta</td>
+                    <td>Premi ESC Cancel per uscirne; se non basta, Reset nella pagina Hardware</td></tr>
+                <tr><td>Connessioni tutte fallite ma autotest tutti verdi</td>
+                    <td>Degrado dello stack dati —— discrimina e poi riesegui il rituale di accensione</td></tr>
+                <tr><td>Act PDP risponde ERROR, o a metà test crolla tutto</td>
+                    <td>Posto PDP unico occupato / deriva del PDP —— vedi i due riquadri di diagnosi del "Primo passo"</td></tr>
+            </table>

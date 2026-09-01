@@ -1,0 +1,17 @@
+{
+ "IMEI 不合法": "IMEI ungültig",
+ "token 不存在": "Token nicht vorhanden",
+ "token 已過期": "Token abgelaufen",
+ "⚠ 本機出廠為空，沒有它 AT+QLBS 會回 10002（token 不存在）。⚠ 若回 702 那是伺服器逾時、不是 token 問題 —— 先確認 AT+QIACT? 有 PDP。設定後讀回會被模組遮成 *，跟 FTP 密碼一樣": "⚠ Auf diesem Gerät ab Werk leer; ohne Token antwortet AT+QLBS mit 10002 (Token nicht vorhanden). ⚠ Kommt dagegen 702, ist das ein Server-timeout und kein Token-Problem —— zuerst mit AT+QIACT? prüfen, ob ein PDP-Context steht. Einmal gesetzt, zeigt das Auslesen nur noch *, genau wie beim FTP-Passwort",
+ "伺服器不接受此 IMEI": "Der Server akzeptiert diese IMEI nicht",
+ "同一 token 單日定位次數超過上限": "Die Zahl der Ortungen mit demselben Token pro Tag überschreitet die Obergrenze",
+ "同一 token 的總定位次數超過上限": "Die Gesamtzahl der Ortungen mit demselben Token überschreitet die Obergrenze",
+ "同一 token 的裝置數超過上限": "Die Zahl der Geräte mit demselben Token überschreitet die Obergrenze",
+ "同一裝置單日定位次數超過上限": "Die Zahl der Ortungen desselben Geräts pro Tag überschreitet die Obergrenze",
+ "定位失敗": "Ortung fehlgeschlagen",
+ "網路定位失敗 —— 錯誤 {0}：伺服器逾時未回應": "Netzortung fehlgeschlagen —— Fehler {0}: Server-timeout, keine Antwort erhalten",
+ "設定 QuecLocator token。⚠ 這串要向 Quectel 申請，本機出廠是空的 —— 沒有它 AT+QLBS 會回 10002（token 不存在）。⚠ 若回的是 702 那是「伺服器逾時」不是 token 問題 —— 先查 AT+QIACT? 有沒有 PDP。讀回時會被模組遮成 *": "Das QuecLocator-Token setzen. ⚠ Diese Zeichenkette muss bei Quectel beantragt werden, dieses Gerät wird ohne ausgeliefert —— ohne sie antwortet AT+QLBS mit 10002 (Token nicht vorhanden). ⚠ Kommt dagegen 702, ist das ein „Server-timeout“ und kein Token-Problem —— zuerst mit AT+QIACT? prüfen, ob ein PDP-Context vorhanden ist. Beim Auslesen erscheinen nur *",
+ "（QuecLocator 走 HTTP，此碼可能是 HTTP 層錯誤；官方 10000-10008 表未收錄）": " (QuecLocator läuft über HTTP, dieser Code ist womöglich ein Fehler der HTTP-Ebene; in der offiziellen Tabelle 10000-10008 ist er nicht aufgeführt)",
+ "（不是 token 問題！先確認 AT+QIACT? 回得出 IP —— 沒有 PDP 就連不到 QuecLocator 伺服器。逾時秒數見 AT+QLBSCFG=\"timeout\"）": " (Kein Token-Problem! Zuerst prüfen, ob AT+QIACT? eine IP liefert —— ohne PDP-Context ist der QuecLocator-Server nicht erreichbar. Die Sekundenzahl bis zum timeout steht unter AT+QLBSCFG=\"timeout\")",
+ "（模組讀回時會遮成 *；沒設 token 時 AT+QLBS 回 10002）": " (das Modul maskiert es beim Auslesen mit *; ohne gesetztes Token antwortet AT+QLBS mit 10002)"
+}

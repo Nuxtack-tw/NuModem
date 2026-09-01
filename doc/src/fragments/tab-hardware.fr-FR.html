@@ -1,0 +1,151 @@
+<h3 id="tab-hardware">Hardware — démarrage et port série</h3>
+            <p><strong>Principe de fonctionnement :</strong> cette page est la fondation de tout l'outil :
+            Control regroupe les deux boutons du rituel de démarrage (Power / Reset), Module l'identification du produit,
+            Serial les réglages UART, Power la basse consommation, URC le port de sortie des messages spontanés du module,
+            plus une rangée de <strong>boutons d'octets bruts</strong> qui servent d'issue de secours en mode données.
+            Tous les autres onglets reposent sur deux prérequis : <strong>le module a été démarré selon le rituel</strong> et
+            <strong>les URC passent par uart1</strong> — ces deux choses se règlent ici.
+            Tous les comportements et chiffres de cette section sont des mesures d'août 2026 sur un EG800K réel.</p>
+
+            <h4>Pourquoi un rituel de démarrage : RTS = alimentation, DTR = Reset</h4>
+            <p>La carte de contrôle associée à cet outil détourne deux signaux de contrôle RS-232 de leur rôle habituel — c'est la clé de toute cette page :</p>
+            <table>
+                <tr><th>Signal</th><th>Réellement câblé sur</th><th>Logique</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Interrupteur d'alimentation du module</td>
+                    <td><strong>Logique inversée</strong> : RTS OFF = sous tension, RTS ON = hors tension</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Broche Reset du module</td>
+                    <td>DTR ON = Reset au niveau haut (démarrage possible), DTR OFF = Reset au niveau bas</td></tr>
+            </table>
+            <p>Particularité du circuit (confirmée par mesure) : à la première connexion, RTS doit <strong>passer par ON puis OFF</strong>
+            pour que l'alimentation s'enclenche réellement — mettre OFF directement ne garantit pas la mise sous tension ; DTR doit lui aussi suivre <strong>ON→OFF→ON</strong>
+            pour que Reset monte vraiment. La coupure (RTS ON) est brutale : le module <strong>n'envoie aucun message d'adieu</strong>.</p>
+            <div class="warning">
+                <strong>Recharger la page = couper le courant.</strong> Quand le navigateur rouvre le port série, il relève RTS
+                et le module perd instantanément l'alimentation — après la reconnexion automatique, <strong>il faut refaire le rituel de démarrage</strong>.
+                Vécu en test : 17 commandes envoyées en sautant le rituel, toutes parties sans retour (que des lignes TX, zéro RX).
+                Devant tout « ça marchait il y a une seconde, plus rien ne répond », pensez d'abord à cela.
+            </div>
+
+            <h4>Boutons Power et Reset : comment appuyer, ce que vous verrez</h4>
+            <p>Ces deux boutons incarnent les deux signaux du tableau ci-dessus et sont <strong>couplés dans les deux sens</strong>
+            avec les indicateurs RTS / DTR de la barre de signaux (grisés et inactifs hors connexion). Web Serial ne peut pas relire l'état réel des signaux de sortie :
+            la barre affiche la valeur que cet outil croit avoir envoyée.</p>
+            <ol>
+                <li><strong>Power</strong> (à bascule) : vert allumé = alimentation ON (= RTS OFF).
+                    Le rituel exige que RTS passe par ON→OFF : si le bouton est déjà allumé, éteignez-le puis rallumez-le.</li>
+                <li><strong>Reset</strong> (momentary) : appui = DTR OFF, relâchement = DTR ON,
+                    un appui-relâchement = un Reset (la séquence standard marque une pause de 0.3 seconde au milieu).</li>
+                <li><strong>Attendre RDY</strong> : en quelques secondes, le terminal affiche l'annonce de démarrage du module <code>RDY</code>.</li>
+                <li><strong>Vérifier avec ATI</strong> : la réponse doit être <code>Quectel</code> / <code>EG800K</code> /
+                    <code>Revision: …</code> / <code>OK</code>. Si elle arrive, l'UART et le module sont tous deux vivants.</li>
+            </ol>
+            <div class="tip">
+                Après le démarrage, vérifiez d'abord que l'écho (ATE) est actif (il l'est en sortie d'usine), puis envoyez <code>AT+CMEE=2</code> —
+                sans lui, vous ne verrez qu'un aride <code>ERROR</code> ; avec lui, vous obtenez le texte lisible
+                <code>+CME ERROR: …</code>. Les deux réglages ne valent que pour la session : à refaire à chaque redémarrage du module.
+            </div>
+
+            <h4>Module : cinq boutons d'identification</h4>
+            <table>
+                <tr><th>Bouton</th><th>Commande</th><th>Ce que vous verrez</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>Marque / modèle / version de firmware en une seule réponse — première commande à envoyer après le démarrage</td></tr>
+                <tr><td>Vendor / Model / FW Ver</td>
+                    <td><code>AT+GMI</code> / <code>AT+GMM</code> / <code>AT+GMR</code></td>
+                    <td>Les trois lignes d'ATI interrogées séparément (équivalents respectifs de CGMI / CGMM / CGMR).
+                        Version de firmware mesurée sur cet exemplaire : <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>IMEI du module (15 chiffres). Zéro trafic, envoyable à tout moment</td></tr>
+            </table>
+
+            <h4>Serial : AT&amp;V pour lire les paramètres, IPR pour changer le débit</h4>
+            <p><strong>AT Params (<code>AT&amp;V</code>)</strong> : liste la valeur actuelle de tous les paramètres AT à lettre unique.
+            Les commandes à lettre unique comme <code>ATE</code> / <code>ATQ</code> / <code>ATV</code> <strong>n'ont pas de forme d'interrogation propre :
+            seule cette commande permet de les lire</strong>. Mesuré ici : <code>E:1 Q:0 V:1 S3:13 S4:10</code> —
+            écho actif, codes de résultat en mode texte, fin de ligne = CR (ASCII 13), exactement les prémisses sur lesquelles cet outil analyse les réponses.</p>
+            <p><strong>Baud? (<code>AT+IPR?</code>)</strong> : interroge le débit actuel de l'UART, 115200 en sortie d'usine.<br>
+            <strong>Baud List (<code>AT+IPR=?</code>)</strong> : renvoie deux listes —
+            la première donne les débits auto-détectables, la seconde ceux réservés au mode fixe. Une fois ce bouton exécuté,
+            le menu déroulant de Set Baud est remplacé par la liste réellement annoncée par l'exemplaire. Mesure locale : la seconde liste monte jusqu'à
+            <strong>1000000 bps — valeur absente du tableau du §3.4 du manuel</strong>.</p>
+            <p><strong>Set Baud (<code>AT+IPR={rate};&amp;W</code>, carte de paramètres)</strong> :
+            l'appui ouvre d'abord une boîte de confirmation — c'est le bouton de la page avec lequel il est le plus facile de s'enfermer dehors.</p>
+            <div class="warning">
+                <strong>Le triple piège du changement de débit (intégralement confirmé par mesure) :</strong><br>
+                ① Dès que <code>OK</code> revient, le changement est <strong>immédiat</strong> :
+                l'instant d'après, cet outil et le module ne parlent plus la même langue ;<br>
+                ② <code>AT&amp;F</code> (réinitialisation d'usine) <strong>ne remet pas</strong> le débit d'origine — n'espérez pas qu'il vous sauve ;<br>
+                ③ Sans <code>&amp;W</code>, rien n'est enregistré — or reconnexion = coupure de courant : le module se réveillerait à l'ancien débit
+                alors que votre port resterait réglé sur le nouveau, <strong>double perte de contact</strong>.
+                C'est pourquoi cet outil impose la forme combinée <code>;&amp;W</code>.<br>
+                Récupération en quatre étapes (rappelées aussi dans la boîte de confirmation) : déconnecter → changer le débit dans la zone de connexion → reconnecter → refaire le rituel de démarrage.
+            </div>
+
+            <h4>Power : basse consommation QSCLK</h4>
+            <p><strong>Sleep? (<code>AT+QSCLK?</code>)</strong> : interroge si le module a le droit de s'endormir.
+            Mesuré ici : <code>0</code> en sortie d'usine = désactivé, module toujours éveillé.
+            Cette page ne propose que le bouton d'interrogation : un module endormi <strong>cesse de répondre aux commandes AT</strong>, et la méthode de réveil du manuel est d'abaisser DTR —
+            or sur cette carte, DTR est déjà câblé sur la broche Reset (voir le début de cette section). Si vous avez activé le sommeil depuis la ligne de commande et que le module ne se réveille plus,
+            refaites le rituel de démarrage (coupure puis remise sous tension) pour vous en sortir ; détails dans la note d'application officielle sur la basse consommation.</p>
+
+            <h4>URC : quand aucun message n'arrive, venez ici en premier</h4>
+            <p>Un <strong>URC (Unsolicited Result Code, code de résultat non sollicité)</strong> est un message que le module « émet spontanément, sans qu'on le lui demande »,
+            et non la réponse à une commande — le <code>RDY</code> du démarrage, l'arrivée de données TCP, les messages MQTT,
+            les résultats de scan Wi-Fi, la notification de chargement du firmware GNSS en sont tous. Son port de sortie
+            <strong>est par défaut le port USB (usbat)</strong> — cet outil, qui passe par l'UART, n'en reçoit alors aucun ;
+            le symptôme est très typique : <strong>toutes les commandes répondent OK, mais les messages ne viennent jamais</strong>.</p>
+            <table>
+                <tr><th>Bouton</th><th>Commande</th><th>Usage</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>Interroge où partent les URC — quand vous n'en recevez pas, <strong>c'est la première commande à envoyer</strong> ;
+                        il faut que la réponse soit <code>"uart1"</code> pour les recevoir</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>Ports de sortie supportés par l'exemplaire. Réponse mesurée : <code>("usbat","usbmodem","uart1")</code>,
+                        <strong>sans le "all" mentionné par le manuel</strong> (qui note que certains modèles ne le supportent pas)</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>Bascule vers l'UART principal. Écrit en NVRAM, conservé après redémarrage : <strong>à faire une seule fois</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>Interrupteur général des URC, l'autre grande cause de « pas d'URC ».
+                        Mesuré à 1 (actif) en sortie d'usine sur cet exemplaire : le problème vient presque toujours du port de sortie</td></tr>
+            </table>
+
+            <h4>Boutons d'octets bruts : l'issue de secours du mode données</h4>
+            <p>Beaucoup de commandes sont <strong>en deux temps</strong> : on envoie la commande, on attend l'invite <code>&gt;</code> du module,
+            puis on envoie le corps. Une fois entré dans ce <strong>mode données</strong>, le module avale comme données chaque caractère que vous tapez —
+            y compris les commandes AT que vous voudriez lancer. Longueur mal calculée, changement d'avis en cours de route, commande bloquée : les touches ordinaires ne peuvent plus rien,
+            il faut cette rangée de boutons qui envoient chacun un octet brut :</p>
+            <table>
+                <tr><th>Bouton</th><th>Envoie</th><th>Quand l'utiliser</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td><strong>Terminateur</strong> du mode données : expédie réellement le contenu accumulé</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td><strong>Annule</strong> le mode données et jette le contenu accumulé.
+                        Touche d'évasion de premier choix quand une commande en deux temps est bloquée et que le port AT ne répond plus (§2.3.8 du manuel)</td></tr>
+                <tr><td>+++</td><td>Trois signes + (octets bruts)</td>
+                    <td>Pour s'échapper du <strong>mode données transparent</strong> (par ex. un transfert FTP en COM:) et revenir en mode AT.
+                        La règle est stricte : <strong>1 seconde de silence avant et après, jamais de CR/LF</strong> —
+                        mesuré : avec un CR ajouté, la séquence est sans effet ; il faut passer par ce bouton, pas par la ligne de commande</td></tr>
+            </table>
+            <div class="warning">
+                <strong>La mesure contredit le manuel : +++ est un « abandon », pas une « pause ».</strong>
+                La note d'application FTPS v1.5, page 13, affirme qu'après +++ on peut reprendre le transfert en mode données avec <code>ATO</code> ;
+                sur le matériel réel, <code>ATO</code> ne renvoie que <code>NO CARRIER</code> : le transfert a déjà été abandonné.
+                Considérez +++ comme un frein d'urgence, sans espérer repartir une fois arrêté.
+            </div>
+
+            <h4>Dépannage</h4>
+            <table>
+                <tr><th>Symptôme</th><th>Cause et solution</th></tr>
+                <tr><td>Aucune commande ne répond</td>
+                    <td>Examinez les trois suspects dans l'ordre : ① le rituel de démarrage n'a pas été fait (après un rechargement de page, c'est forcément lui) ;
+                        ② la fin de ligne est réglée sur LF — le module <strong>n'accepte que CR</strong>, avec LF il ne répond strictement rien ;
+                        ③ le débit ne correspond pas (voir la récupération en quatre étapes)</td></tr>
+                <tr><td>Reset pressé mais RDY n'arrive jamais</td>
+                    <td>Regardez d'abord si le bouton Power est allumé — module hors tension, Reset peut être pressé cent fois sans effet ;
+                        à la première connexion, l'alimentation doit passer par ON→OFF</td></tr>
+                <tr><td>Toutes les commandes répondent OK, mais les URC ne viennent jamais</td>
+                    <td>Neuf fois sur dix, urcport est resté sur l'usbat d'usine : interrogez avec URC Port?, corrigez avec URC → UART ;
+                        sinon, vérifiez l'interrupteur général URC Switch</td></tr>
+                <tr><td>Le port AT « avale » soudain les commandes, plus rien ne répond</td>
+                    <td>Vous êtes coincé en mode données : tout ce que vous tapez est absorbé comme données — appuyez sur ESC pour vous en sortir</td></tr>
+            </table>

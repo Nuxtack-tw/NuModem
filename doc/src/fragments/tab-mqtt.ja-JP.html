@@ -1,0 +1,148 @@
+<h3 id="tab-mqtt">MQTT —— IoT メッセージング</h3>
+            <p><strong>動作原理：</strong>MQTT は「broker（メッセージ仲介サーバー）」型のプロトコルです：
+            デバイス同士は直接つながらず、それぞれ broker に接続し、「トピック（topic）」に対してメッセージを発行または購読します。
+            EG800K 上では 2 層構造です：まず <code>AT+QMTOPEN</code> で「ネットワーク接続」を開き（TCP で broker へ接続）、
+            次に <code>AT+QMTCONN</code> で「MQTT ログイン」を行い、両方の層が通ってはじめて購読と発行ができます。
+            先に覚えておくこと：<strong>MQTT コマンドの結果はすべて「まず OK、次に URC」のパターン</strong>です（FTP と同じ）——
+            <code>OK</code> はコマンドを受け付けたという意味でしかなく、成否はその後の結果 URC で見ます。</p>
+            <p>本ページは client 0 に固定しています。ファームウェアは他にマルチ client（0–5）、SSL、クラウドプラットフォーム認証にも対応しており
+            （<code>=?</code> の実測で確認）、上級の使い方は MQTT アプリケーションノートを参照してください。</p>
+
+            <h4>始める前に：2 つの前提</h4>
+            <ol>
+                <li><strong>URC が UART を通っていること</strong>：<code>AT+QURCCFG="urcport"</code> が
+                    <code>"uart1"</code> を返す必要があります。出荷値は <code>"usbat"</code> で、MQTT の結果はすべて URC ——
+                    変えないと<strong>どのコマンドも OK が返るだけで後が続きません</strong>
+                    （Basic ページにボタンがあります。NVRAM に書かれるので変更は 1 回だけ）。</li>
+                <li><strong>PDP を先に有効化すること</strong>：先に TCP/IP ページで <code>AT+QIACT=1</code>
+                    を押します（最長 150 秒）。有効化していないと <code>+QMTOPEN</code> が <strong>3＝PDP 有効化失敗</strong>を返します。
+                    全行程でデータ通信量が発生し、見積もりは約 5 KB です。</li>
+            </ol>
+
+            <h4>どう試すか：4 つの無料公開 broker</h4>
+            <p><code>AT+QMTOPEN</code> のパラメータカードには broker のドロップダウンが組み込まれています（自由入力も可）。
+            4 つとも匿名を許可し、登録は不要です。データは 2026 年 8 月の実測（PC 側から 100 件の連射、モジュール側から ping）：</p>
+            <table>
+                <tr><th>Broker</th><th>連射 100 件</th><th>モジュール側 ping</th><th>備考</th></tr>
+                <tr><td><strong>mqttgo.io</strong>（既定）</td><td><strong>100/100</strong></td>
+                    <td><strong>190–210 ms</strong></td><td>台湾 HiNet。1883 平文／8883 TLS</td></tr>
+                <tr><td>broker.hivemq.com</td><td>100/100</td><td>ICMP 遮断</td>
+                    <td><code>AT+QPING</code> が 559 を返しても慌てない —— 実測では 4 つとも TCP 1883 は全通で、
+                        到達性は直接 <code>AT+QMTOPEN</code> で試せます</td></tr>
+                <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+                    <td>公式サイト自ら重要用途に使うなと明言。トピック汚染は最も深刻</td></tr>
+                <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>ICMP 遮断</td>
+                    <td><strong>発行レート制限あり</strong>。Web の Dashboard あり</td></tr>
+            </table>
+            <p>この 4 つはすべて<strong>完全公開</strong>です：誰でもあなたのトピックを購読でき、
+            他人のメッセージが紛れ込むこともあります —— これこそランダムサフィックスが解決する問題です。</p>
+
+            <h4>client ID とトピックのランダムサフィックス：再読み込みのたびに変わる</h4>
+            <p>client ID と既定トピックは固定値ではありません：ページ読み込み時に 16 進 6 文字のサフィックスを自動生成し、
+            <code>numodem-&lt;サフィックス&gt;</code> と <code>test/numodem-&lt;サフィックス&gt;</code> を組み立てます。
+            Subscribe／Publish／Unsub の 3 ボタンは同じ 1 組を共用します（そうしないとループバックが噛み合いません）。理由は 2 つ：</p>
+            <ul>
+                <li><strong>名前が衝突すると蹴落とされる</strong>：MQTT 3.1.1 §3.1.4 は、先に接続していた側を broker が
+                    切断するよう規定しています —— 2 人が同じ固定 ID を使うと蹴り合いになり、症状は「モジュールが訳もなく切断される」ように見えます。</li>
+                <li><strong>固定トピックは他人のメッセージを受信する</strong>：自分が発行したものだと思って受け取ったのに、実は違う ——
+                    これは受信できないより悪質です。偽の合格を出してしまうからです。</li>
+            </ul>
+            <div class="warning">
+                <strong>⚠ ページを再読み込みするたびにサフィックスは別の組になります ——
+                購読と発行は同じページのライフサイクル内で完了させなければなりません。</strong>
+                しかも本ツールは RTS＝電源なので、ページの再読み込み＝モジュールの電源断で、MQTT 接続はまるごと消えます。
+                起動シーケンスと <code>AT+QMTOPEN</code> からやり直しです。
+            </div>
+
+            <h4>完全な動線：接続 → 購読 → 発行 → 自分のメッセージを受け取る</h4>
+            <p>最も説得力のある検証は<strong>ループバック</strong>です：購読した後、同じトピックに発行して
+            自分のメッセージを自分で受け取れば、送受信の全リンクを一度で検証できます。各ステップは結果 URC を待ってから次へ：</p>
+            <ol>
+                <li><strong>プロトコルバージョンを設定</strong>：Ver 3.1.1 を押します（<code>AT+QMTCFG="version",0,4</code>。
+                    3＝3.1、4＝3.1.1）。Version? で現在値を照会できます（値なし＝照会）。
+                    Keepalive のパラメータカードで保活間隔を調整できますが、調整しなくてもテストできます。</li>
+                <li><strong>ネットワークを開く</strong>：Open Net を押します（<code>AT+QMTOPEN=0,"broker",1883</code>）。
+                    まず <code>OK</code> が返り、成否は URC <code>+QMTOPEN: 0,&lt;result&gt;</code>
+                    （0＝成功）で見ます。最長 120 秒待ちます。Open? で開いている接続を照会できます
+                    （接続が無いときは空の <code>OK</code> が返り、実測で正常）。</li>
+                <li><strong>MQTT ログイン</strong>：Connect を押します（<code>AT+QMTCONN=0,"numodem-&lt;サフィックス&gt;"</code>）。
+                    成功の URC は必ず <code>+QMTCONN: 0,0,0</code> です。公開 broker はユーザー名とパスワード不要。
+                    必要な場合はパラメータの後ろに自分で <code>,"user","pass"</code> を足します。
+                    Conn? で状態を照会します（1＝初期、2＝接続中、3＝接続済み、4＝切断中）。</li>
+                <li><strong>購読</strong>：Subscribe を押します（<code>AT+QMTSUB=0,1,"test/numodem-&lt;サフィックス&gt;",0</code>、
+                    msgid は 1 に固定）。成功の URC は <code>+QMTSUB: 0,1,0,0</code> のような形です。
+                    以後、このトピックのメッセージは <code>+QMTRECV</code> URC で入ってきます。</li>
+                <li><strong>発行</strong>：Publish を押します（<code>AT+QMTPUBEX</code>、2 段階。次の段落を参照）。
+                    成功の URC は <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code> です。</li>
+                <li><strong>受け取る</strong>：発行先は購読中のトピックそのものなので、直後に
+                    <code>+QMTRECV</code> がトピックとさっきのメッセージ本文を伴って現れます —— ループバック成功。
+                    マルチバイト（漢字）の payload も切り捨てや文字化けはありません。</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="MQTT タブ">
+                <figcaption>MQTT ページ：broker のドロップダウン、接続、購読と発行。既定値にはランダムサフィックスが付いています。</figcaption>
+            </figure>
+
+            <h4>QMTPUBEX の 2 段階：長さを数え切ると自動送出、Ctrl+Z 不要</h4>
+            <p><code>AT+QMTPUBEX</code> の末尾パラメータは<strong>長さ（バイト数）であって、メッセージ内容ではありません</strong>
+            （MQTT アプリケーションノート §3.3.8 で決着 —— メッセージを詰め込む単一行の送り方は必ず ERROR になります）。
+            正しい流れは 2 段階です：コマンドを送る → モジュールがプロンプト <code>&gt;</code> を返す → ちょうど N バイトを送る。
+            モジュールは<strong>長さを数え切ると自動的に送出し、Ctrl+Z は不要です</strong>
+            （TCP ページの <code>AT+QISEND</code> のデータモードとは異なります）。
+            Publish を押せば全自動：パラメータカードにメッセージ内容を記入するだけで、
+            長さは UTF-8 のバイト数から自動計算されます（漢字 1 文字は 3 バイト。実測では「測試」→ 6）。</p>
+            <ul>
+                <li>payload 型コマンドには<strong>「コマンドラインに入力」を提供していません</strong> —— コマンドラインからの送出は必ず行末が付き、
+                    その CR が長さに数えられてずれるため、ボタンで送ってください。</li>
+                <li>ファームウェアには他に <code>AT+QMTPUB</code>（データモード変種、Ctrl+Z で締める）もありますが ——
+                    本ツールは一律 <code>QMTPUBEX</code> を使います。2 通り覚える必要はありません。</li>
+            </ul>
+
+            <h4>結果コードの読み方：コマンドごとに値域が違う</h4>
+            <div class="warning">
+                <strong>A コマンドの結果コード表を B コマンドに当てはめないでください。</strong>
+                <code>+QMTOPEN</code> の 3 は「PDP 有効化失敗」ですが、
+                <code>+QMTPUBEX</code> にはそもそも 3 という値がありません。
+                <br><br>
+                最も読み違えやすいのは <code>+QMTCONN: 0,1</code> ——
+                これは<strong>照会応答の「状態 1＝初期化中」かもしれないし、書き込み結果の「パケット再送中」かもしれません</strong>。
+                1 行だけでは区別できないので、本ツールは両方の読み方を並記し、当て推量はしません。
+            </div>
+            <p>表を暗記する必要はありません：<code>+QMTOPEN</code> から <code>+QMTRECV</code>／<code>+QMTSTAT</code>
+            までの全結果 URC に、ターミナル領域が MQTT アプリケーションノート v1.5 の 7 枚の対照表に基づいて欄ごとに平易な注釈を付けます。</p>
+
+            <h4>切断と後始末</h4>
+            <ul>
+                <li><strong>受信だけ止めて接続は残したい</strong>：Unsub を押します
+                    （<code>AT+QMTUNS=0,2,"トピック"</code>、msgid は 2 に固定）。</li>
+                <li><strong>正常切断</strong>：Disconnect を押します（<code>AT+QMTDISC=0</code>、
+                    MQTT DISCONNECT を送出）。<code>+QMTDISC: 0,0</code> が返ります。
+                    <strong>その後 Close Net を押す必要はありません</strong> —— <code>AT+QMTCLOSE=0</code>
+                    は「QMTDISC が失敗し、ネットワーク層が固まった」ときの強制クローズ用です。</li>
+            </ul>
+            <p>自分で押していない切断（蹴られた、keepalive タイムアウト、ネットワーク断）は <code>+QMTSTAT</code>
+            の異常切断 URC で報告されます（例：<code>+QMTSTAT: 0,5</code>。ターミナル領域が原因を注釈します）。
+            このときは <code>AT+QMTOPEN</code> からやり直しです。</p>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td>どのコマンドも OK が返るだけで、後が続かない</td>
+                    <td>URC が USB ポートへ送られています —— <code>urcport</code> の出荷値は <code>usbat</code>。
+                        <code>uart1</code> へ切り替え（前提 1 を参照）</td></tr>
+                <tr><td><code>+QMTOPEN: 0,3</code></td>
+                    <td>PDP 有効化失敗 —— 先に <code>AT+QIACT=1</code>（TCP/IP ページ）を実行してからやり直し</td></tr>
+                <tr><td>購読したのに自分の発行したメッセージが受信できない</td>
+                    <td>途中でページを再読み込みしています —— サフィックスが別の組になり、モジュールも電源断で再起動しています。
+                        同じページのライフサイクル内で動線を一巡やり直してください</td></tr>
+                <tr><td>自分が発行していないメッセージを受信した</td>
+                    <td>公開 broker のトピック汚染（mosquitto が最も深刻）。既定トピックにはランダムサフィックスが付いています。
+                        自分でトピックを決めるなら独特な名前にしてください</td></tr>
+                <tr><td>大量発行でメッセージの一部が消えた</td>
+                    <td>emqx には発行レート制限があります（実測では連射 100 のうち 40 のみ到達）——
+                        mqttgo.io か hivemq（100/100、制限なし）に替えてください</td></tr>
+                <tr><td>いくら待っても結果 URC が来ない</td>
+                    <td>このファミリーはもともと遅いのです：<code>QMTOPEN</code> は最長 120 秒、
+                        <code>QMTCONN</code>／<code>QMTSUB</code>／<code>QMTPUBEX</code> は最長 600 秒
+                        （PUBEX＝パケットタイムアウト 60 秒 × 再試行 10）。ボタンの説明に明記済みで、フリーズではありません</td></tr>
+            </table>

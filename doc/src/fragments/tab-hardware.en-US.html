@@ -1,0 +1,153 @@
+<h3 id="tab-hardware">Hardware — Power-up and the serial port</h3>
+            <p><strong>Working principle:</strong> this page is the foundation of the whole tool:
+            Control holds the two buttons of the power-up ritual (Power / Reset), Module is product identification,
+            Serial is the UART settings, Power is low-power mode, URC governs the output port for the module's unsolicited messages,
+            and a row of <strong>raw-byte buttons</strong> (Ctrl+Z / ESC / +++) serves as the escape hatch out of data mode.
+            Every other tab rests on two premises: <strong>the module was powered up by the ritual</strong> and
+            <strong>URCs go to uart1</strong> — both are taken care of on this page.
+            Every behavior and number in this section was measured on a physical EG800K in August 2026.</p>
+
+            <h4>Why there is a power-up ritual: RTS = power, DTR = Reset</h4>
+            <p>The control board this tool pairs with repurposes two RS-232 handshake signals; this is the key to the whole page:</p>
+            <table>
+                <tr><th>Signal</th><th>Actually wired to</th><th>Logic</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Module power switch</td>
+                    <td><strong>Negative logic</strong>: RTS OFF = powered, RTS ON = power cut</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Module Reset pin</td>
+                    <td>DTR ON = Reset pulled high (can boot), DTR OFF = Reset pulled low</td></tr>
+            </table>
+            <p>Circuit behavior (confirmed by testing): on the first connection RTS must go <strong>ON first, then OFF</strong>,
+            or the power will not actually turn on — setting it straight to OFF does not guarantee power; DTR likewise must walk
+            <strong>ON→OFF→ON</strong> before Reset is truly pulled high. A power cut (RTS ON) is a hard cut —
+            the module <strong>sends no farewell message whatsoever</strong>.</p>
+            <div class="warning">
+                <strong>Reloading the page = a power cut.</strong> When the browser reopens the serial port it raises RTS again,
+                and the module simply loses power — after the automatic reconnect completes you <strong>must rerun the power-up ritual</strong>.
+                Stepped on in testing: skipping the ritual and sending 17 commands straight away, every one vanished into the void (TX lines only, zero RX).
+                Any "it was fine a moment ago, now nothing responds" — think of this first.
+            </div>
+
+            <h4>The Power and Reset buttons: how to press them, what you will see</h4>
+            <p>The two buttons are the embodiment of the two signals in the table above, and they are <strong>linked both ways</strong>
+            with the RTS / DTR indicators in the signal bar (grayed out and unclickable while disconnected). Web Serial cannot read back
+            the actual state of output signals; what the signal bar shows is the value this tool believes it has sent.</p>
+            <ol>
+                <li><strong>Power</strong> (toggle): lit green = power ON (= RTS OFF).
+                    The power-up ritual requires RTS to pass through ON→OFF: if the button is already lit, click it off first, then on.</li>
+                <li><strong>Reset</strong> (momentary): press = DTR OFF, release = DTR ON —
+                    one press-and-release is one Reset (the standard sequence pauses 0.3 seconds in between).</li>
+                <li><strong>Wait for RDY</strong>: within a few seconds the terminal shows the module's boot announcement <code>RDY</code>.</li>
+                <li><strong>Verify with ATI</strong>: it should reply <code>Quectel</code> / <code>EG800K</code> /
+                    <code>Revision: …</code> / <code>OK</code>. If that comes back, both the UART and the module are alive.</li>
+            </ol>
+            <div class="tip">
+                After power-up, first confirm echo (ATE) is on (the factory default is on), then send <code>AT+CMEE=2</code> —
+                without it you only get a bare <code>ERROR</code>; with it you get the readable text of
+                <code>+CME ERROR: …</code>. Both are session-only and must be re-sent every time the module restarts.
+            </div>
+
+            <h4>Module: five identification buttons</h4>
+            <table>
+                <tr><th>Button</th><th>Command</th><th>What you will see</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>Vendor / model / firmware version, three in one — make it the first command after power-up</td></tr>
+                <tr><td>Vendor / Model / FW Ver</td>
+                    <td><code>AT+GMI</code> / <code>AT+GMM</code> / <code>AT+GMR</code></td>
+                    <td>The three lines of ATI queried separately (each equivalent to CGMI / CGMM / CGMR).
+                        Firmware version measured on this unit: <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>The module's IMEI (15 digits). Zero data cost, safe to send anytime</td></tr>
+            </table>
+
+            <h4>Serial: AT&amp;V reads the parameters, IPR changes the baud rate</h4>
+            <p><strong>AT Params (<code>AT&amp;V</code>)</strong>: lists the current values of all single-letter AT parameters.
+            The single-letter commands <code>ATE</code> / <code>ATQ</code> / <code>ATV</code> <strong>have no query form of their own;
+            this is the only command that can read them</strong>. Measured on this unit: <code>E:1 Q:0 V:1 S3:13 S4:10</code> —
+            echo on, result codes in text mode, line ending = CR (ASCII 13), which is exactly what this tool's response parsing relies on.</p>
+            <p><strong>Baud? (<code>AT+IPR?</code>)</strong>: queries the UART's current baud rate; factory default 115200.<br>
+            <strong>Baud List (<code>AT+IPR=?</code>)</strong>: returns two lists —
+            the first is the auto-detectable baud rates, the second those usable only in fixed mode. After you run this button,
+            the Set Baud dropdown is replaced by the list this unit actually reported. Measured here, the second list runs all the way up to
+            <strong>1000000 bps — a value absent from the table in manual §3.4</strong>.</p>
+            <p><strong>Set Baud (<code>AT+IPR={rate};&amp;W</code>, parameter card)</strong>:
+            clicking it pops a confirmation dialog first — this is the button on the whole page most likely to lock you out.</p>
+            <div class="warning">
+                <strong>The triple trap of changing the baud rate (all confirmed by testing):</strong><br>
+                ① The moment <code>OK</code> comes back it <strong>takes effect immediately</strong>,
+                and from the next instant this tool and the module are talking past each other;<br>
+                ② <code>AT&amp;F</code> (factory reset) does <strong>not</strong> restore the baud rate — do not count on it to save you;<br>
+                ③ Without <code>&amp;W</code> nothing is saved — and reconnecting = a power cut, so the module wakes at the old baud rate
+                while your port setting is stuck at the new one: <strong>lost in both directions</strong>.
+                That is why this tool enforces the combined <code>;&amp;W</code> form.<br>
+                Four recovery steps (the confirmation dialog reminds you too): disconnect → change the baud rate in the connection area → reconnect → rerun the power-up ritual.
+            </div>
+
+            <h4>Power: QSCLK low-power mode</h4>
+            <p><strong>Sleep? (<code>AT+QSCLK?</code>)</strong>: asks whether the module is allowed to sleep.
+            Measured factory value on this unit: <code>0</code> = disabled, module always awake.
+            This page provides the query button only: a sleeping module <strong>stops answering AT</strong>, and the manual's wake-up method
+            is pulling DTR low — but on this board DTR is already wired as the Reset pin (see the start of this section).
+            If you enabled sleep yourself on the command line and now cannot wake it, rerun the power-up ritual (power cycle) to escape;
+            see the official low-power application note for details.</p>
+
+            <h4>URC: when messages stop arriving, come here first</h4>
+            <p>A <strong>URC (Unsolicited Result Code)</strong> is a message the module <strong>emits on its own, unprompted</strong> —
+            it is the reply to no command. The boot-time <code>RDY</code>, TCP data arrival, MQTT messages,
+            Wi-Fi scan results, and the GNSS firmware-load notice are all URCs. Their output port
+            <strong>defaults from the factory to the USB port (usbat)</strong> — this tool, on the UART, receives none of them,
+            and the symptom is textbook: <strong>every command replies OK, yet the messages never come</strong>.</p>
+            <table>
+                <tr><th>Button</th><th>Command</th><th>Purpose</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>Asks where URCs currently go — when URCs are missing, <strong>query this first</strong>;
+                        it must return <code>"uart1"</code> for you to receive them</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>Which output ports this unit supports. Measured reply: <code>("usbat","usbmodem","uart1")</code> —
+                        <strong>no "all" as mentioned in the manual</strong> (the manual notes some models lack it)</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>Switches to the main UART. Written to NVRAM, survives reboots — <strong>change it once and you are done</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>The URC master switch, the other big reason for "no URCs".
+                        Measured factory value on this unit is 1 (on); the problem is almost always the output port</td></tr>
+            </table>
+
+            <h4>The raw-byte buttons: the escape hatch out of data mode</h4>
+            <p>Quite a few commands are <strong>two-stage</strong>: send the command, wait for the module's <code>&gt;</code> prompt,
+            then send the payload. Once inside this <strong>data mode</strong>, the module swallows every character you type as data —
+            including the AT commands you meant to send. When the length is miscounted, you change your mind halfway, or a command jams,
+            ordinary keys cannot save you; you need this row of buttons that each send a single raw byte:</p>
+            <table>
+                <tr><th>Button</th><th>Sends</th><th>When to use it</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td>Data mode's <strong>terminator</strong>: actually sends off what has been accumulated</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td><strong>Cancels</strong> data mode and discards the accumulated content.
+                        The first choice for escape when a two-stage command jams and the AT port stops answering (manual §2.3.8)</td></tr>
+                <tr><td>+++</td><td>Three + signs (raw bytes)</td>
+                    <td>Escapes from <strong>transparent data mode</strong> (such as FTP's COM: transfer) back to AT mode.
+                        The rules are strict: <strong>1 second of silence before and after, and absolutely no CR/LF</strong> —
+                        measured: adding a CR renders it ineffective. It must be sent with this button, never typed on the command line</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Testing overturns the manual: +++ is "abort", not "pause".</strong>
+                The FTPS application note v1.5, page 13, says that after +++ you can return to data mode with <code>ATO</code> and resume the transfer;
+                on the real device <code>ATO</code> only replies <code>NO CARRIER</code> — the transfer has already been aborted.
+                Treat +++ as an emergency brake; do not expect to keep driving after pulling it.
+            </div>
+
+            <h4>Troubleshooting</h4>
+            <table>
+                <tr><th>Symptom</th><th>Cause and fix</th></tr>
+                <tr><td>No response to any command</td>
+                    <td>Check the three suspects in order: ① the power-up ritual was not run (after a page reload it is always this);
+                        ② the line ending is set to LF — the module <strong>only accepts CR</strong>, LF gets zero response;
+                        ③ baud-rate mismatch (see the four recovery steps)</td></tr>
+                <tr><td>Pressed Reset but RDY never comes</td>
+                    <td>First check whether the Power button is lit — with no power, pressing Reset any number of times does nothing;
+                        on the first connection the power must pass through ON→OFF</td></tr>
+                <tr><td>Commands all reply OK, but URCs never arrive</td>
+                    <td>Odds are urcport is still at the factory usbat: click URC Port? to check, URC → UART to change;
+                        failing that, check the URC Switch master switch</td></tr>
+                <tr><td>The AT port suddenly "swallows commands"; nothing you type gets a response</td>
+                    <td>You are stuck in data mode and everything you type is being consumed as data — press ESC to escape</td></tr>
+            </table>

@@ -1,0 +1,151 @@
+<h3 id="tab-hardware">Hardware — But dan port bersiri</h3>
+            <p><strong>Prinsip kerja:</strong> halaman ini ialah asas keseluruhan alat:
+            Control ialah dua butang ritual but (Power / Reset), Module ialah pengenalan produk,
+            Serial ialah tetapan UART, Power ialah kuasa rendah, URC menguruskan port keluaran mesej aktif modul,
+            dan ada sebaris <strong>butang bait mentah</strong> (Ctrl+Z / ESC / +++) sebagai pintu kecemasan mod data.
+            Semua tab lain dibina atas dua prasyarat: <strong>modul telah dibut mengikut ritual</strong> dan
+            <strong>URC melalui uart1</strong> — kedua-duanya diselesaikan pada halaman ini.
+            Tingkah laku dan angka dalam bahagian ini semuanya daripada ujian sebenar ke atas EG800K fizikal pada Ogos 2026.</p>
+
+            <h4>Kenapa perlu ada ritual but: RTS = kuasa, DTR = Reset</h4>
+            <p>Papan kawalan yang dipadankan dengan alat ini menggunakan dua isyarat jabat tangan RS-232 untuk tujuan lain; inilah kunci untuk memahami keseluruhan halaman:</p>
+            <table>
+                <tr><th>Isyarat</th><th>Sebenarnya disambung ke</th><th>Logik</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Suis kuasa modul</td>
+                    <td><strong>Logik negatif</strong>: RTS OFF = berkuasa, RTS ON = kuasa terputus</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Pin Reset modul</td>
+                    <td>DTR ON = Reset ditarik tinggi (boleh but), DTR OFF = Reset ditarik rendah</td></tr>
+            </table>
+            <p>Ciri litar (disahkan melalui ujian sebenar): pada sambungan pertama, RTS mesti <strong>ON dahulu barulah OFF</strong>,
+            barulah kuasa benar-benar terbuka — menetapkan terus ke OFF tidak menjamin kuasa masuk; DTR juga mesti melalui <strong>ON→OFF→ON</strong>,
+            barulah Reset benar-benar ditarik tinggi. Pemutusan kuasa (RTS ON) ialah pemutusan keras; modul <strong>tidak akan menghantar sebarang mesej perpisahan</strong>.</p>
+            <div class="warning">
+                <strong>Memuat semula halaman = kuasa putus.</strong> Apabila pelayar membuka semula port bersiri, RTS ditarik naik semula,
+                dan modul terus hilang kuasa — selepas sambung semula automatik selesai, <strong>ritual but mesti dijalankan semula</strong>.
+                Pernah terkena dalam ujian sebenar: ritual dilangkau dan 17 arahan terus dihantar, semuanya pergi tanpa kembali (hanya baris TX, sifar RX).
+                Apa-apa sahaja gejala "tadi elok sahaja, sekarang langsung tiada respons", fikirkan perkara ini dahulu.
+            </div>
+
+            <h4>Butang Power dan Reset: cara menekan dan apa yang akan kelihatan</h4>
+            <p>Dua butang ini ialah penjelmaan dua isyarat dalam jadual di atas, dan <strong>berpaut dua hala</strong> dengan penunjuk RTS / DTR pada bar isyarat
+            (dikelabukan dan tidak boleh ditekan apabila belum bersambung). Web Serial tidak dapat membaca semula status sebenar isyarat keluaran;
+            apa yang dipaparkan bar isyarat ialah nilai yang alat ini anggap telah dihantar.</p>
+            <ol>
+                <li><strong>Power</strong> (jenis togol): menyala hijau = kuasa ON (= RTS OFF).
+                    Ritual but perlu membuatkan RTS melalui ON→OFF: jika butang sudah menyala, klik tutup dahulu kemudian klik buka.</li>
+                <li><strong>Reset</strong> (momentary): tekan = DTR OFF, lepas = DTR ON;
+                    satu tekanan dan pelepasan ialah satu Reset (jujukan piawai berhenti 0.3 saat di tengah).</li>
+                <li><strong>Tunggu RDY</strong>: dalam beberapa saat, pengisytiharan but modul <code>RDY</code> akan muncul pada terminal.</li>
+                <li><strong>Sahkan dengan ATI</strong>: sepatutnya memulangkan <code>Quectel</code> / <code>EG800K</code> /
+                    <code>Revision: …</code> / <code>OK</code>. Jika balasan diterima = UART dan modul kedua-duanya hidup.</li>
+            </ol>
+            <div class="tip">
+                Selepas but, disyorkan sahkan dahulu echo (ATE) dalam keadaan hidup (lalai kilang hidup), kemudian hantar <code>AT+CMEE=2</code> —
+                tanpanya anda hanya nampak <code>ERROR</code> yang hambar; selepas dihidupkan barulah ada teks boleh dibaca seperti
+                <code>+CME ERROR: …</code>. Kedua-duanya session-only; perlu dihantar semula setiap kali modul dibut semula.
+            </div>
+
+            <h4>Module: lima butang pengenalan</h4>
+            <table>
+                <tr><th>Butang</th><th>Arahan</th><th>Apa yang akan kelihatan</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>Jenama / model / versi perisian tegar tiga dalam satu — hantar ia sebagai arahan pertama selepas but</td></tr>
+                <tr><td>Vendor / Model / FW Ver</td>
+                    <td><code>AT+GMI</code> / <code>AT+GMM</code> / <code>AT+GMR</code></td>
+                    <td>Memecahkan tiga baris ATI untuk disemak berasingan (masing-masing setara dengan CGMI / CGMM / CGMR).
+                        Versi perisian tegar unit ini menurut ujian sebenar ialah <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>IMEI modul (15 digit). Sifar kuota data, boleh dihantar bila-bila masa</td></tr>
+            </table>
+
+            <h4>Serial: AT&amp;V baca parameter, IPR tukar kadar baud</h4>
+            <p><strong>AT Params (<code>AT&amp;V</code>)</strong>: menyenaraikan nilai semasa semua parameter AT satu huruf.
+            Arahan satu huruf seperti <code>ATE</code> / <code>ATQ</code> / <code>ATV</code> <strong>tiada bentuk pertanyaan masing-masing;
+            hanya arahan ini yang dapat membacanya</strong>. Ujian sebenar unit ini: <code>E:1 Q:0 V:1 S3:13 S4:10</code> —
+            echo hidup, kod keputusan dalam mod teks, penamat baris = CR (ASCII 13); inilah prasyarat alat ini menghurai respons.</p>
+            <p><strong>Baud? (<code>AT+IPR?</code>)</strong>: semak kadar baud UART semasa, kilang 115200.<br>
+            <strong>Baud List (<code>AT+IPR=?</code>)</strong>: memulangkan dua senarai —
+            yang pertama ialah kadar baud yang boleh dikesan secara automatik, yang kedua hanya boleh digunakan dalam mod tetap. Selepas butang ini dijalankan,
+            menu jatuh Set Baud akan bertukar kepada senarai yang benar-benar dilaporkan oleh unit ini. Ujian sebenar: senarai kedua unit ini menyenaraikan sehingga
+            <strong>1000000 bps — jadual §3.4 manual tiada nilai ini</strong>.</p>
+            <p><strong>Set Baud (<code>AT+IPR={rate};&amp;W</code>, kad parameter)</strong>:
+            menekannya akan memaparkan kotak pengesahan dahulu — inilah butang paling mudah mengunci diri sendiri di luar pintu dalam keseluruhan halaman.</p>
+            <div class="warning">
+                <strong>Perangkap tiga lapis menukar kadar baud (semuanya disahkan melalui ujian sebenar):</strong><br>
+                ① Sebaik sahaja <code>OK</code> dipulangkan, ia <strong>berkuat kuasa serta-merta</strong>;
+                mulai saat berikutnya alat ini dan modul bercakap bahasa berbeza;<br>
+                ② <code>AT&amp;F</code> (tetapan semula kilang) <strong>tidak akan</strong> mengembalikan kadar baud — jangan harapkan ia menyelamatkan anda;<br>
+                ③ Tanpa <code>&amp;W</code> ia tidak disimpan — dan sambung semula = kuasa putus; modul akan bangun pada kadar baud lama,
+                sedangkan tetapan port anda kekal pada kadar baud baharu — <strong>terputus hubungan dua kali ganda</strong>.
+                Sebab itulah alat ini memaksa bentuk gabungan <code>;&amp;W</code>.<br>
+                Empat langkah pemulihan (kotak pengesahan juga akan mengingatkan): putuskan sambungan → ubah kadar baud di kawasan sambungan → sambung semula → jalankan semula ritual but.
+            </div>
+
+            <h4>Power: kuasa rendah QSCLK</h4>
+            <p><strong>Sleep? (<code>AT+QSCLK?</code>)</strong>: semak sama ada modul dibenarkan masuk tidur.
+            Ujian sebenar unit ini: kilang ialah <code>0</code> = dilumpuhkan, modul sentiasa jaga.
+            Halaman ini hanya menyediakan butang pertanyaan: modul yang tertidur akan <strong>berhenti membalas AT</strong>; cara kejut dalam manual ialah menarik rendah DTR —
+            tetapi DTR papan ini telah disambung sebagai pin Reset (lihat permulaan bahagian ini). Jika anda sendiri menghidupkan tidur melalui baris arahan dan tidak dapat mengejutkannya,
+            jalankan semula ritual but (putus kuasa dan buka semula) untuk melepaskan diri; perincian lihat nota aplikasi kuasa rendah rasmi.</p>
+
+            <h4>URC: apabila mesej tidak diterima, datang ke sini dahulu</h4>
+            <p><strong>URC (Unsolicited Result Code, kod keputusan tanpa diminta)</strong> ialah mesej yang modul "muntahkan secara aktif tanpa diminta",
+            bukan respons kepada mana-mana arahan — <code>RDY</code> semasa but, ketibaan data TCP, mesej MQTT,
+            hasil imbasan Wi-Fi dan pemberitahuan pemuatan perisian tegar GNSS semuanya tergolong di sini. Port keluarannya
+            <strong>secara lalai kilang ialah port USB (usbat)</strong> — alat ini yang menggunakan UART tidak menerima satu pun,
+            dan gejalanya sangat tipikal: <strong>semua arahan pulangkan OK, tetapi mesej tidak kunjung tiba</strong>.</p>
+            <table>
+                <tr><th>Butang</th><th>Arahan</th><th>Kegunaan</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>Semak ke mana URC dihantar sekarang — apabila URC tidak diterima, <strong>semak ia dahulu</strong>;
+                        mesti memulangkan <code>"uart1"</code> barulah dapat diterima</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>Port keluaran yang disokong unit ini. Ujian sebenar memulangkan <code>("usbat","usbmodem","uart1")</code>,
+                        <strong>tiada "all" yang disebut dalam manual</strong> (manual ada nota sesetengah model tidak menyokongnya)</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>Tukar ke UART utama. Ditulis ke NVRAM, kekal merentas but semula; <strong>cukup ubah sekali sahaja</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>Suis induk URC, satu lagi punca besar "URC tidak diterima".
+                        Ujian sebenar: unit ini dari kilang sudah 1 (hidup); masalah hampir selalu pada port keluaran</td></tr>
+            </table>
+
+            <h4>Butang bait mentah: pintu kecemasan mod data</h4>
+            <p>Tidak sedikit arahan adalah <strong>dua peringkat</strong>: hantar arahan dahulu, tunggu modul memulangkan gesaan <code>&gt;</code>,
+            kemudian hantar kandungan. Selepas masuk <strong>mod data</strong> jenis ini, modul akan menelan setiap aksara yang anda taip sebagai data —
+            termasuk arahan AT yang anda ingin hantar. Apabila panjang tersilap kira, berubah fikiran di tengah jalan atau arahan tersangkut, kekunci biasa tidak dapat menyelamatkan;
+            perlu bergantung pada sebaris butang penghantar bait mentah tunggal ini:</p>
+            <table>
+                <tr><th>Butang</th><th>Dihantar</th><th>Bila digunakan</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td><strong>Penamat</strong> mod data: menghantar keluar kandungan yang telah terkumpul dengan sebenarnya</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td><strong>Batalkan</strong> mod data, buang kandungan yang telah terkumpul.
+                        Kekunci pelepasan pilihan pertama apabila arahan dua peringkat tersangkut dan port AT tidak lagi membalas (manual §2.3.8)</td></tr>
+                <tr><td>+++</td><td>Tiga tanda + (bait mentah)</td>
+                    <td>Melarikan diri dari <strong>mod data telus</strong> (seperti pemindahan COM: FTP) kembali ke mod AT.
+                        Peraturannya sangat keras: <strong>senyap 1 saat sebelum dan selepas, langsung tidak boleh membawa CR/LF</strong> —
+                        ujian sebenar: dengan CR ditambah ia tidak berkesan; mesti dihantar dengan butang ini, tidak boleh ditaip di baris arahan</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Ujian sebenar menyangkal manual: +++ ialah "henti paksa", bukan "jeda".</strong>
+                Nota aplikasi FTPS v1.5 halaman 13 mengatakan selepas +++ boleh guna <code>ATO</code> untuk kembali ke mod data dan sambung pemindahan;
+                pada unit sebenar <code>ATO</code> hanya memulangkan <code>NO CARRIER</code> — pemindahan sudah pun dihentikan.
+                Gunakan +++ sebagai brek kecemasan; jangan harap selepas membrek masih boleh terus memandu.
+            </div>
+
+            <h4>Penyelesaian masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Punca dan penyelesaian</th></tr>
+                <tr><td>Tiada respons untuk sebarang arahan</td>
+                    <td>Semak tiga suspek mengikut turutan: ① ritual but tidak dijalankan (jika halaman pernah dimuat semula, pasti ini puncanya);
+                        ② penamat baris ditetapkan ke LF — modul <strong>hanya mengiktiraf CR</strong>, LF langsung tiada respons;
+                        ③ kadar baud tidak sepadan (lihat pemulihan empat langkah)</td></tr>
+                <tr><td>Reset ditekan tetapi RDY tidak kunjung tiba</td>
+                    <td>Lihat dahulu sama ada butang Power menyala — modul tiada kuasa, berapa kali pun Reset ditekan tiada gunanya;
+                        pada sambungan pertama kuasa mesti melalui ON→OFF</td></tr>
+                <tr><td>Semua arahan pulangkan OK, tetapi URC tidak datang</td>
+                    <td>Kemungkinan besar urcport masih pada usbat kilang: tekan URC Port? untuk semak, URC → UART untuk ubah;
+                        jika masih tidak berjaya, semak suis induk URC Switch</td></tr>
+                <tr><td>Port AT tiba-tiba "menelan arahan", apa sahaja ditaip tiada respons</td>
+                    <td>Tersangkut dalam mod data; semua yang ditaip telah dikutip sebagai data — tekan ESC untuk melepaskan diri</td></tr>
+            </table>

@@ -1,0 +1,152 @@
+<h3 id="tab-gnss">GNSS —— uydu konumlandırma</h3>
+            <p><strong>Çalışma prensibi:</strong> GNSS, <strong>mobil şebekeden bağımsız</strong> bir işlevdir ——
+            SIM kartın internete bağlı olması gerekmez, PDP gerekmez, veri harcamaz (AGNSS hariç, aşağıya bakın).
+            Açıldıktan sonra modül uydu sinyallerini kendisi alır; siz de <code>AT+QGPSLOC</code> ile konum sonucunu yoklarsınız.
+            Bu bölümdeki tüm süreler ve davranışlar, Ağustos 2026'da gerçek bir EG800K üzerinde ölçülmüş değerlerdir.</p>
+
+            <h4>Başlamadan önce: her şeyi anten belirler</h4>
+            <p>Konum alamamanın bir numaralı nedeni yanlış komut değil, <strong>antenin sinyal alamamasıdır</strong>.
+            Ölçülmüş karşılaştırma: iç mekânda, kötü bir antenle modül 38 uydunun konumunu listeleyebildi ama
+            <strong>tek birini bile duyamadı</strong> (SNR'lerin hepsi 00); <strong>aktif (active) GNSS anteni</strong>
+            takılıp pencere kenarına konduğunda ise soğuk başlangıç 95 saniye içinde konum buldu.</p>
+            <div class="warning">
+                <strong>İç mekânda GNSS test edilemez; ne kadar beklerseniz bekleyin boşunadır.</strong> Gökyüzü görüşü yokken
+                <code>$GNGGA</code> "kullanılan uydu 00, konum kalitesi 0" döner,
+                <code>AT+QGPSLOC</code> ise hep 516 hatası verir.
+                Başlamadan önce anteni pencere kenarına ya da dışarı taşıyın —— bu bir sabır sorunu değil, fizik sorunudur.
+            </div>
+
+            <h4>İlk konum: beş adım</h4>
+            <ol>
+                <li><strong>Açılış prosedürünü çalıştırın</strong> (bkz. "Açılış Prosedürü" bölümü).
+                    ⚠ Sayfanın her yenilenmesi güç kesintisi demektir; GNSS'in açık durumu ve yarısı alınmış efemeris tamamen sıfırlanır,
+                    bu adımdan yeniden başlamanız gerekir.</li>
+                <li><strong>URC'lerin UART'tan geldiğini doğrulayın</strong>: <code>AT+QURCCFG="urcport"</code> yanıtı
+                    <code>"uart1"</code> olmalıdır. Fabrika değeri <code>"usbat"</code>'tır; değiştirilmezse birçok sonuç mesajı
+                    USB portuna gider ve burada hiçbir şey görünmez (ayar NVRAM'e yazılır, bir kez değiştirmek yeter).</li>
+                <li><strong>GNSS'i açın</strong>: <code>AT+QGPS=1</code> düğmesine basın.
+                    Birkaç saniye içinde <code>+QGPS: "firmware",0,0</code> görünür (GNSS yazılımı başarıyla yüklendi).
+                    Zaten açıkken tekrar basılırsa <code>+CME ERROR: 504</code> döner, zararsızdır.</li>
+                <li><strong>Alımı görün</strong>: <code>AT+QGPSGNMEA="GSV"</code> ile görünür uyduları okuyun.
+                    Terminal alanı <strong>uydu durumu</strong> sekmesini otomatik açar; SNR sütun grafiği ile gökyüzü grafiği çizilir ——
+                    nasıl okunacağı bir sonraki bölümde.</li>
+                <li><strong>Konumu yoklayın</strong>: her 5–10 saniyede bir <code>AT+QGPSLOC=2</code> gönderin.
+                    <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> (hata 516) dönmesi henüz konum bulunmadığı anlamına gelir,
+                    <strong>beklemeye devam etmeniz yeterlidir</strong>. Başarıldığında koordinatlar döner;
+                    terminal alanı <strong>harita</strong> sekmesini otomatik açar ve konumu üzerine işler.</li>
+            </ol>
+            <figure class="shot narrow">
+                <img src="img/07-gnss.png" alt="GNSS sekmesi">
+                <figcaption>GNSS sayfası: açma/kapama, NMEA okuma, konum sorgusu, AGNSS hızlandırma.</figcaption>
+            </figure>
+
+            <h4>Uydu durumu sekmesini okumak: "görmek", "duymak" demek değildir</h4>
+            <p>GSV'de her uydu için dört sayı vardır: numara, yükseklik açısı, azimut ve <strong>SNR (sinyal-gürültü oranı, dB-Hz)</strong>.
+            İlk üçü yalnızca "gökyüzünde nerede olması gerektiğini" söyler; <strong>sinyalin gerçekten alındığını yalnızca SNR gösterir</strong>.</p>
+            <table>
+                <tr><th>SNR</th><th>Anlamı</th></tr>
+                <tr><td>(boş) ya da 00</td><td>Hiç alım yok —— uydunun yalnızca nerede olduğu biliniyor, sesi duyulmuyor</td></tr>
+                <tr><td>14–28</td><td>Sınırda: efemeris çözümü sık sık bozulup baştan başlar, konum bulma hem yavaş hem kararsızdır</td></tr>
+                <tr><td>30 ve üzeri</td><td>Kararlı çözüm mümkündür; <strong>uyduların çoğu bu düzeye gelince konum hızla gelir</strong></td></tr>
+                <tr><td>40 ve üzeri</td><td>Açık gökyüzü + iyi anten düzeyi</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/20-sat-view.png" alt="Uydu durumu sekmesi: SNR sütun grafiği ve gökyüzü grafiği">
+                <figcaption>Konum bulunduğu andaki uydu durumu sekmesi: 31/41 uyduda sinyal var; dört uydu sisteminin (GPS/QZSS/GLONASS/BDS)
+                SNR sütun grafiği ve gökyüzü grafiği. Sütunların çoğunun 20'yi aşması, bir kısmının 40'a ulaşması —— "duymak" işte böyle görünür.</figcaption>
+            </figure>
+
+            <h4>Neden beklemek gerekir: soğuk başlangıcın fiziksel sınırı ve ölçülen süreler</h4>
+            <p>Konum bulmak için her uydunun hassas yörüngesi (efemeris) gerekir; efemeris ise uydunun
+            <strong>50 bps</strong> hızla yayınladığı sinyalin içinde saklıdır —— bir uydu için yaklaşık 18–30 saniye kesintisiz ve hatasız çözüm gerekir,
+            tek bir bit hatası her şeyi baştan başlatır, üstelik en az 4 uydu tamamlanmalıdır. "Soğuk başlangıcın" yavaş olmasının nedeni budur.
+            Bu cihazda ölçülen değerler (aynı konum, aktif anten, ölçüm çözünürlüğü ±5 saniye):</p>
+            <table>
+                <tr><th>Durum</th><th>İlk konum süresi (ölçülen)</th></tr>
+                <tr><td>Soğuk başlangıç (hiçbir yardım yok)</td><td><strong>95 saniye</strong></td></tr>
+                <tr><td>Soğuk başlangıç + AGNSS</td><td><strong>52 saniye</strong> (ayrıca yaklaşık 20 saniyede önden kaba bir konum gelir)</td></tr>
+                <tr><td>AGNSS + yakın tarihli efemeris kalıntısı (günlük tekrarlı kullanım)</td><td><strong>25 saniye</strong></td></tr>
+            </table>
+            <div class="tip">
+                <strong>Test sırasında sayfayı yenilemeyin.</strong> Bu aracın donanım tasarımında RTS = güç demektir;
+                sayfayı yeniden yüklemek = güç kesmek = tüm efemerisi kaybetmek, her şey soğuk başlangıçtan yeniden başlar.
+                Ara vermek isterseniz <code>AT+QGPSEND</code> gönderin, gücü kesmeyin.
+            </div>
+
+            <h4>AGNSS hızlandırma: eksiksiz akış</h4>
+            <p><strong>Prensip:</strong> AGNSS, efemerisi ağdan indirmeye çevirir (her seferinde yaklaşık 32–34 KB)
+            ve 50 bps'lik yavaş çözümü atlar. <strong>Uydu sinyalini yoktan var edemez</strong> ——
+            iç mekânda yine konum bulunamaz; kazandırdığı tek şey "efemeris bekleme" süresidir.</p>
+            <p>En kolay gözden kaçan iki ön koşul şunlardır; herhangi biri eksikse AGNSS <strong>sessizce hiçbir şey yapmaz, hata da vermez</strong>:</p>
+            <table>
+                <tr><th>Ön koşul</th><th>Komut</th><th>Tuzak</th></tr>
+                <tr><td>AGNSS etkin</td><td><code>AT+QAGPS=1</code></td>
+                    <td>⚠ <strong>Ancak yeniden başlatınca geçerli olur</strong> (NVRAM'e yazılır, bir kez ayarlamak yeter)</td></tr>
+                <tr><td>PDP etkin</td><td><code>AT+QIACT=1</code></td>
+                    <td>⚠ Her açılışta yeniden gönderilmelidir. <strong><code>AT+CGATT?</code> yanıtının 1 olması yetmez</strong> ——
+                        attach yalnızca ağ katmanı kaydıdır; veri kanalının var olması için <code>AT+QIACT?</code>
+                        sorgusunun <code>+QIACT: 1,1,…,"IP"</code> döndürmesi gerekir</td></tr>
+            </table>
+            <p>Eksiksiz sıra (her açılıştan sonra):</p>
+            <pre>AT+QIACT=1          ← veri kanalını aç (en fazla 150 saniye bekleyebilir; veri trafiği üretir)
+AT+QIACT?           ← mutlaka +QIACT: 1,1,…,"IP" görülmeli
+AT+QGPS=1           ← GNSS'i aç; AGNSS yardımcı veriyi bu anda otomatik indirir
+AT+QGPSLOC=2        ← her 5–10 saniyede bir yokla</pre>
+            <p><strong>AGNSS'in gerçekten çalıştığı nasıl anlaşılır?</strong> Bu cihazın yazılımı
+            <code>+QGPS: "agps"</code> benzeri bir bildirim <strong>göndermez</strong> (ölçümle doğrulandı); dolaylı kanıta bakmak gerekir, üçünden biri yeter:</p>
+            <ol>
+                <li><code>AT+QGDCNT?</code> sorgusunu <code>AT+QGPS=1</code> öncesinde ve sonrasında iki kez çalıştırın;
+                    alış yönü yaklaşık 30 KB artmışsa yardımcı veri indirilmiştir</li>
+                <li>GSV birkaç saniye içinde <strong>çok sayıda uydunun konumunu</strong> listeler (SNR'ler hâlâ 00 olabilir) ——
+                    bu konumlar indirilmiştir; kendi başına çözümle bu kadar hızlı olamaz</li>
+                <li><code>$GNGGA</code> içindeki saat alanı doludur (saat de yardımcı verinin bir parçasıdır)</li>
+            </ol>
+            <div class="warning">
+                <strong>Sahte konum tuzağı: sıfır uyduyla gelen koordinat, konum değildir.</strong>
+                AGNSS başladıktan yaklaşık 20 saniye sonra <code>AT+QGPSLOC</code> bir koordinat döndürebilir;
+                ama dikkatle bakın: <code>HDOP 0.00 / alt 0.0 / nsat 00</code> ——
+                bu, yardımcı verinin içindeki <strong>referans konum enjeksiyonudur</strong>; ölçüm sonucu değildir ve hatası çok büyük olabilir.
+                <br><br>
+                <strong>Gerçek konumun ölçütü: kullanılan uydu sayısı &gt; 0, konum modu ≥ 2, HDOP &gt; 0.</strong>
+                Otomasyon ya da ürün mantığı yazarken yalnızca "koordinat döndü mü" sorusuna bakamazsınız.
+            </div>
+
+            <h4>apflash: güç kesilip açılsa bile hızlı (koşullu)</h4>
+            <p><code>AT+QGPSCFG="apflash"</code> fabrikadan 1 gelir: her başarılı konumda efemeris
+            flash'a yazılır ve bir sonraki açılışta otomatik içe aktarılır —— bir saat içinde güç kesilip açılırsa soğuk başlangıç
+            hızlı bir sıcak başlangıca dönüşür, <strong>sıfır veri trafiğiyle</strong>. İki sınırı vardır: efemeris yaklaşık bir saatte geçersizleşir;
+            ayrıca <strong>önce en az bir kez başarılı konum alınmış olmalıdır</strong>, yoksa flash'ta içe aktarılacak bir şey yoktur ——
+            hiç konum bulamamış bir modüle apflash'ın faydası olmaz.</p>
+
+            <h4>Konum bulunduktan sonra: harita sekmesi</h4>
+            <p>Her başarılı <code>AT+QGPSLOC</code> sonucu harita sekmesine işlenir:
+            mavi işaretçi en son konumdur, camgöbeği çizgi hareket izidir; fare bir iz noktasının üzerine getirilince yerel saat ve yükseklik görünür.
+            Özet satırı koordinat/yükseklik/HDOP/uydu sayısını gösterir; saat, boylama göre yerel saat dilimine otomatik çevrilir.</p>
+            <figure class="shot">
+                <img src="img/21-map-track.png" alt="Harita sekmesi: konum izi">
+                <figcaption>Konum bulunduktan sonraki harita sekmesi: işaretçi = en son konum, camgöbeği çizgi = iz;
+                üstteki özet satırında koordinat, yükseklik, HDOP, kullanılan uydu sayısı ve yerel saat vardır.</figcaption>
+            </figure>
+
+            <h4>Sorun giderme</h4>
+            <table>
+                <tr><th>Belirti</th><th>Neden ve çözüm</th></tr>
+                <tr><td><code>+CME ERROR: 505</code></td>
+                    <td>GNSS henüz açılmamış —— önce <code>AT+QGPS=1</code>.
+                        Her yeniden açılışta (sayfa yeniden yüklemesi dahil) tekrar açmak gerekir</td></tr>
+                <tr><td><code>+CME ERROR: 504</code></td><td>GNSS zaten açık; yalnızca tekrar açma denemesidir, zararsız</td></tr>
+                <tr><td>Hata 516 (NOT_FIXED_NOW)</td>
+                    <td>Henüz konum bulunmadı. GSV'de sinyal varsa (SNR ≥ 30) beklemeye devam edin;
+                        hepsi 00 ise sorun anten/ortam sorunudur, ne kadar beklerseniz bekleyin boşunadır</td></tr>
+                <tr><td>Sürekli NMEA akışı alınamıyor</td>
+                    <td>Fabrika <code>outport</code> değeri <code>usbnmea</code>'dır; sürekli akış USB portuna gider.
+                        AT portunda <code>AT+QGPSGNMEA</code> ile cümle cümle çekmek yeterlidir (önce
+                        <code>nmeasrc,1</code> gerekir, bu sayfadaki düğme hazırdır)</td></tr>
+                <tr><td>Zorla soğuk başlangıç için <code>AT+QGPSDEL</code></td>
+                    <td>⚠ Kullanmayın —— bu cihazın yazılımında <code>=?</code> sorgusu <code>(0-2)</code> döndürür
+                        ama üç parametrenin <strong>üçünü de reddeder</strong> (INVALID_PARA); resmi belgede de yer almaz.
+                        Soğuk başlangıç için: <code>apflash,0</code> + güç kesip açma (test bitince 1'e geri alın)</td></tr>
+                <tr><td>Ayarı değiştirdim, etkisi yok</td>
+                    <td><code>QAGPS</code> ancak yeniden başlatınca geçerli olur; <code>gnssconfig</code> (uydu sistemi bileşimi)
+                        de öyle. Değişiklikten sonra açılış prosedürünü bir kez çalıştırın</td></tr>
+            </table>

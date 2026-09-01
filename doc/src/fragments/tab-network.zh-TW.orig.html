@@ -1,0 +1,21 @@
+<h3 id="tab-network">Network —— 註冊、業者、射頻</h3>
+            <p><strong>工作原理：</strong>資料功能要能用，前提是<strong>已註冊到電信網路</strong>。
+            這一頁就是確認與操作註冊狀態。</p>
+            <table>
+                <tr><th>指令</th><th>用途</th><th>怎麼測</th></tr>
+                <tr><td><code>AT+CEREG?</code></td><td>LTE 註冊狀態</td>
+                    <td>第二個數字要 1（本地註冊）或 5（漫遊註冊）。0 ＝ 還沒註冊上</td></tr>
+                <tr><td><code>AT+CSQ</code></td><td>訊號強度</td>
+                    <td>第一個數字 0-31，<strong>99 ＝ 偵測不到</strong>。
+                        剛開機時常是 99，等幾秒會變</td></tr>
+                <tr><td><code>AT+QNWINFO</code></td><td>接取技術 / 業者 / 頻段 / 頻道</td>
+                    <td>沒服務時回 <code>NO SERVICE</code></td></tr>
+                <tr><td><code>AT+COPS=?</code></td><td>掃描所有可用業者</td>
+                    <td>⚠ 最長阻塞 <strong>300 秒</strong>且會中斷現有業務。確認需要再按</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>軟重啟整顆模組</td>
+                    <td>⚠ AT 口會短暫失效，之後要重新等 <code>RDY</code></td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Network 頁簽">
+                <figcaption>Network 頁：註冊狀態、業者、射頻控制。</figcaption>
+            </figure>

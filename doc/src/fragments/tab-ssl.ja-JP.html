@@ -1,0 +1,159 @@
+<h3 id="tab-ssl">SSL —— TLS チャネル</h3>
+            <p><strong>動作原理：</strong>SSL ページは暗号化接続の<strong>共用の底層</strong>です ——
+            ここで設定した SSL context とアップロードした証明書は、SSL raw socket、MQTT over SSL、
+            HTTPS の三者から共用されます。本節の秒数と挙動はすべて 2026 年 8 月に実機 EG800K で実測した値です。</p>
+
+            <h4>初めての TLS 接続：5 つのステップ</h4>
+            <ol>
+                <li><strong>起動シーケンスを実行し</strong>（〈起動シーケンス〉の節を参照）、続けて
+                    <code>AT+QIACT?</code> でデータチャネルを確認します ——
+                    <code>+QIACT: 1,1,…,"IP"</code> が返ること。返らなければ先に <code>AT+QIACT=1</code>。</li>
+                <li><strong>context を設定する</strong>：<code>sslversion</code> は 4（全バージョン、
+                    互換性最良）、<code>ciphersuite</code> は 0XFFFF（全スイート）、
+                    <code>seclevel</code> はまず 0 —— まずチャネルが通ることを確認し、検証は後に回します。</li>
+                <li><strong>接続を開く</strong>：<code>AT+QSSLOPEN</code>（末尾コード 0）を押し、パラメータカードに
+                    ホストとポートを記入します。⚠ <code>OK</code> は「コマンドを受け付けた」の意味でしかなく、成否は URC を待ちます：
+                    <code>+QSSLOPEN: 4,0</code> ではじめて成功です（実測ハンドシェイク 2.0 秒）。</li>
+                <li><strong>データを送る</strong>：<code>AT+QSSLSEND</code>（2 段階）を押します ——
+                    <code>&gt;</code> が出たら本文を送り、<strong>宣言した長さを数え切ると自動送出、
+                    Ctrl+Z 不要</strong>（1 パケット上限 1460 bytes）。相手の返答は
+                    <code>+QSSLURC: "recv",4</code> で現れます。</li>
+                <li><strong>読み出しとクローズ</strong>：<code>AT+QSSLRECV</code>（1 回の上限 1500）で
+                    <code>+QSSLRECV: 0</code> まで読めば読み切った印で、エラーではありません。
+                    <code>AT+QSSLCLOSE=4</code> でクローズ（既定は最長 10 秒待ち。
+                    もう 1 つのボタンでは秒数を指定でき、0＝即時）。</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2.0 秒、0＝成功
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← 15 bytes を数え切ると自動送出
+SEND OK
++QSSLURC: "recv",4        ← 0.4 秒
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>接続中は <code>AT+QSSLSTATE</code> ですべての接続を見られます（<code>=4</code>
+            で単一 clientID を照会、状態 2＝接続済み）。<strong>ローカルポートは常に 0 が返る</strong>点に注意 ——
+            モジュールの挙動であり、エラーではありません。</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="SSL タブ">
+                <figcaption>SSL ページ：context 設定、UFS への証明書アップロード、接続、送受信、クローズ。</figcaption>
+            </figure>
+
+            <h4>3 つのアクセスモード（<code>AT+QSSLOPEN</code> の末尾コード）</h4>
+            <table>
+                <tr><th>末尾コード</th><th>挙動</th></tr>
+                <tr><td>0 バッファ</td><td>データ受信時は <code>+QSSLURC: "recv",&lt;id&gt;</code> を出すだけで、
+                    自分で <code>AT+QSSLRECV</code> を打って読みます</td></tr>
+                <tr><td>1 直接プッシュ</td><td>URC に長さが付き、<strong>データは次の行に直接吐かれます</strong>。
+                    ⚠ このモードで <code>AT+QSSLRECV</code> が ERROR を返すのは正常です</td></tr>
+                <tr><td>2 透過転送</td><td>AT ポート全体がデータチャネルになります（本ページのボタンは 0 と 1 のみ用意）</td></tr>
+            </table>
+
+            <h4>context 設定を 1 つずつ</h4>
+            <p>ファームウェアがどのサブ項目に対応しているか不確かなら、まず <code>AT+QSSLCFG=?</code> を押します ——
+            実測では 17 のサブ項目が返り、アプリケーションノートの一覧より多いのです。よく使うサブ項目には設定と照会の 2 ボタンがあり、
+            実測では書き込み後の読み出しは完全に一致しました。</p>
+            <table>
+                <tr><th>サブ項目</th><th>出荷値</th><th>働きと実測の要点</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>プロトコルバージョン。4＝全対応</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>暗号スイート。0XFFFF＝全対応</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0＝検証しない、1＝サーバーを検証
+                    （先に CA 証明書のアップロードが必要）、2＝相互認証（さらにクライアント証明書＋秘密鍵が必要）</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>CA 証明書のパス。形式は
+                    <code>"UFS:ファイル名"</code> で、ファイルが UFS にあることが前提（次節参照）</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>バーチャルホスト／CDN への接続では必須 —— 同一 IP に複数ドメインが載っていると、SNI を送らない限り
+                    一致しない証明書が返り、検証は必ず 566 で失敗します</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>出荷状態では seclevel 1 を有効にしても証明書の有効期限をチェックしません</strong>。
+                    チェックするなら 0 に設定し、モジュールの時計も合っている必要があります</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>TLS ハンドシェイクの最長待ち秒数（10–300）</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 3 つの出荷時既定値を合わせると＝証明書を全く検証しない</strong>
+                （seclevel 0、sni 0、ignorelocaltime 1）。本当に検証するなら 3 つとも正しく設定する必要があります。
+                しかもこの 3 設定と <code>cacert</code> は<strong>再起動をまたいで保存されません</strong>
+                （実測で確認）。起動のたびに出荷値へ戻ります。UFS 内の証明書ファイルは電源断でも消えません。
+            </div>
+
+            <h4>UFS ファイル群：証明書はどうやってモジュールに入るか</h4>
+            <p>UFS はモジュール内蔵のフラッシュストレージで、実測の総容量は <strong>280 KB</strong>、1 ファイルが
+            4 KB ブロックを 1 つ占めます。証明書は先にここへアップロードしないと、<code>cacert</code> が指すファイルがありません。
+            <strong>アップロードは UART 経由でデータ通信量ゼロ</strong>、バイナリファイルも送り込めます。
+            <strong>Upload カード</strong>：ファイルを選ぶとファイル名とサイズが自動記入され、送出後、ツールはモジュールが
+            <code>CONNECT</code> を返すのを待ってから生バイトを送ります（待てなければ送りません）。完了時には
+            <strong>注釈エンジンが自動照合</strong>します。モジュールの報告するサイズと checksum を比べ：
+            ✅＝完全で誤りなし、❌＝壊れて届いたので、先に削除して再アップロードします。</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← 続けて 1939 bytes を送出
++QFUPL: 1939,4f64         ← 実受信サイズ,checksum。注釈が自動照合 ✅</pre>
+            <table>
+                <tr><th>ボタン</th><th>用途</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>UFS の全ファイルとサイズを一覧 ——
+                    アップロード後の検証に（通信量ゼロ）</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>残り／総容量 bytes を照会（通信量ゼロ）</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>指定ファイルを削除（<code>*</code>＝全部）。
+                    同名ファイルを先に消さないと、再アップロードは拒否されます</td></tr>
+            </table>
+            <div class="tip">
+                <strong>マニュアルが明言しない実測挙動 2 つ：</strong>（1）FILE エラーコードの形式が不統一 ——
+                同名の再アップロードはテキストの <code>file already exist</code>、タイムアウトは数値の <code>421</code> が返ります。
+                本ツールはどちらも解読できます。（2）サイズ欄を実際より大きく書くと、モジュールはタイムアウト後
+                <strong>実受信分をそのまま保存します</strong> —— checksum 照合が捕まえてくれます。
+            </div>
+
+            <h4>証明書検証の実戦：ペアテスト法</h4>
+            <p>流れ：ルート証明書をアップロード → <code>cacert</code> をそれに向ける → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → 相手の 443 へ接続。<strong>アップロードするのは証明書チェーン最上位のルート証明書です</strong>
+            （badssl.com のチェーンは 4 層で、最上位の ISRG Root X1 をアップロード）。
+            <strong>「悪い証明書がつながらない」だけのテストでは不十分</strong> —— 「全部つながらない」でも合格してしまいます。
+            ペアでテストします：良い証明書はつながり、悪い証明書はつながらない。
+            <strong>両方向が成立してはじめて確定です</strong>。実測 2×5 の対照：</p>
+            <table>
+                <tr><th>ホスト</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com（正の対照）</td><td>つながる</td>
+                    <td><strong>つながる</strong> <code>4,0</code></td></tr>
+                <tr><td>expired（期限切れ）</td><td>つながる</td><td>拒否 566</td></tr>
+                <tr><td>self-signed（自己署名）</td><td>つながる</td><td>拒否 566</td></tr>
+                <tr><td>wrong.host（ホスト名不一致）</td><td>つながる</td><td>拒否 566</td></tr>
+                <tr><td>untrusted-root（ルート非信頼）</td><td>つながる</td><td>拒否 566</td></tr>
+            </table>
+            <p>制限：<strong>4 種類の証明書エラーがすべて 566 を返し、モジュールはどれなのかを区別しません</strong>。
+            <code>AT+QIGETERROR</code> も助けになりません —— あれは TCP/IP 層の担当で、
+            このときは <code>0,operate successfully</code> しか返しません。</p>
+            <div class="tip">
+                負のテスト項目では expired を避けてください —— 出荷時の <code>ignorelocaltime</code> は 1 なので、期限切れ自体は
+                拒否されません（上表で拒否されたのは、同時にアップロードしたルートの配下に無いからです）。単独で試すなら wrong.host を。
+                また<strong>通信量に注意</strong>：ハンドシェイクのたびに完全な証明書チェーンをダウンロードし、失敗しても支払いは発生します。
+                実測ではハンドシェイク 30 回で約 150–200 KB でした。
+            </div>
+
+            <h4>🔴 罠：連続で約 20 回開閉すると、データスタック全体が退化する</h4>
+            <div class="warning">
+                <strong>症状：すべての <code>AT+QSSLOPEN</code> が一律 552 を返し</strong>、seclevel 0
+                でもつながらないのに、自己診断はどれも問題なしと言う。<strong>30 秒鑑別</strong>：純粋な TCP の
+                <code>AT+QIOPEN</code> で同じ相手を叩く —— これも失敗すればデータスタックが壊れているので、
+                SSL 設定をこれ以上調べないこと。PDP の再起動では救えず、<strong>完全な起動シーケンスだけが復旧手段です</strong>。
+                退化はテストデータを汚染し、「証明書検証に拒否された」と誤判定しやすいので ——
+                ペアテストの前に再起動してきれいにしてください。
+            </div>
+
+            <h4>トラブルシューティング</h4>
+            <table>
+                <tr><th>症状</th><th>原因と対処</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>証明書検証の失敗。順に調べます：<code>sni</code> を有効にしたか（最頻）、
+                        <code>cacert</code> のルートは正しいか、証明書自体が壊れていないか。
+                        3 つの設定は再起動でゼロに戻ります</td></tr>
+                <tr><td><code>OK</code> の後が続かない</td>
+                    <td><code>OK</code> は受け付けの意味でしかなく、結果は URC で来ます。最長で
+                        150 秒＋<code>negotiatetime</code> まで待ちます</td></tr>
+                <tr><td>AT ポートが固まり、どのコマンドにも応じない</td>
+                    <td><code>AT+QSSLSEND</code> の長さを間違え、データモードに固着してコマンドを飲み込んでいます ——
+                        Hardware ページの生バイトボタンで ESC（0x1B）を送って脱出</td></tr>
+            </table>

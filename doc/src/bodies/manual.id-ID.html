@@ -1,0 +1,2050 @@
+
+    <header class="header">
+        <h1>📡 Panduan Penggunaan NuModem EG800</h1>
+        <p class="subtitle">Kendalikan modem 4G lewat browser — AT command, anotasi real-time, 18 bahasa</p>
+        <span class="version">V26.0.76</span>
+    </header>
+
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="#intro">Pendahuluan</a>
+            <a href="#requirements">Persyaratan</a>
+            <a href="#quickstart">Mulai Cepat</a>
+            <a href="#boot">Ritual Boot</a>
+            <a href="#terminal">Terminal</a>
+            <a href="#signals">Baris Sinyal</a>
+            <a href="#panel">Panel AT</a>
+            <a href="#tabs">Sepuluh Tab</a>
+            <a href="#method">Metode Uji</a>
+            <a href="#faq">FAQ</a>
+        </div>
+    </nav>
+
+    <main class="container">
+
+        <section id="intro">
+            <h2><span class="icon">🎯</span> Pendahuluan</h2>
+            <p>NuModem EG800 adalah konsol modem 4G berupa <strong>satu berkas HTML tunggal</strong>. Lewat
+            Web Serial API pada browser, ia mengirim AT command langsung ke modul Quectel <strong>EG800K</strong>,
+            tanpa perlu instalasi apa pun, tanpa perangkat lunak lain selain driver, dan tanpa server backend.</p>
+
+            <p>Apa bedanya dengan terminal serial biasa? Bedanya adalah <strong>alat ini mengerti AT command</strong>.
+            Setiap perintah yang Anda kirim dan setiap baris balasan dari modul langsung diberi penjelasan
+            dalam bahasa manusia — termasuk kode error yang hanya berupa angka.</p>
+
+            <div class="info-box">
+                <div class="info-box-title">Apa yang dicakup panduan ini</div>
+                Mulai dari membuka halaman web, menyambungkan modul, menjalankan ritual boot, sampai
+                <strong>cara kerja</strong> dan <strong>cara menguji</strong> setiap kelompok AT command di sepuluh tab fungsi.
+                Semua deskripsi perilaku berasal dari pengujian nyata pada unit fisik EG800K pada
+                Agustus 2026, bukan menyalin manual —
+                <strong>bila manual salah, teks ini akan mengatakannya terus terang</strong>.
+            </div>
+
+            <figure class="shot">
+                <img src="img/02-hardware-boot.png" alt="Layar utama NuModem: panel AT command di kiri, terminal beranotasi di kanan">
+                <figcaption>Layar utama. Di kiri panel AT command, di kanan terminal —
+                bagian <code>//</code> di belakang tiap baris adalah anotasi real-time.</figcaption>
+            </figure>
+                    <h3>Bahasa dan tema</h3>
+            <figure class="shot">
+                <img src="img/08-language-menu.png" alt="Menu bahasa di sudut kanan atas: 18 bahasa">
+                <figcaption>Menu bahasa di sudut kanan atas: 18 bahasa. Teks antarmuka dan anotasi perintah AT berganti bersamaan.</figcaption>
+            </figure>
+            <figure class="shot">
+                <img src="img/09-theme-light.png" alt="Tema terang">
+                <figcaption>Tema terang. Satu klik di sudut kanan atas; pilihan Anda tersimpan di peramban dan dipakai lagi berikutnya.</figcaption>
+            </figure>
+        </section>
+
+        <section id="requirements">
+            <h2><span class="icon">💻</span> Persyaratan Sistem</h2>
+
+            <h3>Browser</h3>
+            <p>NuModem dibangun di atas <strong>Web Serial API</strong>, dan API ini hanya ada pada
+            browser berbasis Chromium.</p>
+            <table>
+                <tr><th>Browser</th><th>Versi</th><th>Status</th></tr>
+                <tr><td>Google Chrome</td><td>89 ke atas</td><td>✅ Disarankan</td></tr>
+                <tr><td>Microsoft Edge</td><td>89 ke atas</td><td>✅ Didukung</td></tr>
+                <tr><td>Opera</td><td>75 ke atas</td><td>✅ Didukung</td></tr>
+                <tr><td>Firefox</td><td>—</td><td>❌ Tidak ada Web Serial API</td></tr>
+                <tr><td>Safari</td><td>—</td><td>❌ Tidak ada Web Serial API</td></tr>
+            </table>
+
+            <div class="warning">
+                <strong>Membukanya langsung lewat <code>file://</code> tetap bisa</strong> — Chromium
+                memperlakukan berkas lokal sebagai asal yang aman, jadi Web Serial tidak diblokir.
+                Unduh, klik ganda <code>NuModem_EG800.html</code>, lalu sambungkan; menyajikannya lewat
+                <code>https://</code> atau <code>http://localhost</code> sama saja.
+                Satu-satunya perbedaan: di bawah <code>file://</code>, <code>fetch()</code> diblokir CORS —
+                tetapi berkas terjemahan dimuat dengan tag <code>&lt;script&gt;</code>,
+                sehingga ke-18 bahasa tetap berfungsi.
+            </div>
+
+            <h3>Perangkat Keras</h3>
+            <table>
+                <tr><th>Item</th><th>Keterangan</th></tr>
+                <tr><td>Modul</td><td>Quectel seri EG800K (semua pengujian di dokumen ini dilakukan pada firmware
+                    <code>EG800KCNGCR07A06M04</code>)</td></tr>
+                <tr><td>Antarmuka</td><td>Jembatan USB-UART. Pengujian memakai CH343 (<code>1A86:55D3</code>)</td></tr>
+                <tr><td>Baud rate</td><td><strong>115200</strong></td></tr>
+                <tr><td>Akhir baris</td><td><strong>CR</strong> (dengan LF modul sama sekali tidak menjawab)</td></tr>
+                <tr><td>Kartu SIM</td><td>Hanya perlu bila memakai fungsi data. Pengujian memakai kartu IoT 1NCE, APN diberikan otomatis</td></tr>
+            </table>
+            <p>Papan kendali harus mampu <strong>mengendalikan daya modul lewat RTS</strong> dan <strong>mengendalikan pin Reset lewat DTR</strong>,
+            barulah ritual boot bisa dijalankan (lihat <a href="#boot">Ritual Boot</a>).</p>
+        </section>
+
+        <section id="quickstart">
+            <h2><span class="icon">🚀</span> Mulai Cepat</h2>
+
+            <h3>Langkah 1 — Buka NuModem</h3>
+            <p>Buka <code>NuModem_EG800.html</code> di Chrome atau Edge — cukup klik ganda, tanpa perlu server.</p>
+
+            <h3>Langkah 2 — Sambungkan modul</h3>
+            <p>Tekan <strong>Sambung</strong> di kiri atas. Browser akan memunculkan jendela pemilihan port, pilih jembatan USB-UART Anda.
+            Panah di sebelah kanan membuka menu dropdown untuk langsung memilih port yang pernah diizinkan sebelumnya.</p>
+            <div class="tip">
+                Setelah sekali diizinkan, membuka halaman lalu menekan "Sambung" akan langsung tersambung tanpa ditanya lagi.
+                Kalau Anda punya beberapa perangkat serial, memilih lewat dropdown lebih cepat.
+            </div>
+
+            <h3>Langkah 3 — Pastikan baud rate</h3>
+            <p>Menu baud rate di bagian atas default-nya <strong>115200</strong>, dan EG800K keluar pabrik memang pada nilai ini, jadi biasanya tidak perlu diubah.</p>
+
+            <h3>Langkah 4 — Jalankan ritual boot</h3>
+            <p><strong>Langkah ini tidak boleh dilewati.</strong> Pada detik browser membuka port serial, RTS akan ditarik naik kembali,
+            dan RTS pada papan kendali ini adalah sakelar daya berlogika negatif — artinya
+            <strong>begitu tersambung, modul justru kehilangan daya</strong>.
+            Rincian langkahnya ada di bagian berikutnya.</p>
+
+            <div class="warning">
+                Gejala paling khas dari melewatkan ritual boot adalah: <strong>perintah yang Anda kirim terlihat di terminal, tetapi sama sekali tidak ada balasan</strong>.
+                Itu bukan baud rate salah, bukan pula kabel terbalik, melainkan modul memang tidak berdaya.
+            </div>
+        </section>
+
+        <section id="boot">
+            <h2><span class="icon">🔌</span> Ritual Boot (bagian terpenting)</h2>
+
+            <p>EG800K tidak menyala begitu saja saat diberi daya. Papan kendali ini menyambungkan dua sinyal keluaran RS-232 ke pin kendali modul:</p>
+
+            <table>
+                <tr><th>Sinyal</th><th>Tersambung ke</th><th>Logika</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Sakelar daya modul</td>
+                    <td><strong>Logika negatif</strong>: RTS <strong>OFF = berdaya</strong>, RTS ON = mati daya</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Pin Reset modul</td>
+                    <td>DTR <strong>ON = Reset ditarik tinggi</strong> (bisa dinyalakan), OFF = Reset ditarik rendah</td></tr>
+            </table>
+
+            <h3>Prosedur Standar</h3>
+            <p>Pindah ke tab <strong>Hardware</strong>, di sana ada dua tombol khusus:</p>
+            <ol>
+                <li><strong>Power</strong> — membuat RTS melewati satu siklus ON → OFF.
+                    Tombol menyala hijau berarti daya sudah hidup (yaitu RTS berada pada OFF).
+                    <br>⚠ Langsung menyetel OFF tidak menjamin modul berdaya, <strong>wajib ON dulu baru OFF</strong>.</li>
+                <li>Berhenti satu detik.</li>
+                <li><strong>Reset</strong> — ini tombol yang "baru berlaku bila ditahan":
+                    saat ditekan DTR turun ke OFF, saat dilepas kembali ke ON. Tahan sekitar 300 milidetik.</li>
+                <li>Tunggu <code>RDY</code> muncul di terminal. Dalam pengujian ia muncul dalam hitungan detik.</li>
+            </ol>
+
+            <p>Anda juga bisa langsung mengklik <code>RTS</code> / <code>DTR</code> pada baris sinyal, efeknya sama,
+            hanya saja urutannya harus Anda hitung sendiri.</p>
+
+            <h3>Cara memastikan boot berhasil</h3>
+            <p>Terminal seharusnya memuntahkan ini secara berurutan:</p>
+            <pre>RDY              ← Modul selesai booting
++CFUN: 1         ← RF sudah aktif
++CPIN: READY     ← SIM siap
++QUSIM: 1
++QIND: SMS DONE  ← Inisialisasi SMS selesai
++QIND: PB DONE   ← Inisialisasi buku telepon selesai</pre>
+            <p>Lalu kirim satu <code>ATI</code> sebagai verifikasi, seharusnya membalas merek, model, versi firmware dalam tiga baris plus <code>OK</code>.</p>
+
+            <div class="important">
+                <strong>⚠ Setiap kali halaman di-refresh, ritual boot harus dijalankan ulang.</strong>
+                Memuat ulang halaman berarti membuka ulang port serial, dan membuka ulang port serial akan meng-assert RTS lagi —
+                sama saja dengan mematikan daya modul sekali lagi. Inilah penyebab paling sering alat ini disalahartikan sebagai "modulnya rusak".
+            </div>
+
+            <h3>Dua perintah yang sebaiknya dikirim tepat setelah boot</h3>
+            <table>
+                <tr><th>Perintah</th><th>Alasan</th></tr>
+                <tr><td><code>ATE1</code></td>
+                    <td>Menghidupkan echo. Modul akan memuntahkan kembali perintah yang diterimanya apa adanya,
+                    sehingga "apa yang Anda kirim" dan "apa yang benar-benar diterima modul" bisa dibandingkan di terminal, salah ketik langsung ketahuan.</td></tr>
+                <tr><td><code>AT+CMEE=2</code></td>
+                    <td>Mengubah pesan error menjadi deskripsi teks. Tanpa ini, error hanya berupa <code>ERROR</code> yang kering;
+                    setelah dihidupkan barulah muncul pesan terbaca seperti <code>+CME ERROR: SIM not inserted</code>.</td></tr>
+            </table>
+            <p><strong>Keduanya bersifat session-only</strong>, harus dikirim ulang setelah modul di-boot ulang.</p>
+
+            <div class="warning">
+                <strong>🔴 Saat tidak ada URC sama sekali yang masuk, hal pertama yang harus diperiksa adalah <code>AT+QURCCFG="urcport"</code>.</strong>
+                Dari pabrik, modul mengirim URC (pesan laporan spontan) ke <strong>port AT USB</strong>,
+                sehingga alat ini yang berjalan lewat UART tidak menerima satu pun — gejalanya "semua perintah membalas OK tetapi tidak ada pesan lanjutan",
+                lalu penentuan posisi GNSS, kedatangan data TCP, pesan MQTT, hasil pemindaian Wi-Fi semuanya senyap.
+                Solusinya: <code>AT+QURCCFG="urcport","uart1"</code>, perintah ini menulis ke NVRAM dan bertahan melintasi boot ulang.
+            </div>
+        </section>
+
+        <section id="terminal">
+            <h2><span class="icon">📟</span> Terminal</h2>
+
+            <p>Bagian kanan adalah terminal. Perbedaan terbesarnya dari terminal serial biasa adalah <strong>setiap baris punya anotasi</strong>.</p>
+
+            <h3>Empat Warna</h3>
+            <table>
+                <tr><th>Warna</th><th>Mewakili</th></tr>
+                <tr><td><strong>TX</strong></td><td>Data yang Anda kirim keluar</td></tr>
+                <tr><td><strong>RX</strong></td><td>Data yang kembali dari modul</td></tr>
+                <tr><td><strong>SYS</strong></td><td>Pesan sistem dari alat ini sendiri (koneksi, perubahan sinyal, masuk/keluar mode data)</td></tr>
+                <tr><td><strong>CMT</strong></td><td>Anotasi — yaitu penjelasan yang diawali <code>//</code></td></tr>
+            </table>
+            <p>Keempat warna bisa Anda ubah sendiri, klik kotak warnanya untuk membuka palet.</p>
+
+            <h3>Mesin Anotasi</h3>
+            <p>Inilah inti NuModem. Ia melakukan dua hal:</p>
+            <ul>
+                <li><strong>Menjelaskan perintah yang Anda kirim</strong> — misalnya saat mengirim
+                    <code>AT+QSSLSEND=4,18</code>, di sebelahnya akan tertulis "kirim panjang tetap 18 byte ke clientID 4:
+                    setelah modul membalas prompt <code>&gt;</code>, Anda harus mengirim 'tepat' 18 byte agar data terkirim, tidak perlu Ctrl+Z".</li>
+                <li><strong>Menerjemahkan balasan modul</strong> — terutama kode yang hanya berupa angka.
+                    Misalnya <code>+QFTPSIZE: 627,550</code> akan diurai menjadi dua lapis:
+                    "error 627: FTP tidak menjalankan aksi yang diminta; server membalas 550: aksi tidak dijalankan: berkas atau direktori tidak ada".</li>
+            </ul>
+
+            <div class="tip">
+                Anotasi mengikuti <strong>parameter yang benar-benar Anda isi</strong>. Tombol yang sama diisi nilai berbeda,
+                angka di dalam anotasinya ikut berubah — ini bukan teks penjelasan statis.
+            </div>
+
+            <h3>Akhir Baris</h3>
+            <p>Di sebelah kanan kotak input Anda bisa memilih akhir baris. <strong>EG800K wajib memakai CR</strong>,
+            kalau memilih LF modul sama sekali tidak akan menjawab. Ini setelan yang paling mudah membuat tersandung.</p>
+
+            <h3>Lain-lain</h3>
+            <ul>
+                <li>Bagian bawah menampilkan akumulasi <strong>jumlah byte RX / TX</strong> dan nama port yang sedang dipakai.</li>
+                <li>Sederet tombol di kanan atas: sakelar anotasi, akhir baris, timestamp, gulir otomatis, hapus.</li>
+                <li>Area terminal juga punya dua tab, <strong>Status Satelit</strong> dan <strong>Peta</strong>,
+                    yang akan terisi setelah penentuan posisi GNSS berhasil.</li>
+            </ul>
+        </section>
+
+        <section id="signals">
+            <h2><span class="icon">🚦</span> Baris Sinyal RS-232</h2>
+
+            <p>Setelah tersambung, sederet lampu sinyal akan muncul di bawah baris judul, terbagi dua kelompok.</p>
+
+            <h3>LOCAL (OUT) — keluaran Anda, bisa diklik</h3>
+            <table>
+                <tr><th>Sinyal</th><th>Fungsinya pada papan ini</th></tr>
+                <tr><td><strong>BRK</strong></td><td>Sinyal Break</td></tr>
+                <tr><td><strong>RTS</strong></td><td><strong>Daya modul</strong> (logika negatif, OFF = berdaya)</td></tr>
+                <tr><td><strong>DTR</strong></td><td><strong>Reset modul</strong> (ON = Reset ditarik tinggi)</td></tr>
+            </table>
+
+            <h3>REMOTE (IN) — keluaran modul, hanya-baca</h3>
+            <p><code>DCD</code> / <code>DSR</code> / <code>CTS</code> / <code>RI</code>,
+            ditambah dua indikator <code>ACT</code> (ada aliran data) dan <code>ERR</code> (error framing/paritas).</p>
+
+            <div class="warning">
+                <strong>Web Serial tidak bisa membaca kembali status sinyal yang ia kirim sendiri.</strong>
+                Jadi tiga lampu LOCAL itu menampilkan "nilai yang menurut alat ini telah dikirim", bukan pembacaan balik dari perangkat keras.
+                Untuk memastikan aksinya benar-benar berlaku, lebih akurat melihat pesan sistem di terminal (seperti <code>RTS → ON</code>).
+            </div>
+        </section>
+
+        <section id="panel">
+            <h2><span class="icon">🎛️</span> Cara Kerja Panel AT Command</h2>
+
+            <p>Bagian kiri berisi sepuluh tab dan lebih dari dua ratus tombol. Sebelum melihat tab satu per satu, pahami dulu beberapa mekanisme umum berikut,
+            karena semuanya terpakai di tiap halaman.</p>
+
+            <h3>Dua Jenis Tombol</h3>
+            <table>
+                <tr><th>Gaya</th><th>Perilaku</th></tr>
+                <tr><td>Tombol biasa</td><td>Sekali klik <strong>langsung terkirim</strong></td></tr>
+                <tr><td>Bingkai putus-putus</td><td>Ada parameter yang harus diisi. Setelah diisi bisa "Kirim",
+                    bisa juga "Isikan ke baris perintah" untuk melempar perintah yang sudah dirakit ke kotak input di bawah, lalu Anda ubah sendiri</td></tr>
+            </table>
+
+
+            <figure class="shot narrow">
+                <img src="img/13-btn-kinds.png" alt="Tombol biasa langsung mengirim; kartu bergaris putus-putus perlu parameter dulu — setelah itu Anda bisa mengirimnya atau mendorong perintah yang sudah dirakit ke baris perintah untuk disunting sendiri.">
+                <figcaption>Tombol biasa <strong>langsung mengirim</strong>; kartu bergaris putus-putus perlu parameter dulu — setelah itu Anda bisa mengirimnya atau mendorong perintah yang sudah dirakit ke baris perintah untuk disunting sendiri.</figcaption>
+            </figure>
+            <h3>Kolom Parameter</h3>
+            <p>Setiap kolom punya keterangannya sendiri (muncul saat kursor diarahkan ke situ), dan yang tertulis adalah rentang hasil <strong>pengujian pada unit ini</strong>,
+            bukan salinan dari manual. Misalnya "jumlah putaran" pada pemindaian Wi-Fi tertulis 1-3,
+            karena <code>AT+QWIFISCAN=?</code> memang membalas rentang ini — angka 1-6 yang ditulis dokumen aplikasi itu salah.</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/14-params.png" alt="Kolom parameter. Masing-masing menampilkan petunjuknya saat disorot, dan rentangnya diukur pada unit ini: &quot;putaran&quot; tertulis 1-3 dan &quot;batas BSSID&quot; tertulis 4-10 — itulah yang sebenarnya dikembalikan AT+QWIFISCAN=?, bukan salinan dari catatan aplikasi. Angka 1 dan 10 yang terisi hanyalah nilai bawaan.">
+                <figcaption>Kolom parameter. Masing-masing menampilkan petunjuknya saat disorot, dan rentangnya <strong>diukur pada unit ini</strong>: "putaran" tertulis 1-3 dan "batas BSSID" tertulis 4-10 — itulah yang sebenarnya dikembalikan <code>AT+QWIFISCAN=?</code>, bukan salinan dari catatan aplikasi. Angka 1 dan 10 yang terisi hanyalah nilai bawaan.</figcaption>
+            </figure>
+            <h3>Pengiriman Data Dua Tahap</h3>
+            <p>Sebagian perintah tidak selesai dalam satu baris kirim. Alurnya begini:</p>
+            <pre>Kirim perintah  →  modul membalas &gt; atau CONNECT  →  kirim tepat N byte  →  modul membalas hasil</pre>
+            <p>Tombol jenis ini punya kolom "isi data" tersendiri, dan <strong>panjangnya dihitung otomatis lalu diisikan ke perintah</strong>,
+            Anda tidak perlu menghitungnya sendiri. Yang termasuk jenis ini adalah
+            <code>AT+QISEND</code>, <code>AT+QSSLSEND</code>, <code>AT+QMTPUBEX</code>,
+            <code>AT+QHTTPURL</code>, <code>AT+QHTTPPOST</code>, <code>AT+QFTPPUT</code>.</p>
+
+            <div class="warning">
+                <strong>Akibat salah menghitung panjang sangat buruk.</strong> Modul akan terus menunggu sampai jumlah byte yang Anda deklarasikan terpenuhi,
+                dan selama itu port AT berada dalam "mode data" — apa pun yang Anda ketik setelahnya akan ditelan sebagai data.
+                <br><br>
+                Cara meloloskan diri: <strong>kirim satu ESC (0x1B) lewat tombol byte mentah di tab Hardware</strong>.
+                Tidak perlu memutus koneksi, tidak perlu pula me-restart modul.
+            </div>
+
+
+            <figure class="shot narrow">
+                <img src="img/15-two-stage.png" alt="Pengiriman dua tahap. Angka 6 pada AT+QISEND=0,6 dihitung otomatis; Anda cukup mengisi kolom data.">
+                <figcaption>Pengiriman dua tahap. <strong>Angka 6 pada <code>AT+QISEND=0,6</code> dihitung otomatis</strong>; Anda cukup mengisi kolom data.</figcaption>
+            </figure>
+            <h3>Escape Sequence</h3>
+            <p>Kolom isi data adalah kotak teks satu baris, sehingga karakter kendali seperti newline dan Tab tidak bisa diketik.
+            Karena itu kolom-kolom ini mendukung escape sequence:</p>
+            <table>
+                <tr><th>Penulisan</th><th>Byte yang dikirim</th></tr>
+                <tr><td><code>\n</code></td><td>0x0A newline</td></tr>
+                <tr><td><code>\r</code></td><td>0x0D carriage return</td></tr>
+                <tr><td><code>\t</code></td><td>0x09 Tab</td></tr>
+                <tr><td><code>\0</code></td><td>0x00 NUL</td></tr>
+                <tr><td><code>\xHH</code></td><td>Byte sembarang, HH adalah heksadesimal</td></tr>
+                <tr><td><code>\\</code></td><td>Backslash itu sendiri</td></tr>
+            </table>
+            <p><strong>Dekode terjadi sebelum pengiriman, dan panjang pun dihitung dari jumlah byte setelah didekode.</strong>
+            Misalnya <code>hello\n</code> di dalam kolom adalah 7 karakter, tetapi yang terkirim adalah 6 byte,
+            sehingga panjang yang diisikan ke perintah menjadi 6.</p>
+
+            <div class="tip">
+                <strong>Mengapa hal ini penting:</strong> banyak server uji melakukan echo <strong>per baris</strong>
+                (apa yang dikirim dibalikkan, tetapi baru bertindak setelah melihat newline).
+                Kalau ujung payload tidak ada <code>\n</code>, Anda selamanya tidak akan menerima balasan —
+                dan itu akan tampak seperti "koneksinya rusak".
+            </div>
+
+
+            <figure class="shot narrow">
+                <img src="img/16-escapes.png" alt="Urutan escape. Kolomnya berisi 10 karakter, A\tB\x21\n, yang terdekode menjadi hanya 5 bita — sehingga perintahnya menjadi AT+QISEND=0,5.">
+                <figcaption>Urutan escape. Kolomnya berisi 10 karakter, <code>A\tB\x21\n</code>, yang terdekode menjadi hanya <strong>5 bita</strong> — sehingga perintahnya menjadi <code>AT+QISEND=0,5</code>.</figcaption>
+            </figure>
+            <h3>Penanda Timeout</h3>
+            <p>Sebagian AT command memblokir cukup lama. Penanda ⏱ pada tombol adalah waktu tunggu maksimum menurut manual,
+            misalnya <code>AT+QIACT=1</code> maksimum 150 detik, <code>AT+COPS=?</code> maksimum 300 detik.
+            <strong>Saat lama tidak ada balasan, lihat dulu penanda ini</strong>, sebagian besar hanya karena waktunya memang belum sampai.</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/17-timeout.png" alt="Tanda ⏱ adalah waktu tunggu terlama menurut manual. AT+COPS=? bisa sampai 300 detik — lihat sini dulu saat sepertinya tidak ada balasan; biasanya memang belum waktunya.">
+                <figcaption>Tanda ⏱ adalah waktu tunggu terlama menurut manual. <code>AT+COPS=?</code> bisa sampai 300 detik — lihat sini dulu saat sepertinya tidak ada balasan; biasanya memang belum waktunya.</figcaption>
+            </figure>
+            <h3>Dialog Konfirmasi</h3>
+            <p>Yang memunculkan kotak konfirmasi hanyalah aksi yang membuat port AT tersangkut di mode data, atau aksi tak dapat dibatalkan
+            (menghapus berkas remote, me-restart modul secara perangkat lunak, mengganti baud rate).
+            <strong>Sekadar "akan memakai kuota" tidak akan menghalangi Anda</strong> —
+            peringatan jenis itu diletakkan di keterangan tombol.</p>
+
+
+            <figure class="shot narrow">
+                <img src="img/18-confirm.png" alt="Hanya yang merah yang bertanya dulu. Ganti nama (biru) langsung terkirim; hapus (merah) menanyakan konfirmasi sekali.">
+                <figcaption><strong>Hanya yang merah yang bertanya dulu.</strong> Ganti nama (biru) langsung terkirim; hapus (merah) menanyakan konfirmasi sekali.</figcaption>
+            </figure>
+            <h3>Sakelar Lokal</h3>
+            <p>Beberapa tombol punya kotak centang kecil di bawahnya, dan itu adalah <strong>perilaku di sisi alat</strong>, bukan AT command.
+            Misalnya "tutup otomatis saat mendeteksi <code>+QIURC: "closed",0</code>" di bawah <code>AT+QICLOSE=0</code>.
+            Opsi-opsi ini tersimpan di dalam browser, jadi masih ada saat dibuka lain kali.</p>
+        
+            <figure class="shot narrow">
+                <img src="img/19-auto-opt.png" alt="Kotak centang kecil di bawah tombol adalah perilaku sisi alat, bukan perintah AT. Tersimpan di peramban dan masih ada saat dibuka lagi.">
+                <figcaption>Kotak centang kecil di bawah tombol adalah <strong>perilaku sisi alat</strong>, bukan perintah AT. Tersimpan di peramban dan masih ada saat dibuka lagi.</figcaption>
+            </figure>
+</section>
+
+        <section id="tabs">
+            <h2><span class="icon">🗂️</span> Sepuluh Tab</h2>
+
+            <p>Urutan tab itu bermakna: <strong>dari kiri ke kanan kurang lebih adalah urutan yang seharusnya Anda kerjakan</strong>.
+            Hardware untuk boot → Basic untuk memastikan modul hidup → Network untuk memastikan bisa online →
+            lima berikutnya barulah aneka protokol data.</p>
+
+            <h3 id="tab-hardware">Hardware — Boot dan Port Serial</h3>
+            <p><strong>Cara kerja:</strong> halaman ini adalah fondasi seluruh alat:
+            Control berisi dua tombol ritual boot (Power / Reset), Module untuk identifikasi produk,
+            Serial untuk setelan UART, Power untuk mode hemat daya, URC mengatur port keluaran pesan
+            yang dikirim modul atas inisiatifnya sendiri,
+            plus satu deret <strong>tombol byte mentah</strong> (Ctrl+Z / ESC / +++) sebagai pintu darurat mode data.
+            Semua tab lain berdiri di atas dua prasyarat: <strong>modul sudah di-boot sesuai ritual</strong> dan
+            <strong>URC keluar lewat uart1</strong> — keduanya diselesaikan di halaman ini.
+            Perilaku dan angka pada bagian ini semuanya hasil pengujian nyata terhadap EG800K fisik pada Agustus 2026.</p>
+
+            <h4>Mengapa perlu ritual boot: RTS = daya, DTR = Reset</h4>
+            <p>Papan kendali yang menyertai alat ini mengalihfungsikan dua sinyal handshake RS-232; ini kunci untuk memahami seluruh halaman:</p>
+            <table>
+                <tr><th>Sinyal</th><th>Terhubung ke</th><th>Logika</th></tr>
+                <tr><td><strong>RTS</strong></td><td>Sakelar daya modul</td>
+                    <td><strong>Logika negatif</strong>: RTS OFF = daya menyala, RTS ON = daya putus</td></tr>
+                <tr><td><strong>DTR</strong></td><td>Pin Reset modul</td>
+                    <td>DTR ON = Reset ditarik tinggi (bisa boot), DTR OFF = Reset ditarik rendah</td></tr>
+            </table>
+            <p>Karakteristik rangkaian (terkonfirmasi lewat pengujian): pada koneksi pertama, RTS harus
+            <strong>ON dulu baru OFF</strong> agar daya benar-benar menyala — langsung menyetel OFF tidak menjamin daya masuk;
+            DTR juga harus melewati <strong>ON→OFF→ON</strong> agar Reset benar-benar tertarik tinggi.
+            Pemutusan daya (RTS ON) adalah pemutusan keras; modul <strong>tidak mengirim pesan perpisahan apa pun</strong>.</p>
+            <div class="warning">
+                <strong>Me-refresh halaman = daya putus.</strong> Saat browser membuka ulang port serial, RTS ditarik naik lagi
+                dan modul langsung kehilangan daya — setelah penyambungan ulang otomatis selesai,
+                <strong>ritual boot wajib dijalankan ulang</strong>.
+                Pernah dialami dalam pengujian: ritual dilewati lalu 17 perintah dikirim, semuanya pergi tanpa kembali (hanya baris TX, nol RX).
+                Setiap kali "tadi masih normal, sekarang tak ada respons sama sekali", pikirkan hal ini lebih dulu.
+            </div>
+
+            <h4>Tombol Power dan Reset: cara menekannya, apa yang akan terlihat</h4>
+            <p>Kedua tombol ini adalah penjelmaan dua sinyal pada tabel di atas, dan <strong>tersinkron dua arah</strong>
+            dengan indikator RTS / DTR di baris sinyal (saat belum tersambung tombol redup dan tak bisa ditekan).
+            Web Serial tidak bisa membaca status nyata sinyal keluaran;
+            yang ditampilkan baris sinyal adalah nilai yang diyakini alat ini berdasarkan apa yang telah dikirimnya.</p>
+            <ol>
+                <li><strong>Power</strong> (tipe sakelar): hijau menyala = daya ON (= RTS OFF).
+                    Ritual boot mengharuskan RTS melewati ON→OFF: bila tombol sudah menyala, klik mati dulu baru klik nyala.</li>
+                <li><strong>Reset</strong> (momentary): ditekan = DTR OFF, dilepas = DTR ON;
+                    sekali tekan-lepas adalah satu kali Reset (urutan waktu standar berhenti 0.3 detik di tengah).</li>
+                <li><strong>Tunggu RDY</strong>: dalam beberapa detik terminal akan menampilkan pengumuman boot modul <code>RDY</code>.</li>
+                <li><strong>Verifikasi dengan ATI</strong>: seharusnya membalas <code>Quectel</code> / <code>EG800K</code> /
+                    <code>Revision: …</code> / <code>OK</code>. Bila balasannya keluar = UART dan modul sama-sama hidup.</li>
+            </ol>
+            <div class="tip">
+                Setelah boot, disarankan memastikan dulu echo (ATE) menyala (default pabrik menyala), lalu kirim <code>AT+CMEE=2</code> —
+                tanpa itu Anda hanya melihat <code>ERROR</code> yang kering; dengan itu barulah muncul teks terbaca berupa
+                <code>+CME ERROR: …</code>. Keduanya hanya berlaku per sesi; setiap kali modul dinyalakan ulang, keduanya harus dikirim lagi.
+            </div>
+
+            <h4>Module: lima tombol identifikasi</h4>
+            <table>
+                <tr><th>Tombol</th><th>Perintah</th><th>Apa yang akan terlihat</th></tr>
+                <tr><td>Info</td><td><code>ATI</code></td>
+                    <td>Merek / model / versi firmware tiga-dalam-satu — inilah perintah pertama yang dikirim setelah boot</td></tr>
+                <tr><td>Vendor / Model / FW Ver</td>
+                    <td><code>AT+GMI</code> / <code>AT+GMM</code> / <code>AT+GMR</code></td>
+                    <td>Memecah tiga baris ATI menjadi query terpisah (masing-masing setara CGMI / CGMM / CGMR).
+                        Versi firmware perangkat uji terbaca <code>EG800KCNGCR07A06M04</code></td></tr>
+                <tr><td>IMEI</td><td><code>AT+GSN</code></td>
+                    <td>IMEI modul (15 digit). Nol kuota, bisa dikirim kapan saja</td></tr>
+            </table>
+
+            <h4>Serial: AT&amp;V membaca parameter, IPR mengubah baud rate</h4>
+            <p><strong>AT Params (<code>AT&amp;V</code>)</strong>: menampilkan nilai terkini semua parameter AT satu huruf.
+            Perintah satu huruf seperti <code>ATE</code> / <code>ATQ</code> / <code>ATV</code> <strong>tidak punya bentuk query masing-masing;
+            hanya perintah inilah yang bisa membacanya</strong>. Hasil uji perangkat ini: <code>E:1 Q:0 V:1 S3:13 S4:10</code> —
+            echo menyala, kode hasil dalam mode teks, akhir baris = CR (ASCII 13), persis prasyarat alat ini dalam mem-parsing balasan.</p>
+            <p><strong>Baud? (<code>AT+IPR?</code>)</strong>: menanyakan baud rate UART saat ini, default pabrik 115200.<br>
+            <strong>Baud List (<code>AT+IPR=?</code>)</strong>: membalas dua daftar —
+            yang pertama baud rate yang bisa dideteksi otomatis, yang kedua yang hanya tersedia pada mode tetap. Setelah tombol ini dijalankan,
+            menu tarik-turun Set Baud akan diganti dengan daftar yang benar-benar dilaporkan perangkat. Hasil uji: daftar kedua
+            perangkat ini mencantumkan sampai
+            <strong>1000000 bps — nilai ini tidak ada di tabel §3.4 manual</strong>.</p>
+            <p><strong>Set Baud (<code>AT+IPR={rate};&amp;W</code>, kartu parameter)</strong>:
+            menekannya memunculkan kotak konfirmasi dulu — inilah tombol yang paling mudah mengunci Anda di luar pintu di seluruh halaman ini.</p>
+            <div class="warning">
+                <strong>Tiga jebakan mengubah baud rate (semuanya terkonfirmasi lewat pengujian):</strong><br>
+                ① Begitu <code>OK</code> terbalas, perubahan <strong>langsung berlaku</strong>;
+                sejak detik berikutnya alat ini dan modul bicara dalam bahasa berbeda;<br>
+                ② <code>AT&amp;F</code> (reset pabrik) <strong>tidak</strong> mengembalikan baud rate — jangan berharap ia menyelamatkan Anda;<br>
+                ③ Tanpa <code>&amp;W</code> nilainya tak disimpan — sementara menyambung ulang = daya putus: modul bangun di baud rate lama
+                sedangkan setelan port Anda tertinggal di baud rate baru, <strong>putus komunikasi ganda</strong>.
+                Karena itu alat ini memaksa penulisan gabungan <code>;&amp;W</code>.<br>
+                Empat langkah pemulihan (kotak konfirmasi juga mengingatkannya): putus koneksi → ubah baud rate di area koneksi → sambung ulang → jalankan ulang ritual boot.
+            </div>
+
+            <h4>Power: QSCLK hemat daya</h4>
+            <p><strong>Sleep? (<code>AT+QSCLK?</code>)</strong>: menanyakan apakah modul diizinkan masuk tidur.
+            Hasil uji: default pabrik perangkat ini <code>0</code> = nonaktif, modul selalu terjaga.
+            Halaman ini hanya menyediakan tombol query: modul yang tertidur akan <strong>berhenti merespons AT</strong>;
+            cara membangunkan versi manual adalah menarik DTR rendah —
+            tetapi DTR papan ini sudah dialihkan menjadi pin Reset (lihat awal bagian ini). Bila Anda mengaktifkan tidur sendiri
+            lewat baris perintah lalu modul tak bisa dibangunkan,
+            jalankan ulang ritual boot (putus daya lalu nyalakan lagi) untuk lolos; detailnya lihat application note resmi mode hemat daya.</p>
+
+            <h4>URC: bila pesan tak kunjung datang, ke sinilah tempat pertama</h4>
+            <p><strong>URC (Unsolicited Result Code, kode hasil tak diminta)</strong> adalah pesan yang
+            "dimuntahkan modul atas inisiatifnya sendiri tanpa diminta",
+            bukan balasan atas perintah mana pun — <code>RDY</code> saat boot, kedatangan data TCP, pesan MQTT,
+            hasil pemindaian Wi-Fi, notifikasi pemuatan firmware GNSS semuanya URC. Port keluarannya
+            <strong>secara default pabrik adalah port USB (usbat)</strong> — alat ini yang berjalan lewat UART takkan menerima satu pun,
+            dengan gejala yang sangat khas: <strong>semua perintah membalas OK, tetapi pesan tak pernah datang</strong>.</p>
+            <table>
+                <tr><th>Tombol</th><th>Perintah</th><th>Kegunaan</th></tr>
+                <tr><td>URC Port?</td><td><code>AT+QURCCFG="urcport"</code></td>
+                    <td>Menanyakan ke mana URC sekarang dikirim — saat URC tak diterima, <strong>inilah yang pertama harus dicek</strong>;
+                        balasannya harus <code>"uart1"</code> barulah URC bisa diterima</td></tr>
+                <tr><td>URC Ports</td><td><code>AT+QURCCFG=?</code></td>
+                    <td>Port keluaran apa saja yang didukung perangkat ini. Hasil uji membalas <code>("usbat","usbmodem","uart1")</code>,
+                        <strong>tanpa "all" yang disebut manual</strong> (manual mencatat sebagian model memang tak mendukungnya)</td></tr>
+                <tr><td>URC → UART</td><td><code>AT+QURCCFG="urcport","uart1"</code></td>
+                    <td>Beralih ke UART utama. Ditulis ke NVRAM, bertahan melintasi boot ulang, <strong>cukup diubah sekali</strong></td></tr>
+                <tr><td>URC Switch</td><td><code>AT+QINDCFG="all"</code></td>
+                    <td>Sakelar induk URC, penyebab besar lain dari "URC tak diterima".
+                        Hasil uji: default pabrik perangkat ini sudah 1 (menyala); masalahnya hampir selalu ada di port keluaran</td></tr>
+            </table>
+
+            <h4>Tombol byte mentah: pintu darurat mode data</h4>
+            <p>Cukup banyak perintah bersifat <strong>dua tahap</strong>: kirim perintahnya dulu, tunggu modul membalas prompt <code>&gt;</code>,
+            baru kirim isinya. Setelah masuk <strong>mode data</strong> semacam ini, modul menelan setiap karakter yang Anda ketik sebagai data —
+            termasuk AT command yang ingin Anda kirim. Saat panjang salah dihitung, berubah pikiran di tengah jalan,
+            atau perintah tersangkut, tombol biasa tak bisa menolong;
+            andalkan deretan tombol pengirim byte mentah tunggal ini:</p>
+            <table>
+                <tr><th>Tombol</th><th>Yang dikirim</th><th>Kapan dipakai</th></tr>
+                <tr><td>Ctrl+Z</td><td>0x1A</td>
+                    <td><strong>Penanda akhir</strong> mode data: benar-benar mengirimkan isi yang sudah terkumpul</td></tr>
+                <tr><td>ESC</td><td>0x1B</td>
+                    <td><strong>Membatalkan</strong> mode data dan membuang isi yang sudah terkumpul.
+                        Kunci pelarian pilihan utama saat perintah dua tahap tersangkut dan port AT berhenti merespons (manual §2.3.8)</td></tr>
+                <tr><td>+++</td><td>Tiga tanda + (byte mentah)</td>
+                    <td>Melarikan diri dari <strong>mode data transparan</strong> (seperti transfer COM: pada FTP) kembali ke mode AT.
+                        Aturannya keras: <strong>hening 1 detik sebelum dan sesudah, sama sekali tak boleh membawa CR/LF</strong> —
+                        hasil uji: begitu ditambah CR, ia tak berlaku; wajib dikirim lewat tombol ini, tak bisa diketik di baris perintah</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Pengujian membantah manual: +++ adalah "menghentikan", bukan "menjeda".</strong>
+                Application note FTPS v1.5 halaman 13 menyebut setelah +++ Anda bisa memakai <code>ATO</code>
+                untuk kembali ke mode data dan melanjutkan transfer;
+                pada perangkat nyata <code>ATO</code> hanya membalas <code>NO CARRIER</code> — transfernya sudah dihentikan.
+                Perlakukan +++ sebagai rem darurat; jangan berharap masih bisa jalan terus setelah mengerem.
+            </div>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td>Tak ada respons untuk perintah apa pun</td>
+                    <td>Periksa tiga tersangka berurutan: ① ritual boot belum dijalankan (kalau halaman baru di-refresh, pasti ini);
+                        ② akhir baris disetel ke LF — modul <strong>hanya mengenal CR</strong>, dengan LF sama sekali tak ada respons;
+                        ③ baud rate tak cocok (lihat empat langkah pemulihan)</td></tr>
+                <tr><td>Reset sudah ditekan tetapi RDY tak kunjung muncul</td>
+                    <td>Lihat dulu apakah tombol Power menyala — modul tanpa daya, sebanyak apa pun Reset ditekan tetap percuma;
+                        pada koneksi pertama daya harus melewati ON→OFF</td></tr>
+                <tr><td>Semua perintah membalas OK, tetapi URC tak pernah datang</td>
+                    <td>Kemungkinan besar urcport masih di usbat bawaan pabrik: tekan URC Port? untuk memeriksa, lalu URC → UART untuk mengubah;
+                        bila masih gagal, periksa sakelar induk URC Switch</td></tr>
+                <tr><td>Port AT tiba-tiba "menelan perintah", diketik apa pun tak ada respons</td>
+                    <td>Tersangkut di mode data; semua yang Anda ketik ditelan sebagai data — tekan ESC untuk meloloskan diri</td></tr>
+            </table>
+
+            <h3 id="tab-basic">Basic — SIM, Diagnostik, dan Status Dasar</h3>
+            <p><strong>Cara kerja:</strong> halaman ini adalah titik awal setiap kali tersambung. Setelah ritual boot selesai
+            dan terminal menampilkan <code>RDY</code>, datanglah ke sini dulu untuk tiga hal: mengganti pesan error ke format
+            yang bisa dibaca, memastikan SIM siap, dan mengenali kartu ini milik siapa. Selain <code>AT&amp;F</code> dan
+            pembukaan kunci PIN / PUK, seluruh halaman berisi query baca-saja — menekannya tidak mengubah status modul;
+            perintah yang menyentuh status koneksi terkumpul di tab lain seperti Network dan TCP/IP.
+            Semua sampel pada bagian ini adalah nilai hasil pengujian nyata pada Agustus 2026 terhadap EG800K fisik
+            (firmware EG800KCNGCR07A06M04).</p>
+
+            <h4>Setelah boot: RDY bukan berarti SIM siap</h4>
+            <p><code>RDY</code> adalah URC yang dikirim modul atas inisiatifnya sendiri saat boot selesai.
+            Ia hanya menandakan antarmuka AT sudah hidup; <strong>kartu SIM masih pelan-pelan menginisialisasi diri di belakang</strong>.
+            Hasil uji: mengirim perintah terkait SIM begitu <code>RDY</code> muncul akan dibalas
+            <code>+CME ERROR: 14</code> (SIM busy), bahkan <code>+CME ERROR: 13</code> (SIM failure);
+            <strong>tunggu sekitar 6 detik</strong> lalu kirim lagi, semuanya normal.</p>
+            <div class="warning">
+                <strong>Saat menulis skrip otomasi, jangan jadikan RDY sinyal "boleh mulai bekerja".</strong>
+                Cara yang benar, pilih salah satu: sisakan jeda tetap sekitar 6 detik setelah RDY;
+                atau lakukan polling <code>AT+QINISTAT</code> dan lanjutkan setelah bit 1 (CPIN siap) menyala.
+            </div>
+
+            <h4>Echo (ATE): "gema modul" dan "echo lokal terminal" adalah dua hal berbeda</h4>
+            <p>Echo adalah <strong>modul</strong> mengirim balik apa adanya karakter yang Anda kirim (<code>ATE1</code> nyala,
+            <code>ATE0</code> mati); sedangkan echo lokal terminal adalah <strong>sisi alat ini</strong> yang mencetak dulu
+            ketikan Anda ke layar. Kedua sakelar ini saling independen: bila keduanya menyala, setiap karakter tampil dua kali.</p>
+            <ul>
+                <li><strong>Tombol pengalih echo</strong> di halaman ini mengalihkan echo modul dengan satu klik.
+                    Default saat boot adalah <strong>nyala</strong> (dibuktikan parameter AT hasil uji <code>E:1</code>).</li>
+                <li>Status yang tampil di tombol bukan diingat begitu saja — alat ini <strong>mengoreksi otomatis
+                    berdasarkan balasan nyata</strong> (menerima baris echo = dianggap nyala); bila Anda mengetik sendiri
+                    <code>ATE0</code> / <code>ATE1</code> /
+                    <code>AT&amp;F</code> di baris perintah, status tombol ikut tersinkron, tidak akan lepas.</li>
+                <li>Pengalihan hanya berlaku per sesi: modul dinyalakan ulang, ia kembali ke default. Untuk menuliskannya
+                    sebagai default boot, kirim <code>AT&amp;W</code> tersendiri (tombolnya tidak dibuat di halaman ini;
+                    bila perlu, ketik sendiri di baris perintah).</li>
+            </ul>
+
+            <h4>Mengubah pesan error jadi terbaca (CMEE)</h4>
+            <table>
+                <tr><th>Tombol</th><th>Efek</th></tr>
+                <tr><td><strong>Verbose Err</strong><br><code>AT+CMEE=2</code></td>
+                    <td>Kode error berganti menjadi deskripsi teks. Contoh nyata: saat GNSS belum fix, mode angka membalas
+                        <code>+CME ERROR: 516</code>, mode teks membalas
+                        <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> — yang kedua langsung menjelaskan apa yang terjadi tanpa membuka tabel.
+                        <strong>Alat ini sangat menyarankan menekannya segera setelah ritual boot</strong></td></tr>
+                <tr><td><strong>Numeric Err</strong><br><code>AT+CMEE=1</code></td>
+                    <td>Kode error berupa angka — alat ini otomatis membuka tabel dan menerjemahkan nomornya menjadi anotasi</td></tr>
+            </table>
+            <div class="tip">
+                Kedua setelan bersifat <strong>per sesi saja</strong>: modem dinyalakan ulang, hilang
+                (memuat ulang halaman = RTS memutus daya = nyala ulang, juga terhitung). Selain itu pengujian menemukan:
+                meski <code>CMEE=2</code> sudah menyala, sebagian kecil subsistem (seperti error FILE sistem berkas)
+                tetap mencampur bentuk teks dan angka; saat menulis parser, kedua bentuk harus diterima.
+            </div>
+
+            <h4>AT&amp;F: kembali ke default pabrik — cakupan pengaruhnya</h4>
+            <p>Tombol <strong>Factory Reset</strong> mengembalikan setelan AT ke nilai pabrik,
+            langkah pertama saat mengambil alih modul yang setelannya sudah diacak orang. Ini satu-satunya tombol di halaman ini
+            yang memunculkan konfirmasi dulu sebelum jalan.
+            Cakupan pengaruh yang sudah dikonfirmasi lewat pengujian: <strong>mengembalikan echo ke posisi nyala</strong>
+            (status tombol pengalih echo ikut menyesuaikan otomatis), <strong>tidak memengaruhi baud rate</strong>;
+            apakah setelan lain ikut dipulihkan, periksa satu per satu pada entri <code>AT&amp;F</code> di manual.</p>
+
+            <figure class="shot">
+                <img src="img/12-basic.png" alt="Tab Basic">
+                <figcaption>Tiga kelompok tombol halaman Basic: Echo (echo dan format error),
+                SIM (query dan pembukaan kunci PIN / PUK), Status (jam, tegangan, waktu jaringan).</figcaption>
+            </figure>
+
+            <h4>Tiga query SIM: ada atau tidak, menunggu sandi atau tidak, inisialisasi sampai mana</h4>
+            <table>
+                <tr><th>Tombol</th><th>Pertanyaan yang diajukan</th><th>Cara membaca</th></tr>
+                <tr><td><strong>Card In?</strong><br><code>AT+QSIMSTAT?</code></td>
+                    <td>Apakah kartu terpasang dengan benar</td>
+                    <td>Balasannya dua kolom: kolom pertama sakelar URC cabut-pasang, <strong>kolom kedualah status kartunya</strong> — jangan salah kolom.
+                        Tombol ini di perangkat uji punya riwayat lapor palsu, lihat peringatan di bawah</td></tr>
+                <tr><td><strong>SIM PIN</strong><br><code>AT+CPIN?</code></td>
+                    <td>Apakah kartu sedang menunggu sandi</td>
+                    <td><code>+CPIN: READY</code> = "saat ini tidak sedang menunggu sandi apa pun".
+                        ⚠ <strong>Bukan berarti kartu ini tak butuh PIN</strong> — kartu ber-PIN pun membalas READY setelah dibuka kuncinya.
+                        Tanpa kartu, balasannya <code>+CME ERROR: 10</code></td></tr>
+                <tr><td><strong>Init State</strong><br><code>AT+QINISTAT</code></td>
+                    <td>Progres inisialisasi</td>
+                    <td>Bitmask: 1 = CPIN siap, 2 = SMS, 4 = buku telepon, 7 = semuanya selesai.
+                        Hasil uji perangkat ini setelah boot stabil terbaca <strong>3</strong> (bit buku telepon tidak diset) —
+                        untuk menilai "boleh mulai bekerja", cukup lihat bit 1, <strong>jangan menunggu mati-matian sampai 7</strong></td></tr>
+            </table>
+            <div class="warning">
+                <strong>Card In? di perangkat ini berbohong.</strong> Hasil uji: <code>AT+QSIMSTAT?</code> membalas
+                <code>0,0</code> (kartu sudah dicabut), padahal pada saat yang sama CPIN READY, jaringan sudah attach, IP sudah didapat —
+                kartunya jelas baik-baik saja. Dugaan: papan kendali tidak menyambungkan pin deteksi SIM_DET
+                (atau <code>AT+QSIMDET</code> tidak diaktifkan), sehingga nilainya selalu "tidak terpasang".
+                <strong>Untuk menilai kartu ada atau tidak, jadikan <code>AT+CPIN?</code> atau
+                <code>AT+QINISTAT</code> patokan.</strong>
+            </div>
+
+            <h4>Kartu ini milik siapa: IMSI dan ICCID</h4>
+            <p>Tombol <strong>IMSI</strong> (<code>AT+CIMI</code>) membalas sederet angka telanjang,
+            yaitu identitas pelanggan kartu ini di jaringan seluler. Hasil uji perangkat ini <code>901405117661468</code>:
+            tiga digit awal (MCC) adalah <strong>901 = blok nomor kartu roaming internasional</strong> —
+            kartu perangkat ini adalah kartu IoT 1NCE, dan itu pula yang menjelaskan mengapa <code>AT+CEREG?</code>
+            terus membalas <code>0,5</code> (terdaftar, <strong>roaming</strong>): bukan sinyal bermasalah,
+            melainkan kondisi normal kartu jenis ini. Sebelum menjalankan uji data, kenali dulu kartu roaming dan perhatikan tarif kuotanya.</p>
+            <p>Tombol <strong>ICCID</strong> (<code>AT+QCCID</code>) menanyakan nomor seri kartu,
+            hasil uji membalas <code>+QCCID: 89882280666176614687</code>.
+            ⚠ <strong>Manual tidak memiliki perintah <code>AT+CCID</code></strong> —
+            perintah yang lazim ada di tutorial modul merek lain itu tidak berlaku di sini; gunakan
+            <code>AT+QCCID</code> khas Quectel.</p>
+
+            <h4>Membuka kunci PIN: cek dulu sisa kesempatan, baru bertindak</h4>
+            <ol>
+                <li><strong>Tekan dulu PIN Left</strong> (<code>AT+QPINC?</code>) untuk melihat sisa jumlah percobaan —
+                    rentang menurut manual: PIN sisa 0–3 kali, PUK sisa 0–10 kali.
+                    Ketahui dulu berapa peluru tersisa sebelum bertindak.</li>
+                <li>Saat kartu menunggu PIN, tekan <strong>Enter PIN</strong>: sebuah <strong>kartu parameter</strong>
+                    terbuka dulu untuk Anda isi PIN lalu kirim (templat perintah <code>AT+CPIN="{pin}"</code>, menunggu maksimum 5 detik).</li>
+                <li>Bila kesempatan PIN habis dan kartu beralih meminta PUK, tekan <strong>Unlock PUK</strong>:
+                    manual mewajibkan <strong>PUK dikirim bersama PIN baru</strong>
+                    (<code>AT+CPIN="{puk}","{newpin}"</code>), sama-sama lewat kartu parameter, menunggu maksimum 5 detik.</li>
+            </ol>
+            <div class="warning">
+                Setiap kali salah kirim, kesempatan berkurang satu; saat PUK mendekati habis, <strong>berhenti dan hubungi operator</strong> —
+                jangan membakar habis kesempatan dengan menebak-nebak.
+            </div>
+
+            <h4>Tiga tombol status: jam, tegangan, waktu jaringan</h4>
+            <table>
+                <tr><th>Tombol</th><th>Yang dilihat</th><th>Hasil uji dan cara membaca</th></tr>
+                <tr><td><strong>Clock</strong><br><code>AT+CCLK?</code></td>
+                    <td>Jam RTC modul</td>
+                    <td><code>+CCLK: "26/08/01,00:55:32+32"</code>.
+                        Satuan kolom zona waktu <code>+32</code> adalah "kuarter" (15 menit): 32 × 15 menit = UTC+8.
+                        Hasil uji: RTC perangkat ini sudah disinkronkan waktu oleh jaringan, waktu maupun zona waktunya benar</td></tr>
+                <tr><td><strong>Battery</strong><br><code>AT+CBC</code></td>
+                    <td>Tegangan catu daya</td>
+                    <td>Sebagian firmware tidak mendukungnya dan membalas ERROR, itu normal; firmware perangkat ini mendukung,
+                        hasil uji <code>+CBC: 0,0,4264</code> — kolom terakhir adalah tegangan (mV), yaitu 4.264 V</td></tr>
+                <tr><td><strong>Net Time</strong><br><code>AT+QLTS=2</code></td>
+                    <td>Waktu lokal saat ini hasil perhitungan sinkronisasi jaringan</td>
+                    <td>Hasil uji <code>+QLTS: "2026/08/02,11:46:47+32,0"</code>.
+                        Bedanya dengan Clock ada di <strong>sumber</strong>: CCLK membaca RTC milik modul sendiri,
+                        QLTS langsung mengambil waktu jaringan; format tahunnya pun berbeda (RTC dua digit, QLTS empat digit) — jangan tertukar saat mem-parsing</td></tr>
+            </table>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td>Query SIM tepat setelah RDY muncul, membalas error 14 atau 13</td>
+                    <td>SIM masih menginisialisasi (14 = SIM busy; 13 = SIM failure juga pernah muncul pada tahap ini).
+                        Tunggu sekitar 6 detik lalu kirim lagi, akan normal — jangan buru-buru memvonis kartunya rusak</td></tr>
+                <tr><td>Card In? bilang kartu dicabut, tetapi fungsi lain semuanya normal</td>
+                    <td>Masalah pin deteksi SIM_DET (kasus nyata pada perangkat uji), bukan masalah kartunya.
+                        Lihat saja <code>AT+CPIN?</code> / <code>AT+QINISTAT</code></td></tr>
+                <tr><td>Setiap karakter di layar tampil dua kali</td>
+                    <td>Echo modul dan echo lokal terminal menyala bersamaan — cukup tekan tombol pengalih echo sekali</td></tr>
+                <tr><td>Error hanya membalas angka yang dingin</td>
+                    <td>CMEE belum dinyalakan. Tekan Verbose Err; ia hanya berlaku per sesi,
+                        setiap kali selesai ritual boot harus ditekan lagi</td></tr>
+                <tr><td>Perintah terkirim tetapi sama sekali tak ada balasan</td>
+                    <td>Membuka ulang port akan meng-assert ulang RTS = daya putus; modul sebenarnya sudah boot ulang.
+                        Ritual boot lengkap wajib dijalankan ulang; bila dilewati, semuanya tanpa balasan</td></tr>
+            </table>
+
+            <h3 id="tab-network">Network — Registrasi, Operator, RF</h3>
+            <p><strong>Cara kerja:</strong> semua fungsi data hanya bisa dipakai dengan prasyarat <strong>sudah teregistrasi
+            ke jaringan seluler</strong> dan <strong>kanal data PDP sudah siap</strong> — halaman ini adalah dasbor sekaligus
+            sakelar masuk jaringan; semua penelusuran "tidak bisa online" dimulai dari sini.
+            Angka pada bagian ini semuanya hasil uji nyata EG800K fisik pada Agustus 2026.</p>
+            <figure class="shot">
+                <img src="img/10-network.png" alt="Tab Network">
+                <figcaption>Lima kelompok tombol halaman Network: query registrasi, Signal URC, PDP, diagnostik, kendali RF.</figcaption>
+            </figure>
+
+            <h4>Sebelum mulai: alihkan dulu URC ke UART</h4>
+            <p>Dari pabrik, EG800K mengirim pesan laporan proaktif (URC) ke <code>usbat</code> (port AT USB),
+            sedangkan alat ini berjalan lewat UART — <strong>tak satu pun URC akan diterima</strong>: laporan sinyal,
+            hasil TCP / MQTT / pemindaian Wi-Fi semuanya senyap, dengan gejala <strong>"semua perintah membalas OK, tetapi pesan tak pernah datang"</strong>.</p>
+            <div class="warning">
+                <strong>Penyebab nomor satu "semua URC lenyap" adalah ini.</strong>
+                Buka tab Hardware, tekan <code>AT+QURCCFG="urcport"</code> untuk memeriksa;
+                bila bukan <code>"uart1"</code>, ubah dengan tombol pengalihnya — setelan ditulis ke NVRAM, sekali diubah bertahan melintasi boot ulang.
+            </div>
+
+            <h4>Langkah pertama: pastikan status registrasi</h4>
+            <p>Setelah ritual boot menampilkan <code>RDY</code>, tekan dulu <code>AT+CEREG?</code> (untuk modul 4G, perintah inilah yang paling akurat).
+            Tiga tombol registrasi mewakili tiga domain jaringan: <code>CEREG</code> = LTE/EPS, <code>CREG</code> = domain circuit-switched,
+            <code>CGREG</code> = domain packet-switched; angka kedua (stat) dibaca dengan cara yang sama:</p>
+            <table>
+                <tr><th>stat</th><th>Arti</th><th>Yang harus dilakukan</th></tr>
+                <tr><td>0</td><td>Belum teregistrasi</td><td>Lazim tepat setelah boot; tunggu beberapa detik lalu cek lagi</td></tr>
+                <tr><td>1</td><td>Teregistrasi (jaringan sendiri)</td><td>Normal, lanjutkan</td></tr>
+                <tr><td>2</td><td>Sedang mencari</td><td>Tunggu</td></tr>
+                <tr><td>3</td><td>Ditolak jaringan</td><td>Periksa SIM / paket; lihat penyebabnya dengan CEER</td></tr>
+                <tr><td>5</td><td>Teregistrasi (roaming)</td><td><strong>Kondisi normal perangkat ini</strong>, lihat di bawah</td></tr>
+            </table>
+            <div class="tip">
+                <strong>stat=5 bukan kerusakan.</strong> Hasil uji: ketiga query registrasi membalas <code>0,5</code>:
+                SIM-nya kartu IoT 1NCE (kartu roaming internasional MCC 901), di negara mana pun terhitung "roaming" —
+                anggap 5 sebagai 1.
+            </div>
+            <p>Bila registrasi berhasil tetapi tetap tak bisa online, lanjutkan menekan <code>AT+CGATT?</code> untuk memeriksa attach domain paket;
+            bila perlu tekan <code>AT+CGATT=1</code> untuk attach manual; bila gagal, gunakan <code>AT+CEER</code>
+            untuk melihat penyebabnya (lapisannya berbeda dengan <code>QIGETERROR</code> di halaman TCP/IP).
+            CGATT bisa memblokir maksimum <strong>140 detik</strong>; jangan ditekan bertubi-tubi.</p>
+
+            <h4>Sekarang menggantung di operator mana, band berapa</h4>
+            <p><code>AT+COPS?</code> menanyakan operator tempat login saat ini (digit terakhir 7 = LTE).
+            <strong>Jebakan: nama operator bisa berupa string kosong</strong> — hasil uji membalas <code>+COPS: 0,0,"",7</code>,
+            itu bukan kerusakan. Untuk melihat operator, tekan saja <code>AT+QNWINFO</code> (teknologi / operator / band / kanal):</p>
+            <pre>+QNWINFO: "FDD LTE","46692","LTE BAND 8",3750</pre>
+            <p>46692 = Chunghwa Telecom, Band 8; tanpa layanan, balasannya <code>NO SERVICE</code>.
+            Kartu roaming ini memilih jaringan sendiri: pada tanggal berbeda pengujian pernah menggantung di Chunghwa Telecom Band 8
+            dan FarEasTone (466-01) Band 3; ganti operator maupun ganti band semuanya normal. <code>AT+COPS=?</code> memindai semua operator di sekitar:
+            <strong>memblokir maksimum 300 detik dan memutus layanan yang sedang berjalan</strong>; tekan hanya bila benar-benar perlu.</p>
+
+            <h4>Kekuatan dan kualitas sinyal: CSQ hanyalah nilai kasar</h4>
+            <p><code>AT+CSQ</code> membalas rssi dan ber: rssi 0–31 memetakan -113 hingga -51 dBm,
+            99 = tak terdeteksi (lazim tepat setelah boot, tunggu beberapa detik). Hasil uji rssi 18–24 (-77 hingga -65 dBm, baik);
+            <strong>ber selalu 99, tak punya nilai rujukan</strong>. Tiga elemen kualitas LTE yang sesungguhnya
+            <strong>RSRP (kekuatan) / RSRQ (kualitas) / SINR (rasio sinyal-derau; rendah = terganggu interferensi)</strong>
+            hanya bisa didapat dari kelompok Signal URC (<code>AT+QINDCFG="sqi"</code> tanpa nilai = memeriksa sakelarnya):</p>
+            <table>
+                <tr><th>Tombol</th><th>Perintah</th><th>Fungsi</th></tr>
+                <tr><td>LTE Quality</td><td><code>AT+QINDCFG="sqi",1</code></td>
+                    <td>Menyalakan laporan RSRP / RSRQ / SINR — <strong>wajib untuk uji antena dan penempatan</strong>.
+                        Hanya di-push saat sinyal "berubah"; bila tak ada gerakan, bungkus atau cabut-pasang antenanya; setelan tak bertahan melintasi boot ulang</td></tr>
+                <tr><td>Signal Push</td><td><code>AT+QINDCFG="csq",1</code></td>
+                    <td>Melapor begitu sinyal berubah, menggantikan menekan CSQ bertubi-tubi</td></tr>
+                <tr><td>URC Off / On</td><td><code>AT+QINDCFG="all",0 / 1</code></td>
+                    <td>Sekali klik untuk membisukan saat layar kebanjiran — ingat nyalakan kembali sesudahnya</td></tr>
+            </table>
+
+            <h4>Kanal PDP: lapisan 3GPP vs halaman TCP/IP</h4>
+            <p>PDP context = "kanal data" yang dijatahkan jaringan seluler; hanya dengan itu ada IP. Kelompok ini adalah query
+            baca-saja lapisan standar 3GPP: <code>AT+CGDCONT?</code> menampilkan context dan APN, <code>AT+CGACT?</code> menampilkan status aktivasi
+            (memblokir maksimum 150 detik; ⚠ urutan parameter bentuk tulisnya terbalik), <code>AT+CGPADDR</code>
+            menampilkan IP yang didapat. <code>QIACT?</code> / <code>QICSGP</code> di halaman TCP/IP adalah
+            <strong>stack milik Quectel sendiri, bukan lapisan yang sama</strong> — membandingkan keduanya berdampingan bisa membedakan sisi mana yang rusak:
+            di sini ada IP, di sana tidak = jaringan sudah memberi tetapi stack belum menyala. Perangkat ini otomatis mengaktifkan PDP
+            dan mendapat IP begitu boot.</p>
+            <p><code>AT+QGDCNT?</code> menanyakan kuota kumulatif (angka pertama <strong>terkirim</strong>, angka kedua diterima),
+            wajib dipakai saat menguji kuota dengan kartu roaming. ⚠ <strong>Pengujian membantah petunjuk tombol "akumulasi melintasi boot"</strong>:
+            penghitung secara default tidak disimpan ke NV; begitu daya putus (termasuk memuat ulang halaman) langsung nol — catat di tempat,
+            atau simpan ke NV dengan <code>AT+QGDCNT=1</code>.</p>
+
+            <h4>Praktik penelusuran: kartu ini hanya mengizinkan satu PDP</h4>
+            <p>Di halaman TCP/IP menekan <code>AT+QIACT=1</code> malah dibalas ERROR (<code>572,operation not
+            allowed</code>)? Skenario tetap kartu ini: setelah boot, lapisan 3GPP sudah <strong>otomatis mengaktifkan satu PDP</strong>,
+            tetapi <strong>nomor context-nya mengambang</strong> (pengujian pernah melihat 1 dan 9); membuka yang kedua dibalas
+            <code>+CME ERROR: 100</code> ⇒ jaringan hanya mengizinkan satu PDP; sedangkan rentang
+            contextID <code>QIACT</code> hanya 1–8 — bila PDP dibuka di 9, stack Quectel sama sekali tak bisa menyentuhnya.
+            Solusinya dua langkah (lakukan sekali setiap habis boot):</p>
+            <pre>AT+CGACT?             ← Lihat cid yang mana (nomornya mengambang, langkah ini tak boleh dilewati)
+AT+CGACT=0,&lt;cid itu&gt;   ← Lapisan 3GPP melepaskan jatahnya
+AT+QIACT=1            ← Halaman TCP/IP; balasan +QIACT: 1,1,1,"10.187.7.8" berarti berhasil</pre>
+            <p>Menyetel APN lewat <code>QICSGP</code> bisa dilewati untuk kartu ini — hasil uji: modul otomatis menyinkronkan APN
+            yang dijatahkan jaringan (<code>iot.1nce.net</code>); baru wajib bila berganti ke kartu APN korporat yang butuh akun-sandi.</p>
+            <div class="warning">
+                <strong>Di tengah pengujian tiba-tiba semuanya timeout? Curigai dulu PDP hanyut.</strong>
+                Hasil uji: saat HTTP gagal total beruntun (error 716, timeout tetap 30 detik), <code>AT+QIACT?</code>
+                tetap saja membalas IP — pada saat itu ia menipu; silangkan dengan <code>AT+CGACT?</code>
+                (hasil uji: 1,0 dan 9,1 = hanyut ke 9).
+                Solusi: <code>AT+QIDEACT=1</code> → <code>AT+CGACT=0,&lt;cid tempat hanyut&gt;</code> →
+                <code>AT+QIACT=1</code>, lalu verifikasi dengan ping.
+            </div>
+
+            <h4>Tingkat fungsi CFUN dan kendali RF</h4>
+            <p>Seluruh kelompok RF Control mengubah status modul; semuanya tombol berbingkai merah yang meminta konfirmasi sebelum jalan.
+            Tekan dulu <code>AT+CFUN?</code> untuk melihat tingkat saat ini sebelum bertindak:</p>
+            <table>
+                <tr><th>Perintah</th><th>Tingkat</th><th>Arti</th></tr>
+                <tr><td><code>AT+CFUN=1</code></td><td>Fungsi penuh</td>
+                    <td>RF menyala penuh; <strong>untuk memulihkan, selalu tekan yang ini</strong></td></tr>
+                <tr><td><code>AT+CFUN=4</code></td><td>Mode pesawat</td>
+                    <td>Kirim-terima mati semua, SIM tetap ada — titik awal untuk menguji "masuk jaringan ulang"</td></tr>
+                <tr><td><code>AT+CFUN=0</code></td><td>Minimum</td>
+                    <td>SIM ikut dinonaktifkan; manual hanya menulis Minimum functionality tanpa perincian</td></tr>
+                <tr><td><code>AT+CFUN=1,1</code></td><td>Restart lunak</td>
+                    <td>Menyalakan ulang seluruh modul. ⚠ Port AT mati sesaat; tunggu lagi <code>RDY</code></td></tr>
+            </table>
+            <p>CFUN memblokir maksimum 15 detik. <strong>Bila SIM terkunci PIN, setelah kembali ke CFUN=1 PIN harus dimasukkan lagi
+            barulah teregistrasi.</strong> <code>AT+CGATT=0</code> (PS Detach) melepaskan diri dari domain paket —
+            <strong>merobohkan semua koneksi TCP / MQTT</strong>; pakai hanya untuk menguji "attach ulang".</p>
+
+            <h4>Lanjutan: QENG membaca info BTS (diketik di baris perintah)</h4>
+            <p>Halaman ini tidak punya tombolnya — ketik <code>AT+QENG="servingcell"</code> di baris perintah
+            untuk membaca parameter BTS yang melayani; kolom kunci hasil uji:</p>
+            <table>
+                <tr><th>Kolom</th><th>Nilai hasil uji</th><th>Cara membaca</th></tr>
+                <tr><td>MCC / MNC</td><td>466 / 01</td><td>Taiwan / FarEasTone</td></tr>
+                <tr><td>Cell ID / TAC</td><td><code>ABCDE02</code> / <code>1234</code> (hex)</td>
+                    <td>Desimal 180149762 / 4660; eNodeB = ECI≫8 = 703710, sektor = 2</td></tr>
+                <tr><td>PCID / EARFCN</td><td>144 / 1550</td>
+                    <td>Identitas sel fisik (<strong>tidak unik global</strong>) / Band 3</td></tr>
+                <tr><td>RSRP / RSRQ / RSSI / SINR</td><td>-113 / -18 / -92 / -1</td>
+                    <td>RSRP di bawah -100 terhitung buruk; SINR -1 dB = kualitas jelek</td></tr>
+            </table>
+            <div class="warning">
+                <strong>Cell ID dan TAC berbasis heksadesimal; sebelum mencari di basis data, wajib dikonversi ke desimal.</strong>
+                Basis data seperti OpenCelliD semuanya menerima desimal; melempar langsung <code>ABCDE02</code> hanya berbuah "tidak ditemukan".
+                Selain itu <code>AT+QENG="neighbourcell"</code> hanya membalas PCID,
+                <strong>tanpa Cell ID global</strong> (batasan standar LTE).
+            </div>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td>Semua perintah membalas OK, pesan proaktif tak muncul satu pun</td>
+                    <td>urcport masih di usbat (nilai pabrik) — alihkan ke uart1 di tab Hardware</td></tr>
+                <tr><td><code>QIACT=1</code> membalas ERROR (572)</td>
+                    <td>Jatah PDP tunggal sudah diambil — jalankan dua langkah penelusuran di atas</td></tr>
+                <tr><td>Permintaan beruntun semuanya timeout tetap 30 detik</td>
+                    <td>PDP hanyut — silangkan dengan <code>AT+CGACT?</code>, jangan hanya percaya <code>QIACT?</code></td></tr>
+            </table>
+
+            <h3 id="tab-gnss">GNSS — Penentuan Posisi Satelit</h3>
+            <p><strong>Cara kerja:</strong> GNSS adalah fungsi yang <strong>independen dari jaringan seluler</strong> —
+            tidak perlu SIM dengan jaringan aktif, tidak butuh PDP, tidak memakan kuota (kecuali AGNSS, lihat di bawah).
+            Setelah dinyalakan, modul menerima sinyal satelit sendiri, dan Anda melakukan polling hasil posisinya
+            dengan <code>AT+QGPSLOC</code>.
+            Semua angka detik dan perilaku pada bagian ini adalah nilai hasil uji nyata terhadap EG800K fisik pada Agustus 2026.</p>
+
+            <h4>Sebelum mulai: antena menentukan segalanya</h4>
+            <p>Penyebab nomor satu kegagalan penentuan posisi bukanlah perintah yang salah, melainkan
+            <strong>antena yang tidak menangkap sinyal</strong>.
+            Perbandingan hasil uji: di dalam ruangan dengan antena seadanya, modul mampu mencantumkan posisi 38 satelit
+            namun <strong>tidak satu pun yang terdengar</strong> (SNR semuanya 00);
+            setelah diganti <strong>antena GNSS aktif (active)</strong> dan diletakkan di dekat jendela,
+            cold start berhasil fix dalam 95 detik.</p>
+            <div class="warning">
+                <strong>GNSS tidak bisa diuji di dalam ruangan; ditunggu sampai kapan pun tetap percuma.</strong>
+                Tanpa pandangan ke langit,
+                <code>$GNGGA</code> akan membalas "satelit terpakai 00, kualitas fix 0",
+                dan <code>AT+QGPSLOC</code> selamanya membalas error 516.
+                Pindahkan antena ke dekat jendela atau ke luar ruangan sebelum mulai —
+                ini bukan soal kesabaran, ini soal fisika.
+            </div>
+
+            <h4>Fix pertama: lima langkah</h4>
+            <ol>
+                <li><strong>Jalankan ritual boot</strong> (lihat bagian "Ritual Boot").
+                    ⚠ Setiap kali halaman di-refresh sama saja dengan daya putus: status nyala GNSS dan
+                    efemeris yang baru setengah diterima semuanya kembali nol, dan Anda harus mengulang dari langkah ini.</li>
+                <li><strong>Pastikan URC lewat UART</strong>: <code>AT+QURCCFG="urcport"</code> harus membalas
+                    <code>"uart1"</code>. Nilai pabriknya <code>"usbat"</code>; bila tidak diubah, banyak pesan hasil
+                    akan dikirim ke port USB dan di sini tidak terlihat apa-apa (setelan disimpan ke NVRAM, cukup diubah sekali).</li>
+                <li><strong>Nyalakan GNSS</strong>: tekan <code>AT+QGPS=1</code>.
+                    Dalam beberapa detik akan muncul <code>+QGPS: "firmware",0,0</code> (firmware GNSS berhasil dimuat).
+                    Bila sudah menyala lalu ditekan lagi, balasannya <code>+CME ERROR: 504</code>, tidak berbahaya.</li>
+                <li><strong>Lihat penerimaan sinyal</strong>: tekan <code>AT+QGPSGNMEA="GSV"</code> untuk membaca
+                    satelit yang terlihat. Area terminal otomatis membuka tab <strong>Status Satelit</strong>
+                    dan menggambar grafik batang sinyal serta peta langit — cara membacanya lihat bagian berikut.</li>
+                <li><strong>Polling posisi</strong>: tekan <code>AT+QGPSLOC=2</code> setiap 5–10 detik.
+                    Balasan <code>DSAT_CME_GNSS_NOT_FIXED_NOW</code> (error 516) berarti belum fix,
+                    <strong>cukup terus menunggu</strong>. Saat berhasil ia membalas koordinat,
+                    dan area terminal otomatis membuka tab <strong>Peta</strong> lalu menggambar posisinya di sana.</li>
+            </ol>
+            <figure class="shot narrow">
+                <img src="img/07-gnss.png" alt="Tab GNSS">
+                <figcaption>Halaman GNSS: sakelar, pembacaan NMEA, query posisi, akselerasi AGNSS.</figcaption>
+            </figure>
+
+            <h4>Membaca tab Status Satelit: "terlihat" bukan berarti "terdengar"</h4>
+            <p>GSV memberi empat angka untuk tiap satelit: nomor, elevasi, azimut, dan
+            <strong>SNR (rasio sinyal terhadap derau, dB-Hz)</strong>.
+            Tiga yang pertama hanya menyatakan "di mana seharusnya ia berada di langit";
+            <strong>hanya SNR yang menandakan sinyalnya benar-benar diterima</strong>.</p>
+            <table>
+                <tr><th>SNR</th><th>Arti</th></tr>
+                <tr><td>(kosong) atau 00</td><td>Sama sekali tidak diterima — hanya tahu ia di mana, tetapi tidak terdengar</td></tr>
+                <tr><td>14–28</td><td>Marginal: demodulasi efemeris sering gagal lalu mengulang, fix jadi lambat dan tidak stabil</td></tr>
+                <tr><td>30 ke atas</td><td>Demodulasi stabil; <strong>bila mayoritas satelit mencapai level ini, fix akan cepat</strong></td></tr>
+                <tr><td>40 ke atas</td><td>Level langit terbuka plus antena bagus</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/20-sat-view.png" alt="Tab Status Satelit: grafik batang SNR dan peta langit">
+                <figcaption>Tab Status Satelit saat fix berhasil: 31/41 satelit bersinyal, grafik batang SNR dan
+                peta langit empat konstelasi (GPS/QZSS/GLONASS/BDS). Mayoritas batang melampaui 20, sebagian mencapai 40 —
+                beginilah wujud "terdengar".</figcaption>
+            </figure>
+
+            <h4>Mengapa harus menunggu: keterbatasan fisika cold start dan waktu hasil uji</h4>
+            <p>Penentuan posisi membutuhkan orbit presisi tiap satelit (efemeris), dan efemeris itu tertanam
+            dalam sinyal yang dipancarkan satelit pada laju <strong>50 bps</strong> — satu satelit perlu didemodulasi
+            dengan benar tanpa putus selama sekitar 18–30 detik, salah satu bit saja harus diulang dari awal,
+            dan minimal harus terkumpul 4 satelit. Itulah sebabnya "cold start" lambat.
+            Hasil uji pada perangkat ini (lokasi sama, antena aktif, resolusi pengukuran ±5 detik):</p>
+            <table>
+                <tr><th>Skenario</th><th>Waktu fix pertama (hasil uji)</th></tr>
+                <tr><td>Cold start (tanpa bantuan apa pun)</td><td><strong>95 detik</strong></td></tr>
+                <tr><td>Cold start + AGNSS</td><td><strong>52 detik</strong> (dan pada sekitar detik ke-20 sudah keluar dulu satu posisi kasar)</td></tr>
+                <tr><td>AGNSS + sisa efemeris terbaru (pemakaian berulang sehari-hari)</td><td><strong>25 detik</strong></td></tr>
+            </table>
+            <div class="tip">
+                <strong>Jangan me-refresh halaman selama pengujian.</strong> Rancangan perangkat keras alat ini
+                menjadikan RTS = daya; memuat ulang halaman = daya putus = seluruh efemeris hilang,
+                dan semuanya kembali ke cold start.
+                Untuk berhenti sementara, tekan <code>AT+QGPSEND</code>, jangan putuskan daya.
+            </div>
+
+            <h4>Akselerasi AGNSS: alur lengkap</h4>
+            <p><strong>Prinsipnya:</strong> AGNSS mengganti sumber efemeris menjadi unduhan dari jaringan
+            (sekitar 32–34 KB tiap kali), melompati demodulasi lambat 50 bps.
+            Ia <strong>tidak bisa menciptakan sinyal satelit dari ketiadaan</strong> —
+            di dalam ruangan tetap saja tidak akan fix; yang ia hemat hanyalah waktu "menunggu efemeris".</p>
+            <p>Dua prasyarat yang paling mudah terlewat; lewatkan salah satu saja dan AGNSS <strong>diam total tanpa bergerak, tanpa pesan error</strong>:</p>
+            <table>
+                <tr><th>Prasyarat</th><th>Perintah</th><th>Jebakan</th></tr>
+                <tr><td>AGNSS sudah diaktifkan</td><td><code>AT+QAGPS=1</code></td>
+                    <td>⚠ <strong>Harus boot ulang agar berlaku</strong> (disimpan ke NVRAM, cukup disetel sekali)</td></tr>
+                <tr><td>PDP sudah aktif</td><td><code>AT+QIACT=1</code></td>
+                    <td>⚠ Harus dikirim ulang setiap kali boot. <strong><code>AT+CGATT?</code> membalas 1 belum berarti apa-apa</strong> —
+                        attach hanyalah registrasi di lapisan jaringan; jalur data baru ada bila <code>AT+QIACT?</code> bisa membalas
+                        <code>+QIACT: 1,1,…,"IP"</code></td></tr>
+            </table>
+            <p>Urutan lengkapnya (setiap kali setelah boot):</p>
+            <pre>AT+QIACT=1          ← Buka jalur data (menunggu maksimum 150 detik; memakan kuota)
+AT+QIACT?           ← Harus terlihat +QIACT: 1,1,…,"IP"
+AT+QGPS=1           ← Nyalakan GNSS; AGNSS otomatis mengunduh data bantuan pada saat ini
+AT+QGPSLOC=2        ← Polling setiap 5–10 detik</pre>
+            <p><strong>Bagaimana memastikan AGNSS benar-benar bekerja?</strong> Firmware perangkat ini <strong>tidak</strong>
+            mengeluarkan notifikasi semacam <code>+QGPS: "agps"</code> (terkonfirmasi lewat pengujian);
+            Anda harus melihat bukti tidak langsung — cukup salah satu dari tiga ini:</p>
+            <ol>
+                <li><code>AT+QGDCNT?</code> diperiksa dua kali, sebelum dan sesudah <code>AT+QGPS=1</code>:
+                    arah terima bertambah sekitar 30 KB = data bantuan sudah terunduh</li>
+                <li>GSV dalam hitungan detik langsung mencantumkan <strong>posisi banyak sekali satelit</strong> (SNR mungkin masih 00) —
+                    posisi itu hasil unduhan; demodulasi sendiri mustahil secepat itu</li>
+                <li>Kolom waktu pada <code>$GNGGA</code> terisi (waktu juga bagian dari data bantuan)</li>
+            </ol>
+            <div class="warning">
+                <strong>Jebakan fix palsu: koordinat dengan nol satelit bukanlah fix.</strong>
+                Sekitar 20 detik setelah AGNSS berjalan, <code>AT+QGPSLOC</code> bisa saja membalas satu koordinat,
+                tetapi perhatikan baik-baik: <code>HDOP 0.00 / alt 0.0 / nsat 00</code> —
+                itu adalah <strong>injeksi posisi referensi</strong> dari data bantuan, bukan hasil pengukuran,
+                dan kesalahannya bisa besar.
+                <br><br>
+                <strong>Kriteria fix sejati: jumlah satelit terpakai &gt; 0, mode fix ≥ 2, HDOP &gt; 0.</strong>
+                Saat menulis logika otomasi atau logika produk, jangan hanya memeriksa "ada balasan koordinat atau tidak".
+            </div>
+
+            <h4>apflash: tetap cepat meski daya diputus lalu dinyalakan lagi (dengan syarat)</h4>
+            <p><code>AT+QGPSCFG="apflash"</code> dari pabrik sudah bernilai 1: setiap kali fix berhasil,
+            efemeris disimpan ke flash dan otomatis diimpor pada boot berikutnya —
+            daya diputus lalu dinyalakan lagi dalam rentang satu jam berubah dari cold start menjadi hot start yang cepat,
+            <strong>tanpa kuota sama sekali</strong>. Dua batasannya: efemeris kedaluwarsa dalam sekitar satu jam;
+            dan <strong>harus pernah berhasil fix sekali dulu</strong> agar flash punya isi untuk diimpor —
+            pada modul yang belum pernah berhasil fix, apflash tidak bisa menolong.</p>
+
+            <h4>Setelah fix berhasil: tab Peta</h4>
+            <p>Setiap kali <code>AT+QGPSLOC</code> berhasil, posisinya digambar ke tab Peta:
+            penanda biru adalah posisi terbaru, garis sian adalah jejak pergerakan, dan tiap titik jejak
+            menampilkan waktu setempat serta ketinggian saat kursor mouse diarahkan ke atasnya.
+            Baris ringkasan menampilkan koordinat/ketinggian/HDOP/jumlah satelit, dan waktunya otomatis
+            dikonversi ke zona waktu setempat berdasarkan bujur.</p>
+            <figure class="shot">
+                <img src="img/21-map-track.png" alt="Tab Peta: jejak penentuan posisi">
+                <figcaption>Tab Peta setelah fix berhasil: penanda = posisi terbaru, garis sian = jejak;
+                baris ringkasan di atas memuat koordinat, ketinggian, HDOP, jumlah satelit terpakai, dan waktu setempat.</figcaption>
+            </figure>
+
+            <h4>Pemecahan Masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td><code>+CME ERROR: 505</code></td>
+                    <td>GNSS belum dinyalakan — jalankan <code>AT+QGPS=1</code> dulu.
+                        Harus dinyalakan ulang setiap kali boot ulang (termasuk memuat ulang halaman)</td></tr>
+                <tr><td><code>+CME ERROR: 504</code></td><td>GNSS memang sudah menyala, hanya dinyalakan ganda, tidak berbahaya</td></tr>
+                <tr><td>Error 516 (NOT_FIXED_NOW)</td>
+                    <td>Belum fix. Bila GSV menunjukkan sinyal (SNR ≥ 30), teruslah menunggu;
+                        bila semuanya 00 berarti masalah antena/lingkungan, ditunggu selama apa pun tetap percuma</td></tr>
+                <tr><td>Aliran NMEA kontinu tidak didapat</td>
+                    <td>Dari pabrik <code>outport</code> adalah <code>usbnmea</code>; aliran kontinu lewat port USB.
+                        Di port AT cukup ambil per kalimat dengan <code>AT+QGPSGNMEA</code> (perlu
+                        <code>nmeasrc,1</code> dulu; tombolnya sudah tersedia di halaman ini)</td></tr>
+                <tr><td><code>AT+QGPSDEL</code> untuk memaksa cold start</td>
+                    <td>⚠ Jangan dipakai — firmware perangkat ini pada <code>=?</code> membalas <code>(0-2)</code>,
+                        tetapi <strong>menolak ketiga parameternya</strong> (INVALID_PARA), dan dokumen resmi pun tidak mencantumkannya.
+                        Untuk cold start: <code>apflash,0</code> + putus daya lalu nyalakan lagi (setelah pengujian jangan lupa kembalikan ke 1)</td></tr>
+                <tr><td>Setelan diubah tapi tidak berlaku</td>
+                    <td><code>QAGPS</code> baru berlaku setelah boot ulang; begitu pula <code>gnssconfig</code> (kombinasi konstelasi).
+                        Setelah mengubah, jalankan sekali ritual boot</td></tr>
+            </table>
+
+            <h3 id="tab-tcpip">TCP/IP — Akar Koneksi Data</h3>
+            <p><strong>Cara kerja:</strong> halaman ini adalah fondasi semua protokol data. <strong>PDP context
+            (kanal data yang dijatahkan jaringan seluler) hanya diaktifkan dan dinonaktifkan di halaman ini</strong>;
+            halaman SSL / HTTP / MQTT / FTP hanya menaruh query baca-saja, agar perintah yang sama tidak saling injak di dua tempat.
+            Jebakan dan angka detik pada bagian ini semuanya hasil uji perangkat nyata pada Agustus 2026.</p>
+            <figure class="shot">
+                <img src="img/03-tcpip.png" alt="Tab TCP/IP">
+                <figcaption>Halaman TCP/IP: PDP, kirim-terima socket, dan perkakas diagnostik.</figcaption>
+            </figure>
+
+            <h4>Langkah pertama: aktifkan PDP (QICSGP / QIACT / QIDEACT)</h4>
+            <p>Tekan <strong>Act PDP</strong> (<code>AT+QIACT=1</code>): memblokir maksimum 150 detik;
+            selama itu jangan kirim perintah lain; sejak titik ini kuota mulai terpakai (kartu roaming: perhatikan biaya).
+            Setelah berhasil, <strong>wajib tekan Query IP</strong> (<code>AT+QIACT?</code>) dan pastikan balasannya
+            <code>+QIACT: 1,1,1,"alamat IP"</code>
+            — sebelum aktif ia hanya membalas OK. Untuk menutup, tekan <strong>Deact PDP</strong> (<code>AT+QIDEACT=1</code>,
+            maksimum 40 detik); ia memaksa menutup semua koneksi di bawahnya. <strong>Set APN</strong>
+            (<code>AT+QICSGP</code>) biasanya tak perlu ditekan — modul otomatis menyinkronkan APN yang dijatahkan jaringan
+            (hasil uji: kartu 1NCE begitu boot sudah terbaca <code>iot.1nce.net</code>); baru perlu untuk APN korporat yang butuh akun-sandi.</p>
+            <div class="warning">
+                <strong>Act PDP membalas ERROR, Last Error 572? Kartu ini hanya mengizinkan satu PDP.</strong>
+                Saat boot jaringan sudah otomatis mengaktifkan satu, dan <strong>nomornya mengambang</strong> (pengujian pernah melihat 9 dan 1),
+                sedangkan <code>AT+QIACT</code> hanya bisa menyentuh 1–8. Solusi: di halaman Network jalankan <code>AT+CGACT?</code>
+                untuk melihat nomornya → <code>AT+CGACT=0,&lt;nomor&gt;</code> untuk melepaskan jatah → baru tekan Act PDP.
+                <br><br>
+                <strong>Di tengah pengujian semuanya roboh? <code>AT+QIACT?</code> bisa menipu</strong> — saat PDP hanyut
+                ia tetap membalas IP; hanya dengan silang-periksa <code>AT+CGACT?</code> barulah kelihatan. Pemulihan:
+                Deact PDP → <code>AT+CGACT=0,&lt;nomor hanyut&gt;</code> → Act PDP → verifikasi dengan Ping.
+            </div>
+
+            <h4>Membuka koneksi: OK hanya berarti "perintah diterima"</h4>
+            <p>Tekan <strong>Open TCP</strong>, isi host dan port di kartu parameter
+            (<code>AT+QIOPEN=1,0,"TCP","host",port,0,0</code>; context 1, connectID 0,
+            mode buffer sudah dipatok). <strong>OK hanya berarti perintahnya diterima</strong>; berhasil-gagalnya lihat URC
+            <code>+QIOPEN: 0,&lt;err&gt;</code>: 0 = berhasil, maksimum 150 detik;
+            <strong>563 = connectID masih terbuka</strong>, tekan dulu Close Sock.
+            <strong>All Socks</strong> (<code>AT+QISTATE</code>) menampilkan semua socket,
+            state 2 = sudah tersambung.</p>
+
+            <h4>Mengirim data: tiga cara</h4>
+            <table>
+                <tr><th>Tombol</th><th>Penjelasan</th></tr>
+                <tr><td><strong>Send Text</strong><br><code>AT+QISEND=0,&lt;len&gt;</code></td>
+                    <td>Dua tahap panjang-tetap: tunggu <code>&gt;</code> baru kirim isinya, panjang dihitung otomatis,
+                        <strong>bebas Ctrl+Z</strong>. Pilihan utama untuk teks murni; batas 1460 bytes,
+                        mendukung escape <code>\n \r \t \xHH</code></td></tr>
+                <tr><td><strong>Tiga tombol Send Var</strong><br><code>AT+QISEND=0</code></td>
+                    <td>Bentuk panjang-variabel: masuk mode data dan terus menampung, baru terkirim saat melihat Ctrl+Z (0x1A) —
+                        bisa ditulis bertahap, lihat paragraf berikut</td></tr>
+                <tr><td><strong>Send Hex</strong><br><code>AT+QISENDEX=0,"hex"</code></td>
+                    <td>Bentuk satu baris, tidak masuk mode data. Bisa mengirim byte apa pun (termasuk 0x00);
+                        batas hex 512 karakter = 256 bytes sesungguhnya</td></tr>
+            </table>
+            <p><strong>Kirim (tulis lanjutan)</strong>: tekanan pertama masuk mode data, tekanan berikutnya menambahkan satu potongan
+            (bila sudah di mode data, perintah tidak dikirim ulang — mengirim ulang akan berubah jadi data); <strong>Kirim lalu akhiri otomatis</strong>
+            menambahkan potongan dan menutup dengan Ctrl+Z, tercepat bila hanya satu potongan; <strong>Akhiri (Ctrl+Z)</strong>
+            mengirimkan seluruh isi yang terkumpul sekaligus. Saat di mode data, terminal memberi penanda; untuk menyerah tekan
+            <strong>ESC Cancel</strong> (0x1B, kunci pelarian saat perintah dua tahap tersangkut).
+            ⚠ Data tak boleh mengandung 0x1A (akan dianggap pengakhiran dini); untuk karakter kendali pakai Send Hex.</p>
+            <div class="tip">
+                <strong>SEND OK bukan berarti lawan sudah menerima</strong>; ia hanya menandakan data sudah diserahkan ke modul. Tekan
+                <strong>Check ACK</strong> (<code>AT+QISEND=0,0</code>) untuk melihat terkirim / ter-ACK —
+                <strong>hanya acked yang bisa dipegang</strong>.
+            </div>
+
+            <h4>Menerima data: tak muncul sendiri, harus tekan Read Data</h4>
+            <p>Pada mode buffer, data yang diterima <strong>tidak</strong> otomatis tampil di terminal: modul hanya mengirim
+            notifikasi <code>+QIURC: "recv",0</code>; Anda harus menekan <strong>Read Data</strong>
+            (<code>AT+QIRD=0,1500</code>) untuk mengambilnya, dan <strong>ulangi membaca sampai membalas <code>+QIRD: 0</code></strong> —
+            bila tak dibaca sampai bersih, notifikasi berikutnya takkan datang.
+            <strong>Unread Len</strong> (<code>AT+QIRD=0,0</code>) menanyakan total diterima / sudah dibaca / belum dibaca.
+            Selesai kirim-terima, tekan <strong>Close Sock</strong> (<code>AT+QICLOSE=0</code>, maksimum 10 detik).
+            ⚠ <strong>Notifikasi recv sama sekali tak diterima?</strong> Di halaman Hardware periksa apakah
+            <code>AT+QURCCFG="urcport"</code> sudah <code>uart1</code> —
+            nilai pabrik adalah port USB; semua URC lari ke sana.</p>
+
+            <h4>Dua tabiat lawan bawaan tcpbin.com</h4>
+            <p>Lawan default Open TCP adalah server echo gratis <code>tcpbin.com:4242</code>;
+            dua tabiat hasil uji:</p>
+            <ul>
+                <li><strong>Echo per baris, akhirnya harus newline (0A)</strong>: mengirim Hello tanpa 0A, ditunggu 6 detik
+                    tanpa balasan; setelah ditambah 0A, 0.1 detik langsung diterima. Send Text: tambahkan <code>\n</code> di akhir;
+                    Send Hex: tambahkan <code>0A</code> di ekor.</li>
+                <li><strong>Timeout idle 15 detik</strong>: begitu menganggur, koneksi diputus dan Anda menerima
+                    <code>+QIURC: "closed",0</code>. Ini tak ada hubungannya dengan QIRD (ia hanya membaca buffer lokal,
+                    tak menyentuh jaringan). Untuk mempertahankan koneksi, kirim data setiap kurang dari 10 detik. Setelah closed,
+                    socket berhenti di closing;
+                    <strong>wajib tekan Close Sock dulu</strong> baru bisa dipakai lagi, kalau tidak QIOPEN membalas 563.</li>
+            </ul>
+
+            <h4>Tiga serangkai diagnostik: Ping / DNS Lookup / NTP Sync</h4>
+            <table>
+                <tr><th>Tombol (semuanya butuh Act PDP dulu)</th><th>Perilaku dan hasil uji</th></tr>
+                <tr><td><strong>Ping</strong><br><code>AT+QPING</code></td>
+                    <td>Timeout 4 detik ×4 sudah dipatok. Hasil uji 8.8.8.8 tembus semua, RTT 160–270 ms.
+                        ⚠ Banyak server memblokir ICMP; <strong>ping gagal bukan berarti TCP tak bisa tersambung</strong> —
+                        untuk konektivitas, langsung Open TCP saja</td></tr>
+                <tr><td><strong>DNS Lookup</strong><br><code>AT+QIDNSGIP</code></td>
+                    <td>Hasil dilaporkan lewat URC <code>+QIURC: "dnsgip"</code> (maksimum 60 detik);
+                        hasil uji: datang dua tahap, memuat beberapa IP</td></tr>
+                <tr><td><strong>NTP Sync</strong><br><code>AT+QNTP</code></td>
+                    <td>Maksimum 125 detik, port 123 sudah dipatok, hasil dilihat di URC <code>+QNTP</code>.
+                        ⚠ <strong>Waktunya UTC tetapi membawa penanda zona waktu lokal</strong> (+32 kuarter = GMT+8; hasil uji
+                        selisihnya tepat 8 jam); untuk waktu lokal pakai <code>AT+CCLK?</code></td></tr>
+            </table>
+
+            <h4>Terjadi error: tekan dulu Last Error, lalu lakukan pembedaan 30 detik</h4>
+            <p>Begitu perintah membalas ERROR, <strong>segera</strong> tekan <strong>Last Error</strong>
+            (<code>AT+QIGETERROR</code>) — hanya error terakhir yang disimpan; begitu tertimpa error berikutnya, tak bisa dicari lagi.
+            Ia memeriksa lapisan stack Quectel; untuk lapisan jaringan pakai <code>AT+CEER</code> di halaman Network.</p>
+            <div class="warning">
+                <strong>🔴 Degradasi stack data — lubang paling menyita waktu.</strong> Gejala: semua koneksi gagal tanpa kecuali,
+                tetapi swaperiksa bilang semuanya baik (QIACT? ada IP, QIGETERROR membalas 0). Hasil uji: terpicu setelah membuka-menutup SSL
+                sekitar 20 kali beruntun; bahkan QIOPEN TCP murni pun membalas 552; QIDEACT + QIACT tak menyelamatkan,
+                <strong>hanya menjalankan ulang ritual boot yang memulihkan</strong>.<br><br>
+                <strong>Metode pembedaan 30 detik</strong>: pakai Open TCP menembak target yang sama — ikut gagal = seluruh stack
+                rusak, jalankan ulang ritual boot; berhasil = masalahnya di protokol lapisan atas, lanjutkan menelusur.
+            </div>
+
+            <h4>Keepalive: sanggup menahan NAT operator, tak sanggup menahan tcpbin</h4>
+            <p><strong>QICFG=?</strong> menampilkan subitem dan rentangnya, <strong>Keepalive?</strong> menanyakan nilai kini,
+            <strong>Keepalive On / Off</strong> sakelarnya — keempat perintah ini <strong>sendirinya</strong> nol kuota;
+            setelah aktif, selama ada socket yang menganggur, paket probe terhitung ke kuota seluler.
+            <strong>Ia tak sanggup menahan timeout 15 detik tcpbin</strong>: hasil uji, meski dinyalakan tetap diputus pada detik 15.1 —
+            keepalive adalah probe kosong lapisan TCP yang tak terlihat aplikasi; lagi pula interval minimumnya 25 detik,
+            memang lebih besar dari 15. Untuk bertahan dari timeout lapisan aplikasi, satu-satunya cara adalah mengirim data sungguhan
+            (misalnya tiap 10 detik Send Hex mengirim <code>0A</code>). Kegunaan sejatinya adalah <strong>menjaga hidup NAT
+            operator</strong> (NAT kartu IoT menganggur beberapa menit langsung didaur ulang).</p>
+            <p>Hitungan kuota (<strong>estimasi, bukan hasil uji</strong>): satu probe pulang-pergi sekitar 80 bytes;
+            default idle = 30 detik menganggur terus-menerus → per jam sekitar 9.4 KB, sehari sekitar 225 KB,
+            <strong>sebulan sekitar 6.8 MB</strong>; idle = 600 detik → sehari sekitar 11 KB.
+            Kartu prabayar berkuota total seperti 1NCE harus memperbesar idle. Tanpa socket terbuka, sama sekali tak makan kuota.</p>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td><code>+QIOPEN: 0,563</code></td>
+                    <td>connectID masih terbuka — Close Sock dulu</td></tr>
+                <tr><td>Tak menerima <code>+QIURC: "recv"</code></td>
+                    <td>① urcport bukan uart1 (halaman Hardware)
+                        ② belum membaca sampai <code>+QIRD: 0</code>, notifikasi tertahan</td></tr>
+                <tr><td>Muncul <code>+QIURC: "closed",0</code></td>
+                    <td>Timeout idle 15 detik tcpbin; setelah Close Sock bisa dibuka lagi</td></tr>
+                <tr><td>Dua tahap tersangkut, port AT tak merespons</td>
+                    <td>Tekan ESC Cancel untuk lolos; bila masih gagal, Reset di halaman Hardware</td></tr>
+                <tr><td>Semua koneksi gagal tetapi swaperiksa serba hijau</td>
+                    <td>Degradasi stack data — setelah pembedaan, jalankan ulang ritual boot</td></tr>
+                <tr><td>Act PDP membalas ERROR, atau di tengah pengujian semuanya roboh</td>
+                    <td>Jatah PDP tunggal terambil / PDP hanyut — lihat dua kotak penelusuran di "Langkah pertama"</td></tr>
+            </table>
+
+            <h3 id="tab-mqtt">MQTT — Pesan IoT</h3>
+            <p><strong>Cara kerja:</strong> MQTT adalah protokol bergaya "broker (server perantara pesan)":
+            perangkat tidak saling terhubung langsung; masing-masing tersambung ke broker, lalu menerbitkan atau berlangganan pesan
+            pada "topik (topic)". Di EG800K ia berlapis dua: pertama <code>AT+QMTOPEN</code> membuka "koneksi jaringan"
+            (TCP ke broker), lalu <code>AT+QMTCONN</code> melakukan "login MQTT"; hanya setelah kedua lapis tembus barulah bisa
+            berlangganan dan menerbitkan. Ingat dulu: <strong>hasil semua perintah MQTT berpola "OK dulu, URC kemudian"</strong>
+            (sama seperti FTP) — <code>OK</code> hanya berarti perintah diterima; berhasil-gagalnya lihat URC hasil sesudahnya.</p>
+            <p>Halaman ini selalu memakai client 0; firmware juga mendukung multi-client (0–5), SSL, dan autentikasi platform cloud
+            (dikonfirmasi lewat uji <code>=?</code>); pemakaian lanjutan lihat application note MQTT.</p>
+
+            <h4>Sebelum mulai: dua prasyarat</h4>
+            <ol>
+                <li><strong>URC harus lewat UART</strong>: <code>AT+QURCCFG="urcport"</code> wajib membalas
+                    <code>"uart1"</code>. Nilai pabriknya <code>"usbat"</code>, sedangkan hasil MQTT semuanya URC —
+                    bila tak diubah, <strong>setiap perintah hanya membalas OK tanpa kelanjutan</strong>
+                    (tombolnya ada di halaman Basic; ditulis ke NVRAM, cukup diubah sekali).</li>
+                <li><strong>PDP harus diaktifkan dulu</strong>: tekan dulu <code>AT+QIACT=1</code> di halaman TCP/IP
+                    (maksimum 150 detik); bila belum, <code>+QMTOPEN</code> membalas <strong>3 = aktivasi PDP gagal</strong>.
+                    Sepanjang proses kuota data terpakai, perkiraan sekitar 5 KB.</li>
+            </ol>
+
+            <h4>Cara mengujinya: empat broker publik gratis</h4>
+            <p>Kartu parameter <code>AT+QMTOPEN</code> menyediakan menu tarik-turun broker bawaan (pengetikan bebas tetap bisa);
+            keempatnya mengizinkan anonim, tak perlu registrasi. Data hasil uji Agustus 2026 (dari sisi PC dibanjiri 100 pesan, dari sisi modul di-ping):</p>
+            <table>
+                <tr><th>Broker</th><th>Banjir 100 pesan</th><th>Ping dari modul</th><th>Catatan</th></tr>
+                <tr><td><strong>mqttgo.io</strong> (default)</td><td><strong>100/100</strong></td>
+                    <td><strong>190–210 ms</strong></td><td>HiNet Taiwan; 1883 teks polos / 8883 TLS</td></tr>
+                <tr><td>broker.hivemq.com</td><td>100/100</td><td>Memblokir ICMP</td>
+                    <td><code>AT+QPING</code> membalas 559, jangan panik — hasil uji: TCP 1883 keempatnya tembus semua;
+                        ketercapaian langsung diuji dengan <code>AT+QMTOPEN</code></td></tr>
+                <tr><td>test.mosquitto.org</td><td>100/100</td><td>385–400 ms</td>
+                    <td>Situs resminya sendiri berpesan jangan dipakai untuk keperluan penting; polusi topiknya paling parah</td></tr>
+                <tr><td>broker.emqx.io</td><td><strong>40/100</strong></td><td>Memblokir ICMP</td>
+                    <td><strong>Ada pembatasan laju penerbitan</strong>; punya Dashboard web</td></tr>
+            </table>
+            <p>Keempatnya <strong>sepenuhnya publik</strong>: siapa pun bisa berlangganan topik Anda,
+            dan pesan orang lain pun bisa menyusup masuk — inilah persoalan yang hendak diselesaikan sufiks acak.</p>
+
+            <h4>Sufiks acak pada client ID dan topik: setiap refresh berganti satu set</h4>
+            <p>Client ID dan topik default tidak dipatok mati: saat halaman dimuat, otomatis dibangkitkan sufiks 6 karakter heksadesimal,
+            membentuk <code>numodem-&lt;sufiks&gt;</code> dan <code>test/numodem-&lt;sufiks&gt;</code>;
+            tiga tombol Subscribe / Publish / Unsub memakai set yang sama (kalau tidak, loop-balik takkan saling ketemu). Alasannya dua:</p>
+            <ul>
+                <li><strong>Nama bentrok berujung ditendang</strong>: MQTT 3.1.1 §3.1.4 mewajibkan broker menendang yang tersambung
+                    lebih dulu — dua orang memakai ID tetap yang sama akan saling tendang; gejalanya tampak seperti "modul putus tanpa sebab".</li>
+                <li><strong>Topik tetap akan menerima pesan orang lain</strong>: Anda mengira yang diterima adalah kiriman sendiri, padahal bukan —
+                    ini lebih buruk daripada tak menerima, karena memberi kelulusan palsu.</li>
+            </ul>
+            <div class="warning">
+                <strong>⚠ Setiap kali halaman di-refresh, sufiks berganti satu set —
+                berlangganan dan menerbitkan wajib diselesaikan dalam satu siklus hidup halaman yang sama.</strong>
+                Apalagi pada alat ini RTS = daya; memuat ulang halaman = modul putus daya, koneksi MQTT lenyap seluruhnya,
+                harus mengulang dari ritual boot dan <code>AT+QMTOPEN</code>.
+            </div>
+
+            <h4>Alur lengkap: sambung → langganan → terbitkan → menerima kembali pesan sendiri</h4>
+            <p>Verifikasi paling meyakinkan adalah <strong>loop-balik</strong>: setelah berlangganan, terbitkan ke topik yang sama
+            dan terima kembali pesan sendiri — sekali jalan menguji seluruh rantai kirim-terima. Setiap langkah tunggu URC hasil dulu baru lanjut:</p>
+            <ol>
+                <li><strong>Setel versi protokol</strong>: tekan Ver 3.1.1 (<code>AT+QMTCFG="version",0,4</code>;
+                    3 = 3.1, 4 = 3.1.1). Tekan Version? untuk melihat nilai kini (tanpa nilai = query).
+                    Kartu parameter Keepalive bisa mengatur interval jaga-hidup; tanpa diatur pun tetap bisa diuji.</li>
+                <li><strong>Buka jaringan</strong>: tekan Open Net (<code>AT+QMTOPEN=0,"broker",1883</code>).
+                    Ia membalas <code>OK</code> dulu; berhasil-gagalnya lihat URC <code>+QMTOPEN: 0,&lt;result&gt;</code>
+                    (0 = berhasil), menunggu maksimum 120 detik. Tekan Open? untuk melihat koneksi yang sudah terbuka
+                    (tanpa koneksi, balasannya <code>OK</code> kosong; hasil uji: normal).</li>
+                <li><strong>Login MQTT</strong>: tekan Connect (<code>AT+QMTCONN=0,"numodem-&lt;sufiks&gt;"</code>).
+                    URC keberhasilannya selalu <code>+QMTCONN: 0,0,0</code>. Broker publik bebas akun-sandi;
+                    bila butuh, tambahkan sendiri <code>,"user","pass"</code> di belakang parameter.
+                    Tekan Conn? untuk melihat status (1 = inisial, 2 = menyambung, 3 = tersambung, 4 = memutus).</li>
+                <li><strong>Berlangganan</strong>: tekan Subscribe (<code>AT+QMTSUB=0,1,"test/numodem-&lt;sufiks&gt;",0</code>,
+                    msgid dipatok 1). URC keberhasilannya berbentuk <code>+QMTSUB: 0,1,0,0</code>.
+                    Sejak itu semua pesan topik ini masuk lewat URC <code>+QMTRECV</code>.</li>
+                <li><strong>Terbitkan</strong>: tekan Publish (<code>AT+QMTPUBEX</code>, dua tahap, lihat paragraf berikut).
+                    URC keberhasilannya <code>+QMTPUBEX: 0,&lt;msgid&gt;,0</code>.</li>
+                <li><strong>Terima kembali</strong>: sasaran penerbitan persis topik yang sedang dilanggan, sehingga segera terlihat
+                    <code>+QMTRECV</code> membawa topik beserta isi pesan barusan — loop-balik berhasil.
+                    Payload non-Latin pun tak terpotong, tak rusak.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/04-mqtt.png" alt="Tab MQTT">
+                <figcaption>Halaman MQTT: menu tarik-turun broker, koneksi, berlangganan dan menerbitkan; nilai default sudah membawa sufiks acak.</figcaption>
+            </figure>
+
+            <h4>Dua tahap QMTPUBEX: begitu panjang tercapai langsung terkirim otomatis, tanpa Ctrl+Z</h4>
+            <p>Parameter terakhir <code>AT+QMTPUBEX</code> adalah <strong>panjang (jumlah byte), bukan isi pesan</strong>
+            (application note MQTT §3.3.8 menutup kasusnya — cara kirim satu baris dengan menjejalkan pesan pasti membalas ERROR).
+            Alur yang benar adalah dua tahap: kirim perintah → modul membalas prompt <code>&gt;</code> → kirim tepat N byte,
+            modul <strong>otomatis mengirim begitu panjang tercapai, tak butuh Ctrl+Z</strong>
+            (berbeda dengan mode data <code>AT+QISEND</code> di halaman TCP).
+            Menekan Publish serba otomatis: cukup isi isi pesan di kartu parameter,
+            panjangnya dihitung otomatis dari jumlah byte UTF-8 (satu aksara CJK 3 byte; hasil uji: dua aksara → 6).</p>
+            <ul>
+                <li>Perintah bertipe payload <strong>tidak menyediakan "isikan ke baris perintah"</strong> — pengiriman dari baris perintah
+                    selalu menambahkan akhir baris, dan CR itu ikut terhitung ke panjang sehingga meleset; kirimlah lewat tombol.</li>
+                <li>Firmware juga punya <code>AT+QMTPUB</code> (varian mode data, harus ditutup Ctrl+Z) —
+                    alat ini seragam memakai <code>QMTPUBEX</code>; tak perlu mempelajari dua-duanya.</li>
+            </ul>
+
+            <h4>Membaca kode hasil: rentang nilai tiap perintah berbeda-beda</h4>
+            <div class="warning">
+                <strong>Jangan menempelkan tabel kode hasil perintah A ke perintah B.</strong>
+                Angka 3 pada <code>+QMTOPEN</code> berarti "aktivasi PDP gagal",
+                sedangkan <code>+QMTPUBEX</code> sama sekali tak punya nilai 3.
+                <br><br>
+                Yang paling mudah salah baca adalah <code>+QMTCONN: 0,1</code> —
+                ia <strong>bisa berarti balasan query "status 1 = sedang inisialisasi", bisa pula hasil penulisan "paket sedang dikirim ulang"</strong>.
+                Dari satu baris saja tak terbedakan, maka alat ini menampilkan kedua tafsir berdampingan, tidak menebak paksa.
+            </div>
+            <p>Anda tak perlu menghafal tabel: seluruh URC hasil dari <code>+QMTOPEN</code> sampai <code>+QMTRECV</code> / <code>+QMTSTAT</code>
+            diberi anotasi bahasa awam kolom demi kolom di area terminal, mengikuti tujuh tabel rujukan application note MQTT v1.5.</p>
+
+            <h4>Offline dan penutupan</h4>
+            <ul>
+                <li><strong>Hanya ingin berhenti menerima, koneksi tetap ada</strong>: tekan Unsub
+                    (<code>AT+QMTUNS=0,2,"topik"</code>, msgid dipatok 2).</li>
+                <li><strong>Offline secara normal</strong>: tekan Disconnect (<code>AT+QMTDISC=0</code>,
+                    mengirim MQTT DISCONNECT), dibalas <code>+QMTDISC: 0,0</code>.
+                    <strong>Sesudahnya tak perlu lagi menekan Close Net</strong> — <code>AT+QMTCLOSE=0</code>
+                    disediakan untuk penutupan paksa saat "QMTDISC gagal, lapisan jaringan tersangkut".</li>
+            </ul>
+            <p>Pemutusan yang bukan Anda tekan (ditendang, keepalive timeout, jaringan putus) dilaporkan lewat URC pemutusan abnormal
+            <code>+QMTSTAT</code> (contoh: <code>+QMTSTAT: 0,5</code>; area terminal menganotasi penyebabnya);
+            saat itu harus mengulang dari <code>AT+QMTOPEN</code>.</p>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td>Setiap perintah membalas OK, lalu tak ada kelanjutan</td>
+                    <td>URC dikirim ke port USB — <code>urcport</code> dari pabrik adalah <code>usbat</code>;
+                        alihkan ke <code>uart1</code> (lihat prasyarat 1)</td></tr>
+                <tr><td><code>+QMTOPEN: 0,3</code></td>
+                    <td>Aktivasi PDP gagal — jalankan dulu <code>AT+QIACT=1</code> (halaman TCP/IP) lalu ulangi</td></tr>
+                <tr><td>Sudah berlangganan tetapi tak menerima pesan kiriman sendiri</td>
+                    <td>Halaman sempat di-refresh di tengah jalan — sufiks berganti set, modul pun putus daya dan boot ulang.
+                        Ulangi satu putaran alur dalam siklus hidup halaman yang sama</td></tr>
+                <tr><td>Menerima pesan yang bukan kiriman sendiri</td>
+                    <td>Polusi topik broker publik (mosquitto paling parah). Topik default sudah bersufiks acak;
+                        untuk topik kustom, pilih nama yang unik</td></tr>
+                <tr><td>Saat menerbitkan dalam jumlah besar, sebagian pesan hilang</td>
+                    <td>emqx membatasi laju penerbitan (hasil uji: banjir 100 hanya sampai 40) —
+                        ganti ke mqttgo.io atau hivemq (100/100 tanpa pembatasan)</td></tr>
+                <tr><td>URC hasil tak kunjung datang meski lama ditunggu</td>
+                    <td>Keluarga perintah ini memang lambat: <code>QMTOPEN</code> maksimum 120 detik,
+                        <code>QMTCONN</code> / <code>QMTSUB</code> / <code>QMTPUBEX</code> maksimum 600 detik
+                        (PUBEX = timeout paket 60 detik × 10 kali coba ulang); keterangan tombol sudah menandainya — bukan hang</td></tr>
+            </table>
+
+            <h3 id="tab-wifi">WiFiScan — Pemindaian Wi-Fi dan Penentuan Posisi Jaringan</h3>
+            <p><strong>Cara kerja:</strong> EG800K adalah modul LTE, <strong>tanpa kemampuan internet Wi-Fi</strong>,
+            tetapi punya penerima Wi-Fi bawaan yang "hanya memindai tanpa menyambung": secara pasif menerima frame beacon
+            yang disiarkan hotspot 2.4GHz di sekitar, lalu melaporkan alamat MAC (BSSID), RSSI (kekuatan sinyal), dan kanal
+            setiap hotspot. Pemindaian adalah penerimaan RF murni, <strong>nol kuota data</strong>; ia sendiri tidak menghasilkan koordinat —
+            daftar MAC + RSSI harus dikirim ke basis data posisi hotspot di cloud untuk ditukar menjadi lintang-bujur;
+            inilah penentuan posisi jaringan yang <strong>bisa dipakai di dalam ruangan, tanpa bergantung satelit</strong>.
+            Semua angka dan perilaku pada bagian ini adalah nilai hasil uji nyata terhadap EG800K fisik pada Agustus 2026.</p>
+
+            <h4>Dua kelompok tombol halaman ini</h4>
+            <p>Paruh atas <strong>Wi-Fi Scan</strong> empat tombol (pemindaian murni), paruh bawah
+            <strong>QuecLocator (QLBS)</strong> tiga belas tombol (baca dulu paragraf kebenaran di belakang sebelum menekan):</p>
+            <table>
+                <tr><th>Tombol</th><th>Perintah</th><th>Fungsi dan poin hasil uji</th></tr>
+                <tr><td>Support?</td><td><code>AT+QWIFISCAN=?</code></td>
+                    <td>Menanyakan rentang parameter. Perangkat ini nyatanya membalas
+                        <code>(4000-255000),(1-3),(4-10),(0-255),(0-1)</code></td></tr>
+                <tr><td>Read Cfg</td><td><code>AT+QWIFISCAN?</code></td>
+                    <td>Membaca parameter kini. Nilai pabrik perangkat ini <code>12000,1,5,5,0</code> =
+                        batas waktu 12 detik, 1 putaran, hotspot maksimum 5, timeout RRC 5 detik, prioritas 0</td></tr>
+                <tr><td>Scan</td><td><code>AT+QWIFISCAN</code></td>
+                    <td>Memindai sekali dengan parameter kini. Hasilnya dilaporkan <strong>asinkron</strong> setelah <code>OK</code>,
+                        menunggu maksimum 13 detik</td></tr>
+                <tr><td>Scan (custom)</td><td>Kartu parameter</td>
+                    <td>Memindai setelah mengatur sendiri batas waktu (milidetik) / jumlah putaran / hotspot maksimum / timeout RRC / prioritas</td></tr>
+            </table>
+            <figure class="shot">
+                <img src="img/01-wifiscan-qlbs.png" alt="Tab WiFiScan dan kelompok QuecLocator">
+                <figcaption>Halaman WiFiScan: empat tombol pemindaian dan kelompok QuecLocator (QLBS).</figcaption>
+            </figure>
+
+            <h4>Pemindaian pertama: cara menekannya, apa yang akan terlihat</h4>
+            <ol>
+                <li><strong>Jalankan ritual boot</strong> (lihat bagian "Ritual Boot").</li>
+                <li><strong>Pastikan URC lewat UART</strong>: <code>AT+QURCCFG="urcport"</code> harus membalas
+                    <code>"uart1"</code>. Nilai pabriknya <code>"usbat"</code> —
+                    seluruh hasil pemindaian dikirim ke port USB; di sini hanya terlihat <code>OK</code>,
+                    bahkan TIMEOUT pun tak kunjung datang (setelan ditulis ke NVRAM, cukup diubah sekali).</li>
+                <li><strong>Tekan <code>Scan</code></strong>: modul membalas <code>OK</code> dulu,
+                    yang berarti "pemindaian dimulai", <strong>bukan hasil</strong>. Dalam beberapa detik (paling lama sampai batas waktu pemindaian)
+                    hasil dilaporkan baris demi baris, tiap baris beranotasi otomatis (MAC / RSSI / kanal).</li>
+            </ol>
+
+            <h4>Membaca hasil pemindaian</h4>
+            <p>Laporan hasil uji tampak seperti ini (2026-08-29, terpindai 7 hotspot, RSSI -37 ~ -89 dBm):</p>
+            <pre>+QWIFISCAN: (-,-,-37,"C2:28:35:00:00:01",1)
++QWIFISCAN: (-,-,-46,"10:71:B3:00:00:02",4)
++QWIFISCAN: (-,-,-88,"A8:A2:37:00:00:03",6)</pre>
+            <p>Urutan kolomnya <code>(ecn, ssid, rssi, mac, channel)</code>.
+            <strong>Firmware perangkat ini selalu membalas <code>-</code> untuk ecn dan ssid</strong> (hasil uji 2026-08-02),
+            sehingga dari daftar tak terlihat "ini Wi-Fi milik siapa" —
+            untuk penentuan posisi justru pas: yang dimakan basis data memang MAC + RSSI.
+            Intuisi RSSI: -30 ~ -50 sangat dekat, -60 ~ -75 biasa, di bawah -80 sangat lemah.</p>
+            <p>Bila dalam batas waktu tak satu pun hotspot terpindai, balasannya <code>+QWIFISCAN:TIMEOUT</code> —
+            <strong>penyelesaian normal, bukan error</strong> (tanpa spasi setelah titik dua; parser alat ini sudah menanganinya).
+            Ingin memindai lebih banyak: lewat kartu parameter naikkan hotspot maksimum dari nilai pabrik 5 (batas perangkat ini 10),
+            dan setel putaran ke 2-3 (hasil uji: hasil lintas putaran dideduplikasi).</p>
+            <div class="warning">
+                <strong>Tidak semua hotspot terpindai bisa dipakai untuk penentuan posisi.</strong> Hasil uji 2026-08-29: dari 7 hotspot,
+                4 di antaranya "alamat kelola lokal" (berawalan <code>C2:</code> / <code>62:</code> / <code>9E:</code>,
+                bit 0x02 pada byte pertama bernilai 1 — BSSID virtual dari kloning multi-SSID);
+                <strong>basis data penentuan posisi biasanya langsung mengabaikan alamat semacam ini</strong>,
+                sehingga bahan yang benar-benar terpakai tinggal 3 alamat global.
+            </div>
+            <div class="warning">
+                <strong>Rentang parameter di dokumen aplikasi V1.2 salah untuk perangkat ini.</strong>
+                Dokumen melonggarkan putaran ke 1-6 dan hotspot maksimum ke 4-30, tetapi rentang yang nyatanya dibalas firmware perangkat ini tetap
+                <strong>putaran 1-3, hotspot maksimum 4-10</strong> (hasil uji 2026-08-06).
+                Jadikan balasan nyata <code>Support?</code> patokan; jangan menyalin angka dokumen.
+            </div>
+
+            <h4>Kelompok tombol QuecLocator (QLBS): lihat dulu kebenarannya sebelum menekan</h4>
+            <p>QuecLocator adalah layanan penentuan posisi cloud milik Quectel: <code>AT+QLBS</code> (tombol <code>Locate</code>)
+            satu perintah — firmware sendiri mengumpulkan bahan, mengirimnya ke server untuk dicari di basis data, lalu mengembalikan koordinat.
+            Tiga kenyataan:</p>
+            <ol>
+                <li><strong>Butuh token, dan ini layanan berbayar.</strong> Dokumen resmi menulis tegas harus menghubungi
+                    dukungan teknis Quectel untuk mengajukan (tanpa registrasi mandiri). Token perangkat ini kosong dari pabrik.</li>
+                <li><strong>Dari 16 dokumen resmi EG800K, tak satu pun menyebut QuecLocator.</strong>
+                    Dokumen aplikasi yang ada di tangan diperuntukkan EC200U / EG915U (sintaks dan kode error terbukti cocok lewat pengujian),
+                    bukan dokumen resmi perangkat ini.</li>
+                <li><strong>Proyek ini sudah memutuskan tidak memakainya</strong> (2026-08-29): logika penentuan posisi terkunci di dalam firmware;
+                    begitu layanannya tutup, seluruh perintah AT-nya langsung mati dan vendornya tak bisa ditukar
+                    (forum Quectel sudah mengonfirmasi seri BG95 berhenti didukung).
+                    Tombolnya dipertahankan hanya untuk "verifikasi sambil lalu bila mendapat token gratis".</li>
+            </ol>
+            <div class="warning">
+                <strong><code>+QLBS: 702</code> adalah "server timeout", bukan masalah token.</strong>
+                Proyek ini pernah salah memvonis 702 sebagai "tak punya token" selama tiga minggu penuh — kebenarannya: saat itu lupa
+                mengaktifkan PDP dulu, modul sama sekali tak bisa mencapai server, dan setelah timeout penuh (pabrik 60 detik) membalas 702.
+                Eksperimen pembanding 2026-08-29 (token kosong sepanjang proses):
+                PDP belum aktif membalas <code>702</code>; setelah aktif membalas <code>10002</code> (token tidak ada) —
+                <strong>server bisa dicapai dari Taiwan; yang kurang hanyalah token</strong>.
+                Sebelum mengirim <code>AT+QLBS</code>, wajib <code>AT+QIACT=1</code> dulu (memakan kuota).
+            </div>
+            <p>Ketujuh subitem setelan punya tombol query / setel masing-masing; <code>Cfg?</code> (<code>AT+QLBSCFG=?</code>)
+            sekali klik menampilkan semua rentangnya (nol kuota). Nilai pabrik perangkat ini dan poin hasil uji:</p>
+            <table>
+                <tr><th>Subitem (tombol)</th><th>Nilai pabrik</th><th>Poin hasil uji</th></tr>
+                <tr><td><code>token</code> (Set Token / Token?)</td><td>Kosong</td>
+                    <td>Pembacaan selalu disamarkan menjadi <code>*</code>; jalur penyetelannya terbukti berfungsi</td></tr>
+                <tr><td><code>server</code> (Server? / Set Server)</td>
+                    <td><code>www.queclocator.com:80</code></td><td>Alamat server penentuan posisi</td></tr>
+                <tr><td><code>timeout</code> (Timeout? / Set Timeout)</td><td>60 detik</td>
+                    <td>Inilah timeout yang ditunggu si 702; rentang 10-120</td></tr>
+                <tr><td><code>asynch</code> (Async? / Set Async)</td><td>0</td>
+                    <td>Pengalih sinkron / asinkron</td></tr>
+                <tr><td><code>latorder</code> (LatOrder?)</td><td>0</td>
+                    <td>Urutan keluaran lintang-bujur. ⚠ Penyetelan memakai kunci huruf kecil, pembacaannya malah camelCase <code>latOrder</code></td></tr>
+                <tr><td><code>withtime</code> (WithTime?)</td><td>0</td>
+                    <td>Apakah balasan menyertakan waktu; nama kunci saat dibaca <code>withTime</code></td></tr>
+                <tr><td><code>timeupdate</code> (TimeUpd?)</td><td>0</td>
+                    <td>Apakah hasil penentuan posisi dipakai mengoreksi jam modul; nama kunci saat dibaca <code>timeUpdate</code></td></tr>
+            </table>
+            <p>Bila benar-benar mendapat token: isikan lewat <code>Set Token</code> → konfirmasi dengan <code>Token?</code>
+            (tampil <code>*</code>) → aktifkan PDP di halaman TCP/IP → <code>Locate</code>.</p>
+
+            <h4>Jalur alternatif: penentuan posisi jaringan tanpa token (hasil uji 71 meter)</h4>
+            <p>Penentuan posisi jaringan tak harus lewat QuecLocator. Jalur alternatif sudah tembus ujung-ke-ujung pada 2026-08-29:
+            modul hanya mengeluarkan bahan (halaman ini memindai hotspot, <code>AT+QENG="servingcell"</code> membaca BTS),
+            keluaran terminal disimpan lalu diserahkan ke <code>tools/wifi_geolocate.py</code> yang mencari basis data publik di sisi PC —
+            <strong>modul nol kuota, bebas layanan Quectel</strong>.
+            Hasil uji (dibandingkan nilai sejati GNSS hari yang sama): pencarian tabel BTS dengan Unwired Labs (registrasi gratis)
+            <strong>galat 71 meter</strong> (kesimpulan penutup jalur penentuan posisi ini), dengan beaconDB (bebas kunci) 632 meter;
+            pencarian tabel Wi-Fi tersangkut di vendor — ekosistem gratisnya sudah runtuh (beaconDB tak mencakup wilayah ini,
+            paket gratis Unwired Labs tak menyertakan Wi-Fi, Google / HERE mewajibkan kartu kredit), ditangguhkan.</p>
+            <div class="tip">
+                <strong>71 meter adalah "ketepatan pencarian tabel", bukan "presisi pengukuran".</strong>
+                Penentuan posisi BTS memakai Cell ID untuk mencari koordinat terdaftar BTS itu; cell yang sama selamanya mengembalikan titik yang sama —
+                berganti BTS, galatnya bisa berskala kilometer; ±1051 meter yang dilaporkan layanannya sendiri itulah estimasi yang jujur.
+                Selain itu Cell ID dan TAC berbasis <strong>heksadesimal</strong>;
+                sebelum mencari tabel wajib dikonversi ke desimal (perkakasnya sudah menangani ini).
+            </div>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td>Menekan <code>Scan</code> hanya membalas <code>OK</code>, hasil tak pernah muncul</td>
+                    <td>URC dikirim ke port USB — periksa dengan <code>AT+QURCCFG="urcport"</code>;
+                        bila bukan <code>"uart1"</code>, ubah (ditulis ke NVRAM)</td></tr>
+                <tr><td><code>+QWIFISCAN:TIMEOUT</code></td>
+                    <td>Tak ada hotspot terpindai dalam batas waktu; penyelesaian normal, bukan error. Pindah tempat atau perpanjang batas waktu</td></tr>
+                <tr><td><code>+QLBS: 702</code></td>
+                    <td>Server timeout — hampir selalu karena lupa <code>AT+QIACT=1</code>, bukan masalah token</td></tr>
+                <tr><td><code>+QLBS: 10002</code></td>
+                    <td>Token tidak ada — harus mengajukan berbayar ke Quectel; proyek ini sudah memutuskan tak memakainya,
+                        beralih ke jalur alternatif di atas</td></tr>
+                <tr><td>Ingin memakai <code>AT+QCELLLOC</code></td>
+                    <td>Perangkat ini <strong>tidak mendukungnya</strong> (membalas ERROR) — itu perintah seri EC2x</td></tr>
+            </table>
+
+            <h3 id="tab-ssl">SSL — Kanal TLS</h3>
+            <p><strong>Cara kerja:</strong> halaman SSL adalah <strong>lapisan bawah bersama</strong> koneksi terenkripsi —
+            SSL context yang disetel di sini beserta sertifikat yang diunggah dipakai bersama oleh SSL raw socket, MQTT over SSL,
+            dan HTTPS. Angka detik dan perilaku pada bagian ini adalah nilai hasil uji nyata terhadap EG800K fisik pada Agustus 2026.</p>
+
+            <h4>Koneksi TLS pertama: lima langkah</h4>
+            <ol>
+                <li><strong>Jalankan ritual boot</strong> (lihat bagian "Ritual Boot"), lalu tekan
+                    <code>AT+QIACT?</code> untuk memastikan kanal data — harus terbalas
+                    <code>+QIACT: 1,1,…,"IP"</code>; bila tidak, jalankan dulu <code>AT+QIACT=1</code>.</li>
+                <li><strong>Setel context</strong>: isi <code>sslversion</code> dengan 4 (semua versi,
+                    kompatibilitas terbaik), <code>ciphersuite</code> dengan 0XFFFF (semua suite),
+                    <code>seclevel</code> isi dulu 0 — pastikan dulu kanalnya tembus, verifikasi disimpan untuk nanti.</li>
+                <li><strong>Buka koneksi</strong>: tekan <code>AT+QSSLOPEN</code> (angka akhir 0), isi host dan port di kartu parameter.
+                    ⚠ <code>OK</code> hanya berarti "perintah diterima"; berhasil-gagalnya tunggu URC:
+                    <code>+QSSLOPEN: 4,0</code> barulah berhasil (hasil uji: handshake 2.0 detik).</li>
+                <li><strong>Kirim data</strong>: tekan <code>AT+QSSLSEND</code> (dua tahap) —
+                    setelah <code>&gt;</code> muncul, kirim isinya; <strong>begitu panjang yang dideklarasikan tercapai, otomatis terkirim,
+                    bebas Ctrl+Z</strong> (batas satu paket 1460 bytes). Balasan lawan muncul sebagai
+                    <code>+QSSLURC: "recv",4</code>.</li>
+                <li><strong>Baca kembali dan tutup</strong>: <code>AT+QSSLRECV</code> (batas sekali baca 1500);
+                    membaca sampai <code>+QSSLRECV: 0</code> berarti sudah bersih, bukan error.
+                    <code>AT+QSSLCLOSE=4</code> menutup (default menunggu maksimum 10 detik;
+                    tombol satunya bisa menentukan detik, 0 = seketika).</li>
+            </ol>
+            <pre>AT+QSSLOPEN=1,1,4,"tcpbin.com",4243,0
+OK
++QSSLOPEN: 4,0            ← 2.0 detik, 0 = berhasil
+AT+QSSLSEND=4,15
+&gt;
+NuModem-P5-SSL            ← Begitu 15 bytes tercapai, otomatis terkirim
+SEND OK
++QSSLURC: "recv",4        ← 0.4 detik
+AT+QSSLRECV=4,1500
++QSSLRECV: 15
+NuModem-P5-SSL
+AT+QSSLCLOSE=4</pre>
+            <p>Selama tersambung, tekan <code>AT+QSSLSTATE</code> untuk melihat semua koneksi (<code>=4</code>
+            menanyakan satu clientID; status 2 = tersambung). Perhatikan: <strong>port lokal selalu terbalas 0</strong> —
+            perilaku modul, bukan error.</p>
+            <figure class="shot">
+                <img src="img/05-ssl.png" alt="Tab SSL">
+                <figcaption>Halaman SSL: setelan context, unggah sertifikat UFS, koneksi, kirim-terima, penutupan.</figcaption>
+            </figure>
+
+            <h4>Tiga mode akses (angka akhir <code>AT+QSSLOPEN</code>)</h4>
+            <table>
+                <tr><th>Angka akhir</th><th>Perilaku</th></tr>
+                <tr><td>0 buffer</td><td>Saat data diterima hanya mengirim <code>+QSSLURC: "recv",&lt;id&gt;</code>;
+                    Anda sendiri yang membacanya lewat <code>AT+QSSLRECV</code></td></tr>
+                <tr><td>1 push langsung</td><td>URC menyertakan panjang dan <strong>datanya langsung dimuntahkan di baris berikutnya</strong>;
+                    ⚠ pada mode ini <code>AT+QSSLRECV</code> membalas ERROR itu normal</td></tr>
+                <tr><td>2 transparan</td><td>Seluruh port AT berubah menjadi kanal data (tombol halaman ini hanya menyediakan 0 dan 1)</td></tr>
+            </table>
+
+            <h4>Setelan context satu per satu</h4>
+            <p>Bila tak yakin subitem apa saja yang didukung firmware, tekan dulu <code>AT+QSSLCFG=?</code> —
+            hasil uji membalas 17 subitem, lebih banyak daripada yang tercantum di manual aplikasi. Subitem yang lazim dipakai
+            punya sepasang tombol setel dan query; hasil uji: nilai yang ditulis lalu dibaca kembali persis sama.</p>
+            <table>
+                <tr><th>Subitem</th><th>Pabrik</th><th>Fungsi dan poin hasil uji</th></tr>
+                <tr><td><code>sslversion</code></td><td>—</td><td>Versi protokol; 4 = mendukung semua</td></tr>
+                <tr><td><code>ciphersuite</code></td><td>—</td><td>Suite enkripsi; 0XFFFF = mendukung semua</td></tr>
+                <tr><td><code>seclevel</code></td><td>0</td><td>0 = tanpa verifikasi, 1 = memverifikasi server
+                    (harus mengunggah sertifikat CA dulu), 2 = autentikasi dua arah (butuh pula sertifikat klien + kunci privat)</td></tr>
+                <tr><td><code>cacert</code></td><td>—</td><td>Jalur sertifikat CA, format
+                    <code>"UFS:namafile"</code>; berkasnya harus sudah ada di UFS (lihat bagian berikut)</td></tr>
+                <tr><td><code>sni</code></td><td><strong>🔴 0</strong></td>
+                    <td>Wajib dinyalakan untuk virtual host / CDN — saat satu IP menampung banyak domain, tanpa mengirim SNI
+                    Anda mendapat sertifikat yang tak cocok dan verifikasi pasti gagal 566</td></tr>
+                <tr><td><code>ignorelocaltime</code></td><td><strong>🔴 1</strong></td>
+                    <td><strong>Dari pabrik, meski seclevel 1 dinyalakan, masa berlaku sertifikat tetap tak diperiksa</strong>.
+                    Untuk memeriksanya setel 0, dan jam modul harus benar</td></tr>
+                <tr><td><code>negotiatetime</code></td><td>300</td>
+                    <td>Detik tunggu maksimum handshake TLS (10–300)</td></tr>
+            </table>
+            <div class="warning">
+                <strong>🔴 Tiga nilai default pabrik dijumlahkan = sama sekali tak memverifikasi sertifikat</strong>
+                (seclevel 0, sni 0, ignorelocaltime 1); untuk verifikasi sungguhan, ketiganya harus disetel benar.
+                Dan ketiga setelan ini bersama <code>cacert</code> <strong>tidak tersimpan melintasi boot ulang</strong>
+                (terkonfirmasi lewat pengujian); setiap boot kembali ke nilai pabrik; sedangkan berkas sertifikat di UFS tak hilang saat daya putus.
+            </div>
+
+            <h4>Kelompok berkas UFS: bagaimana sertifikat masuk ke modul</h4>
+            <p>UFS adalah penyimpanan flash bawaan modul; hasil uji: kapasitas total <strong>280 KB</strong>, tiap berkas memakai satu
+            blok 4 KB. Sertifikat harus diunggah ke sini dulu agar <code>cacert</code> punya berkas untuk ditunjuk.
+            <strong>Unggahan lewat UART, nol kuota data</strong>; berkas biner pun bisa masuk.
+            <strong>Kartu Upload</strong>: setelah memilih berkas, nama dan ukurannya terisi otomatis; setelah dikirim, alat ini menunggu modul membalas
+            <code>CONNECT</code> baru mengirim byte mentah (bila tak kunjung datang, tidak dikirim). Saat selesai,
+            <strong>mesin anotasi otomatis membandingkan</strong> ukuran dan checksum yang dilaporkan modul:
+            ✅ = utuh tanpa cacat, ❌ = rusak saat transfer — hapus dulu lalu unggah ulang.</p>
+            <pre>AT+QFUPL="badssl-root.pem",1939,10
+CONNECT                   ← Lanjutkan dengan mengirim 1939 bytes
++QFUPL: 1939,4f64         ← Ukuran diterima,checksum; anotasi membandingkan otomatis ✅</pre>
+            <table>
+                <tr><th>Tombol</th><th>Kegunaan</th></tr>
+                <tr><td><code>AT+QFLST</code></td><td>Menampilkan semua berkas UFS beserta ukurannya —
+                    pakai untuk verifikasi setelah mengunggah (nol kuota)</td></tr>
+                <tr><td><code>AT+QFLDS="UFS"</code></td><td>Menanyakan sisa / total ruang dalam bytes (nol kuota)</td></tr>
+                <tr><td><code>AT+QFDEL</code></td><td>Menghapus berkas tertentu (<code>*</code> = semua);
+                    berkas bernama sama yang tak dihapus dulu akan memblokir unggahan ulang</td></tr>
+            </table>
+            <div class="tip">
+                <strong>Dua perilaku hasil uji yang tak dijelaskan manual:</strong> (1) bentuk kode error FILE tak konsisten —
+                unggah ulang nama sama membalas teks <code>file already exist</code>, timeout membalas angka <code>421</code>;
+                alat ini bisa membaca keduanya; (2) bila kolom ukuran diisi lebih besar dari kenyataan, setelah timeout modul
+                <strong>tetap menyimpan isi yang benar-benar diterima</strong> — pembandingan checksum akan menangkapnya.
+            </div>
+
+            <h4>Praktik verifikasi sertifikat: metode uji berpasangan</h4>
+            <p>Alurnya: unggah sertifikat akar → arahkan <code>cacert</code> ke sana → <code>seclevel</code> 1 →
+            <code>sni</code> 1 → sambungkan ke 443 target. <strong>Yang diunggah adalah sertifikat akar di puncak rantai sertifikat</strong>
+            (rantai badssl.com berlapis empat; unggah ISRG Root X1 yang paling atas).
+            <strong>Hanya menguji "sertifikat buruk tak bisa tersambung" tidaklah cukup</strong> — "semuanya tak bisa tersambung" pun akan lolos.
+            Ujilah berpasangan: sertifikat baik tersambung, sertifikat buruk tak tersambung,
+            <strong>kedua arah harus terpenuhi barulah sah</strong>. Hasil uji pembanding 2×5:</p>
+            <table>
+                <tr><th>Host</th><th>seclevel 0</th><th>seclevel 1</th></tr>
+                <tr><td>badssl.com (pembanding positif)</td><td>Tersambung</td>
+                    <td><strong>Tersambung</strong> <code>4,0</code></td></tr>
+                <tr><td>expired (kedaluwarsa)</td><td>Tersambung</td><td>Ditolak 566</td></tr>
+                <tr><td>self-signed (tanda tangan sendiri)</td><td>Tersambung</td><td>Ditolak 566</td></tr>
+                <tr><td>wrong.host (nama host tak cocok)</td><td>Tersambung</td><td>Ditolak 566</td></tr>
+                <tr><td>untrusted-root (akar tak dipercaya)</td><td>Tersambung</td><td>Ditolak 566</td></tr>
+            </table>
+            <p>Batasan: <strong>keempat jenis kesalahan sertifikat semuanya membalas 566; modul tidak membedakan</strong> yang mana.
+            <code>AT+QIGETERROR</code> pun tak membantu — ia mengurus lapisan TCP/IP,
+            dan pada saat itu hanya membalas <code>0,operate successfully</code>.</p>
+            <div class="tip">
+                Untuk butir uji negatif, hindari expired — <code>ignorelocaltime</code> pabrik bernilai 1, sehingga kedaluwarsa itu sendiri
+                takkan diblokir (di tabel atas ia diblokir karena sekaligus tidak berada di bawah akar yang diunggah); untuk uji tunggal pakai wrong.host.
+                Selain itu <strong>perhatikan kuota</strong>: setiap handshake mengunduh rantai sertifikat lengkap, gagal pun tetap dibayar;
+                hasil uji: 30 kali handshake sekitar 150–200 KB.
+            </div>
+
+            <h4>🔴 Jebakan: setelah sekitar 20 kali buka-tutup beruntun, stack data terdegradasi seluruhnya</h4>
+            <div class="warning">
+                <strong>Gejala: semua <code>AT+QSSLOPEN</code> membalas 552</strong>, bahkan seclevel 0 pun tak bisa tersambung,
+                padahal semua swaperiksa bilang baik-baik saja. <strong>Pembedaan 30 detik</strong>: pakai
+                <code>AT+QIOPEN</code> TCP murni menembak target yang sama — ikut gagal berarti stack data rusak; jangan lagi memeriksa
+                setelan SSL. Restart PDP tak menyelamatkan; <strong>hanya ritual boot lengkap yang memulihkan</strong>.
+                Degradasi mencemari data pengujian dan mudah disalahvonis sebagai "diblokir verifikasi sertifikat" —
+                sebelum melakukan uji berpasangan, boot ulang dulu agar bersih.
+            </div>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td><code>+QSSLOPEN: 4,566</code></td>
+                    <td>Verifikasi sertifikat gagal. Periksa berurutan: <code>sni</code> sudah menyala belum (paling sering),
+                        akar pada <code>cacert</code> benar atau tidak, sertifikatnya sendiri rusak;
+                        ketiga setelan itu kembali nol saat boot ulang</td></tr>
+                <tr><td>Setelah <code>OK</code> tak ada kelanjutan</td>
+                    <td><code>OK</code> hanya berarti diterima; hasilnya lewat URC, menunggu paling lama
+                        150 detik + <code>negotiatetime</code></td></tr>
+                <tr><td>Port AT tersangkut, tak menggubris perintah apa pun</td>
+                    <td>Panjang <code>AT+QSSLSEND</code> salah hitung, tersangkut di mode data dan menelan perintah —
+                        kirim ESC (0x1B) lewat tombol byte mentah halaman Hardware untuk lolos</td></tr>
+            </table>
+
+            <h3 id="tab-http">HTTP — Permintaan Web</h3>
+            <p><strong>Cara kerja:</strong> HTTP pada modul ini <strong>tiga babak</strong>:
+            setel dulu URL (langkah ini sendiri lagi-lagi dua tahap), lalu kirim permintaan (GET / POST), terakhir baca kembali balasannya.
+            Hasil tiap babak tidak berada di dalam <code>OK</code>, melainkan pada URC yang datang kemudian —
+            karena itu <code>AT+QURCCFG="urcport"</code> wajib <code>"uart1"</code> (bisa diubah di halaman Hardware),
+            kalau tidak, tak satu pun hasil akan terlihat. Datanya semua hasil uji perangkat nyata 2026-08.</p>
+
+            <h4>Sebelum mulai: pastikan ada kanal data</h4>
+            <p>Prasyaratnya PDP sudah aktif dan mendapat IP (<code>AT+QIACT=1</code> di halaman TCP/IP).
+            <strong>Kelompok Connect</strong> halaman ini hanya menaruh pemeriksaan baca-saja:
+            <code>AT+CPIN?</code> / <code>AT+CGATT?</code> / <code>AT+CGREG?</code> /
+            <code>AT+QIACT?</code>, <code>AT+QIDNSCFG=1</code> (DNS 0.0.0.0 = belum terjatah),
+            <code>AT+QIGETERROR</code> (⚠ hanya berlaku untuk perintah TCP/IP terakhir;
+            begitu gagal, tekan <strong>segera</strong>).</p>
+            <div class="warning">
+                <strong><code>AT+QIACT?</code> bisa menipu.</strong> Pengujian pernah mengalami PDP hanyut di tengah jalan:
+                semua permintaan gagal, <strong>timeout tetap 30 detik</strong> membalas error 716,
+                tetapi <code>AT+QIACT?</code> tetap saja membalas IP. Silangkan dengan <code>AT+CGACT?</code>;
+                bila tak konsisten berarti hanyut. Perbaikannya: <code>AT+QIDEACT=1</code> →
+                <code>AT+CGACT=0,&lt;cid yang hanyut&gt;</code> → <code>AT+QIACT=1</code>,
+                lolos ping dulu baru lanjut.
+            </div>
+
+            <h4>GET pertama: empat langkah</h4>
+            <ol>
+                <li><strong>Setelan awal</strong> (kelompok Config, nol kuota): kartu parameter <code>contextid</code>
+                    disetel 1 (mengikat PDP context yang akan dipakai); tiga sakelar <code>rspout/auto</code>,
+                    <code>requestheader</code>, <code>responseheader</code> tetap 0
+                    (alasannya lihat belakang); <code>AT+QHTTPCFG?</code> membaca kembali semua setelan sekaligus untuk dicek,
+                    <code>AT+QHTTPCFG=?</code> menampilkan butir yang bisa disetel.</li>
+                <li><strong>Setel URL (dua tahap)</strong>: kartu <code>AT+QHTTPURL</code> hanya punya satu tombol
+                    "Kirim (dua tahap)" — Anda mengisi URL, panjangnya dihitung otomatis oleh program. Alurnya: kirim dulu
+                    <code>AT+QHTTPURL=&lt;panjang&gt;,80</code>, tunggu <code>CONNECT</code>
+                    masuk mode data, lalu kirim byte URL apa adanya, <strong>tanpa akhir baris apa pun</strong>
+                    (CR/LF akan terhitung ke panjang).
+                    <code>http://www.example.com/</code> panjangnya tepat 23. Selesai mengirim, tekan
+                    <code>AT+QHTTPURL?</code> untuk membaca kembali; sama huruf demi huruf = akhir baris tak menyusup.</li>
+                <li><strong>Kirim permintaan</strong>: <code>AT+QHTTPGET=80</code> (detik menunggu balasan).
+                    <code>OK</code> hanya berarti "perintah diterima"; hasil sesungguhnya adalah URC yang datang kemudian
+                    <code>+QHTTPGET: 0,200</code>, cara membacanya lihat paragraf berikut.</li>
+                <li><strong>Baca balasan</strong>: <code>AT+QHTTPREAD=80</code>.
+                    Setelah <code>CONNECT</code> semuanya byte mentah (hasil uji example.com:
+                    559 bytes), disusul <code>OK</code> —
+                    tetapi <strong><code>+QHTTPREAD: 0</code> pada satu baris tersendiri di akhirlah penanda selesainya</strong>.</li>
+            </ol>
+            <figure class="shot">
+                <img src="img/11-http.png" alt="Tab HTTP">
+                <figcaption>Halaman HTTP: empat kelompok Config / Connect / Transfer / Close.</figcaption>
+            </figure>
+
+            <h4>Membaca +QHTTPGET: kolom pertama bukan kode status HTTP</h4>
+            <p>URC hasil GET / POST / POSTFILE semuanya tiga kolom
+            <code>&lt;err&gt;,&lt;httprspcode&gt;,&lt;content_length&gt;</code>:
+            <code>err</code> <strong>0 = perintah berhasil dieksekusi</strong>, bukan 0 adalah error lapisan modul (716, 711…);
+            <code>httprspcode</code> adalah kode status HTTP, <strong>hanya dilaporkan saat err=0</strong>
+            (manual menulisnya tegas; alat ini menyertakan anotasi rujukan 200 / 403 / 404 / 409 / 411 / 500);
+            <code>content_length</code> opsional — hanya ada bila header balasan server memuat CONTENT-LENGTH;
+            GET biasa sering hanya dua kolom. Maka <code>+QHTTPGET: 0,404,0</code> hasil uji
+            <strong>bukan kegagalan</strong>: perintahnya berhasil; servernyalah yang bilang tidak ditemukan.</p>
+
+            <h4>Membaca balasan: jebakan AT+QHTTPREAD</h4>
+            <p>Parameternya adalah "detik jeda maksimum antara dua paket data", bukan durasi total.
+            <strong>Firmware perangkat ini hanya menerima satu parameter</strong>: cara baca bertahap
+            <code>=&lt;wait&gt;,&lt;read_len&gt;</code> dari dokumen aplikasi nyatanya membalas
+            <code>ERROR</code> telanjang (dibuktikan lewat probing <code>=?</code>); tombolnya sudah dihapus —
+            untuk pengambilan bertahap pakai <code>GETEX</code>.</p>
+            <div class="warning">
+                <strong>Jebakan saling kunci: begitu <code>rspout/auto</code> disetel 1, semua keluarga READ gagal</strong>
+                (manual menulisnya tegas). Ia membuat modul otomatis memuntahkan balasan, dengan harga seluruh keluarga READ tumbang;
+                itulah sebabnya tombol ini berdialog konfirmasi. Bila READ mendadak tumbang semua, periksa dulu <code>AT+QHTTPCFG?</code>.
+            </div>
+
+            <h4>Pengambilan bertahap: AT+QHTTPGETEX membaca byte demi byte</h4>
+            <p><code>AT+QHTTPGETEX=&lt;detik&gt;,&lt;offset awal&gt;,&lt;panjang&gt;</code>
+            memakai HTTP Range untuk mengambil hanya potongan tertentu, hemat kuota. Hasil uji (isi endpoint dipatok
+            <code>abcdefghijklmnop</code>): offset 0 ambil 8 membalas <code>+QHTTPGET: 0,206,8</code>,
+            terbaca <code>abcdefgh</code>; offset 8 ambil 8 lagi terbaca <code>ijklmnop</code>.
+            Cara membacanya: <strong>kode status wajib 206</strong>; bila membalas <strong>200 dan isinya sama setiap kali</strong>
+            = server tak mendukung Range, bukan modulnya rusak.
+            ⚠ Hanya bisa dieksekusi saat <code>requestheader=0</code>.</p>
+
+            <h4>POST: dua tahap dan Content-Type</h4>
+            <p>Kartu <code>AT+QHTTPPOST</code> juga dua tahap: Anda mengisi body, panjang dihitung otomatis; kirim dulu
+            <code>AT+QHTTPPOST=&lt;panjang&gt;,&lt;detik input&gt;,&lt;detik balasan&gt;</code>,
+            tunggu <code>CONNECT</code> baru kirim body. Tiga hal:</p>
+            <ul>
+                <li><strong><code>CONNECT</code> bisa menunggu sampai 125 detik</strong> (manual menulisnya tegas) —
+                    timeout menunggu prompt harus disetel penuh 125 detik; jangan mewarisi 5 detik milik MQTT.</li>
+                <li>Batas body 1 MB (rentang hasil uji <code>=?</code>: 1–1024000).</li>
+                <li>Setel dulu Content-Type lewat kartu parameter <code>contenttype</code>
+                    (kode tipe 0 = form-urlencoded).</li>
+            </ul>
+            <p>Hasil uji: POST <code>Message=HelloQuectel</code> (20 bytes) membalas
+            <code>+QHTTPPOST: 0,200,440</code>; JSON yang dibalas READ membuktikan pasangan kunci-nilai sampai,
+            panjang terhitung benar, Content-Type berlaku, dan User-Agent yang dilaporkan modul sendiri adalah
+            <code>QUECTEL_MODULE</code>.</p>
+
+            <h4>Header kustom dan header balasan</h4>
+            <ul>
+                <li><code>reqheader/add</code>: menambah satu header permintaan kustom (manual tak memberi contoh);
+                    tombol query bisa melihat sudah berapa yang ditambahkan; <code>reqheader/remove</code> menghapusnya.</li>
+                <li><code>requestheader</code> disetel 1 = seluruh header permintaan dirakit sendiri, bahkan GET pun berubah dua tahap,
+                    dan <code>GETEX</code> tak bisa dipakai. Sehari-hari pertahankan 0.</li>
+                <li>Setelah <code>responseheader</code> disetel 1, READ ikut memuntahkan header balasan HTTP
+                    (hasil uji: bahkan X-Test kustom pun terbawa pulang). Selesai menguji, kembalikan ke 0.</li>
+                <li><code>closed/ind</code>: menyalakan pelaporan URC "session ditutup".</li>
+            </ul>
+
+            <h4>Versi berkas: POSTFILE dan READFILE (UFS)</h4>
+            <p><code>AT+QHTTPPOSTFILE="namafile",&lt;detik&gt;</code> mengirim POST dengan berkas di sistem berkas modul (UFS)
+            sebagai body; <code>AT+QHTTPREADFILE="namafile",&lt;detik&gt;</code> menyimpan balasan sebagai
+            berkas UFS. ⚠ Alat ini saat ini <strong>belum bisa mengunggah berkas ke UFS lebih dulu, dan tak bisa membaca kembali isi
+            berkas UFS</strong>; kedua perintah ini disediakan untuk dipadukan dengan alur di sisi firmware.</p>
+
+            <h4>HTTPS: jalur tanpa verifikasi</h4>
+            <p>HTTPS = HTTP + SSL context. Kelompok Connect menyiapkan jalur terpendek; lima tombol ditekan berurutan:</p>
+            <pre>AT+QHTTPCFG="sslctxid",1           ← HTTP ditunjuk memakai SSL context 1
+AT+QSSLCFG="sslversion",1,4        ← Versi TLS diserahkan ke negosiasi server
+AT+QSSLCFG="ciphersuite",1,0XFFFF  ← Suite enkripsi dibuka semua
+AT+QSSLCFG="seclevel",1,0          ← Tidak memverifikasi sertifikat (lihat bawah)
+AT+QSSLCFG="sni",1,1               ← Nyalakan SNI (pabriknya 0!)</pre>
+            <p>Sesudahnya ganti URL berawalan <code>https://</code> lalu GET / READ seperti biasa —
+            hasil uji: HTML yang terbaca sama huruf demi huruf dengan versi teks polos.
+            <strong><code>seclevel=0</code> (tanpa verifikasi sertifikat) adalah satu-satunya jalur yang bisa dituntaskan alat ini</strong>
+            — untuk memverifikasi sertifikat, sertifikat CA harus ditulis dulu ke UFS; detail SSL (<code>AT+QSSLCFG=?</code>
+            menampilkan semua subitem, <code>negotiatetime</code> mengatur detik tunggu handshake) lihat bagian "SSL — Kanal TLS".
+            <strong>SNI dari pabrik bernilai 0</strong>: tanpa dinyalakan, situs HTTPS ber-IP bersama mendapat sertifikat tak cocok
+            dan verifikasi langsung gagal. <strong>Rantai sertifikat adalah pemakan kuota terbesar</strong>: satu putaran HTTPS GET
+            sekitar 8–15 KB, teks polos hanya sekitar 1 KB.</p>
+
+            <h4>Pengalihan dan penutupan</h4>
+            <p><strong>Pengalihan (manual tak menulisnya; dijernihkan lewat pengujian)</strong>: modul otomatis mengikuti 302, tetapi
+            <strong>hanya menerima Location berjalur absolut</strong> — jalur relatif langsung membalas error 711,
+            gagal seketika dalam 1 milidetik. <strong>Penutupan</strong>:
+            <code>AT+QHTTPSTOP</code> (kelompok Close) membatalkan permintaan yang sedang berjalan dan memutus session;
+            saat status terasa aneh, atau muncul error 704 (mode data sedang terpakai), tekan dulu tombol ini agar bersih.</p>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td>Tak terlihat URC hasil apa pun</td><td><code>urcport</code> bukan <code>uart1</code>;
+                    ubah di halaman Hardware</td></tr>
+                <tr><td>Semua URL 716, timeout tetap 30 detik</td>
+                    <td>PDP hanyut, lihat peringatan di atas</td></tr>
+                <tr><td>Satu URL tertentu membalas 716</td><td>Hasil uji: DNS gagal pun 716 (bukan
+                    714 seperti tebakan dokumen lama); READ yang menyusul membalas 705 adalah rentetan yang normal</td></tr>
+                <tr><td><code>READ</code> / <code>GETEX</code> mendadak gagal</td>
+                    <td><code>rspout/auto</code> dan <code>requestheader</code>
+                        keduanya harus 0 (lihat di atas)</td></tr>
+                <tr><td><code>AT</code> pun tak dibalas</td>
+                    <td>Modul hang (pernah dialami dalam pengujian; manual tak mendeskripsikannya) — jalankan ulang ritual boot</td></tr>
+            </table>
+
+            <h3 id="tab-ftp">FTP — Transfer Berkas</h3>
+            <p><strong>Cara kerja:</strong> FTP punya <strong>dua kanal</strong>: kanal kendali membawa perintah,
+            kanal data membawa isi berkas. Login, ganti nama, hapus, dan cek ukuran hanya lewat kanal kendali;
+            LIST, unggah, dan unduh harus <strong>membuka satu koneksi data terpisah</strong> —
+            sebagian besar keanehan pada bagian ini (615, 603 bertubi-tubi) lahir dari sana.
+            Kaidah umum Quectel yang berlaku sepanjang bagian ini: <strong><code>OK</code> hanya berarti "perintah diterima"</strong>;
+            hasil sesungguhnya datang belakangan lewat URC. Balasan dan angka pada bagian ini semuanya nilai hasil uji nyata
+            terhadap EG800K fisik pada Agustus 2026.</p>
+
+            <h4>Sebelum mulai: dua prasyarat</h4>
+            <ul>
+                <li><strong>PDP harus aktif dulu</strong>: tombol pertama halaman ini <code>AT+QIACT?</code> memang untuk pemeriksaan ini —
+                    harus terbalas <code>+QIACT: 1,1,…,"IP"</code> baru boleh lanjut; bila hanya membalas OK, pergilah dulu ke halaman TCP/IP dan tekan
+                    Act PDP (saat PDP belum aktif, QFTPOPEN pasti gagal).</li>
+                <li><strong>URC harus lewat UART</strong>: perintah FTP hampir semuanya "OK dulu, hasil menyusul lewat URC";
+                    bila <code>AT+QURCCFG="urcport"</code> bukan <code>"uart1"</code>,
+                    di sini hanya terlihat setumpuk OK (penyetelannya lihat halaman Hardware).</li>
+            </ul>
+
+            <h4>Alur login: setel → buka → tunggu URC</h4>
+            <ol>
+                <li><strong>Ikat PDP context</strong>: <code>AT+QFTPCFG="contextid",1</code>
+                    (dari pabrik memang 1; tombol query bisa membacanya kembali untuk konfirmasi).</li>
+                <li><strong>Setel akun-sandi</strong>: <code>AT+QFTPCFG="account","akun","sandi"</code>,
+                    <strong>wajib disetel sebelum QFTPOPEN</strong>.</li>
+                <li><strong>Mode dan tipe</strong>: <code>transmode</code> disetel 1
+                    (pasif; di belakang NAT selalu pakai ini, wajib untuk FTPS);
+                    <code>filetype</code> berkas teks murni pakai 1, selainnya pakai 0.</li>
+                <li><strong>Login</strong>: <code>AT+QFTPOPEN="host",21</code> langsung membalas OK (baru diterima);
+                    tunggu <code>+QFTPOPEN: 0,0</code> barulah login berhasil (maksimum 125 detik).
+                    Lalu tekan <code>AT+QFTPSTAT</code>, seharusnya membalas 1 (menganggur; 2 = sedang transfer, 3 = sedang menutup).</li>
+            </ol>
+            <pre>AT+QFTPCFG="account","demo","password"
+AT+QFTPCFG="transmode",1
+AT+QFTPOPEN="test.rebex.net",21
+OK                ← Hanya berarti perintah diterima
++QFTPOPEN: 0,0    ← Baris inilah tanda login berhasil</pre>
+            <p>Butir setelan lainnya: <code>AT+QFTPCFG=?</code> sekali klik menampilkan seluruh 10 butir yang bisa disetel beserta rentangnya (nol kuota).
+            <code>rsptimeout</code> (20–180, default 90 detik) adalah waktu balasan maksimum kebanyakan perintah,
+            sekaligus jeda maksimum antara dua paket data dalam mode data; <code>ssltype</code> / <code>sslctxid</code> untuk
+            FTPS (FTP murni pertahankan 0; parameter SSL disetel di halaman SSL);
+            <code>data_address</code> / <code>cache</code> / <code>restenable</code>
+            adalah penyetelan halus untuk lingkungan khusus; kegunaannya lihat keterangan tiap tombol dan manual.</p>
+            <div class="tip">
+                <strong>Penyamaran sandi (hasil uji, tak sesuai manual):</strong> saat query <code>AT+QFTPCFG="account"</code>
+                dibaca kembali, sandinya disamarkan menjadi <code>*</code> (manual bilang dicetak apa adanya). Tetapi akunnya tetap teks polos,
+                dan <strong>sandi pada baris penyetelan pun teks polos</strong>; yang perlu diwaspadai saat tangkapan layar atau perekaman
+                adalah baris penyetelannya.
+            </div>
+            <div class="warning">
+                <strong>🔴 <code>AT+QFTPCLOSE</code> bersifat asinkron — <code>OK</code> bukan berarti sudah tertutup.</strong>
+                Tunggu <code>+QFTPCLOSE: 0,0</code> barulah logout selesai; selama itu <code>AT+QFTPSTAT</code>
+                membalas 3 (sedang menutup), dan perintah FTP apa pun <strong>selalu dibalas <code>+CME ERROR: 603</code></strong> (server sibuk).
+                <br><br>
+                Gejalanya sangat menyesatkan: rentetan 603 tampak seperti modul rusak atau diblokir server,
+                padahal hanya belum selesai menutup (pada hari pengujian sempat berputar-putar jauh karena ini). Batas tunggunya = rsptimeout.
+                Selain itu ia hanya logout dari FTP; untuk mereset jaringan sepenuhnya, tekan Deact PDP di halaman TCP/IP.
+            </div>
+
+            <h4>Manajemen direktori dan berkas: memakai server bak penjelajah berkas</h4>
+            <p>Satu set penuh operasi berkas sisi server (LIST / NLST / MLSD perlu membuka koneksi data, sisanya hanya lewat kanal kendali).
+            Balasan keberhasilan selalu <code>+QFTPXXX: 0,…</code> — angka pertama 0 berarti berhasil:</p>
+            <table>
+                <tr><th>Perintah</th><th>Yang dilakukan</th><th>Balasan berhasil (hasil uji)</th></tr>
+                <tr><td><code>AT+QFTPPWD</code></td><td>Menanyakan direktori kerja kini</td><td><code>+QFTPPWD: 0,"/"</code></td></tr>
+                <tr><td><code>AT+QFTPCWD</code></td><td>Berpindah direktori kerja; operasi berikutnya bertumpu padanya</td><td><code>+QFTPCWD: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPLIST</code></td><td>Daftar lengkap langsung dimuntahkan di terminal (dua tombol: direktori kini / direktori tertentu)</td><td>Setelah isinya <code>+QFTPLIST: 0,1175</code> (angka akhir = jumlah byte)</td></tr>
+                <tr><td><code>AT+QFTPNLST</code> / <code>AT+QFTPMLSD</code></td><td>Hanya nama berkas (hemat kuota) / format standar MLSD (mudah diparse)</td><td>Sama dengan LIST</td></tr>
+                <tr><td><code>AT+QFTPSIZE</code></td><td>Menanyakan ukuran berkas tanpa mengunduh isinya</td><td><code>+QFTPSIZE: 0,20</code></td></tr>
+                <tr><td><code>AT+QFTPMDTM</code></td><td>Menanyakan waktu ubah berkas tanpa mengunduh isinya</td><td><code>+QFTPMDTM: 0,"20260807141117"</code></td></tr>
+                <tr><td><code>AT+QFTPMKDIR</code> / <code>AT+QFTPRMDIR</code></td><td>Membuat / menghapus folder</td><td><code>…: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPRENAME</code></td><td>Mengganti nama berkas atau folder</td><td><code>+QFTPRENAME: 0,0</code></td></tr>
+                <tr><td><code>AT+QFTPDEL</code></td><td>Menghapus berkas</td><td><code>+QFTPDEL: 0,0</code></td></tr>
+            </table>
+            <p>Jurus (seluruh rangkaiannya lolos pengujian): <strong>jadikan SIZE pemeriksa keberadaan</strong> —
+            setelah ganti nama, menanyakan nama lama membalas <code>+QFTPSIZE: 627,550</code>, nama baru membalas <code>0,20</code>;
+            setelah dihapus, ditanya lagi kembali <code>627,550</code> — setiap langkah terverifikasi tanpa mengunduh satu byte pun.
+            <code>627,550</code> adalah <strong>kode error dua lapis</strong>: 627 = lapisan modul "FTP tidak menjalankan aksi yang diminta",
+            550 = lapisan protokol FTP, server membalas "berkas atau direktori tidak ada"; anotasi alat ini menerjemahkannya per lapis.</p>
+
+            <h4>Mengunduh: isi langsung dicetak di terminal (COM:)</h4>
+            <p><code>AT+QFTPGET="namafile","COM:"</code> — setelah <code>CONNECT</code>, isi berkas langsung dimuntahkan di terminal,
+            diakhiri <code>+QFTPGET: 0,&lt;jumlah byte&gt;</code> (hasil uji readme.txt membalas 0,379).
+            Tombol satunya, <strong>unduh per blok</strong>, membawa tambahan parameter titik awal dan panjang — cara mengunduh yang paling direkomendasikan:
+            tanyakan dulu ukurannya dengan SIZE, lalu ambil per blok, menghindari satu berkas utuh meledakkan kuota.
+            <code>AT+QFTPLEN</code> menanyakan berapa byte yang benar-benar ditransfer pada PUT / GET / LIST / NLST terakhir.</p>
+
+            <h4>Mengunggah: dua tahap; begitu panjang yang dideklarasikan terpenuhi, otomatis berakhir</h4>
+            <p><code>AT+QFTPPUT="namafile","COM:",0,&lt;panjang&gt;,1</code> adalah perintah dua tahap:
+            setelah <code>CONNECT</code> (masuk mode data), kirim byte sebanyak <strong>tepat</strong> panjang yang dideklarasikan;
+            begitu hitungan penuh, modul otomatis keluar dari mode data tanpa perlu mengirim Ctrl+Z. Alat ini menghitung panjang otomatis;
+            cukup tempel isinya di kartu parameter.</p>
+            <pre>AT+QFTPPUT="numodem-test.txt","COM:",0,20,1
+CONNECT                        ← Masuk mode data
+NuModem-P6-FTP-test\n          ← Kirim tepat 20 bytes
+OK
++QFTPPUT: 0,20                 ← Server menerima 20 bytes</pre>
+            <p>Ke-20 byte ini saat pengujian sengaja diambil kembali dari sisi host memakai Python ftplib lalu dibandingkan byte demi byte — cocok sempurna.
+            <strong>Bentuk transit UFS</strong>: manual juga mendukung nama berkas ditulis <code>"UFS:xxx"</code>,
+            bertransit lewat penyimpanan bawaan modul; detailnya lihat application note FTPS. Untuk menaruh berkas komputer ke UFS lebih dulu,
+            pakai tombol Upload di kelompok "berkas UFS" halaman SSL (<code>AT+QFUPL</code>, lewat UART nol kuota,
+            checksum dibandingkan otomatis).</p>
+            <div class="warning">
+                <strong>⚠ Bagi FTP, <code>+++</code> berarti "menghentikan", bukan "menjeda".</strong>
+                Manual (FTPS AN v1.5 hal.13) menulis bahwa setelah meloloskan diri, <code>ATO</code> bisa masuk kembali ke mode data
+                untuk melanjutkan transfer; <strong>pengujian membuktikan tidak demikian</strong> (diuji dua kali, hasilnya konsisten):
+                setelah lolos, <code>AT+QFTPSTAT</code> membalas 1 (menganggur) dan bukan 2 (sedang transfer),
+                <code>ATO</code> membalas <code>NO CARRIER</code> —
+                transfernya sudah dihentikan seluruhnya, tak ada koneksi yang bisa dipulihkan. Maka <code>+++</code> hanya bisa dipakai
+                meloloskan diri dari mode data yang lepas kendali, bukan menjeda unduhan berkas besar.
+                <br><br>
+                Cara mengirim yang benar: <strong>hening 1 detik sebelum dan sesudah, dikirim sebagai byte mentah, tanpa CR</strong>
+                (ditambah CR malah tak berlaku) —
+                tombol <code>+++</code> halaman ini sudah mengirim sesuai aturan itu; tombol <code>ATO</code> dipertahankan sesuai makna manual.
+            </div>
+            <figure class="shot">
+                <img src="img/06-ftp.png" alt="Tab FTP">
+                <figcaption>Halaman FTP: setelan login, manajemen direktori dan berkas, unggah-unduh.</figcaption>
+            </figure>
+
+            <h4>Pemecahan masalah</h4>
+            <table>
+                <tr><th>Gejala</th><th>Penyebab dan solusi</th></tr>
+                <tr><td><code>+CME ERROR: 603</code> bertubi-tubi</td>
+                    <td>① Setelah QFTPCLOSE masih dalam proses menutup (QFTPSTAT membalas 3) — tunggu <code>+QFTPCLOSE: 0,0</code>;
+                        ② sebelumnya pernah terjadi 615 — <strong>setelah 615, semua perintah FTP selalu 603</strong> sampai ditutup dengan benar</td></tr>
+                <tr><td><code>+CME ERROR: 615</code></td>
+                    <td>Gagal membuka koneksi data: <strong>kanal kendali normal, kanal data tumbang total</strong>
+                        (SIZE terbalas; PUT / GET / LIST roboh semua). Kebanyakan masalah di sisi server —
+                        dlptest gagal diuji dari dua jalur jaringan berbeda, rebex nol kegagalan sepanjang proses;
+                        untuk membaca pakai rebex, menulis barulah pakai dlptest dan selesaikan sekali jalan</td></tr>
+                <tr><td><code>627,550</code></td>
+                    <td>Berkas atau direktori tidak ada — nama atau jalurnya salah ketik; pastikan dulu posisi Anda dengan QFTPPWD / QFTPLIST</td></tr>
+                <tr><td>Setelah boot ulang, PUT pertama langsung 615</td>
+                    <td>Degradasi stack data: QFTPCLOSE maupun restart PDP tak menyelamatkan,
+                        <strong>hanya ritual boot lengkap yang memulihkan</strong>. Cara membedakannya: pakai
+                        <code>AT+QIOPEN</code> halaman TCP/IP menembak target yang sama — ikut gagal = seluruh stack rusak, jangan lagi memeriksa setelan FTP</td></tr>
+                <tr><td>Perintah membalas OK lalu tak terjadi apa-apa</td>
+                    <td>URC hasilnya lari ke port USB — periksa apakah <code>AT+QURCCFG="urcport"</code>
+                        sudah uart1</td></tr>
+                <tr><td><code>AT+QFTPOPEN</code> langsung gagal</td>
+                    <td>PDP belum aktif — tekan dulu <code>AT+QIACT?</code> di halaman ini; bila tak ada IP, ke halaman TCP/IP tekan Act PDP</td></tr>
+            </table>
+
+            </section>
+
+        <section id="method">
+            <h2><span class="icon">🧪</span> Metode Pengujian</h2>
+
+            <p>Bagian ini menulis "cara menguji agar tidak mendapat kesimpulan palsu". Semuanya dipelajari setelah benar-benar tersandung.</p>
+
+            <h3>OK hampir tidak pernah berarti selesai</h3>
+            <p>Modul semacam Quectel punya satu pola umum: <strong>membalas <code>OK</code> lebih dulu untuk menandakan perintah diterima,
+            sedangkan hasil sebenarnya datang lewat URC</strong>. Yang termasuk jenis ini adalah
+            <code>QIOPEN</code>, <code>QSSLOPEN</code>, <code>QMTOPEN</code>,
+            <code>QFTPOPEN</code>, <strong>dan yang paling mudah terlewat, <code>QFTPCLOSE</code></strong>.
+            Menganggap <code>OK</code> sebagai selesai lalu langsung melakukan aksi berikutnya adalah penyebab jalan memutar terbanyak di proyek ini.</p>
+
+            <h3>Tanpa kelompok kontrol jangan menarik kesimpulan</h3>
+            <p>Dua contoh nyata:</p>
+            <ul>
+                <li><strong>Verifikasi sertifikat</strong>: kalau hanya menguji "sertifikat buruk tidak bisa tersambung", maka "semuanya tidak bisa tersambung" pun akan lolos.
+                    Harus sekaligus dibuktikan bahwa sertifikat baik bisa tersambung.</li>
+                <li><strong>Akselerasi AGNSS</strong>: 7-2 "TTFF cold start" memang sudah menjadi kelompok kontrol bagi 7-4.
+                    Bila di dalam ruangan tanpa sinyal satelit, kedua sisi sama-sama tak bisa fix, sehingga pengujian hanya menghasilkan "keduanya gagal".</li>
+            </ul>
+
+            <h3>Jalankan pemeriksaan kesehatan di akhir setiap putaran uji</h3>
+            <p>Modul bisa mengalami degradasi. Setelah sekitar 20 kali buka-tutup koneksi beruntun,
+            ia masuk ke kondisi "kanal kontrol masih hidup, kanal data mati total" —
+            dan pada saat itu <code>QSSLSTATE</code> kosong, <code>QIACT?</code> punya IP,
+            <code>QIGETERROR</code> membalas 0, <strong>semuanya terlihat sepenuhnya normal</strong>.</p>
+            <p>Kondisi ini mencemari data pengujian. Dalam pengujian nyata hal ini pernah terjadi: selama masa degradasi, beberapa host juga tidak bisa tersambung meski verifikasi dimatikan,
+            dan nyaris disimpulkan sebagai hasil verifikasi sertifikat. <strong>Sebelum tiap putaran berakhir, verifikasi sekali dengan target yang diketahui pasti bisa tersambung</strong>,
+            barulah datanya dapat dipercaya.</p>
+            <div class="tip">
+                <strong>Cara membedakan: tembak target yang sama dengan <code>AT+QIOPEN</code> TCP murni.</strong>
+                Kalau ia juga gagal, berarti itu bukan masalah lapisan SSL / FTP, melainkan seluruh tumpukan data yang rusak.
+                <br>
+                Cara memulihkan: <strong>hanya ritual boot lengkap yang berhasil</strong>.
+                <code>QIDEACT</code> + <code>QIACT</code> tidak bisa menyelamatkannya.
+            </div>
+
+            <h3>Probing nol kuota: <code>AT+Q...=?</code></h3>
+            <p>Bentuk uji (<code>=?</code>) <strong>tidak menyentuh jaringan dan tidak memakan biaya</strong>,
+            lagi pula yang dibalasnya adalah rentang parameter yang benar-benar didukung firmware ini —
+            lebih dapat dipercaya daripada dokumen aplikasi, sebab dokumen itu dipakai bersama oleh satu seri penuh.
+            Proyek ini justru menangkap ketidakcocokan rentang parameter pemindaian Wi-Fi dengan manual lewat trik ini.</p>
+
+            <h3>Untuk membuktikan "benar-benar terkirim dengan benar", baca kembali dari pihak ketiga</h3>
+            <p><code>+QFTPPUT: 0,20</code> hanyalah laporan modul tentang dirinya sendiri bahwa ia mengirim 20 byte.
+            Pengujian yang dilakukan adalah mengambil kembali berkas itu dari sisi komputer dengan klien FTP lain lalu membandingkannya byte demi byte —
+            dengan begitu kemungkinan "modul salah hitung" dan "server menyimpan dengan rusak" sama-sama tersingkir.</p>
+
+            <h3>Kuota</h3>
+            <p><code>AT+QGDCNT?</code> membalas dua angka byte "terkirim,diterima".
+            ⚠ <strong>Penghitung ini tidak tersimpan di NV, dan kembali nol setiap kali modul di-boot ulang</strong>;
+            <code>AT+QAUGDCNT</code> bukan penghitung kumulatif, melainkan setelan "interval penyimpanan otomatis" (0 = dinonaktifkan).
+            Untuk mengakumulasi lintas tahap, <strong>setiap tahap harus dicatat saat itu juga</strong>, tidak bisa ditambal belakangan.</p>
+            <p>Angka rujukan: TLS handshake jauh lebih mahal daripada dugaan intuitif,
+            <strong>setiap handshake harus mengunduh rantai sertifikat lengkap, dan handshake yang gagal pun tetap dibayar</strong>.
+            Pengujian menunjukkan 11 kali handshake saja sudah menghabiskan TX 15,3 KB / RX 59,6 KB.</p>
+        </section>
+
+        <section id="faq">
+            <h2><span class="icon">❓</span> Pertanyaan Umum</h2>
+
+            <h3>T: Sudah menekan Sambung, tetapi daftarnya tidak berisi port apa pun</h3>
+            <p>Periksa tiga hal: (1) apakah dibuka dengan <code>file://</code> — Web Serial akan diblokir;
+            (2) apakah driver USB-UART sudah terpasang; (3) apakah browsernya Chrome / Edge / Opera.</p>
+
+            <h3>T: Perintah bisa terkirim, tetapi modul sama sekali tidak menjawab</h3>
+            <p>Sembilan dari sepuluh kasus adalah <strong>ritual boot belum dijalankan</strong>. Pada detik port serial tersambung, RTS akan ditarik naik kembali,
+            dan RTS pada papan ini adalah sakelar daya berlogika negatif — jadi tersambung sama dengan mati daya.
+            Pindah ke halaman Hardware, jalankan Power / Reset sekali, lalu tunggu <code>RDY</code>.</p>
+            <p>Kemungkinan berikutnya adalah <strong>akhir baris disetel ke LF</strong>. EG800K hanya menerima CR.</p>
+
+            <h3>T: Semua perintah membalas OK, tetapi URC sama sekali tidak masuk</h3>
+            <p>Kirim <code>AT+QURCCFG="urcport"</code>. Nilai pabriknya adalah <code>usbat</code>,
+            sehingga semua URC dikirim ke port USB. Ubah menjadi <code>uart1</code>; perintah ini menulis ke NVRAM jadi cukup disetel sekali.</p>
+
+            <h3>T: Terminal tersangkut, diketik apa pun tidak ada reaksi</h3>
+            <p>Kemungkinan besar Anda berada di dalam <strong>mode data</strong> — panjang pada salah satu perintah dua tahap salah dihitung,
+            dan modul masih menunggu Anda melengkapi jumlah byte-nya.
+            Loloskan diri dengan mengirim <strong>ESC (0x1B)</strong> lewat tombol byte mentah di halaman Hardware.
+            Untuk mode data FTP, kirim <code>+++</code> (hening 1 detik sebelum dan sesudah, tanpa CR).</p>
+
+            <h3>T: Terus-menerus membalas <code>+CME ERROR: 603</code></h3>
+            <p>Kalau baru saja mengirim <code>AT+QFTPCLOSE</code>, itu berarti <strong>penutupan belum selesai</strong>.
+            Tunggu <code>+QFTPCLOSE: 0,0</code> muncul baru lanjutkan.</p>
+
+            <h3>T: Semua koneksi gagal, tetapi <code>AT+QIACT?</code> menunjukkan IP masih ada</h3>
+            <p>Tumpukan data modul mengalami degradasi. Pastikan dengan menembak target yang diketahui pasti bisa tersambung memakai <code>AT+QIOPEN</code> TCP murni —
+            kalau itu pun gagal, <strong>jalankan ulang ritual boot lengkap</strong>.
+            <code>QIDEACT</code> + <code>QIACT</code> tidak bisa menyelamatkannya.</p>
+
+            <h3>T: Sudah mengirim data ke server echo tetapi tidak menerima gemanya</h3>
+            <p>Periksa apakah ujung payload ada <code>\n</code>. Banyak layanan echo bekerja <strong>per baris</strong>,
+            tanpa newline ia tidak akan mengirim balik. Cukup ketik dua karakter <code>\n</code> langsung di kolomnya,
+            alat ini akan mendekodenya menjadi newline sungguhan sebelum mengirim, dan panjangnya pun ikut terhitung benar.</p>
+
+            <h3>T: GNSS terus-menerus tidak bisa menentukan posisi</h3>
+            <p>Lihat dulu ada tidaknya satelit dengan <code>AT+QGPSGNMEA="GSV"</code>.
+            Di dalam ruangan biasanya tidak satu pun tertangkap, dan itu bukan masalah setelan, melainkan <strong>tidak ada pandangan ke langit</strong>.</p>
+
+            <h3>T: Bagaimana mengganti bahasa atau tema?</h3>
+            <p>Di kanan atas. Bahasa ada 18, tema ada dua set terang dan gelap, dan pilihannya akan diingat.
+            <strong>Keterangan dan anotasi AT command pun ikut diterjemahkan</strong>, bukan hanya antarmukanya.</p>
+
+            <h3>T: Apakah alat ini diam-diam memakai kuota saya?</h3>
+            <p>Tidak. Ia hanya satu berkas HTML murni sisi klien, tanpa backend.
+            Yang menimbulkan trafik seluler hanyalah <strong>perintah jenis data yang Anda tekan sendiri</strong>,
+            dan itu semua sudah ditulis jelas di keterangan tombolnya. Perintah jenis query dan jenis uji <code>=?</code> sama sekali tidak menyentuh jaringan.</p>
+        </section>
+
+        <footer class="footer">
+            <p>NuModem EG800 — dikembangkan oleh <a href="https://github.com/Nuxtack">Nuxtack</a></p>
+            <p>Semua deskripsi perilaku dalam panduan ini berasal dari pengujian nyata pada unit fisik EG800K
+            (firmware <code>EG800KCNGCR07A06M04</code>) pada Agustus 2026.</p>
+        </footer>
+    </main>
+
+    <a href="#" class="back-to-top" aria-label="Kembali ke atas">↑</a>

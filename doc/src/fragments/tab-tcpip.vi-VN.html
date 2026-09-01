@@ -1,0 +1,148 @@
+<h3 id="tab-tcpip">TCP/IP —— gốc rễ của kết nối dữ liệu</h3>
+            <p><strong>Nguyên lý hoạt động:</strong> trang này là nền móng của mọi giao thức dữ liệu. <strong>PDP context
+            (kênh dữ liệu do mạng di động cấp phát) chỉ được kích hoạt và hủy kích hoạt ở trang này</strong>, các trang SSL / HTTP / MQTT / FTP
+            chỉ đặt truy vấn chỉ đọc, tránh cùng một lệnh mà hai nơi giẫm chân nhau.
+            Các bẫy và con số giây trong mục này đều là đo thực tế trên máy thật tháng 8 năm 2026.</p>
+            <figure class="shot">
+                <img src="img/03-tcpip.png" alt="Tab TCP/IP">
+                <figcaption>Trang TCP/IP: PDP, thu phát socket và công cụ chẩn đoán.</figcaption>
+            </figure>
+
+            <h4>Bước một: kích hoạt PDP (QICSGP / QIACT / QIDEACT)</h4>
+            <p>Bấm <strong>Act PDP</strong> (<code>AT+QIACT=1</code>): chặn tối đa 150 giây,
+            trong lúc đó đừng gõ lệnh khác, từ đây bắt đầu phát sinh lưu lượng (chuyển vùng chú ý cước phí). Thành công rồi <strong>nhất định phải bấm
+            Query IP</strong> (<code>AT+QIACT?</code>) xác nhận trả về <code>+QIACT: 1,1,1,"địa chỉ IP"</code>
+            —— chưa kích hoạt thì chỉ trả OK. Thu dây thì bấm <strong>Deact PDP</strong> (<code>AT+QIDEACT=1</code>,
+            tối đa 40 giây), sẽ đóng cưỡng bức mọi kết nối bên dưới nó. <strong>Set APN</strong>
+            (<code>AT+QICSGP</code>) bình thường không cần bấm —— module tự đồng bộ APN mạng cấp
+            (đo thực tế thẻ 1NCE khởi động đọc lại đã là <code>iot.1nce.net</code>), APN doanh nghiệp cần tài khoản mật khẩu mới cần.</p>
+            <div class="warning">
+                <strong>Act PDP trả ERROR, Last Error 572? Thẻ này chỉ cho phép một đường PDP.</strong>
+                Lúc khởi động mạng đã tự kích hoạt một cái và <strong>số hiệu trôi nổi</strong> (đo thực tế từng thấy 9 và 1),
+                <code>AT+QIACT</code> chỉ chạm được 1–8. Cách giải: trang Network <code>AT+CGACT?</code>
+                tra số hiệu → <code>AT+CGACT=0,&lt;số hiệu&gt;</code> nhường chỗ → bấm lại Act PDP.
+                <br><br>
+                <strong>Đo nửa chừng sập hết? <code>AT+QIACT?</code> biết lừa người</strong> —— khi PDP trôi,
+                nó vẫn trả IP như thường, phải đối chiếu chéo với <code>AT+CGACT?</code> mới nhìn ra. Khôi phục:
+                Deact PDP → <code>AT+CGACT=0,&lt;số hiệu bị trôi&gt;</code> → Act PDP → Ping kiểm chứng.
+            </div>
+
+            <h4>Mở kết nối: OK chỉ có nghĩa là "lệnh đã được nhận"</h4>
+            <p>Bấm <strong>Open TCP</strong>, thẻ tham số điền máy chủ và cổng
+            (<code>AT+QIOPEN=1,0,"TCP","máy chủ",cổng,0,0</code>; context 1, connectID 0,
+            chế độ buffer đã cố định). <strong>OK chỉ có nghĩa là lệnh đã được nhận</strong>, thành bại nhìn URC
+            <code>+QIOPEN: 0,&lt;err&gt;</code>: 0 = thành công, tối đa 150 giây;
+            <strong>563 = connectID còn đang mở</strong>, bấm Close Sock trước.
+            <strong>All Socks</strong> (<code>AT+QISTATE</code>) liệt kê mọi socket,
+            state 2 = đã nối được.</p>
+
+            <h4>Gửi dữ liệu: ba cách</h4>
+            <table>
+                <tr><th>Nút</th><th>Giải thích</th></tr>
+                <tr><td><strong>Send Text</strong><br><code>AT+QISEND=0,&lt;len&gt;</code></td>
+                    <td>Hai giai đoạn độ dài cố định: chờ <code>&gt;</code> rồi gửi nội dung, độ dài tự tính,
+                        <strong>miễn Ctrl+Z</strong>. Lựa chọn số một cho văn bản thuần; trần 1460 bytes,
+                        hỗ trợ ký tự thoát <code>\n \r \t \xHH</code></td></tr>
+                <tr><td><strong>Bộ ba nút Send Var</strong><br><code>AT+QISEND=0</code></td>
+                    <td>Kiểu độ dài biến thiên: vào data mode thu liên tục, gặp Ctrl+Z (0x1A) mới gửi đi ——
+                        có thể ghi thành nhiều đợt, xem đoạn dưới</td></tr>
+                <tr><td><strong>Send Hex</strong><br><code>AT+QISENDEX=0,"hex"</code></td>
+                    <td>Kiểu một dòng, không vào data mode. Gửi được byte bất kỳ (kể cả 0x00);
+                        trần hex 512 ký tự = thực tế 256 bytes</td></tr>
+            </table>
+            <p><strong>Gửi (ghi tiếp)</strong>: lần bấm đầu vào data mode, các lần sau mỗi lần bấm nối thêm một đoạn
+            (đang ở data mode thì không gửi lại lệnh, gửi lại sẽ biến thành dữ liệu); <strong>gửi xong tự kết thúc</strong>:
+            nối thêm rồi bù Ctrl+Z, chỉ gửi một đoạn thì cách này nhanh nhất; <strong>kết thúc (Ctrl+Z)</strong>: đẩy toàn bộ nội dung đã gom
+            đi một lượt. Khi vào data mode terminal sẽ đánh dấu; muốn bỏ thì bấm
+            <strong>ESC Cancel</strong> (0x1B, phím thoát thân khi lệnh hai giai đoạn bị kẹt).
+            ⚠ Dữ liệu không được chứa 0x1A (sẽ bị coi là kết thúc sớm), ký tự điều khiển hãy chuyển sang Send Hex.</p>
+            <div class="tip">
+                <strong>SEND OK không có nghĩa là bên kia đã nhận</strong>, chỉ nói lên dữ liệu đã giao cho module. Bấm
+                <strong>Check ACK</strong> (<code>AT+QISEND=0,0</code>) tra đã gửi / đã ACK,
+                <strong>nhìn acked mới tính</strong>.
+            </div>
+
+            <h4>Nhận dữ liệu: không tự hiện ra, phải bấm Read Data</h4>
+            <p>Ở chế độ buffer, dữ liệu nhận được <strong>không</strong> tự hiện trên terminal: module chỉ phát
+            thông báo <code>+QIURC: "recv",0</code>, phải bấm <strong>Read Data</strong>
+            (<code>AT+QIRD=0,1500</code>) lấy ra, và <strong>đọc lặp lại cho tới khi trả <code>+QIRD: 0</code>
+            mới thôi</strong> —— chưa đọc cạn thì sẽ không có thông báo lần sau.
+            <strong>Unread Len</strong> (<code>AT+QIRD=0,0</code>) tra tổng nhận / đã đọc / chưa đọc.
+            Thu phát xong bấm <strong>Close Sock</strong> (<code>AT+QICLOSE=0</code>, tối đa 10 giây).
+            ⚠ <strong>Hoàn toàn không nhận được thông báo recv?</strong> Trang Hardware tra
+            <code>AT+QURCCFG="urcport"</code> xem có phải <code>uart1</code> không ——
+            giá trị xuất xưởng là cổng USB, URC chạy hết sang bên đó.</p>
+
+            <h4>Hai cái tính khí của đối tác cài sẵn tcpbin.com</h4>
+            <p>Open TCP mặc định nối tới máy chủ echo miễn phí <code>tcpbin.com:4242</code>,
+            hai tính khí đo thực tế:</p>
+            <ul>
+                <li><strong>Echo theo từng dòng, cuối phải có xuống dòng (0A)</strong>: gửi Hello không kèm 0A chờ 6 giây
+                    không phản hồi, bù 0A vào thì 0.1 giây nhận được ngay. Send Text thêm <code>\n</code> vào cuối,
+                    Send Hex thêm <code>0A</code> vào đuôi.</li>
+                <li><strong>Hết giờ sau 15 giây rảnh rỗi</strong>: rảnh là bị cắt kết nối và nhận
+                    <code>+QIURC: "closed",0</code>. Chuyện này không liên quan QIRD (nó chỉ đọc bộ đệm cục bộ,
+                    không chạm mạng). Muốn giữ kết nối thì trong vòng mỗi 10 giây gửi dữ liệu một lần. Nhận closed xong socket đứng ở closing,
+                    <strong>bắt buộc bấm Close Sock trước</strong> mới dùng lại được, không thì QIOPEN trả 563.</li>
+            </ul>
+
+            <h4>Bộ ba chẩn đoán: Ping / DNS Lookup / NTP Sync</h4>
+            <table>
+                <tr><th>Nút (đều phải Act PDP trước)</th><th>Hành vi và đo thực tế</th></tr>
+                <tr><td><strong>Ping</strong><br><code>AT+QPING</code></td>
+                    <td>timeout 4 giây x4 đã cố định. Đo thực tế 8.8.8.8 thông hết, RTT 160–270 ms.
+                        ⚠ Rất nhiều máy chủ chặn ICMP, <strong>ping không thông không có nghĩa là TCP không nối được</strong>,
+                        muốn thử độ thông thì Open TCP thẳng</td></tr>
+                <tr><td><strong>DNS Lookup</strong><br><code>AT+QIDNSGIP</code></td>
+                    <td>Kết quả báo về bằng URC <code>+QIURC: "dnsgip"</code> (tối đa 60 giây),
+                        đo thực tế chia hai đợt, chứa nhiều IP</td></tr>
+                <tr><td><strong>NTP Sync</strong><br><code>AT+QNTP</code></td>
+                    <td>Tối đa 125 giây, cổng 123 đã cố định, kết quả nhìn URC <code>+QNTP</code>.
+                        ⚠ <strong>Thời gian là UTC nhưng lại mang nhãn múi giờ địa phương</strong> (+32 khắc = GMT+8, đo thực tế lệch đúng
+                        8 tiếng); xem giờ địa phương dùng <code>AT+CCLK?</code></td></tr>
+            </table>
+
+            <h4>Gặp lỗi: bấm Last Error trước, rồi làm phép phân định 30 giây</h4>
+            <p>Lệnh trả ERROR thì <strong>lập tức</strong> bấm <strong>Last Error</strong>
+            (<code>AT+QIGETERROR</code>) —— chỉ giữ lại đúng một lỗi cuối, bị lỗi kế tiếp đè lên là tra không ra nữa.
+            Nó tra tầng stack Quectel; tầng mạng dùng <code>AT+CEER</code> của trang Network.</p>
+            <div class="warning">
+                <strong>🔴 Stack dữ liệu thoái hóa —— cái hố tốn thời gian nhất.</strong> Triệu chứng: mọi kết nối đều
+                thất bại, nhưng tự kiểm tra toàn nói ổn (QIACT? có IP, QIGETERROR trả 0). Đo thực tế mở đóng SSL liên tục
+                khoảng 20 lần thì kích hoạt, đến QIOPEN của TCP thuần cũng trả 552; QIDEACT + QIACT không cứu nổi,
+                <strong>chỉ có chạy lại nghi thức khởi động mới phục hồi</strong>.<br><br>
+                <strong>Phép phân định 30 giây</strong>: dùng Open TCP đánh vào cùng một đích —— cũng thất bại = cả stack
+                hỏng rồi, chạy lại nghi thức khởi động; thành công = vấn đề nằm ở giao thức tầng trên, tra tiếp.
+            </div>
+
+            <h4>Keepalive: đỡ được NAT nhà mạng, không đỡ được tcpbin</h4>
+            <p><strong>QICFG=?</strong> liệt kê mục con và phạm vi, <strong>Keepalive?</strong> tra giá trị hiện tại,
+            <strong>Keepalive On／Off</strong> bật tắt —— bốn lệnh này <strong>bản thân</strong> không tốn lưu lượng;
+            bật xong chỉ cần còn socket nằm rảnh, gói thăm dò sẽ tính vào lưu lượng di động.
+            <strong>Nó không đỡ nổi hết giờ 15 giây của tcpbin</strong>: đo thực tế bật rồi vẫn bị đóng ở giây 15.1 ——
+            keepalive là thăm dò rỗng ở tầng TCP, ứng dụng không nhìn thấy; hơn nữa interval nhỏ nhất 25 giây,
+            vốn dĩ đã lớn hơn 15. Muốn chống hết giờ tầng ứng dụng chỉ còn cách gửi dữ liệu thật (như mỗi 10 giây Send Hex gửi
+            <code>0A</code>). Công dụng thật của nó là <strong>giữ sống NAT nhà mạng</strong>
+            (NAT của thẻ IoT rảnh vài phút là bị thu hồi).</p>
+            <p>Sổ lưu lượng (<strong>suy tính, không phải đo thực tế</strong>): một lượt thăm dò khứ hồi khoảng 80 bytes;
+            mặc định idle = 30 giây rảnh liên tục → mỗi giờ khoảng 9.4 KB, một ngày khoảng 225 KB,
+            <strong>một tháng khoảng 6.8 MB</strong>; idle = 600 giây → một ngày khoảng 11 KB.
+            Thẻ trả trước theo tổng dung lượng kiểu 1NCE phải vặn idle lên to. Không có socket nào mở thì hoàn toàn không tốn lưu lượng.</p>
+
+            <h4>Khắc phục sự cố</h4>
+            <table>
+                <tr><th>Triệu chứng</th><th>Nguyên nhân và cách xử lý</th></tr>
+                <tr><td><code>+QIOPEN: 0,563</code></td>
+                    <td>connectID còn đang mở —— Close Sock trước</td></tr>
+                <tr><td>Không nhận được <code>+QIURC: "recv"</code></td>
+                    <td>① urcport không phải uart1 (trang Hardware)
+                        ② chưa đọc tới <code>+QIRD: 0</code>, thông báo bị kìm lại</td></tr>
+                <tr><td>Bỗng hiện <code>+QIURC: "closed",0</code></td>
+                    <td>tcpbin hết giờ 15 giây rảnh rỗi; Close Sock xong mở lại được</td></tr>
+                <tr><td>Hai giai đoạn bị kẹt, cổng AT không phản hồi</td>
+                    <td>Bấm ESC Cancel thoát thân; vẫn không được thì Reset ở trang Hardware</td></tr>
+                <tr><td>Kết nối thất bại toàn bộ nhưng tự kiểm tra toàn xanh</td>
+                    <td>Stack dữ liệu thoái hóa —— phân định xong chạy lại nghi thức khởi động</td></tr>
+                <tr><td>Act PDP trả ERROR, hoặc đo nửa chừng sập hết</td>
+                    <td>Suất PDP duy nhất bị chiếm / PDP trôi —— xem hai khung gỡ lỗi ở "Bước một"</td></tr>
+            </table>
