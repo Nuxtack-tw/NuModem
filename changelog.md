@@ -9,6 +9,15 @@
 > 發佈於 <https://github.com/Nuxtack-tw/NuModem>，
 > 線上執行 <https://nuxtack-tw.github.io/NuModem/>。
 
+### README 改用母專案風格
+
+比照 `NuMonitor4SerialPort`：置中標頭＋徽章列、emoji 章節、`---` 分隔、
+置中截圖配 `<sub>` 圖說、語言與瀏覽器支援表格、專案結構樹、版本歷史摘要、置中頁尾。
+保留 NuModem 特有的段落（開機儀式步驟表、USB 接頭腳位挪用表、十頁簽涵蓋範圍、雙授權表）。
+
+新增 `hardware/NuCom-EG800u-V0.2a-schematic.png` —— 電路圖 PDF 第 1 頁 2x 渲染
+（1684×1190、545 KB），點圖開 PDF 原檔。
+
 ### 說明書 18 語全數完成
 
 V26.0.84 重寫的 9 個頁簽段落，翻譯一度中斷在 9 種語言、25 段。本輪補完：
